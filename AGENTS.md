@@ -1,12 +1,12 @@
-Help me design and start building a personal application for managing repositories, checkouts, machines, and terminal and agent sessions.
+Help me design and start building a personal application for managing repositories, checkouts, machines, terminals and agents.
 
-Use the terms defined in [docs/glossary.md](docs/glossary.md) consistently in code, UI and docs.
+Use the terms defined in [docs/glossary.md](docs/glossary.md) consistently in code, GUI and docs; in docs, defined terms are capitalised.
 
 **Context and problem**
 
 I use Ubuntu and VS Code on my laptop. I also have an always-on remote machine, accessed over SSH, where I want agents and other tasks to run unattended, including overnight. Furthermore, I have access to several computer clusters, via VPN and SSH, on which I want to run work via SLURM.
 
-Starting work currently involves manually opening an editor, terminals in the checkout, and a file manager. I also need to find existing agent sessions and running terminal sessions again, and later on also scheduler jobs. A repository may have independent clones on several machines (laptop, remote machine, clusters), plus several git worktrees for parallel tasks.
+Starting work currently involves manually opening an editor, terminals in the checkout, and a file manager. I also need to find existing agents and running terminals again, and later on also scheduler jobs. A repository may have independent clones on several machines (laptop, remote machine, clusters), plus several git worktrees for parallel tasks.
 
 I want one extensible GUI that helps me launch, resume, and oversee this work.
 
@@ -16,38 +16,31 @@ Eventually, the application should provide:
 
 - Views by repository and by machine.
 - A launcher for editor, terminals, and file manager at the correct checkout.
-- An overview of running and detached terminal and agent sessions, with reconnect actions.
+- An overview of running and detached terminals and agents, with reconnect actions.
 - Agent attention indicators: working, waiting for input, ended, failed, or unknown.
 - A persistent “since you last checked” inbox and morning summary.
 - Branch and working-tree status for each checkout.
 - Embedded terminal tabs, followed by file browsing, previews, and possibly editing.
-- An Android-accessible interface for checking progress and interacting with remote terminal and agent sessions.
+- An Android-accessible interface for checking progress and interacting with remote terminals and agents.
 
 Build this incrementally. The first version should be useful without becoming a complete IDE.
 
-**Proposed architecture—not yet a final decision**
+**Architecture**
 
-The current preference is:
+Decided in [docs/decisions/](docs/decisions/):
 
-- A shared React/TypeScript web interface.
-- An Electron desktop wrapper for Ubuntu.
-- An independent service on each managed machine.
-- One always-on machine's service hosting the browser interface and aggregating state and events from all machines.
-- Android access initially through a responsive browser interface, relaying commands through that aggregating service.
-- tmux providing terminal-session persistence initially, but it might be replaced by another backend.
-- xterm.js displaying embedded terminals when we reach that milestone, and Monaco as an in-app code editor.
+- [001 Data ownership and sync](docs/decisions/001-data-ownership.md): every Machine keeps a full copy of all data and syncs with its Peers; each Machine alone writes its own State and Events. An always-on Machine is special only in being reachable (overnight collection, phone access).
+- [002 Technology stack and components](docs/decisions/002-technology-stack.md): Python Core library with CLI and a per-Machine Daemon (Watcher, Sync, Server); TypeScript/React GUI with dockview panels, xterm.js and Monaco; Electron desktop shell; SQLite; tmux keeping Terminals alive; plugins for Agents, Terminals and Launchers.
 
-Evaluate this setup before committing. Tauri is an alternative if it offers a meaningful benefit. Backend language, storage, transport, and packaging remain open decisions.
+Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each Machine should remain usable when other Machines are unreachable. Disconnected Machines should show timestamped last-known information.
 
-Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each machine should remain usable when the aggregating service is unreachable. Disconnected machines should show timestamped last-known information.
-
-Desktop actions must execute on the intended machine and, where necessary, in its graphical user session. A web interface can request these through an authenticated machine service; it cannot directly launch arbitrary desktop applications by itself.
+Desktop actions must execute on the intended Machine and, where necessary, in its graphical user session. A web interface can request these through the authenticated Server on that Machine; it cannot directly launch arbitrary desktop applications by itself.
 
 **Domain model**
 
-Defined in [docs/glossary.md](docs/glossary.md). In short: a **repository** (registered, git required) has **checkouts** (clones or worktrees) on **filesystems** seen by **machines**; machines run our **service**, **terminal sessions** and **agent sessions**; **events** record what happened.
+Defined in [docs/glossary.md](docs/glossary.md). In short: a **Repository** (registered, git required) has **Checkouts** (clones or worktrees) on **Filesystems** seen by **Machines**; Machines run our **Daemon**, **Terminals** and **Agents**; **Events** record what happened.
 
-A terminal session and an agent session are different things. Do not assume agent sessions from editor extensions and from the CLI are interchangeable or automatically discoverable. If possible, an overview should list _all_ agent sessions of all providers (e.g. Claude Code, Codex), on any machine, from the CLI or an editor.
+A Terminal and an Agent are different things. Do not assume Agents from editor extensions and from the CLI are interchangeable or automatically discoverable. If possible, an overview should list _all_ Agents of all Providers (e.g. Claude Code, Codex), on any Machine, from the CLI or an editor.
 
 **Reference project**
 
@@ -64,10 +57,10 @@ Aim for a small working vertical slice:
 
 1. Register a repository and its local checkout.
 2. Show the checkout in a repository overview.
-3. Open it in the editor, an external terminal, and the file manager.
-4. Create or reconnect to a named terminal session.
-5. Reopen the application and recover the registered repositories and terminal sessions.
-6. Establish how the same service interface will support other machines later.
+3. Open it in the editor, an external terminal emulator, and the file manager.
+4. Create or reconnect to a named terminal.
+5. Reopen the application and recover the registered repositories and terminals.
+6. Establish how the same core will support other machines later (sync, SSH + CLI).
 
 Then add remote-machine support, agent events and attention, embedded terminals, and phone access in successive milestones.
 

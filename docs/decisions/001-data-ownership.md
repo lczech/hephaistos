@@ -1,40 +1,54 @@
-# 001: Data ownership
+# 001: Data ownership and sync
 
-Status: accepted (2026-10-02)
+Status: accepted (2026-10-02), revised 2026-10-04: fully distributed instead of a central aggregating service.
 
 ## Context
 
-Data comes from several machines that may be offline or asleep. Each machine must stay usable on its own, while a phone and morning summaries need one always-reachable place that saw everything.
+Data comes from several Machines that may be offline or asleep. Each Machine must stay usable on its own, and no Machine should be required for another to work. A phone and morning summaries need an always-reachable Machine that saw everything.
 
 ## Decision
 
-Data is split by who is authoritative for it:
+Every Machine keeps a full local copy of all data in its own database. The GUI only ever reads the local database. Data is split by who writes it:
 
-| Data | Authoritative copy | Other copies |
+| Data | Written by | Sync rule |
 |---|---|---|
-| State: checkouts' git status, terminal sessions, agent sessions | that machine's service, read live from git, the terminal-session backend and transcripts | aggregating service: last-known, timestamped |
-| Events: agent session started / waiting for input / ended / failed, terminal session created / closed, checkout added, branch switched | the machine where they occurred, append-only | aggregating service: collected copies |
-| Registry: repositories, checkout assignments, clusters, inbox read position, settings | aggregating service | every service caches it |
+| State: Checkouts' git status, Terminals, Agents | only its own Machine | newest snapshot wins |
+| Events: Agent started / waiting for input / ended / failed, Terminal created / closed, Checkout added, Branch switched | only the Machine where they occurred; immutable | union |
+| Registry: Repositories, Checkout assignments, Clusters, Links, inbox read position, settings | any Machine | last write wins, per record |
 
-- One always-on service also aggregates: it owns the registry, collects state and events from the others, and serves the web UI. The phone talks only to it; actions are forwarded to the target machine's service.
-- If the aggregating service is unreachable, a machine shows its own live data plus cached data for everything else, labelled with when it was last seen. Registry changes made offline are queued and sent later.
+- Peers exchange everything they hold, so data spreads through whichever Machines are connected (e.g. laptop ↔ always-on Machine ↔ Cluster). Which Machines sync with each other is declared as [Links](../glossary.md) in the Registry.
+- Each Machine's Sync exchanges with its Peers in both directions: on a timer (pull), and shortly after local changes (push). High-priority Events (e.g. Agent waiting for input) are pushed and forwarded right away; others wait for the next exchange. Machines that can't be reached from outside (laptops) open the connection themselves and keep it open while online, so they also receive pushes. Typical Peer layout, a star:
+  ```
+  laptops ── always-on Machine ── cluster login node
+  ```
+- The always-on Machine is not special in code; it is just always reachable, so it sees everything overnight and serves the phone.
+- Data from other Machines is shown with when it was last seen. Live actions on a remote Machine (attaching a Terminal, launching) go directly to that Machine over SSH.
 
-## Merging
+## Event sources
 
-- Events are immutable, with a unique ID and an origin machine, so merging event logs means taking their union.
-- Registry edits come from one user and are mostly additions, so last write wins.
-- State is never merged: the newer reading replaces the older one.
+Not exhaustive; for example:
+- **State changes**, found by comparing successive State snapshots: Branch switched, Terminal closed. These catch changes made outside our app.
+- **Our own actions**: Checkout added, editor opened (although that might be too much to track every time - probably not needed).
+- **Pushed by Provider hooks**: Agent waiting for input, turn finished. These are moments a poll would miss.
+
+Changes can be captured by polling as the baseline, and pushed where that is cheap and non-intrusive (e.g. hooks of our own tmux socket, file watches on local disks).
 
 ## Consequences
 
 Needed from the start:
-- globally unique IDs for every entity and event;
-- events persisted durably and append-only, with origin and timestamp;
-- registry stored separately from state and events, even while one machine plays both roles.
+- globally unique IDs for every entity and Event;
+- Events persisted durably and append-only, each with its origin Machine, a per-origin sequence number and a timestamp. Peers exchange "I have up to N from Machine X" and send only what is missing;
+- Registry records carry their last-modified time and Machine. Deletions are kept as markers, so a Peer cannot resurrect a deleted record. Each change also records an Event with the new values, which gives every record its history (reverting is a new edit);
+- Registry, State and Events in separate tables;
+- version numbers for the database schema and for the sync exchange, so Peers running different versions notice and handle it.
 
-Deferred: which machine aggregates, push vs pull, cache refresh.
+Deferred: sync transport details.
+
+Trust (later): Registry changes that make a Machine execute something (Links, Automations) could otherwise travel through Sync against the direction of SSH access. They should be signed with per-Machine keys and accepted only from trusted Machines.
+
+Size: only metadata is copied, never transcripts or Repositories. If needed later: prune or compact old Events, and partial copies per Peer connection (e.g. a cluster node sends its own data but receives only the Registry).
 
 ## Rejected
 
-- **Everything central, with thin services:** machines would be unusable when the aggregating service is unreachable.
-- **Full replica on every machine:** this would need sync and conflict resolution, which is overkill for a single user.
+- **A central aggregating service that owns the Registry:** a single point that others depend on, and the special role adds code paths for no real gain.
+- **Everything central, with thin per-Machine processes:** Machines would be unusable when the central one is unreachable.
