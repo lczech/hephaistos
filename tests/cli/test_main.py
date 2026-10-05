@@ -1,10 +1,51 @@
+import json
+
+import pytest
 from typer.testing import CliRunner
 
 from hephaistos import __version__
-from hephaistos.cli.main import app
+from hephaistos.cli.main import app, run
+from hephaistos.core.paths import Paths
+
+runner = CliRunner()
 
 
 def test_version() -> None:
-    result = CliRunner().invoke(app, ["--version"])
+    result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert result.output.strip() == f"hephaistos {__version__}"
+
+
+@pytest.mark.usefixtures("paths")
+def test_setup_then_machine_show() -> None:
+    result = runner.invoke(app, ["setup", "--name", "laptop"])
+    assert result.exit_code == 0, result.output
+    assert "Set up Machine laptop" in result.output
+
+    result = runner.invoke(app, ["machine", "show"])
+    assert result.exit_code == 0, result.output
+    lines = result.output.splitlines()
+    assert lines[0].split() == ["name", "laptop"]
+    assert any(line.split() == ["mount", "/", "laptop-local"] for line in lines)
+
+
+def test_machine_show_json(paths: Paths) -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    result = runner.invoke(app, ["machine", "show", "--json"])
+    data = json.loads(result.output)
+    assert data["name"] == "laptop"
+    assert data["database"] == str(paths.database)
+    assert data["mounts"] == [{"path": "/", "filesystem": "laptop-local"}]
+
+
+@pytest.mark.usefixtures("paths")
+def test_errors_are_messages_not_tracebacks(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("sys.argv", ["hephaistos", "machine", "show"])
+    with pytest.raises(SystemExit) as exit_info:
+        run()
+    assert exit_info.value.code == 1
+    assert capsys.readouterr().err == (
+        "error: hephaistos is not set up on this Machine; run `hephaistos setup`\n"
+    )

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Type checks and tests before each push, in parallel; output is shown only on failure.
+# Skip in an emergency with `git push --no-verify`.
+log=$(mktemp -d)
+trap 'rm -rf "$log"' EXIT
+uv run --frozen pyright > "$log/pyright" 2>&1 & pyright=$!
+uv run --frozen pytest --quiet -p no:cacheprovider > "$log/pytest" 2>&1 & pytest=$!
+failed=0
+wait $pyright || { cat "$log/pyright"; failed=1; }
+wait $pytest || { cat "$log/pytest"; failed=1; }
+exit $failed
