@@ -1,6 +1,13 @@
 import pytest
 
-from hephaistos.core.utils.ids import MAX_DRIFT_MS, Clock, ClockDriftError, Timestamp, new_id
+from hephaistos.core.utils.ids import (
+    MAX_DRIFT_MS,
+    Clock,
+    ClockDriftError,
+    Timestamp,
+    new_id,
+    short_id,
+)
 
 
 class FakeWall:
@@ -104,3 +111,8 @@ def test_receive_rejects_value_far_in_the_future() -> None:
     with pytest.raises(ClockDriftError):
         clock.receive(Timestamp.of(1000 + MAX_DRIFT_MS + 1))
     assert clock.last == 0
+
+
+def test_short_id_is_the_end() -> None:
+    value = new_id()
+    assert short_id(value) == value.hex[-8:]

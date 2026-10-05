@@ -5,6 +5,7 @@ import pytest
 from hephaistos.core.utils.git import (
     GitError,
     locate,
+    main_remote,
     normalise_remote,
     repository_name,
     snapshot,
@@ -131,3 +132,9 @@ def test_normalise_remote(url: str, expected: str) -> None:
 def test_repository_name() -> None:
     assert repository_name("git@github.com:a/hephaistos.git") == "hephaistos"
     assert repository_name("/srv/git/tools/") == "tools"
+
+
+def test_main_remote() -> None:
+    assert main_remote({"fork": "a", "origin": "b"}) == "b"
+    assert main_remote({"upstream": "a", "fork": "b"}) == "b"
+    assert main_remote({}) is None

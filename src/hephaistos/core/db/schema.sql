@@ -101,6 +101,7 @@ CREATE TABLE events (
     priority    INTEGER NOT NULL,
     payload     TEXT NOT NULL CHECK (json_valid(payload))
 ) STRICT;
-CREATE INDEX events_recorded ON events (recorded_by, recorded_at);
+CREATE INDEX events_recorded_by ON events (recorded_by, recorded_at);
+CREATE INDEX events_recorded_at ON events (recorded_at);
 CREATE INDEX events_subject ON events (subject, recorded_at);
 CREATE INDEX events_kind ON events (kind, recorded_at);

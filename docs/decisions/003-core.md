@@ -17,7 +17,7 @@ src/hephaistos/
     db/           connection, read and write sessions, schema
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        clones.py, worktrees.py
-    events/       storage and reading, kinds.py
+    events/       events.py (storage and reading), kinds.py, subjects.py
     observers/    clones.py
     utils/
       errors.py   errors with messages for the user
@@ -37,10 +37,11 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 - `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); `setup` fails on a Machine that is already set up.
 - Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Later setup steps (hooks, autostart, remote setup) also exist as their own commands.
-- Files follow XDG, always in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
-  - config: `~/.config/hephaistos/config.toml`, optional; built-in defaults apply.
+- Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
+  - config: `~/.config/hephaistos/config.toml`, optional; built-in defaults apply. One file for all Machines sharing a home directory: settings at the top apply to all of them, a section `[machines.<hostname>]` (full, or its first part) overrides them on one.
   - data: `~/.local/share/hephaistos/<machine>/`
   - logs: `~/.local/state/hephaistos/<machine>/`, rotating files.
+- The config file holds how this Machine runs (e.g. Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry, once it holds settings; until then `time_format` stays in the file.
 - `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
 - SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
 - A Machine set up twice (e.g. after deleting its data) gets a new ID; the same `os_machine_id` suggests merging them.
@@ -49,8 +50,8 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 - **IDs:** UUIDv7, stored as 16 bytes.
 - **Time:** a hybrid logical clock, stored as one INTEGER (milliseconds << 16 | counter). The clock lives in the database and advances inside each write transaction, so values from one Machine increase in commit order, across CLI and Daemon. Data received from Peers advances it past the largest value seen.
-- **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it.
-- **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added`, `.changed` or `.deleted` with the new values.
+- **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it. JSON output uses the same names; text output drops the suffix (`recorded`).
+- **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added` or `.deleted` with the record's values, or `.changed` with the changed fields' old and new values.
 - **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw views.
 - **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
 - **Schema version:** `PRAGMA user_version`. Until the data is relied on, schema changes edit the initial schema, and an outdated database is reported with a clear message (delete it and run `setup` again; one-off scripts where data is worth keeping). Migrations start from a declared schema 1.
@@ -79,7 +80,8 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 ## Events
 
 - Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_switched`); the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
-- One payload dataclass per kind; other related IDs go into the payload.
+- The subject is always an ID. `events/subjects.py` maps each subject type to its module, which labels its subjects (e.g. a Repository by its current name; deleted records keep theirs). Subjects of unknown types show their short ID.
+- Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
 - Later, with Agents: how an Event was captured, and whether it is reported or inferred.
 
@@ -96,19 +98,21 @@ One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rena
 
 ```
 hephaistos setup
-hephaistos machine show
+hephaistos machine list | show
 hephaistos repo list | show <name> | add <name> | rename <name> <new name>
 hephaistos clone add [path] [--repo <name>]
 hephaistos clone list [--repo <name>] | show | remove
 hephaistos worktree list [--repo <name>] | show
-hephaistos event list
+hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>] | show <id>
 hephaistos observe [clones [--clone <path>]]
 hephaistos db tables | db dump <table>
 ```
 
 - `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and shows the commands to add the Repository first. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
 - Asking happens between a read and a write session, so no write transaction waits for input.
-- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time relative|short|full` and `time_format` in the config override this.
+- `event list` shows the newest 20 (`--limit`). `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
+- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
+- Common options have one-letter short forms (`-r`, `-k`, `-n`).
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.
 

@@ -14,6 +14,7 @@ hephaistos machine show
 hephaistos repo add hephaistos
 hephaistos clone add ~/Repos/hephaistos -r hephaistos
 hephaistos clone list
+hephaistos event list
 ```
 
 ## Development

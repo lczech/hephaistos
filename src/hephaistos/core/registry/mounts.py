@@ -1,10 +1,13 @@
 import sqlite3
 import uuid
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
 from hephaistos.core.db.sessions import ReadSession
+from hephaistos.core.db.tables import Table
+from hephaistos.core.registry import records
 from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.records import Record
 
@@ -55,3 +58,9 @@ def containing(session: ReadSession, machine_id: uuid.UUID, path: Path) -> tuple
     if not candidates:
         raise LookupError(f"no mount contains {path}")
     return max(candidates, key=lambda candidate: len(candidate[0].path.parts))
+
+
+def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
+    """How to show these Mounts in place of their IDs: by path."""
+    found = records.labels(session, Table.REGISTRY_MOUNTS, "path", ids)
+    return {key: Path(value) for key, value in found.items()}

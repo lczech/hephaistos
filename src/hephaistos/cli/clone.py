@@ -7,17 +7,19 @@ import typer
 
 from hephaistos.cli.output import (
     JsonOption,
-    full_time,
+    TimeFormatOption,
     print_fields,
     print_json,
     print_table,
     short_path,
+    time_formatter,
 )
+from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session, write_session
-from hephaistos.core.registry import clones, repositories
+from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.registry.clones import Candidate, CloneDetails
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.ids import id_datetime
+from hephaistos.core.utils.ids import id_datetime, short_id
 from hephaistos.core.utils.paths import Paths
 
 app = typer.Typer(no_args_is_help=True, help="Clones: git clones of Repositories.")
@@ -29,7 +31,7 @@ PathArgument = Annotated[
 RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the Repository.")]
 
 
-def _branch(details: CloneDetails) -> str:
+def branch_text(details: CloneDetails) -> str:
     """The branch as shown in lists: its name, or `(detached)`."""
     return details.state.branch or "(detached)"
 
@@ -43,8 +45,9 @@ def clone_json(details: CloneDetails) -> dict[str, object]:
         "filesystem": details.filesystem.name,
         "path": str(clone.display_path),
         "resolved_path": str(clone.resolved_path),
-        "created": id_datetime(clone.id).isoformat(),
-        "observed": state.observed_at.datetime.isoformat(),
+        "created_at": id_datetime(clone.id).isoformat(),
+        "observed_at": state.observed_at.datetime.isoformat(),
+        "observed_by": str(state.observed_by),
         "present": state.present,
         "bare": state.bare,
         "head": state.head,
@@ -100,7 +103,9 @@ def add(path: PathArgument = HERE, *, repo: RepoOption = None) -> None:
 
 
 @app.command("list")
-def list_(*, repo: RepoOption = None, as_json: JsonOption = False) -> None:
+def list_(
+    *, repo: RepoOption = None, time_format: TimeFormatOption = None, as_json: JsonOption = False
+) -> None:
     """List the Clones."""
     with read_session(Paths.from_environment()) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
@@ -108,42 +113,55 @@ def list_(*, repo: RepoOption = None, as_json: JsonOption = False) -> None:
     if as_json:
         print_json([clone_json(details) for details in found])
         return
+    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["repository", "branch", "path"],
+        ["repository", "branch", "observed", "filesystem", "path"],
         [
-            [details.repository.name, _branch(details), short_path(details.clone.display_path)]
+            [
+                details.repository.name,
+                branch_text(details),
+                formatted(details.state.observed_at.datetime),
+                details.filesystem.name,
+                short_path(details.clone.display_path),
+            ]
             for details in found
         ],
     )
 
 
 @app.command()
-def show(path: PathArgument = HERE, *, as_json: JsonOption = False) -> None:
+def show(
+    path: PathArgument = HERE,
+    *,
+    time_format: TimeFormatOption = None,
+    as_json: JsonOption = False,
+) -> None:
     """Show the Clone that a path lies in."""
     with read_session(Paths.from_environment()) as session:
         details = clones.find(session, path)
+        observers = machines.labels(session, [details.state.observed_by])
     if as_json:
         print_json(clone_json(details))
         return
     clone, state = details.clone, details.state
+    formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(
         [
             ("repository", details.repository.name),
             ("id", str(clone.id)),
             ("path", short_path(clone.display_path)),
-            *(
-                [("resolved path", str(clone.resolved_path))]
-                if clone.resolved_path != clone.display_path
-                else []
-            ),
+            ("resolved path", str(clone.resolved_path)),
             ("filesystem", details.filesystem.name),
-            ("created", full_time(id_datetime(clone.id))),
-            ("observed", full_time(state.observed_at.datetime)),
-            *([("bare", "yes")] if state.bare else []),
+            ("created", formatted(id_datetime(clone.id))),
+            ("observed", formatted(state.observed_at.datetime)),
+            ("observed by", observers.get(state.observed_by) or short_id(state.observed_by)),
+            ("present", "yes" if state.present else "no"),
+            ("bare", "yes" if state.bare else "no"),
             ("head", state.head or "(no commits)"),
-            ("branch", _branch(details)),
+            ("branch", branch_text(details)),
             *(("remote", f"{name}  {url}") for name, url in sorted(state.remotes.items())),
             *(("root commit", commit) for commit in state.root_commits),
+            ("error", state.error or "-"),
         ]
     )
 

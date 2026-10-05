@@ -1,14 +1,22 @@
 """Plain text and JSON output."""
 
 import json
-from collections.abc import Sequence
-from datetime import datetime
+from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from hephaistos.core import config
+from hephaistos.core.config import TimeFormat
+from hephaistos.core.utils.paths import Paths
+
 JsonOption = Annotated[bool, typer.Option("--json", help="Output as JSON.")]
+TimeFormatOption = Annotated[
+    TimeFormat | None,
+    typer.Option("--time-format", help="How to show times; overrides the config's time_format."),
+]
 
 
 def short_path(path: Path) -> str:
@@ -26,11 +34,53 @@ def full_time(value: datetime) -> str:
     return value.astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def print_fields(fields: Sequence[tuple[str, str]]) -> None:
+_MINUTE = 60
+_HOUR = 60 * _MINUTE
+_DAY = 24 * _HOUR
+
+
+def relative_time(value: datetime, now: datetime) -> str:
+    """How long ago, e.g. `now`, `3m`, `2h`, `5d`; times ahead of `now` (clock skew) are `now`."""
+    seconds = (now - value).total_seconds()
+    if seconds < _MINUTE:
+        return "now"
+    if seconds < _HOUR:
+        return f"{int(seconds // _MINUTE)}m"
+    if seconds < _DAY:
+        return f"{int(seconds // _HOUR)}h"
+    return f"{int(seconds // _DAY)}d"
+
+
+def short_time(value: datetime, now: datetime) -> str:
+    """In local time, as `ls` does: `14:03` today, `10-05 14:03` this year, else `2025-10-05`."""
+    local, today = value.astimezone(), now.astimezone()
+    if local.date() == today.date():
+        return f"{local:%H:%M}"
+    if local.year == today.year:
+        return f"{local:%m-%d %H:%M}"
+    return f"{local:%Y-%m-%d}"
+
+
+def time_formatter(
+    option: TimeFormat | None, default: TimeFormat, now: datetime | None = None
+) -> Callable[[datetime], str]:
+    """Formats times as `--time-format` says, else as the config says, else as `default`."""
+    chosen = option or config.load(Paths.from_environment().config_file).time_format or default
+    reference = now or datetime.now(UTC)
+    match chosen:
+        case TimeFormat.RELATIVE:
+            return lambda value: relative_time(value, reference)
+        case TimeFormat.SHORT:
+            return lambda value: short_time(value, reference)
+        case TimeFormat.FULL:
+            return full_time
+
+
+def print_fields(fields: Sequence[tuple[str, str]], indent: str = "") -> None:
     """Prints `label  value` lines, with the values aligned."""
     width = max((len(label) for label, _ in fields), default=0)
     for label, value in fields:
-        typer.echo(f"{label:<{width}}  {value}")
+        typer.echo(f"{indent}{label:<{width}}  {value}")
 
 
 def print_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> None:

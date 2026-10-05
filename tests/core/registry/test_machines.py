@@ -2,8 +2,12 @@ import json
 import socket
 from pathlib import Path
 
+import pytest
+
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
+from hephaistos.core.registry.mounts import mounts_of
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 
 
@@ -13,8 +17,7 @@ def test_setup_registers_machine_filesystem_and_mount(paths: Paths) -> None:
     with read_session(paths) as session:
         assert session.machine_id == machine.id
         assert machines.this(session) == machine
-        info = machines.details(session, paths)
-    [(mount, filesystem)] = info.mounts
+        [(mount, filesystem)] = mounts_of(session, machine.id)
     assert mount.path == Path("/")
     assert mount.machine_id == machine.id
     assert filesystem.name == f"{machine.name}-local"
@@ -46,3 +49,11 @@ def test_setup_records_events_with_values(paths: Paths) -> None:
     }
     assert json.loads(rows[2]["payload"])["path"] == "/"
     assert all(row["modified_at"] > 0 for row in registry_times)
+
+
+def test_by_name(paths: Paths) -> None:
+    machine = machines.set_up(paths, "laptop")
+    with read_session(paths) as session:
+        assert machines.by_name(session, "laptop") == machine
+        with pytest.raises(HephaistosError, match="no Machine named desktop"):
+            machines.by_name(session, "desktop")

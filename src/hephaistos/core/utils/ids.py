@@ -37,6 +37,14 @@ def new_id(ms: int | None = None) -> uuid.UUID:
     return uuid.UUID(int=value)
 
 
+SHORT_ID_LENGTH = 8
+
+
+def short_id(value: uuid.UUID) -> str:
+    """The end of the UUID, which is random in a UUIDv7: enough to tell IDs apart in a list."""
+    return value.hex[-SHORT_ID_LENGTH:]
+
+
 def id_datetime(value: uuid.UUID) -> datetime:
     """When a UUIDv7 was created, in UTC."""
     return datetime.fromtimestamp((value.int >> 80) / 1000, tz=UTC)

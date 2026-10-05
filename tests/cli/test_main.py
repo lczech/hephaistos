@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 from hephaistos import __version__
 from hephaistos.cli.main import app, run
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 
 runner = CliRunner()
@@ -49,3 +50,25 @@ def test_errors_are_messages_not_tracebacks(
     assert capsys.readouterr().err == (
         "error: hephaistos is not set up on this Machine; run `hephaistos setup`\n"
     )
+
+
+@pytest.mark.usefixtures("paths")
+def test_machine_list() -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    lines = runner.invoke(app, ["machine", "list"]).output.splitlines()
+    assert lines[0].split() == ["name", "hostname"]
+    assert lines[1].split()[:2] == ["*", "laptop"]
+    [machine] = json.loads(runner.invoke(app, ["machine", "list", "--json"]).output)
+    assert (machine["name"], machine["this"]) == ("laptop", True)
+
+
+@pytest.mark.usefixtures("paths")
+def test_machine_show_by_name_matches_list() -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    [listed] = json.loads(runner.invoke(app, ["machine", "list", "--json"]).output)
+    shown = json.loads(runner.invoke(app, ["machine", "show", "laptop", "--json"]).output)
+    assert shown.items() >= listed.items()
+    assert "journal_mode" in shown
+
+    result = runner.invoke(app, ["machine", "show", "desktop"])
+    assert isinstance(result.exception, HephaistosError)

@@ -71,7 +71,7 @@ def save(session: WriteSession, clone_id: uuid.UUID, snapshot: Snapshot) -> Clon
         error=None,
     )
     session.conn.execute(
-        f"INSERT OR REPLACE INTO state_clones ({', '.join(COLUMNS)})"  # noqa: S608
+        f"INSERT OR REPLACE INTO state_clones ({', '.join(COLUMNS)})"  # noqa: S608 - our own constant
         f" VALUES ({', '.join('?' * len(COLUMNS))})",
         (
             state.clone_id,

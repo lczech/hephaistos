@@ -2,10 +2,11 @@
 
 import dataclasses
 import uuid
+from collections.abc import Collection, Iterator
 
-from hephaistos.core.db.sessions import WriteSession
+from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.db.tables import Category, Table
-from hephaistos.core.events import store
+from hephaistos.core.events import events
 from hephaistos.core.events.kinds import EventKind
 
 
@@ -30,10 +31,6 @@ def _values(session: WriteSession, record: Record) -> dict[str, object]:
     return values | {"modified_at": session.tick(), "modified_by": session.machine_id}
 
 
-# In the SQL below, table and column names come from our Table enum and dataclass fields,
-# never from input.
-
-
 def add(session: WriteSession, table: Table, kind: EventKind, record: Record) -> None:
     """Inserts a new Registry record and records `kind` with its values."""
     _check(table)
@@ -41,34 +38,70 @@ def add(session: WriteSession, table: Table, kind: EventKind, record: Record) ->
     columns = ", ".join(values)
     placeholders = ", ".join("?" * len(values))
     session.conn.execute(
-        f"INSERT INTO {table} ({columns}) VALUES ({placeholders})",  # noqa: S608
+        f"INSERT INTO {table} ({columns}) VALUES ({placeholders})",  # noqa: S608 - table and columns come from our Table enum and dataclass fields
         tuple(values.values()),
     )
-    store.record(session, kind, record.id, record)
+    events.record(session, kind, record.id, record)
 
 
-def change(session: WriteSession, table: Table, kind: EventKind, record: Record) -> None:
-    """Replaces a Registry record's values and records `kind` with the new ones."""
+def change(session: WriteSession, table: Table, kind: EventKind, old: Record, new: Record) -> None:
+    """Replaces a Registry record's values; records `kind` with the changed fields, if any."""
     _check(table)
-    values = _values(session, record)
+    if old.id != new.id or type(old) is not type(new):
+        raise ValueError("old and new must be the same record")
+    changes = {
+        field.name: events.Change(getattr(old, field.name), getattr(new, field.name))
+        for field in dataclasses.fields(new)
+        if getattr(old, field.name) != getattr(new, field.name)
+    }
+    if not changes:
+        return
+    values = _values(session, new)
     assignments = ", ".join(f"{column} = ?" for column in values)
     cursor = session.conn.execute(
-        f"UPDATE {table} SET {assignments} WHERE id = ? AND deleted = 0",  # noqa: S608
-        (*values.values(), record.id),
+        f"UPDATE {table} SET {assignments} WHERE id = ? AND deleted = 0",  # noqa: S608 - table and columns come from our Table enum and dataclass fields
+        (*values.values(), new.id),
     )
     if cursor.rowcount != 1:
-        raise LookupError(f"no record {record.id} in {table}")
-    store.record(session, kind, record.id, record)
+        raise LookupError(f"no record {new.id} in {table}")
+    events.record(session, kind, new.id, changes)
 
 
 def delete(session: WriteSession, table: Table, kind: EventKind, record: Record) -> None:
     """Marks a Registry record as deleted and records `kind` with its last values."""
     _check(table)
     cursor = session.conn.execute(
-        f"UPDATE {table} SET deleted = 1, modified_at = ?, modified_by = ?"  # noqa: S608
+        f"UPDATE {table} SET deleted = 1, modified_at = ?, modified_by = ?"  # noqa: S608 - table and columns come from our Table enum and dataclass fields
         " WHERE id = ? AND deleted = 0",
         (session.tick(), session.machine_id, record.id),
     )
     if cursor.rowcount != 1:
         raise LookupError(f"no record {record.id} in {table}")
-    store.record(session, kind, record.id, record)
+    events.record(session, kind, record.id, record)
+
+
+# SQLite allows at most 32766 parameters per statement.
+_CHUNK = 1000
+
+
+def _chunks(ids: Collection[uuid.UUID]) -> Iterator[list[uuid.UUID]]:
+    """The IDs in lists small enough for one statement each."""
+    listed = list(ids)
+    for start in range(0, len(listed), _CHUNK):
+        yield listed[start : start + _CHUNK]
+
+
+def labels(
+    session: ReadSession, table: Table, column: str, ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """The values of `column` for these records, deleted ones included, by ID."""
+    _check(table)
+    found: dict[uuid.UUID, str] = {}
+    for chunk in _chunks(ids):
+        placeholders = ", ".join("?" * len(chunk))
+        rows = session.conn.execute(
+            f"SELECT id, {column} FROM {table} WHERE id IN ({placeholders})",  # noqa: S608 - table and columns come from our Table enum and dataclass fields
+            chunk,
+        )
+        found |= {uuid.UUID(bytes=row[0]): row[1] for row in rows}
+    return found

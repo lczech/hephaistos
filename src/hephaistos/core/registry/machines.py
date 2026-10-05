@@ -1,18 +1,20 @@
 import socket
 import sqlite3
 import uuid
+from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Self
 
 from hephaistos.core.db.sessions import SCHEMA_VERSION, ReadSession, create_database
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
+from hephaistos.core.registry import records
 from hephaistos.core.registry.filesystems import Filesystem
-from hephaistos.core.registry.mounts import Mount, mounts_of
+from hephaistos.core.registry.mounts import Mount
 from hephaistos.core.registry.records import Record, add
-from hephaistos.core.utils.ids import id_datetime, new_id
+from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, mount_of, os_machine_id
 
 
@@ -46,6 +48,27 @@ def get(session: ReadSession, machine_id: uuid.UUID) -> Machine:
     return Machine.from_row(row)
 
 
+def by_name(session: ReadSession, name: str) -> Machine:
+    """The Machine with this name; raises HephaistosError if there is none."""
+    row = session.conn.execute(
+        "SELECT id, name, hostname, os_machine_id FROM registry_machines"
+        " WHERE name = ? AND deleted = 0",
+        (name,),
+    ).fetchone()
+    if row is None:
+        raise HephaistosError(f"no Machine named {name}")
+    return Machine.from_row(row)
+
+
+def listing(session: ReadSession) -> list[Machine]:
+    """All Machines, sorted by name."""
+    rows = session.conn.execute(
+        "SELECT id, name, hostname, os_machine_id FROM registry_machines"
+        " WHERE deleted = 0 ORDER BY name"
+    )
+    return [Machine.from_row(row) for row in rows]
+
+
 def this(session: ReadSession) -> Machine:
     """The Machine this database belongs to."""
     return get(session, session.machine_id)
@@ -67,27 +90,25 @@ def set_up(paths: Paths, name: str | None = None) -> Machine:
 
 
 @dataclass(frozen=True)
-class MachineDetails:
-    """This Machine with its setup, as shown by `machine show`."""
+class LocalSetup:
+    """How this Machine keeps its files and database; other Machines' setups aren't known."""
 
-    machine: Machine
-    created: datetime
     paths: Paths
     journal_mode: str
     data_fstype: str
     schema_version: int
-    mounts: list[tuple[Mount, Filesystem]]
 
 
-def details(session: ReadSession, paths: Paths) -> MachineDetails:
-    """This Machine with its setup: files, database and mounts."""
-    machine = this(session)
-    return MachineDetails(
-        machine=machine,
-        created=id_datetime(machine.id),
+def local_setup(session: ReadSession, paths: Paths) -> LocalSetup:
+    """This Machine's setup: files and database."""
+    return LocalSetup(
         paths=paths,
         journal_mode=session.journal_mode,
         data_fstype=mount_of(paths.data_dir).fstype,
         schema_version=SCHEMA_VERSION,
-        mounts=mounts_of(session, machine.id),
     )
+
+
+def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """How to show these Machines in place of their IDs: by name."""
+    return records.labels(session, Table.REGISTRY_MACHINES, "name", ids)

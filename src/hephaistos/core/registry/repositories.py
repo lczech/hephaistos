@@ -1,6 +1,9 @@
 import dataclasses
+import json
 import sqlite3
 import uuid
+from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Self
 
@@ -9,6 +12,7 @@ from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.registry import records
 from hephaistos.core.registry.records import Record
+from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 
@@ -27,10 +31,11 @@ class Repository(Record):
 
 @dataclass(frozen=True)
 class RepositorySummary:
-    """A Repository with its number of Clones, as shown by `repo list`."""
+    """A Repository with its number of Clones and their main remotes, as shown by `repo list`."""
 
     repository: Repository
     clones: int
+    remotes: tuple[str, ...]  # normalised, distinct, sorted
 
 
 def _check_name(session: ReadSession, name: str) -> None:
@@ -67,15 +72,37 @@ def rename(session: WriteSession, name: str, new_name: str) -> Repository:
     repository = by_name(session, name)
     _check_name(session, new_name)
     renamed = dataclasses.replace(repository, name=new_name)
-    records.change(session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_CHANGED, renamed)
+    records.change(
+        session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_CHANGED, repository, renamed
+    )
     return renamed
 
 
-def summaries(session: ReadSession) -> list[RepositorySummary]:
-    """All Repositories with their number of Clones, sorted by name."""
+def summaries(
+    session: ReadSession, repository_id: uuid.UUID | None = None
+) -> list[RepositorySummary]:
+    """The Repositories (or one) with their number of Clones and main remotes, sorted by name."""
+    remotes: defaultdict[bytes, set[str]] = defaultdict(set)  # by Repository ID
+    for row in session.conn.execute(
+        "SELECT c.repository_id, s.remotes FROM registry_clones c"
+        " JOIN state_clones s ON s.clone_id = c.id WHERE c.deleted = 0"
+    ):
+        if (url := git.main_remote(json.loads(row["remotes"]))) is not None:
+            remotes[row["repository_id"]].add(git.normalise_remote(url))
     rows = session.conn.execute(
         "SELECT r.id, r.name, count(c.id) AS clones FROM registry_repositories r"
         " LEFT JOIN registry_clones c ON c.repository_id = r.id AND c.deleted = 0"
-        " WHERE r.deleted = 0 GROUP BY r.id ORDER BY r.name"
+        " WHERE r.deleted = 0 AND coalesce(r.id = ?, 1) GROUP BY r.id ORDER BY r.name",
+        (repository_id,),
     )
-    return [RepositorySummary(Repository.from_row(row), row["clones"]) for row in rows]
+    return [
+        RepositorySummary(
+            Repository.from_row(row), row["clones"], tuple(sorted(remotes[row["id"]]))
+        )
+        for row in rows
+    ]
+
+
+def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """How to show these Repositories in place of their IDs: by name."""
+    return records.labels(session, Table.REGISTRY_REPOSITORIES, "name", ids)
