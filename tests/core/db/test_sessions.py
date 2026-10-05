@@ -117,5 +117,5 @@ def test_outdated_schema_is_reported(set_up: Paths) -> None:
     with sqlite3.connect(set_up.database) as conn:
         conn.execute("UPDATE meta SET value = 'old' WHERE key = 'schema_hash'")
     conn.close()
-    with pytest.raises(SchemaOutdatedError, match="delete"), read_session(set_up):
+    with pytest.raises(SchemaOutdatedError, match="setup --reset"), read_session(set_up):
         pass

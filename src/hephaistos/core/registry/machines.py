@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
-from hephaistos.core.db.sessions import SCHEMA_VERSION, ReadSession, create_database
+from hephaistos.core.db.sessions import SCHEMA_VERSION, ReadSession, create_database, read_session
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.registry import records
@@ -74,15 +74,30 @@ def this(session: ReadSession) -> Machine:
     return get(session, session.machine_id)
 
 
-def set_up(paths: Paths, name: str | None = None) -> Machine:
-    """Creates the database with this Machine and its default Filesystem, mounted at /."""
+def previous(paths: Paths) -> Machine | None:
+    """This Machine as the existing database has it, even an outdated one; None if unreadable."""
+    try:
+        with read_session(paths, check_schema=False) as session:
+            return this(session)
+    except (HephaistosError, LookupError, sqlite3.Error):
+        return None
+
+
+def set_up(paths: Paths, name: str | None = None, *, reset: bool = False) -> Machine:
+    """Creates the database with this Machine and its default Filesystem, mounted at /.
+
+    With `reset`, an existing database is replaced (and kept as a backup); the new Machine has a
+    new ID, and keeps the previous name unless given one.
+    """
     hostname = socket.gethostname()
+    if reset and not name and (old := previous(paths)):
+        name = old.name
     machine = Machine(
         id=new_id(), name=name or hostname, hostname=hostname, os_machine_id=os_machine_id()
     )
     filesystem = Filesystem(id=new_id(), name=f"{machine.name}-local")
     mount = Mount(id=new_id(), machine_id=machine.id, filesystem_id=filesystem.id, path=Path("/"))
-    with create_database(paths, machine.id) as session:
+    with create_database(paths, machine.id, replace=reset) as session:
         add(session, Table.REGISTRY_MACHINES, EventKind.MACHINE_ADDED, machine)
         add(session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_ADDED, filesystem)
         add(session, Table.REGISTRY_MOUNTS, EventKind.MOUNT_ADDED, mount)

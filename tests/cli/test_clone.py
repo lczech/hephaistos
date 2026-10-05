@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import clone as clone_cli
+from hephaistos.cli import terminal
 from hephaistos.cli.main import app
 from hephaistos.core.utils.errors import HephaistosError
 from support import clone, create, git
@@ -27,8 +27,8 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Lets `clone add` ask, as if run in a terminal."""
-    monkeypatch.setattr(clone_cli, "_interactive", lambda: True)
+    """Lets commands ask, as if run in a terminal."""
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
 
 
 @pytest.mark.usefixtures("repo")

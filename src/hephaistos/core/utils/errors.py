@@ -24,9 +24,8 @@ class AlreadySetUpError(HephaistosError):
 class SchemaOutdatedError(HephaistosError):
     """The database was created with a different schema than this version's."""
 
-    def __init__(self, database: Path) -> None:
-        """Creates the error, saying which directory to delete."""
+    def __init__(self) -> None:
+        """Creates the error with its message."""
         super().__init__(
-            f"the database schema has changed; delete {database.parent} "
-            "and run `hephaistos setup` again"
+            "the database schema has changed; run `hephaistos setup --reset` (keeps a backup)"
         )
