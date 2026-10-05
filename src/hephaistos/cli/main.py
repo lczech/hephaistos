@@ -4,7 +4,7 @@ from typing import Annotated
 import typer
 
 from hephaistos import __description__, __version__
-from hephaistos.cli import clone, machine, repo
+from hephaistos.cli import clone, event, machine, repo
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
@@ -13,6 +13,7 @@ app = typer.Typer(no_args_is_help=True, help=__description__, pretty_exceptions_
 app.add_typer(machine.app, name="machine")
 app.add_typer(repo.app, name="repo")
 app.add_typer(clone.app, name="clone")
+app.add_typer(event.app, name="event")
 
 
 def run() -> None:

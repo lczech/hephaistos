@@ -1,11 +1,15 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from hephaistos.core.db.sessions import read_session, write_session
-from hephaistos.core.registry import machines, repositories
+from hephaistos.core.db.tables import Table
+from hephaistos.core.events.kinds import EventKind
+from hephaistos.core.registry import clones, machines, records, repositories
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
+from support import clone, create
 
 
 @pytest.fixture
@@ -54,4 +58,28 @@ def test_rename_records_an_event(set_up: Paths) -> None:
         ).fetchone()
     assert row["kind"] == "repository.changed"
     assert row["subject"] == added.id.bytes
-    assert json.loads(row["payload"]) == {"id": str(added.id), "name": "project"}
+    assert json.loads(row["payload"]) == {"name": {"old": "proj", "new": "project"}}
+
+
+def test_change_without_difference_records_nothing(set_up: Paths) -> None:
+    with write_session(set_up) as session:
+        added = repositories.add(session, "proj")
+        before = session.conn.execute("SELECT count(*) FROM events").fetchone()[0]
+        records.change(
+            session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_CHANGED, added, added
+        )
+        assert session.conn.execute("SELECT count(*) FROM events").fetchone()[0] == before
+
+
+def test_summaries_count_clones_and_their_main_remotes(set_up: Paths, tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", origin="git@host:me/proj.git")
+    copy = clone(repo, tmp_path / "copy")  # its origin is the local path
+    with write_session(set_up) as session:
+        repositories.add(session, "proj")
+        repositories.add(session, "empty")
+        clones.add(session, "proj", clones.inspect(repo))
+        clones.add(session, "proj", clones.inspect(copy))
+    with read_session(set_up) as session:
+        empty, proj = repositories.summaries(session)
+    assert (empty.clones, empty.remotes) == (0, ())
+    assert (proj.clones, proj.remotes) == (2, (str(repo), "host/me/proj"))

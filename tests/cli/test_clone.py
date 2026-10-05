@@ -1,5 +1,7 @@
 import json
+import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -45,7 +47,16 @@ def test_add_with_repo_then_list_and_show(repo: Path) -> None:
     assert result.output.startswith("Added Clone")
 
     result = runner.invoke(app, ["clone", "list"])
-    assert result.output.splitlines()[1].split() == ["proj", "main", str(repo)]
+    assert result.output.splitlines()[1].split() == [
+        "proj",
+        "main",
+        "now",
+        "laptop-local",
+        str(repo),
+    ]
+
+    result = runner.invoke(app, ["repo", "list"])
+    assert result.output.splitlines()[1].split() == ["proj", "1", "host/me/hephaistos"]
 
     result = runner.invoke(app, ["clone", "show", "--json"])
     data = json.loads(result.output)
@@ -97,3 +108,34 @@ def test_remove(repo: Path) -> None:
     assert "files untouched" in result.output
     assert repo.exists()
     assert json.loads(runner.invoke(app, ["clone", "list", "--json"]).output) == []
+
+
+def _json(*args: str) -> Any:  # noqa: ANN401 - any JSON value
+    return json.loads(runner.invoke(app, [*args, "--json"]).output)
+
+
+def _fields(*args: str) -> list[list[str]]:
+    """`show` output as [label, value] pairs; labels may contain single spaces."""
+    output = runner.invoke(app, list(args)).output
+    return [re.split(r"\s{2,}", line, maxsplit=1) for line in output.splitlines()]
+
+
+def test_show_has_everything_and_list_entries_match_it(repo: Path) -> None:
+    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    fields = _fields("clone", "show")
+    for field in (
+        ["resolved path", str(repo)],
+        ["observed by", "laptop"],
+        ["present", "yes"],
+        ["bare", "no"],
+        ["error", "-"],
+    ):
+        assert field in fields
+
+    [listed] = _json("clone", "list")
+    assert listed == _json("clone", "show")
+    [repository] = _json("repo", "list")
+    assert repository == _json("repo", "show", "proj")
+    assert repository["remotes"] == ["host/me/hephaistos"]
+    assert repository["clones"] == [listed]
+    assert ["remote", "host/me/hephaistos"] in _fields("repo", "show", "proj")

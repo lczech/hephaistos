@@ -2,17 +2,21 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli.clone import clone_json
+from hephaistos.cli.clone import branch_text, clone_json
 from hephaistos.cli.output import (
     JsonOption,
-    full_time,
+    TimeFormatOption,
     print_fields,
     print_json,
     print_table,
     short_path,
+    time_formatter,
 )
+from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
+from hephaistos.core.registry.clones import CloneDetails
+from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths
 
@@ -21,50 +25,71 @@ app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, 
 NameArgument = Annotated[str, typer.Argument(help="Name of the Repository.")]
 
 
+def repo_json(summary: RepositorySummary, its_clones: list[CloneDetails]) -> dict[str, object]:
+    """A Repository with its remotes and Clones, for JSON output."""
+    repository = summary.repository
+    return {
+        "id": str(repository.id),
+        "name": repository.name,
+        "created_at": id_datetime(repository.id).isoformat(),
+        "remotes": list(summary.remotes),
+        "clones": [clone_json(details) for details in its_clones],
+    }
+
+
 @app.command("list")
 def list_(*, as_json: JsonOption = False) -> None:
     """List the Repositories."""
     with read_session(Paths.from_environment()) as session:
         summaries = repositories.summaries(session)
+        all_clones = clones.details(session)
     if as_json:
         print_json(
             [
-                {"id": str(summary.repository.id), "name": summary.repository.name}
-                | {"clones": summary.clones}
+                repo_json(
+                    summary,
+                    [details for details in all_clones if details.repository == summary.repository],
+                )
                 for summary in summaries
             ]
         )
         return
     print_table(
-        ["name", "clones"],
-        [[summary.repository.name, str(summary.clones)] for summary in summaries],
+        ["name", "clones", "remote"],
+        [
+            [summary.repository.name, str(summary.clones), ", ".join(summary.remotes) or "-"]
+            for summary in summaries
+        ],
     )
 
 
 @app.command()
-def show(name: NameArgument, *, as_json: JsonOption = False) -> None:
-    """Show a Repository and its Clones."""
+def show(
+    name: NameArgument, *, time_format: TimeFormatOption = None, as_json: JsonOption = False
+) -> None:
+    """Show a Repository with its remotes and Clones."""
     with read_session(Paths.from_environment()) as session:
         repository = repositories.by_name(session, name)
+        [summary] = repositories.summaries(session, repository.id)
         its_clones = clones.details(session, repository_id=repository.id)
-    created = id_datetime(repository.id)
     if as_json:
-        print_json(
-            {
-                "id": str(repository.id),
-                "name": repository.name,
-                "created": created.isoformat(),
-                "clones": [clone_json(details) for details in its_clones],
-            }
-        )
+        print_json(repo_json(summary, its_clones))
         return
+    formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(
         [
             ("name", repository.name),
             ("id", str(repository.id)),
-            ("created", full_time(created)),
+            ("created", formatted(id_datetime(repository.id))),
+            *(("remote", remote) for remote in summary.remotes),
             *(
-                ("clone", f"{short_path(details.clone.display_path)}  {details.filesystem.name}")
+                (
+                    "clone",
+                    (
+                        f"{short_path(details.clone.display_path)}  {branch_text(details)}"
+                        f"  {details.filesystem.name}"
+                    ),
+                )
                 for details in its_clones
             ),
         ]

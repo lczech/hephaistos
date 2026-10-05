@@ -1,6 +1,6 @@
 import sqlite3
 import uuid
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
@@ -64,8 +64,7 @@ def details(
 ) -> list[CloneDetails]:
     """The Clones, optionally of one Repository or on one Filesystem, by Repository and path."""
     rows = session.conn.execute(
-        # _STATE_COLUMNS is our own constant.
-        "SELECT c.id, c.repository_id, c.filesystem_id, c.resolved_path, c.display_path,"  # noqa: S608
+        "SELECT c.id, c.repository_id, c.filesystem_id, c.resolved_path, c.display_path,"  # noqa: S608 - _STATE_COLUMNS is our own constant
         f" r.name AS repository_name, f.name AS filesystem_name, {_STATE_COLUMNS}"
         " FROM registry_clones c"
         " JOIN registry_repositories r ON r.id = c.repository_id"
@@ -102,8 +101,7 @@ class Candidate:
     @property
     def suggested_name(self) -> str:
         """A name for a new Repository: from the origin remote, else from the directory."""
-        remotes = self.snapshot.remotes
-        url = remotes.get("origin") or next(iter(remotes.values()), None)
+        url = git.main_remote(self.snapshot.remotes)
         if url is not None and (name := git.repository_name(url)):
             return name
         name = self.display_path.name.removesuffix(".git")
@@ -210,3 +208,9 @@ def remove(session: WriteSession, path: Path) -> CloneDetails:
     removed = find(session, path)
     records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, removed.clone)
     return removed
+
+
+def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
+    """How to show these Clones in place of their IDs: by path."""
+    found = records.labels(session, Table.REGISTRY_CLONES, "display_path", ids)
+    return {key: Path(value) for key, value in found.items()}

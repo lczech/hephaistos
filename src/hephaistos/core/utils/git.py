@@ -26,8 +26,7 @@ def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         raise GitError("git is not installed")
     # Reading must never take locks that the user's own git commands would wait for.
     env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
-    # Arguments are passed as a list, never through a shell.
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
         [executable, "-C", str(path), *args],
         capture_output=True,
         encoding="utf-8",
@@ -134,6 +133,13 @@ def remotes(top: Path) -> dict[str, str]:
         name = key.removeprefix("remote.").removesuffix(".url")
         found.setdefault(name, without_credentials(url))
     return found
+
+
+def main_remote(remotes: Mapping[str, str]) -> str | None:
+    """The URL of `origin`, else of the first remote by name; None without remotes."""
+    if "origin" in remotes:
+        return remotes["origin"]
+    return remotes[min(remotes)] if remotes else None
 
 
 def without_credentials(url: str) -> str:
