@@ -1,7 +1,7 @@
 import json
 import re
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -18,7 +18,7 @@ from hephaistos.cli.output import (
     time_formatter,
 )
 from hephaistos.core.config import TimeFormat
-from hephaistos.core.db.sessions import read_session
+from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.events import events, subjects
 from hephaistos.core.events.events import Event
 from hephaistos.core.events.kinds import Priority
@@ -72,7 +72,7 @@ def parse_since(value: str, now: datetime) -> datetime:
     return parsed if parsed.tzinfo else parsed.astimezone()
 
 
-def _priority(value: int) -> str:
+def _priority_text(value: int) -> str:
     """A priority by name, or as a number if this version doesn't know it."""
     try:
         return Priority(value).name.lower()
@@ -80,7 +80,7 @@ def _priority(value: int) -> str:
         return str(value)
 
 
-def _label(event: Event, labels: Mapping[uuid.UUID, Label]) -> str:
+def _subject_text(event: Event, labels: Mapping[uuid.UUID, Label]) -> str:
     """The Event's subject as shown: its label, else its short ID."""
     label = labels.get(event.subject)
     if label is None:
@@ -88,7 +88,7 @@ def _label(event: Event, labels: Mapping[uuid.UUID, Label]) -> str:
     return short_path(label) if isinstance(label, Path) else label
 
 
-def _machine(event: Event, names: Mapping[uuid.UUID, str]) -> str:
+def _machine_text(event: Event, names: Mapping[uuid.UUID, str]) -> str:
     """The name of the Machine that recorded the Event, else its short ID."""
     return names.get(event.recorded_by) or short_id(event.recorded_by)
 
@@ -133,10 +133,21 @@ def list_(  # noqa: PLR0913 - one option per filter
             recorded_by=machines.by_name(session, machine).id if machine else None,
             since=since_time,
         )
-        labels = subjects.labels(session, found)
-        names = machines.labels(session, {event.recorded_by for event in found})
+        print_events(session, found, time_format=time_format, as_json=as_json)
+
+
+def print_events(
+    session: ReadSession,
+    listed: Sequence[Event],
+    *,
+    time_format: TimeFormat | None = None,
+    as_json: bool = False,
+) -> None:
+    """Prints Events as `event list` does, naming their subjects and Machines."""
+    labels = subjects.labels(session, listed)
+    names = machines.labels(session, {event.recorded_by for event in listed})
     if as_json:
-        print_json([_event_json(event, labels, names) for event in found])
+        print_json([_event_json(event, labels, names) for event in listed])
         return
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
@@ -145,20 +156,20 @@ def list_(  # noqa: PLR0913 - one option per filter
             [
                 short_id(event.id),
                 formatted(event.recorded_at.datetime),
-                _machine(event, names),
-                _priority(event.priority),
+                _machine_text(event, names),
+                _priority_text(event.priority),
                 event.kind,
-                _label(event, labels),
+                _subject_text(event, labels),
             ]
-            for event in found
+            for event in listed
         ],
     )
 
 
-def _payload_value(value: Any) -> str:  # noqa: ANN401 - any JSON value
+def _payload_text(value: Any) -> str:  # noqa: ANN401 - any JSON value
     """A payload value as text; a change as `old → new`."""
     if isinstance(value, dict) and set(value) == {"old", "new"}:  # pyright: ignore[reportUnknownArgumentType]
-        return f"{_payload_value(value['old'])} → {_payload_value(value['new'])}"
+        return f"{_payload_text(value['old'])} → {_payload_text(value['new'])}"
     return value if isinstance(value, str) else json.dumps(value)
 
 
@@ -184,15 +195,15 @@ def show(
         [
             ("id", str(event.id)),
             ("recorded", formatted(event.recorded_at.datetime)),
-            ("machine", _machine(event, names)),
-            ("priority", _priority(event.priority)),
+            ("machine", _machine_text(event, names)),
+            ("priority", _priority_text(event.priority)),
             ("kind", event.kind),
-            ("subject", _label(event, labels)),
+            ("subject", _subject_text(event, labels)),
             ("subject id", str(event.subject)),
         ]
     )
     if event.payload:
         typer.echo("payload")
         print_fields(
-            [(key, _payload_value(value)) for key, value in event.payload.items()], indent="  "
+            [(key, _payload_text(value)) for key, value in event.payload.items()], indent="  "
         )

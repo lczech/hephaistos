@@ -72,8 +72,16 @@ CREATE TABLE state_clones (
     bare         INTEGER NOT NULL CHECK (bare IN (0, 1)),
     head         TEXT,
     branch       TEXT,  -- NULL when HEAD is detached
+    upstream     TEXT,
+    ahead        INTEGER,  -- NULL without upstream; status columns are NULL when bare
+    behind       INTEGER,
+    staged       INTEGER,
+    changed      INTEGER,
+    untracked    INTEGER,
+    conflicted   INTEGER,
     root_commits TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(root_commits)),
     remotes      TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(remotes)),
+    branches     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(branches)),
     error        TEXT
 ) STRICT;
 

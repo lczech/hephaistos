@@ -147,6 +147,14 @@ def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
     ],
 )
 def test_suggested_name(remotes: dict[str, str], path: str, expected: str) -> None:
-    snapshot = Snapshot(bare=False, head=None, branch=None, root_commits=(), remotes=remotes)
+    snapshot = Snapshot(
+        bare=False,
+        head=None,
+        branch=None,
+        root_commits=(),
+        remotes=remotes,
+        branches=(),
+        status=None,
+    )
     candidate = Candidate(resolved_path=Path(path), display_path=Path(path), snapshot=snapshot)
     assert candidate.suggested_name == expected

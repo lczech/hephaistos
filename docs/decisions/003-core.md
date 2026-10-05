@@ -16,7 +16,7 @@ src/hephaistos/
     config.py     TOML
     db/           connection, read and write sessions, schema
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
-    state/        clones.py, worktrees.py
+    state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
     events/       events.py (storage and reading), kinds.py, subjects.py
     observers/    clones.py
     utils/
@@ -51,6 +51,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - **IDs:** UUIDv7, stored as 16 bytes.
 - **Time:** a hybrid logical clock, stored as one INTEGER (milliseconds << 16 | counter). The clock lives in the database and advances inside each write transaction, so values from one Machine increase in commit order, across CLI and Daemon. Data received from Peers advances it past the largest value seen.
 - **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it. JSON output uses the same names; text output drops the suffix (`recorded`).
+- **Function names:** actions are verbs (`add`, `record`, `observe`); functions that only return something are named for what they return (`git.status`, `clones.details`, `caused_events`). Lookups and conversions may be verbs (`get`, `find`, `locate`, `parse_since`, `to_json`), and predicates read as questions (`is_network`, `shares_history`). Formatting helpers in the CLI end in `_text` or `_json`.
 - **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added` or `.deleted` with the record's values, or `.changed` with the changed fields' old and new values.
 - **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw views.
 - **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
@@ -66,7 +67,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 | `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
 | `registry_repositories` | `id`, `name` |
 | `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
-| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), `root_commits` (JSON), `remotes` (JSON), `error` |
+| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error` |
 | `state_worktrees` | `id`, `clone_id`, `resolved_path`, `observed_at`, `observed_by`, `present`, `head`, `branch`, `error` |
 | `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
 
@@ -79,7 +80,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## Events
 
-- Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_switched`); the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
+- Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_created`), in past tense: they are facts, while requests (later, e.g. `terminal.open`) are imperative; the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
 - The subject is always an ID. `events/subjects.py` maps each subject type to its module, which labels its subjects (e.g. a Repository by its current name; deleted records keep theirs). Subjects of unknown types show their short ID.
 - Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
@@ -87,9 +88,11 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## Observation
 
-- An observer observes one kind of thing: it takes a snapshot, compares it with the stored State, and writes the changes and their Events through shared code. Observers know nothing about timing; the Watcher schedules them, with intervals per observer in its config.
+- An observer observes one kind of thing: it takes a snapshot and has the State compare it with what is stored, which writes the changes and records their Events. Observers know nothing about timing; the Watcher schedules them, with intervals per observer in its config.
 - Each observation updates `observed_at`; rows and Events change only when something changed.
-- First observer: `clones` (git), which also finds their Worktrees.
+- First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
+- Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: views of files ask the Machine's Server live.
+- Actions come from git's reflogs, read from a cursor per Checkout: commits, merges, pulls, rebases, resets, branch switches, pushes; branch creation gains its time and start. Next, after Worktrees.
 - Views show stored State with its age; they never observe. `--refresh` observes first, in a separate write session.
 
 ## CLI for the first slice
@@ -101,10 +104,10 @@ hephaistos setup
 hephaistos machine list | show
 hephaistos repo list | show <name> | add <name> | rename <name> <new name>
 hephaistos clone add [path] [--repo <name>]
-hephaistos clone list [--repo <name>] | show | remove
+hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | remove
 hephaistos worktree list [--repo <name>] | show
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>] | show <id>
-hephaistos observe [clones [--clone <path>]]
+hephaistos observe [clones] [--clone <path>]…
 hephaistos db tables | db dump <table>
 ```
 

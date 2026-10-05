@@ -50,6 +50,7 @@ def test_add_with_repo_then_list_and_show(repo: Path) -> None:
     assert result.output.splitlines()[1].split() == [
         "proj",
         "main",
+        "clean",
         "now",
         "laptop-local",
         str(repo),

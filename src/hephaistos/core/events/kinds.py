@@ -20,6 +20,13 @@ class EventKind(StrEnum):
     REPOSITORY_CHANGED = "repository.changed"
     CLONE_ADDED = "clone.added"
     CLONE_DELETED = "clone.deleted"
+    CLONE_MISSING = "clone.missing"
+    CLONE_FOUND = "clone.found"
+    CLONE_FAILED = "clone.failed"
+    CLONE_RECOVERED = "clone.recovered"
+    CLONE_BRANCH_CREATED = "clone.branch_created"
+    CLONE_BRANCH_DELETED = "clone.branch_deleted"
+    CLONE_REMOTES_CHANGED = "clone.remotes_changed"
 
     @property
     def default_priority(self) -> Priority:
@@ -34,5 +41,12 @@ class EventKind(StrEnum):
                 | EventKind.REPOSITORY_CHANGED
                 | EventKind.CLONE_ADDED
                 | EventKind.CLONE_DELETED
+                | EventKind.CLONE_FOUND
+                | EventKind.CLONE_RECOVERED
+                | EventKind.CLONE_BRANCH_CREATED
+                | EventKind.CLONE_BRANCH_DELETED
+                | EventKind.CLONE_REMOTES_CHANGED
             ):
                 return Priority.NORMAL
+            case EventKind.CLONE_MISSING | EventKind.CLONE_FAILED:
+                return Priority.HIGH

@@ -16,8 +16,10 @@ from hephaistos.cli.output import (
 )
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session, write_session
+from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.registry.clones import Candidate, CloneDetails
+from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime, short_id
 from hephaistos.core.utils.paths import Paths
@@ -31,9 +33,38 @@ PathArgument = Annotated[
 RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the Repository.")]
 
 
+RefreshOption = Annotated[
+    bool, typer.Option("--refresh", help="Observe first, rather than show the last observation.")
+]
+
+
 def branch_text(details: CloneDetails) -> str:
     """The branch as shown in lists: its name, or `(detached)`."""
     return details.state.branch or "(detached)"
+
+
+def status_text(state: CheckoutState) -> str:
+    """The status as lists show it: `clean`, `+2 ~3 ?1 !1 ↑1 ↓2`, or a condition."""
+    if not state.present:
+        return "missing"
+    if state.error is not None:
+        return "failed"
+    if state.staged is None:
+        return "bare"
+    counts = (
+        ("+", state.staged),
+        ("~", state.changed),
+        ("?", state.untracked),
+        ("!", state.conflicted),
+        ("↑", state.ahead),
+        ("↓", state.behind),
+    )
+    return " ".join(f"{symbol}{count}" for symbol, count in counts if count) or "clean"
+
+
+def _count_text(value: int | None) -> str:
+    """A count as `show` prints it; `-` if unknown or not applicable."""
+    return "-" if value is None else str(value)
 
 
 def clone_json(details: CloneDetails) -> dict[str, object]:
@@ -52,6 +83,14 @@ def clone_json(details: CloneDetails) -> dict[str, object]:
         "bare": state.bare,
         "head": state.head,
         "branch": state.branch,
+        "upstream": state.upstream,
+        "ahead": state.ahead,
+        "behind": state.behind,
+        "staged": state.staged,
+        "changed": state.changed,
+        "untracked": state.untracked,
+        "conflicted": state.conflicted,
+        "branches": list(state.branches),
         "root_commits": list(state.root_commits),
         "remotes": dict(state.remotes),
         "error": state.error,
@@ -99,10 +138,17 @@ def add(path: PathArgument = HERE, *, repo: RepoOption = None) -> None:
 
 @app.command("list")
 def list_(
-    *, repo: RepoOption = None, time_format: TimeFormatOption = None, as_json: JsonOption = False
+    *,
+    repo: RepoOption = None,
+    refresh: RefreshOption = False,
+    time_format: TimeFormatOption = None,
+    as_json: JsonOption = False,
 ) -> None:
     """List the Clones."""
-    with read_session(Paths.from_environment()) as session:
+    paths = Paths.from_environment()
+    if refresh:
+        observer.observe(paths)
+    with read_session(paths) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
         found = clones.details(session, repository_id=repository_id)
     if as_json:
@@ -110,11 +156,12 @@ def list_(
         return
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["repository", "branch", "observed", "filesystem", "path"],
+        ["repository", "branch", "status", "observed", "filesystem", "path"],
         [
             [
                 details.repository.name,
                 branch_text(details),
+                status_text(details.state),
                 formatted(details.state.observed_at.datetime),
                 details.filesystem.name,
                 short_path(details.clone.display_path),
@@ -128,11 +175,17 @@ def list_(
 def show(
     path: PathArgument = HERE,
     *,
+    refresh: RefreshOption = False,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
     """Show the Clone that a path lies in."""
-    with read_session(Paths.from_environment()) as session:
+    paths = Paths.from_environment()
+    if refresh:
+        with read_session(paths) as session:
+            clone_id = clones.find(session, path).clone.id
+        observer.observe(paths, [clone_id])
+    with read_session(paths) as session:
         details = clones.find(session, path)
         observers = machines.labels(session, [details.state.observed_by])
     if as_json:
@@ -154,6 +207,15 @@ def show(
             ("bare", "yes" if state.bare else "no"),
             ("head", state.head or "(no commits)"),
             ("branch", branch_text(details)),
+            ("status", status_text(state)),
+            ("upstream", state.upstream or "-"),
+            ("ahead", _count_text(state.ahead)),
+            ("behind", _count_text(state.behind)),
+            ("staged", _count_text(state.staged)),
+            ("changed", _count_text(state.changed)),
+            ("untracked", _count_text(state.untracked)),
+            ("conflicted", _count_text(state.conflicted)),
+            ("branches", ", ".join(state.branches) or "-"),
             *(("remote", f"{name}  {url}") for name, url in sorted(state.remotes.items())),
             *(("root commit", commit) for commit in state.root_commits),
             ("error", state.error or "-"),
