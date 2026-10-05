@@ -20,6 +20,7 @@ MAX_DRIFT_MS = 10 * 60 * 1000
 
 
 def wall_ms() -> int:
+    """The wall clock, in Unix milliseconds."""
     return time.time_ns() // 1_000_000
 
 
@@ -36,6 +37,11 @@ def new_id(ms: int | None = None) -> uuid.UUID:
     return uuid.UUID(int=value)
 
 
+def id_datetime(value: uuid.UUID) -> datetime:
+    """When a UUIDv7 was created, in UTC."""
+    return datetime.fromtimestamp((value.int >> 80) / 1000, tz=UTC)
+
+
 class Timestamp(int):
     """A hybrid-clock value. Stored as a plain integer."""
 
@@ -43,16 +49,19 @@ class Timestamp(int):
 
     @classmethod
     def of(cls, ms: int, counter: int = 0) -> Self:
+        """A Timestamp from wall-clock milliseconds and a counter."""
         if not 0 <= counter <= _COUNTER_MASK:
             raise ValueError(f"counter out of range: {counter}")
         return cls((ms << COUNTER_BITS) | counter)
 
     @property
     def ms(self) -> int:
+        """The wall-clock part, in Unix milliseconds."""
         return self >> COUNTER_BITS
 
     @property
     def counter(self) -> int:
+        """The counter that orders Timestamps within the same millisecond."""
         return self & _COUNTER_MASK
 
     @property
@@ -62,10 +71,12 @@ class Timestamp(int):
 
     @override
     def __str__(self) -> str:
+        """Readable form for logs and debugging, e.g. `2025-10-05 08:00:00.123 UTC #7`."""
         return f"{self.datetime:%Y-%m-%d %H:%M:%S}.{self.ms % 1000:03d} UTC #{self.counter}"
 
     @override
     def __repr__(self) -> str:
+        """Unambiguous form, e.g. `Timestamp.of(1759651200123, 7)`."""
         return f"Timestamp.of({self.ms}, {self.counter})"
 
 
@@ -73,7 +84,7 @@ ZERO = Timestamp(0)
 
 
 class ClockDriftError(Exception):
-    pass
+    """A received Timestamp is too far ahead of our wall clock."""
 
 
 class Clock:
@@ -83,6 +94,7 @@ class Clock:
     """
 
     def __init__(self, last: Timestamp = ZERO, wall: Callable[[], int] = wall_ms) -> None:
+        """Starts from `last` (persisted by the caller), reading time from `wall`."""
         self.last = last
         self._wall = wall
 

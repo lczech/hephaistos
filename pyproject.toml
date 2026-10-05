@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 dependencies = ["typer>=0.27"]
 
 [project.scripts]
-hephaistos = "hephaistos.cli.main:app"
+hephaistos = "hephaistos.cli.main:run"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.13", "pyright>=1.1.400"]
@@ -23,10 +23,27 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = [
-    "E", "F", "W", "I", "UP", "B", "SIM", "RUF",
-    "ANN",  # type annotations everywhere
-    "C4", "RET", "PTH", "PERF", "PT", "TC",
+select = ["ALL"]
+ignore = [
+    "COM812",  # trailing commas: conflicts with the formatter
+    "CPY001",  # copyright notice in every file
+    "D100",    # module docstrings
+    "D104",    # package docstrings
+    "D203",    # blank line before class docstring: conflicts with D211
+    "D213",    # multi-line docstring summary on the second line: conflicts with D212
+    "D401",    # imperative mood: our docstrings describe ("The Machine with this ID")
+    "D404",    # docstrings starting with "This"
+    "EM101",   # messages directly in `raise`: purely stylistic
+    "EM102",
+    "TRY003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "D",        # test names describe the test
+    "INP001",   # test directories are not packages
+    "PLR2004",  # literal values are the point of tests
+    "S101",     # pytest uses assert
 ]
 
 [tool.pyright]
