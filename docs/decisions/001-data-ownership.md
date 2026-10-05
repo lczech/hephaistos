@@ -37,7 +37,7 @@ Changes can be captured by polling as the baseline, and pushed where that is che
 
 Needed from the start:
 - globally unique IDs for every entity and Event;
-- Events persisted durably and append-only, each with its origin Machine, a per-origin sequence number and a timestamp. Peers exchange "I have up to N from Machine X" and send only what is missing;
+- Events persisted durably and append-only, each with its origin Machine and a hybrid-clock timestamp (see [003](003-core.md)). Peers exchange "I have everything from Machine X up to time t" and send only what is missing;
 - Registry records carry their last-modified time and Machine. Deletions are kept as markers, so a Peer cannot resurrect a deleted record. Each change also records an Event with the new values, which gives every record its history (reverting is a new edit);
 - Registry, State and Events in separate tables;
 - version numbers for the database schema and for the sync exchange, so Peers running different versions notice and handle it.
