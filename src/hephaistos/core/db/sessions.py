@@ -12,14 +12,14 @@ from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path, PosixPath
 
-from hephaistos.core.errors import (
+from hephaistos.core.utils.errors import (
     AlreadySetUpError,
     HephaistosError,
     NotSetUpError,
     SchemaOutdatedError,
 )
-from hephaistos.core.ids import Clock, Timestamp
-from hephaistos.core.paths import Paths, mount_of
+from hephaistos.core.utils.ids import Clock, Timestamp
+from hephaistos.core.utils.paths import Paths, mount_of
 
 MIN_SQLITE = (3, 37, 0)  # STRICT tables
 SCHEMA_VERSION = 1

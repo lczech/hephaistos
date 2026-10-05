@@ -1,15 +1,11 @@
-from typing import Annotated
-
 import typer
 
-from hephaistos.cli.output import full_time, print_fields, print_json, short_path
+from hephaistos.cli.output import JsonOption, full_time, print_fields, print_json, short_path
 from hephaistos.core.db.sessions import read_session
-from hephaistos.core.paths import Paths
 from hephaistos.core.registry import machines
+from hephaistos.core.utils.paths import Paths
 
 app = typer.Typer(no_args_is_help=True, help="Machines: computers running hephaistos.")
-
-JsonOption = Annotated[bool, typer.Option("--json", help="Output as JSON.")]
 
 
 @app.command()

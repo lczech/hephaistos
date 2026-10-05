@@ -21,6 +21,7 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -44,10 +45,13 @@ ignore = [
     "INP001",   # test directories are not packages
     "PLR2004",  # literal values are the point of tests
     "S101",     # pytest uses assert
+    "S603",     # tests run git directly
+    "S607",
 ]
 
 [tool.pyright]
 include = ["src", "tests"]
+extraPaths = ["src", "tests"]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 reportImplicitOverride = "error"
@@ -58,6 +62,7 @@ reportImportCycles = "error"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]  # for the helpers in tests/support.py
 addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = ["error"]

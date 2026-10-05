@@ -1,6 +1,6 @@
 import pytest
 
-from hephaistos.core.ids import MAX_DRIFT_MS, Clock, ClockDriftError, Timestamp, new_id
+from hephaistos.core.utils.ids import MAX_DRIFT_MS, Clock, ClockDriftError, Timestamp, new_id
 
 
 class FakeWall:

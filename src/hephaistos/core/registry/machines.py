@@ -9,11 +9,11 @@ from typing import Self
 from hephaistos.core.db.sessions import SCHEMA_VERSION, ReadSession, create_database
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
-from hephaistos.core.ids import id_datetime, new_id
-from hephaistos.core.paths import Paths, mount_of, os_machine_id
 from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.records import Record, add
+from hephaistos.core.utils.ids import id_datetime, new_id
+from hephaistos.core.utils.paths import Paths, mount_of, os_machine_id
 
 
 @dataclass(frozen=True, kw_only=True)

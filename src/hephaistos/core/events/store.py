@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from hephaistos.core.db.sessions import WriteSession
 from hephaistos.core.events.kinds import EventKind, Priority
-from hephaistos.core.ids import new_id
+from hephaistos.core.utils.ids import new_id
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance

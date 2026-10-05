@@ -6,10 +6,10 @@ import pytest
 from hephaistos.core.db import sessions
 from hephaistos.core.db.sessions import SCHEMA, read_session, write_session
 from hephaistos.core.db.tables import Category, Table
-from hephaistos.core.errors import AlreadySetUpError, NotSetUpError, SchemaOutdatedError
-from hephaistos.core.ids import Timestamp
-from hephaistos.core.paths import Paths
 from hephaistos.core.registry import machines
+from hephaistos.core.utils.errors import AlreadySetUpError, NotSetUpError, SchemaOutdatedError
+from hephaistos.core.utils.ids import Timestamp
+from hephaistos.core.utils.paths import Paths
 
 
 @pytest.fixture
