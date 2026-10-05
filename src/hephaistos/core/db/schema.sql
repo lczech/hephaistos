@@ -69,6 +69,7 @@ CREATE TABLE state_clones (
     observed_at  INTEGER NOT NULL,
     observed_by  BLOB NOT NULL REFERENCES registry_machines (id),
     present      INTEGER NOT NULL CHECK (present IN (0, 1)),
+    bare         INTEGER NOT NULL CHECK (bare IN (0, 1)),
     head         TEXT,
     branch       TEXT,  -- NULL when HEAD is detached
     root_commits TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(root_commits)),

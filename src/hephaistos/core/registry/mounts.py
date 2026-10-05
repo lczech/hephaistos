@@ -43,3 +43,15 @@ def mounts_of(session: ReadSession, machine_id: uuid.UUID) -> list[tuple[Mount, 
         )
         for row in rows
     ]
+
+
+def containing(session: ReadSession, machine_id: uuid.UUID, path: Path) -> tuple[Mount, Filesystem]:
+    """The Machine's mount that `path` (resolved) lies on: the one with the deepest path."""
+    candidates = [
+        (mount, filesystem)
+        for mount, filesystem in mounts_of(session, machine_id)
+        if path.is_relative_to(mount.path)
+    ]
+    if not candidates:
+        raise LookupError(f"no mount contains {path}")
+    return max(candidates, key=lambda candidate: len(candidate[0].path.parts))

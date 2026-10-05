@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from hephaistos import __version__
 from hephaistos.cli.main import app, run
-from hephaistos.core.paths import Paths
+from hephaistos.core.utils.paths import Paths
 
 runner = CliRunner()
 

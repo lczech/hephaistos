@@ -16,11 +16,23 @@ class EventKind(StrEnum):
     MACHINE_ADDED = "machine.added"
     FILESYSTEM_ADDED = "filesystem.added"
     MOUNT_ADDED = "mount.added"
+    REPOSITORY_ADDED = "repository.added"
+    REPOSITORY_CHANGED = "repository.changed"
+    CLONE_ADDED = "clone.added"
+    CLONE_DELETED = "clone.deleted"
 
     @property
     def default_priority(self) -> Priority:
         """The priority the origin Machine gives Events of this kind."""
         # Exhaustive: the type checker reports a new kind missing here.
         match self:
-            case EventKind.MACHINE_ADDED | EventKind.FILESYSTEM_ADDED | EventKind.MOUNT_ADDED:
+            case (
+                EventKind.MACHINE_ADDED
+                | EventKind.FILESYSTEM_ADDED
+                | EventKind.MOUNT_ADDED
+                | EventKind.REPOSITORY_ADDED
+                | EventKind.REPOSITORY_CHANGED
+                | EventKind.CLONE_ADDED
+                | EventKind.CLONE_DELETED
+            ):
                 return Priority.NORMAL

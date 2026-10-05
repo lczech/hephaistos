@@ -112,3 +112,34 @@ def mount_of(path: Path, mounts: list[MountInfo] | None = None) -> MountInfo:
         raise ValueError(f"no mount found for {path}")
     # Deepest mount point wins; for the same point, the later mount hides the earlier one.
     return max(reversed(candidates), key=lambda mount: len(mount.mount_point.parts))
+
+
+def absolute(path: Path, env: Mapping[str, str] = os.environ) -> Path:
+    """`path` made absolute with symlinks kept, starting from the directory the shell shows."""
+    if path.is_absolute():
+        return Path(os.path.normpath(path))
+    cwd = Path.cwd()
+    pwd = env.get("PWD")
+    if pwd and Path(pwd).is_absolute():
+        try:
+            if Path(pwd).samefile(cwd):
+                cwd = Path(pwd)
+        except OSError:
+            pass
+    return Path(os.path.normpath(cwd / path))
+
+
+def displayed(typed: Path, target: Path) -> Path:
+    """`target` as the user sees it, given `typed`, an absolute path at or below it.
+
+    `target` is a resolved ancestor of what `typed` resolves to. The levels below it are removed
+    from `typed`, keeping its symlinks; if that doesn't lead to `target`, `target` is returned.
+    """
+    resolved = typed.resolve()
+    if not resolved.is_relative_to(target):
+        return target
+    depth = len(resolved.relative_to(target).parts)
+    if depth >= len(typed.parts):
+        return target
+    candidate = typed.parents[depth - 1] if depth else typed
+    return candidate if candidate.resolve() == target else target

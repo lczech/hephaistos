@@ -11,6 +11,9 @@ uv tool install --editable .     # puts `hephaistos` on the path, following the 
 hephaistos --install-completion  # optional: tab completion
 hephaistos setup                 # once per Machine
 hephaistos machine show
+hephaistos repo add hephaistos
+hephaistos clone add ~/Repos/hephaistos -r hephaistos
+hephaistos clone list
 ```
 
 ## Development

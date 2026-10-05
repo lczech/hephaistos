@@ -2,7 +2,15 @@ from pathlib import Path
 
 import pytest
 
-from hephaistos.core.paths import MountInfo, Paths, machine_key, mount_of, parse_mountinfo
+from hephaistos.core.utils.paths import (
+    MountInfo,
+    Paths,
+    absolute,
+    displayed,
+    machine_key,
+    mount_of,
+    parse_mountinfo,
+)
 
 MOUNTINFO = r"""
 28 33 0:25 / /sys rw,nosuid shared:7 - sysfs sysfs rw
@@ -61,3 +69,33 @@ def test_mount_of_takes_later_mount_on_same_point() -> None:
 
 def test_mount_of_this_machine() -> None:
     assert mount_of(Path("/")).mount_point == Path("/")
+
+
+def test_absolute_keeps_symlinks_from_pwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "real").mkdir()
+    (tmp_path / "link").symlink_to(tmp_path / "real")
+    monkeypatch.chdir(tmp_path / "link")
+    assert absolute(Path("a/../b"), {"PWD": str(tmp_path / "link")}) == tmp_path / "link" / "b"
+    assert absolute(Path(), {"PWD": str(tmp_path / "link")}) == tmp_path / "link"
+
+
+def test_absolute_ignores_stale_pwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert absolute(Path("x"), {"PWD": "/elsewhere"}) == tmp_path.resolve() / "x"
+    assert absolute(Path("/a/./b")) == Path("/a/b")
+
+
+def test_displayed_keeps_symlinks(tmp_path: Path) -> None:
+    (tmp_path / "real" / "sub").mkdir(parents=True)
+    (tmp_path / "link").symlink_to(tmp_path / "real")
+    target = (tmp_path / "real").resolve()
+    assert displayed(tmp_path / "link" / "sub", target) == tmp_path / "link"
+    assert displayed(tmp_path / "link", target) == tmp_path / "link"
+
+
+def test_displayed_falls_back_to_target(tmp_path: Path) -> None:
+    # A symlink below the target: its levels can't be removed from the typed path.
+    (tmp_path / "real" / "deep" / "er").mkdir(parents=True)
+    (tmp_path / "real" / "short").symlink_to(tmp_path / "real" / "deep" / "er")
+    target = (tmp_path / "real").resolve()
+    assert displayed(tmp_path / "real" / "short", target) == target

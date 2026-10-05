@@ -1,0 +1,29 @@
+"""Helpers for tests: git repositories to work on."""
+
+import subprocess
+from pathlib import Path
+
+
+def git(path: Path, *args: str) -> str:
+    """Runs git in `path` and returns its output, stripped."""
+    result = subprocess.run(
+        ["git", "-C", str(path), *args], check=True, capture_output=True, text=True
+    )
+    return result.stdout.strip()
+
+
+def create(path: Path, *, commits: int = 1, origin: str | None = None) -> Path:
+    """A new repository with empty commits; their messages make its history unique."""
+    path.mkdir(parents=True)
+    git(path, "init", "--quiet", "--initial-branch=main")
+    for number in range(commits):
+        git(path, "commit", "--quiet", "--allow-empty", "--message", f"{path} {number}")
+    if origin is not None:
+        git(path, "remote", "add", "origin", origin)
+    return path
+
+
+def clone(source: Path, path: Path, *, bare: bool = False) -> Path:
+    """A clone of `source`, sharing its history; its origin is `source`."""
+    git(source.parent, "clone", "--quiet", *(["--bare"] if bare else []), str(source), str(path))
+    return path

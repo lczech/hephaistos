@@ -13,21 +13,23 @@ One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, s
 ```
 src/hephaistos/
   core/
-    ids.py        UUIDv7, hybrid logical clock
-    paths.py      XDG directories, per-Machine subdirectory, filesystem type detection
     config.py     TOML
     db/           connection, read and write sessions, schema
-    registry/     machines.py, filesystems.py, repositories.py, clones.py
+    registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        clones.py, worktrees.py
     events/       storage and reading, kinds.py
     observers/    clones.py
-    git.py        reads facts from git; knows nothing about our records
-  cli/
+    utils/
+      errors.py   errors with messages for the user
+      ids.py      UUIDv7, hybrid logical clock
+      paths.py    XDG directories, per-Machine subdirectory, filesystem type detection
+      git.py      reads facts by running git's commands for scripts; knows nothing about our records
+  cli/            one module per subcommand, named like it (clone.py for `hephaistos clone`)
   daemon/{watcher,sync,server}/
   plugins/
 ```
 
-Each entity's dataclass lives next to its SQL. Operations spanning several modules (e.g. adding a Clone: git facts, Repository, Clone, Events) live with the entity they mainly concern; no separate operations layer.
+Core modules about a kind of thing are plural (`clones.py`, `ids.py`), which keeps them apart from variables (`clone`, `id`); modules about one thing are singular (`git.py`). Each entity's dataclass lives next to its SQL. Operations spanning several modules (e.g. adding a Clone: git facts, Repository, Clone, Events) live with the entity they mainly concern; no separate operations layer.
 
 Tools: Typer for the CLI (with shell completion; heavy imports only inside commands, to keep startup fast), ruff, a type checker, pytest. The Core keeps dependencies minimal.
 
@@ -63,14 +65,15 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 | `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
 | `registry_repositories` | `id`, `name` |
 | `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
-| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `head`, `branch` (NULL when detached), `root_commits` (JSON), `remotes` (JSON), `error` |
+| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), `root_commits` (JSON), `remotes` (JSON), `error` |
 | `state_worktrees` | `id`, `clone_id`, `resolved_path`, `observed_at`, `observed_by`, `present`, `head`, `branch`, `error` |
 | `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
 
 - Names are unique per entity type (Machines, Filesystems, Repositories).
-- A new Repository is named after the origin remote (`…/hephaistos.git` → `hephaistos`), else the directory; a clash with another Repository requires `--name`.
+- A Repository is added by name. For a Clone that matches none, `clone add` suggests a name from the origin remote (`…/hephaistos.git` → `hephaistos`), else the directory.
 - Paths: `resolved_path` has all symlinks resolved and is used for identity and comparison; `display_path` is the absolute path as typed, symlinks kept. Display shortens the home directory to `~`; Worktrees under their Clone show relative to it. A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
-- Remotes are stored without credentials and matched in normalised form. Worktrees share their Clone's root commits and remotes.
+- Remotes are stored without credentials and matched in normalised form (`git@host:a/b.git` and `https://host/a/b` are the same). Root commits are those of all local and remote-tracking branches. Worktrees share their Clone's root commits and remotes.
+- A bare repository is a Clone whose path is its git directory; it has Worktrees but no files to open.
 - Worktrees are identified by Clone and path while they exist: a new one gets a UUIDv7, a vanished one is removed with a `worktree.removed` Event, and one recreated at the same path is new. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a path, so Machines converge after one sync.
 
 ## Events
@@ -94,8 +97,8 @@ One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rena
 ```
 hephaistos setup
 hephaistos machine show
-hephaistos repo list | show <name> | rename
-hephaistos clone add [path] [--repository <name> | --new] [--name <name>]
+hephaistos repo list | show <name> | add <name> | rename <name> <new name>
+hephaistos clone add [path] [--repo <name>]
 hephaistos clone list [--repo <name>] | show | remove
 hephaistos worktree list [--repo <name>] | show
 hephaistos event list
@@ -103,7 +106,8 @@ hephaistos observe [clones [--clone <path>]]
 hephaistos db tables | db dump <table>
 ```
 
-- If a new Clone matches existing Repositories (root commits, remotes), `clone add` asks in a terminal; without one, it requires `--repository` or `--new`.
+- `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and shows the commands to add the Repository first. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
+- Asking happens between a read and a write session, so no write transaction waits for input.
 - Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time relative|short|full` and `time_format` in the config override this.
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.
@@ -122,3 +126,5 @@ Next: the Server and GUI pages showing these tables, plus a Repository overview.
 - **Several database files (`ATTACH`) for grouping:** a transaction across them is not atomic in WAL mode.
 - **rich for output:** slower startup, which matters for shell completion.
 - **A single model module and an operations layer:** grows too large, and adds a layer without need.
+- **A Python git library:** GitPython runs `git` underneath; pygit2 (libgit2) is a separate implementation that can disagree with the user's `git` and needs a compiled dependency on every Machine.
+- **`clone add` creating Repositories:** mixes two responsibilities, for a rare convenience.

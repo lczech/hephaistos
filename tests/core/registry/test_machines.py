@@ -3,8 +3,8 @@ import socket
 from pathlib import Path
 
 from hephaistos.core.db.sessions import read_session
-from hephaistos.core.paths import Paths
 from hephaistos.core.registry import machines
+from hephaistos.core.utils.paths import Paths
 
 
 def test_setup_registers_machine_filesystem_and_mount(paths: Paths) -> None:
