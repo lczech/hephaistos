@@ -10,8 +10,10 @@ In docs, defined terms (Core terms, Components, Later) are capitalised, includin
 | Term | Definition |
 |---|---|
 | **Repository** (repo) | A logical git repository: the unit you register. It spans all its Checkouts on all Machines. |
-| **Checkout** | A git working tree of one Repository, at a path on a Filesystem. Kind: **clone** (owns its `.git`) or **worktree** (linked to a clone via `git worktree`). |
-| **Branch** | A named line of commits, in the usual git sense. Each clone has its own copies, which can diverge. Worktrees share their clone's Branches. For now, a Branch is part of a Checkout's State: current Branch (or detached HEAD), ahead/behind its upstream, and whether the working tree is dirty. |
+| **Checkout** | A git working tree of one Repository, at a path on a Filesystem: a Clone or a Worktree. Umbrella term; there is no Checkout record of its own. |
+| **Clone** | A Checkout that owns its `.git`. Registered by the user, so part of the Registry. |
+| **Worktree** | A Checkout linked to a Clone via `git worktree`. Found by observing its Clone, so part of State; identified by its Clone and path while it exists. |
+| **Branch** | A named line of commits, in the usual git sense. Each Clone has its own copies, which can diverge. Worktrees share their Clone's Branches. For now, a Branch is part of a Checkout's State: current Branch (or detached HEAD), ahead/behind its upstream, and whether the working tree is dirty. |
 | **Machine** | A computer where processes run, with its own copy of our data. Each login node or free node of a Cluster is its own Machine. |
 | **Filesystem** | A set of paths that resolve to the same files on every Machine that sees it. By default, each Machine has its own. A shared cluster filesystem is one Filesystem, seen by many Machines. |
 | **Cluster** | A named set of Machines, used only for grouping and filtering in views. A Machine may belong to several Clusters. |
@@ -22,8 +24,8 @@ In docs, defined terms (Core terms, Components, Later) are capitalised, includin
 | **Agent** | One instance of a Provider with its own conversation, ID and transcript. Attributes: Provider, Machine, working directory, front end (Terminal or editor extension), the Terminal it runs in (if any). It outlives its process (the transcript stays on disk and can be resumed). Attention state: working / waiting for input / ended / failed / unknown, marked as reported or inferred. |
 | **Launcher** | A way to open something (directory, files, Terminal, URL) in a tool on a Machine, in its graphical session. Categories: editor, file manager, Terminal emulator. |
 | **Event** | A timestamped fact about any entity. It records its origin Machine, how it was captured (Watcher, our own action, Provider hook), and whether it is reported or inferred. The inbox and summaries are views built from Events, not entities. |
-| **State** | What is currently true on a Machine: Checkouts' git status, Terminals, Agents. Observed by that Machine's Watcher (or a CLI run); a newer reading replaces the older one. Qualify other uses ("attention state"). |
-| **Registry** | The user's declarations that no Machine can derive: Repositories, which Checkouts belong to them, Clusters, Links, inbox read position, settings. Any Machine may change it; synced between Peers. See [data ownership](decisions/001-data-ownership.md). |
+| **State** | What is currently true on a Machine: Checkouts' git status, Worktrees, Terminals, Agents. Observed by that Machine's Watcher (or a CLI run); a newer reading replaces the older one. Qualify other uses ("attention state"). |
+| **Registry** | The user's declarations that no Machine can derive: Repositories, their Clones, Clusters, Links, inbox read position, settings. Any Machine may change it; synced between Peers. See [data ownership](decisions/001-data-ownership.md). |
 
 ## Components
 
@@ -53,13 +55,13 @@ Vocabulary used consistently, but not stored as entities.
 - **Workspace**: a saved working arrangement, probably spanning several Checkouts.
 - **Scheduler**: a job system such as SLURM. Machines can submit to it.
 - **Job**: work submitted to a Scheduler. It runs on Machines the Scheduler chooses.
-- **Automation**: a saved prompt with a Provider, a target (Machine, plus a Checkout, a new worktree or no directory) and a trigger (time-based, later also Events). Each run is an Agent, interactive in a Terminal or headless. Part of the Registry; run by the target Machine's Daemon.
+- **Automation**: a saved prompt with a Provider, a target (Machine, plus a Checkout, a new Worktree or no directory) and a trigger (time-based, later also Events). Each run is an Agent, interactive in a Terminal or headless. Part of the Registry; run by the target Machine's Daemon.
 
 ## Relationships
 
 ```
-Repository 1──* Checkout *──1 Filesystem *──* Machine *──* Cluster
-                  │ worktree *──1 clone
+Repository 1──* Clone 1──* Worktree          (both are Checkouts)
+Checkout *──1 Filesystem *──* Machine *──* Cluster
 Machine 1──* Terminal ──(working directory)──> Directory
 Machine 1──* Agent ──(working directory)──> Directory
 Provider 1──* Agent *──0..1 Terminal (runs in)
@@ -73,10 +75,10 @@ Every entity and Event has a stable, globally unique ID assigned by us. IDs neve
 
 A Machine gets its ID when our software first runs there; its hostname only helps to recognise it.
 
-Adding a Checkout to a Repository:
-- The Core reads the Checkout's root commits and remote URLs. A match with an existing Repository is a *suggestion* that the user confirms. With no match (or no commits yet), the user picks a Repository or creates one.
-- Worktrees inherit their clone's Repository (`git rev-parse --git-common-dir`).
-- Checkouts created by the app are assigned directly.
+Adding a Clone to a Repository:
+- The Core reads the Clone's root commits and remote URLs. A match with an existing Repository is a *suggestion* that the user confirms. With no match (or no commits yet), the user picks a Repository or creates one.
+- Worktrees belong to their Clone's Repository (`git rev-parse --git-common-dir`) and appear by observing the Clone.
+- Clones created by the app are assigned directly.
 - Forks share root commits and therefore match as the same Repository unless the user splits them.
 
 ## Avoid

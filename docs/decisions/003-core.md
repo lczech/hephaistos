@@ -8,7 +8,7 @@ The first slice needs the Core's foundations: storing Registry, State and Events
 
 ## Package layout
 
-One Python package (Python ≥ 3.12) with a single `pyproject.toml`, in the usual src layout. The parts from [002](002-technology-stack.md) are subpackages; `gui/` stays outside. A test checks that `core` imports none of the other parts.
+One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, src layout. uv manages the environment; `uv.lock` is committed. During development, `uv tool install --editable .` puts `hephaistos` on the path, following the current code. The parts from [002](002-technology-stack.md) are subpackages; `gui/` stays outside. A test checks that `core` imports none of the other parts.
 
 ```
 src/hephaistos/
@@ -16,18 +16,20 @@ src/hephaistos/
     ids.py        UUIDv7, hybrid logical clock
     paths.py      XDG directories, per-Machine subdirectory, filesystem type detection
     config.py     TOML
-    db/           connection, schema, migrations
-    registry/     machines.py, filesystems.py, repositories.py, checkouts.py
-    state/        checkouts.py
+    db/           connection, read and write sessions, schema
+    registry/     machines.py, filesystems.py, repositories.py, clones.py
+    state/        clones.py, worktrees.py
     events/       storage and reading, kinds.py
-    observers/    checkouts.py
+    observers/    clones.py
     git.py        reads facts from git; knows nothing about our records
   cli/
   daemon/{watcher,sync,server}/
   plugins/
 ```
 
-Each entity's dataclass lives next to its SQL. Operations spanning several modules (e.g. adding a Checkout: git facts, Repository, Checkout, Events) live with the entity they mainly concern; no separate operations layer.
+Each entity's dataclass lives next to its SQL. Operations spanning several modules (e.g. adding a Clone: git facts, Repository, Clone, Events) live with the entity they mainly concern; no separate operations layer.
+
+Tools: Typer for the CLI (with shell completion; heavy imports only inside commands, to keep startup fast), ruff, a type checker, pytest. The Core keeps dependencies minimal.
 
 ## Setup and files
 
@@ -37,6 +39,7 @@ Each entity's dataclass lives next to its SQL. Operations spanning several modul
   - config: `~/.config/hephaistos/config.toml`, optional; built-in defaults apply.
   - data: `~/.local/share/hephaistos/<machine>/`
   - logs: `~/.local/state/hephaistos/<machine>/`, rotating files.
+- `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
 - SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
 - A Machine set up twice (e.g. after deleting its data) gets a new ID; the same `os_machine_id` suggests merging them.
 
@@ -46,28 +49,33 @@ Each entity's dataclass lives next to its SQL. Operations spanning several modul
 - **Time:** a hybrid logical clock, stored as one INTEGER (milliseconds << 16 | counter). The clock lives in the database and advances inside each write transaction, so values from one Machine increase in commit order, across CLI and Daemon. Data received from Peers advances it past the largest value seen.
 - **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it.
 - **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added`, `.changed` or `.deleted` with the new values.
-- **Table names:** plural entity names; a relationship with a natural noun takes that noun (`mounts`).
-- **Schema version:** `PRAGMA user_version`, with migrations.
+- **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw views.
+- **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
+- **Schema version:** `PRAGMA user_version`. Until the data is relied on, schema changes edit the initial schema, and an outdated database is reported with a clear message (delete it and run `setup` again; one-off scripts where data is worth keeping). Migrations start from a declared schema 1.
 
 ## Tables
 
-| Table | Category | Columns |
-|---|---|---|
-| `meta` | local | `key`, `value`: this Machine's ID, the clock |
-| `machines` | Registry | `id`, `name`, `hostname`, `os_machine_id` |
-| `filesystems` | Registry | `id`, `name` |
-| `mounts` | Registry | `id`, `machine_id`, `filesystem_id`, `path` |
-| `repositories` | Registry | `id`, `name` |
-| `checkouts` | Registry | `id`, `repository_id`, `filesystem_id`, `path` (absolute), `kind` (clone / worktree), `clone_id` (worktrees only) |
-| `checkout_state` | State | `checkout_id`, `observed_at`, `observed_by`, `present`, `head`, `branch` (NULL when detached), `root_commits` (JSON), `remotes` (JSON), `error` |
-| `events` | Events | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
+| Table | Columns |
+|---|---|
+| `meta` | `key`, `value`: this Machine's ID, the clock |
+| `registry_machines` | `id`, `name`, `hostname`, `os_machine_id` |
+| `registry_filesystems` | `id`, `name` |
+| `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
+| `registry_repositories` | `id`, `name` |
+| `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
+| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `head`, `branch` (NULL when detached), `root_commits` (JSON), `remotes` (JSON), `error` |
+| `state_worktrees` | `id`, `clone_id`, `resolved_path`, `observed_at`, `observed_by`, `present`, `head`, `branch`, `error` |
+| `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
 
-- A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
-- Remotes are stored without credentials and matched in normalised form. Worktrees take root commits and remotes from their clone.
+- Names are unique per entity type (Machines, Filesystems, Repositories).
+- A new Repository is named after the origin remote (`…/hephaistos.git` → `hephaistos`), else the directory; a clash with another Repository requires `--name`.
+- Paths: `resolved_path` has all symlinks resolved and is used for identity and comparison; `display_path` is the absolute path as typed, symlinks kept. Display shortens the home directory to `~`; Worktrees under their Clone show relative to it. A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
+- Remotes are stored without credentials and matched in normalised form. Worktrees share their Clone's root commits and remotes.
+- Worktrees are identified by Clone and path while they exist: a new one gets a UUIDv7, a vanished one is removed with a `worktree.removed` Event, and one recreated at the same path is new. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a path, so Machines converge after one sync.
 
 ## Events
 
-- Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`checkout.branch_switched`); the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
+- Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_switched`); the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
 - One payload dataclass per kind; other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
 - Later, with Agents: how an Event was captured, and whether it is reported or inferred.
@@ -76,22 +84,27 @@ Each entity's dataclass lives next to its SQL. Operations spanning several modul
 
 - An observer observes one kind of thing: it takes a snapshot, compares it with the stored State, and writes the changes and their Events through shared code. Observers know nothing about timing; the Watcher schedules them, with intervals per observer in its config.
 - Each observation updates `observed_at`; rows and Events change only when something changed.
-- First observer: `checkouts` (git).
+- First observer: `clones` (git), which also finds their Worktrees.
+- Views show stored State with its age; they never observe. `--refresh` observes first, in a separate write session.
 
 ## CLI for the first slice
 
-One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities.
+One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default), and entities without a name by a short ID (the end of the UUID).
 
 ```
 hephaistos setup
 hephaistos machine show
-hephaistos repo add [path]          # suggests a matching Repository by root commits and remotes
-hephaistos repo list
-hephaistos checkout list
+hephaistos repo list | show <name> | rename
+hephaistos clone add [path] [--repository <name> | --new] [--name <name>]
+hephaistos clone list [--repo <name>] | show | remove
+hephaistos worktree list [--repo <name>] | show
 hephaistos event list
-hephaistos observe [checkouts [--checkout <id>]]
+hephaistos observe [clones [--clone <path>]]
 hephaistos db tables | db dump <table>
 ```
+
+- If a new Clone matches existing Repositories (root commits, remotes), `clone add` asks in a terminal; without one, it requires `--repository` or `--new`.
+- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time relative|short|full` and `time_format` in the config override this.
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.
 
@@ -102,6 +115,10 @@ Next: the Server and GUI pages showing these tables, plus a Repository overview.
 - **Separate occurred and recorded times for Events:** rarely different; a hook's own time goes into the payload.
 - **Setup on first use of any command:** a Machine should be set up deliberately.
 - **`deleted_at`:** duplicates `modified_at`.
+- **Worktrees in the Registry:** they come and go and are discovered, not declared.
+- **An ID file inside `.git` for Worktrees:** writes into the user's repository; identity by path suffices.
 - **Separate tables for root commits and remotes:** matching scans a few hundred Checkouts at most.
-- **A declared Repository URL:** duplicates origin; derived from the Checkouts' remotes.
+- **A declared Repository URL:** duplicates origin; derived from the Clones' remotes.
+- **Several database files (`ATTACH`) for grouping:** a transaction across them is not atomic in WAL mode.
+- **rich for output:** slower startup, which matters for shell completion.
 - **A single model module and an operations layer:** grows too large, and adds a layer without need.

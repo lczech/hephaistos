@@ -12,9 +12,9 @@ Every Machine keeps a full local copy of all data in its own database. The GUI o
 
 | Data | Written by | Sync rule |
 |---|---|---|
-| State: Checkouts' git status, Terminals, Agents | only its own Machine | newest snapshot wins |
-| Events: Agent started / waiting for input / ended / failed, Terminal created / closed, Checkout added, Branch switched | only the Machine where they occurred; immutable | union |
-| Registry: Repositories, Checkout assignments, Clusters, Links, inbox read position, settings | any Machine | last write wins, per record |
+| State: Checkouts' git status, Worktrees, Terminals, Agents | only its own Machine | newest snapshot wins |
+| Events: Agent started / waiting for input / ended / failed, Terminal created / closed, Clone added, Worktree added / removed, Branch switched | only the Machine where they occurred; immutable | union |
+| Registry: Repositories, their Clones, Clusters, Links, inbox read position, settings | any Machine | last write wins, per record |
 
 - Peers exchange everything they hold, so data spreads through whichever Machines are connected (e.g. laptop ↔ always-on Machine ↔ Cluster). Which Machines sync with each other is declared as [Links](../glossary.md) in the Registry.
 - Each Machine's Sync exchanges with its Peers in both directions: on a timer (pull), and shortly after local changes (push). High-priority Events (e.g. Agent waiting for input) are pushed and forwarded right away; others wait for the next exchange. Machines that can't be reached from outside (laptops) open the connection themselves and keep it open while online, so they also receive pushes. Typical Peer layout, a star:
@@ -28,7 +28,7 @@ Every Machine keeps a full local copy of all data in its own database. The GUI o
 
 Not exhaustive; for example:
 - **State changes**, found by comparing successive State snapshots: Branch switched, Terminal closed. These catch changes made outside our app.
-- **Our own actions**: Checkout added, editor opened (although that might be too much to track every time - probably not needed).
+- **Our own actions**: Clone added, editor opened (although that might be too much to track every time - probably not needed).
 - **Pushed by Provider hooks**: Agent waiting for input, turn finished. These are moments a poll would miss.
 
 Changes can be captured by polling as the baseline, and pushed where that is cheap and non-intrusive (e.g. hooks of our own tmux socket, file watches on local disks).
