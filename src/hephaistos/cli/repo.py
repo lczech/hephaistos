@@ -2,7 +2,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli.clone import branch_text, clone_json
+from hephaistos.cli.clone import branch_text, clone_json, status_text
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -87,7 +87,7 @@ def show(
                     "clone",
                     (
                         f"{short_path(details.clone.display_path)}  {branch_text(details)}"
-                        f"  {details.filesystem.name}"
+                        f"  {status_text(details.state)}  {details.filesystem.name}"
                     ),
                 )
                 for details in its_clones

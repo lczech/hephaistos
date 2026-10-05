@@ -51,11 +51,11 @@ def test_newest_first_with_limit(session: ReadSession) -> None:
 def test_read_back(set_up: Paths, session: ReadSession) -> None:
     subject = new_id()
     with write_session(set_up) as writing:
-        event_id = events.record(
+        recorded = events.record(
             writing, EventKind.REPOSITORY_ADDED, subject, {"name": "proj"}, Priority.HIGH
         )
     [event] = events.recent(session, limit=1)
-    assert event.id == event_id
+    assert event == recorded
     assert event.recorded_by == session.machine_id
     assert isinstance(event.recorded_at, Timestamp)
     assert (event.kind, event.subject_type, event.subject) == (

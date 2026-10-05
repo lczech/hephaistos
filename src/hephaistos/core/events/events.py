@@ -37,31 +37,6 @@ class Change:
     new: object
 
 
-def record(
-    session: WriteSession,
-    kind: EventKind,
-    subject: uuid.UUID,
-    payload: object,
-    priority: Priority | None = None,
-) -> uuid.UUID:
-    """Records an Event about `subject` in the session's transaction; returns its ID."""
-    event_id = new_id()
-    session.conn.execute(
-        "INSERT INTO events (id, recorded_at, recorded_by, kind, subject, priority, payload)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (
-            event_id,
-            session.tick(),
-            session.machine_id,
-            kind,
-            subject,
-            priority or kind.default_priority,
-            to_json(payload),
-        ),
-    )
-    return event_id
-
-
 @dataclass(frozen=True)
 class Event:
     """Something that happened."""
@@ -91,6 +66,40 @@ class Event:
             priority=row["priority"],
             payload=json.loads(row["payload"]),
         )
+
+
+def record(
+    session: WriteSession,
+    kind: EventKind,
+    subject: uuid.UUID,
+    payload: object,
+    priority: Priority | None = None,
+) -> Event:
+    """Records an Event about `subject` in the session's transaction, and returns it."""
+    text = to_json(payload)
+    event = Event(
+        id=new_id(),
+        recorded_at=session.tick(),
+        recorded_by=session.machine_id,
+        kind=kind,
+        subject=subject,
+        priority=priority or kind.default_priority,
+        payload=json.loads(text),
+    )
+    session.conn.execute(
+        "INSERT INTO events (id, recorded_at, recorded_by, kind, subject, priority, payload)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            event.id,
+            event.recorded_at,
+            event.recorded_by,
+            event.kind,
+            event.subject,
+            event.priority,
+            text,
+        ),
+    )
+    return event
 
 
 _COLUMNS = "id, recorded_at, recorded_by, kind, subject, priority, payload"

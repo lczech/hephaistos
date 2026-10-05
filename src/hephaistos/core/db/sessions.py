@@ -49,6 +49,12 @@ class ReadSession:
         return None if row is None else row[0]
 
     @property
+    def clock_value(self) -> Timestamp:
+        """The latest Timestamp any write session on this database has given."""
+        last = self.meta("clock")
+        return Timestamp(last if isinstance(last, int) else 0)
+
+    @property
     def journal_mode(self) -> str:
         """SQLite's journal mode: `wal`, or `delete` on network filesystems."""
         return str(self.conn.execute("PRAGMA journal_mode").fetchone()[0])
@@ -60,8 +66,7 @@ class WriteSession(ReadSession):
     def __init__(self, conn: sqlite3.Connection) -> None:
         """Wraps a connection inside an open transaction and loads the clock."""
         super().__init__(conn)
-        last = self.meta("clock")
-        self.clock = Clock(Timestamp(last if isinstance(last, int) else 0))
+        self.clock = Clock(self.clock_value)
 
     def tick(self) -> Timestamp:
         """A new Timestamp; saved with the transaction's commit."""

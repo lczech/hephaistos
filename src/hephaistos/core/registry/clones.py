@@ -90,6 +90,14 @@ def details(
     ]
 
 
+def on_this_machine(session: ReadSession) -> list[CloneDetails]:
+    """The Clones on Filesystems that this Machine mounts, which it can observe."""
+    filesystem_ids = {
+        filesystem.id for _, filesystem in mounts.mounts_of(session, session.machine_id)
+    }
+    return [existing for existing in details(session) if existing.filesystem.id in filesystem_ids]
+
+
 @dataclass(frozen=True)
 class Candidate:
     """A git repository at a path, inspected for adding as a Clone."""
@@ -130,11 +138,6 @@ def _normalised(remotes: Mapping[str, str]) -> set[str]:
     return {git.normalise_remote(url) for url in remotes.values()}
 
 
-def _compatible(roots: set[str], known: set[str]) -> bool:
-    """Whether a Clone with these root commits may join Clones with the `known` ones."""
-    return not roots or not known or bool(roots & known)
-
-
 def matching(session: ReadSession, candidate: Candidate) -> list[Repository]:
     """The Repositories that `candidate` shares a root commit or remote with, and may join."""
     roots = set(candidate.snapshot.root_commits)
@@ -151,7 +154,7 @@ def matching(session: ReadSession, candidate: Candidate) -> list[Repository]:
         repository
         for key, repository in repositories_by_id.items()
         if (roots & known_roots[key] or remotes & known_remotes[key])
-        and _compatible(roots, known_roots[key])
+        and git.shares_history(roots, known_roots[key])
     ]
     return sorted(found, key=lambda repository: repository.name)
 
@@ -172,7 +175,7 @@ def add(session: WriteSession, repository_name: str, candidate: Candidate) -> Cl
         for existing in details(session, repository_id=repository.id)
         for root in existing.state.root_commits
     }
-    if not _compatible(roots, known):
+    if not git.shares_history(roots, known):
         raise HephaistosError(
             f"{candidate.display_path} shares no history with the Clones of {repository.name}"
         )
@@ -185,7 +188,7 @@ def add(session: WriteSession, repository_name: str, candidate: Candidate) -> Cl
         display_path=candidate.display_path,
     )
     records.add(session, Table.REGISTRY_CLONES, EventKind.CLONE_ADDED, clone)
-    state.save(session, clone.id, candidate.snapshot)
+    state.add(session, clone.id, candidate.snapshot)
     return clone
 
 

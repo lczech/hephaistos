@@ -3,12 +3,19 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.utils.git import (
+    Entry,
     GitError,
+    GitTimeoutError,
+    NotInRepositoryError,
+    branches,
     locate,
     main_remote,
     normalise_remote,
+    parse_status,
     repository_name,
+    shares_history,
     snapshot,
+    status,
     without_credentials,
 )
 from support import clone, create, git
@@ -138,3 +145,88 @@ def test_main_remote() -> None:
     assert main_remote({"fork": "a", "origin": "b"}) == "b"
     assert main_remote({"upstream": "a", "fork": "b"}) == "b"
     assert main_remote({}) is None
+
+
+STATUS_FIELDS = (
+    "# branch.oid 1234",
+    "# branch.head main",
+    "# branch.upstream origin/main",
+    "# branch.ab +2 -1",
+    "1 .M N... 100644 100644 100644 abc abc a file.txt",
+    "1 A. N... 000000 100644 100644 000 def new.txt",
+    "1 MM N... 100644 100644 100644 abc def both.txt",
+    "2 R. N... 100644 100644 100644 abc abc R100 new name.txt",
+    "old name.txt",
+    "u UU N... 100644 100644 100644 100644 a b c conflict.txt",
+    "? untracked dir/",
+    "",
+)
+
+
+def test_parse_status() -> None:
+    parsed = parse_status("\0".join(STATUS_FIELDS))
+    assert (parsed.upstream, parsed.ahead, parsed.behind) == ("origin/main", 2, 1)
+    assert parsed.entries == (
+        Entry("a file.txt", ".", "M"),
+        Entry("new.txt", "A", "."),
+        Entry("both.txt", "M", "M"),
+        Entry("new name.txt", "R", ".", original="old name.txt"),
+        Entry("conflict.txt", "U", "U", conflicted=True),
+        Entry("untracked dir/", "?", "?"),
+    )
+    counts = (parsed.staged, parsed.changed, parsed.untracked, parsed.conflicted)
+    assert counts == (3, 2, 1, 1)
+
+
+def test_parse_status_without_upstream() -> None:
+    parsed = parse_status("# branch.oid (initial)\0# branch.head main\0")
+    assert (parsed.upstream, parsed.ahead, parsed.behind, parsed.entries) == (None, None, None, ())
+
+
+def test_status(tmp_path: Path) -> None:
+    origin = create(tmp_path / "origin")
+    repo = clone(origin, tmp_path / "repo")
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "ahead")
+    (repo / "staged file").write_text("x")
+    git(repo, "add", "staged file")
+    (repo / "dir").mkdir()
+    (repo / "dir" / "a").write_text("a")
+    (repo / "dir" / "b").write_text("b")
+    found = status(repo)
+    assert (found.upstream, found.ahead, found.behind) == ("origin/main", 1, 0)
+    assert (found.staged, found.changed, found.untracked, found.conflicted) == (1, 0, 1, 0)
+
+
+def test_branches(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    git(repo, "branch", "feature/x")
+    assert branches(repo) == ("feature/x", "main")
+
+
+def test_timeout(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    with pytest.raises(GitTimeoutError, match="timed out"):
+        status(repo, timeout=1e-6)
+
+
+def test_not_in_repository(tmp_path: Path) -> None:
+    with pytest.raises(NotInRepositoryError):
+        locate(tmp_path)
+
+
+def test_snapshot_status_and_branches(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    (repo / "new").write_text("x")
+    facts = snapshot(repo)
+    assert facts.branches == ("main",)
+    assert facts.status is not None
+    assert facts.status.untracked == 1
+    assert snapshot(clone(repo, tmp_path / "bare.git", bare=True)).status is None
+
+
+@pytest.mark.parametrize(
+    ("roots", "known", "expected"),
+    [(["a"], ["a", "b"], True), (["a"], ["b"], False), ([], ["b"], True), (["a"], [], True)],
+)
+def test_shares_history(roots: list[str], known: list[str], *, expected: bool) -> None:
+    assert shares_history(roots, known) is expected

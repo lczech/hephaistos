@@ -7,38 +7,52 @@ import os
 import re
 import shutil
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from hephaistos.core.utils.errors import HephaistosError
 
+TIMEOUT = 30.0  # seconds for one git command; a hung network filesystem must not block us
+
 
 class GitError(HephaistosError):
     """git is missing, or failed where it should have succeeded."""
 
 
-def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+class GitTimeoutError(GitError):
+    """A git command took longer than its timeout."""
+
+
+class NotInRepositoryError(GitError):
+    """A path is not in a git repository."""
+
+
+def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.CompletedProcess[str]:
     """Runs git in `path`; the caller checks the exit code."""
     executable = shutil.which("git")
     if executable is None:
         raise GitError("git is not installed")
     # Reading must never take locks that the user's own git commands would wait for.
     env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
-    return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-        [executable, "-C", str(path), *args],
-        capture_output=True,
-        encoding="utf-8",
-        errors="surrogateescape",
-        env=env,
-        check=False,
-    )
+    try:
+        return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+            [executable, "-C", str(path), *args],
+            capture_output=True,
+            encoding="utf-8",
+            errors="surrogateescape",
+            env=env,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        raise GitTimeoutError(f"`git {args[0]}` timed out after {timeout:g} s in {path}") from None
 
 
-def _output(path: Path, *args: str) -> str:
+def _output(path: Path, *args: str, timeout: float = TIMEOUT) -> str:
     """The output of git without the final newline; raises GitError if it fails."""
-    result = _git(path, *args)
+    result = _git(path, *args, timeout=timeout)
     if result.returncode != 0:
         raise GitError(f"`git {' '.join(args)}` failed in {path}: {result.stderr.strip()}")
     return result.stdout.removesuffix("\n")
@@ -55,7 +69,7 @@ class Location:
 _LOCATE_LINES = 4
 
 
-def locate(path: Path) -> Location:
+def locate(path: Path, timeout: float = TIMEOUT) -> Location:
     """The git repository that `path` lies in; raises GitError if none."""
     result = _git(
         path,
@@ -64,9 +78,10 @@ def locate(path: Path) -> Location:
         "--is-inside-work-tree",
         "--absolute-git-dir",
         "--git-common-dir",
+        timeout=timeout,
     )
     if result.returncode != 0:
-        raise GitError(f"{path} is not in a git repository")
+        raise NotInRepositoryError(f"{path} is not in a git repository")
     lines = result.stdout.removesuffix("\n").split("\n")
     if len(lines) != _LOCATE_LINES:
         raise GitError(f"unexpected output from `git rev-parse` in {path}")
@@ -74,16 +89,113 @@ def locate(path: Path) -> Location:
     if bare == "true":
         top = Path(git_dir).resolve()
     elif inside == "true":
-        top = Path(_output(path, "rev-parse", "--show-toplevel")).resolve()
+        top = Path(_output(path, "rev-parse", "--show-toplevel", timeout=timeout)).resolve()
     else:
         raise GitError(f"{path} is inside a git directory, not a working tree")
 
     main = None
     if Path(git_dir).resolve() != (path / common_dir).resolve():
         # The first entry of `worktree list` is the main working tree, or the bare repository.
-        first = _output(path, "worktree", "list", "--porcelain").split("\n", 1)[0]
+        first = _output(path, "worktree", "list", "--porcelain", timeout=timeout).split("\n", 1)[0]
         main = Path(first.removeprefix("worktree ")).resolve()
     return Location(top=top, main=main)
+
+
+@dataclass(frozen=True)
+class Entry:
+    """A path that `git status` reports, with git's state letters for index and working tree.
+
+    The letters: `.` unchanged, M, T, A, D, R, C; `?` for untracked; for conflicts git's own.
+    """
+
+    path: str
+    index: str
+    worktree: str
+    conflicted: bool = False
+    original: str | None = None  # the path before a rename or copy
+
+
+@dataclass(frozen=True)
+class Status:
+    """A working tree's state relative to HEAD and to its upstream branch."""
+
+    upstream: str | None  # e.g. `origin/main`
+    ahead: int | None  # None without upstream, or if it is gone
+    behind: int | None
+    entries: tuple[Entry, ...]
+
+    @property
+    def staged(self) -> int:
+        """Files with staged changes."""
+        return sum(self._tracked(entry) and entry.index != "." for entry in self.entries)
+
+    @property
+    def changed(self) -> int:
+        """Files changed in the working tree but not staged."""
+        return sum(self._tracked(entry) and entry.worktree != "." for entry in self.entries)
+
+    @property
+    def untracked(self) -> int:
+        """Untracked files; an untracked directory counts once."""
+        return sum(entry.index == "?" for entry in self.entries)
+
+    @property
+    def conflicted(self) -> int:
+        """Files with merge conflicts."""
+        return sum(entry.conflicted for entry in self.entries)
+
+    @staticmethod
+    def _tracked(entry: Entry) -> bool:
+        return not entry.conflicted and entry.index != "?"
+
+
+def parse_status(output: str) -> Status:
+    """Parses `git status --porcelain=v2 --branch -z`."""
+    upstream: str | None = None
+    ahead: int | None = None
+    behind: int | None = None
+    entries: list[Entry] = []
+    fields = iter(output.split("\0"))
+    for field in fields:
+        if field.startswith("# branch.upstream "):
+            upstream = field.removeprefix("# branch.upstream ")
+        elif field.startswith("# branch.ab "):
+            plus, minus = field.removeprefix("# branch.ab ").split()
+            ahead, behind = int(plus), -int(minus)
+        elif field.startswith("? "):
+            entries.append(Entry(field[2:], "?", "?"))
+        elif field.startswith("1 "):
+            parts = field.split(" ", 8)
+            entries.append(Entry(parts[8], parts[1][0], parts[1][1]))
+        elif field.startswith("2 "):
+            # A rename or copy: the original path follows as the next field.
+            parts = field.split(" ", 9)
+            entries.append(Entry(parts[9], parts[1][0], parts[1][1], original=next(fields)))
+        elif field.startswith("u "):
+            parts = field.split(" ", 10)
+            entries.append(Entry(parts[10], parts[1][0], parts[1][1], conflicted=True))
+    return Status(upstream=upstream, ahead=ahead, behind=behind, entries=tuple(entries))
+
+
+def status(top: Path, timeout: float = TIMEOUT) -> Status:
+    """The status of the working tree at `top`; ignored files are left out."""
+    return parse_status(
+        _output(
+            top,
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "-z",
+            "--untracked-files=normal",
+            timeout=timeout,
+        )
+    )
+
+
+def branches(top: Path, timeout: float = TIMEOUT) -> tuple[str, ...]:
+    """The local branches' names, sorted."""
+    output = _output(top, "for-each-ref", "--format=%(refname)", "refs/heads", timeout=timeout)
+    return tuple(sorted(line.removeprefix("refs/heads/") for line in output.splitlines()))
 
 
 @dataclass(frozen=True)
@@ -95,34 +207,47 @@ class Snapshot:
     branch: str | None  # None when HEAD is detached
     root_commits: tuple[str, ...]  # sorted
     remotes: Mapping[str, str]  # name → URL without credentials
+    branches: tuple[str, ...]  # local ones, sorted
+    status: Status | None  # None if bare
 
 
-def snapshot(top: Path) -> Snapshot:
+def snapshot(top: Path, timeout: float = TIMEOUT) -> Snapshot:
     """The current facts about the repository at `top`."""
-    bare = _output(top, "rev-parse", "--is-bare-repository") == "true"
-    head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD")
+    bare = _output(top, "rev-parse", "--is-bare-repository", timeout=timeout) == "true"
+    head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD", timeout=timeout)
     head = head_result.stdout.strip() if head_result.returncode == 0 else None
-    branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD")
+    branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD", timeout=timeout)
     branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
     return Snapshot(
         bare=bare,
         head=head,
         branch=branch,
-        root_commits=root_commits(top, include_head=head is not None),
-        remotes=remotes(top),
+        root_commits=root_commits(top, include_head=head is not None, timeout=timeout),
+        remotes=remotes(top, timeout),
+        branches=branches(top, timeout),
+        status=None if bare else status(top, timeout),
     )
 
 
-def root_commits(top: Path, *, include_head: bool = True) -> tuple[str, ...]:
+def root_commits(
+    top: Path, *, include_head: bool = True, timeout: float = TIMEOUT
+) -> tuple[str, ...]:
     """The commits without parents, reachable from HEAD and all local and remote branches."""
     refs = ["HEAD"] if include_head else []
-    output = _output(top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
+    output = _output(
+        top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes", timeout=timeout
+    )
     return tuple(sorted(set(output.split()))) if output else ()
 
 
-def remotes(top: Path) -> dict[str, str]:
+def shares_history(roots: Collection[str], known: Collection[str]) -> bool:
+    """Whether root commits are compatible with `known` ones: some in common, or either empty."""
+    return not roots or not known or not set(roots).isdisjoint(known)
+
+
+def remotes(top: Path, timeout: float = TIMEOUT) -> dict[str, str]:
     """The remotes' names and URLs, without credentials."""
-    result = _git(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$")
+    result = _git(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$", timeout=timeout)
     if result.returncode == 1:  # no remotes
         return {}
     if result.returncode != 0:
