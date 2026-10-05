@@ -31,6 +31,7 @@ Decided in [docs/decisions/](docs/decisions/):
 
 - [001 Data ownership and sync](docs/decisions/001-data-ownership.md): every Machine keeps a full copy of all data and syncs with its Peers; each Machine alone writes its own State and Events. An always-on Machine is special only in being reachable (overnight collection, phone access).
 - [002 Technology stack and components](docs/decisions/002-technology-stack.md): Python Core library with CLI and a per-Machine Daemon (Watcher, Sync, Server); TypeScript/React GUI with dockview panels, xterm.js and Monaco; Electron desktop shell; SQLite; tmux keeping Terminals alive; plugins for Agents, Terminals and Launchers.
+- [003 Core foundations](docs/decisions/003-core.md): package layout, setup, conventions (UUIDv7, hybrid logical clock), first tables, observers and the first CLI.
 
 Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each Machine should remain usable when other Machines are unreachable. Disconnected Machines should show timestamped last-known information.
 
