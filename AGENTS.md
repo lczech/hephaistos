@@ -39,7 +39,7 @@ Desktop actions must execute on the intended Machine and, where necessary, in it
 
 **Domain model**
 
-Defined in [docs/glossary.md](docs/glossary.md). In short: a **Repository** (registered, git required) has **Checkouts** (clones or worktrees) on **Filesystems** seen by **Machines**; Machines run our **Daemon**, **Terminals** and **Agents**; **Events** record what happened.
+Defined in [docs/glossary.md](docs/glossary.md). In short: a **Repository** (registered, git required) has **Checkouts**: registered **Clones** and their observed **Worktrees**, on **Filesystems** seen by **Machines**; Machines run our **Daemon**, **Terminals** and **Agents**; **Events** record what happened.
 
 A Terminal and an Agent are different things. Do not assume Agents from editor extensions and from the CLI are interchangeable or automatically discoverable. If possible, an overview should list _all_ Agents of all Providers (e.g. Claude Code, Codex), on any Machine, from the CLI or an editor.
 
@@ -70,3 +70,5 @@ Then add remote-machine support, agent events and attention, embedded terminals,
 First inspect the repository and available environment. Present a concise architecture recommendation, the important open decisions, and a staged implementation plan. Identify which choices are costly to change and which can wait.
 
 Then begin the smallest useful implementation. Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Keep explanations concise, document important decisions, and verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
+
+Implement one step at a time, with tests, and stop after each step with a short summary and how to try it. The user reviews and commits.
