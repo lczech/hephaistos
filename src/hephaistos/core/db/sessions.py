@@ -80,23 +80,25 @@ def _connect(database: Path, *, read_only: bool) -> sqlite3.Connection:
     return conn
 
 
-def _open(paths: Paths, *, read_only: bool) -> sqlite3.Connection:
+def _open(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite3.Connection:
     """Opens this Machine's database, after checking it exists and has our schema."""
     if not paths.database.exists():
         raise NotSetUpError
     conn = _connect(paths.database, read_only=read_only)
+    if not check_schema:
+        return conn
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     row = conn.execute("SELECT value FROM meta WHERE key = 'schema_hash'").fetchone()
     if version != SCHEMA_VERSION or row is None or row[0] != SCHEMA_HASH:
         conn.close()
-        raise SchemaOutdatedError(paths.database)
+        raise SchemaOutdatedError
     return conn
 
 
 @contextmanager
-def read_session(paths: Paths) -> Generator[ReadSession]:
-    """A read-only session on this Machine's database."""
-    conn = _open(paths, read_only=True)
+def read_session(paths: Paths, *, check_schema: bool = True) -> Generator[ReadSession]:
+    """A read-only session on this Machine's database; on an outdated one only if unchecked."""
+    conn = _open(paths, read_only=True, check_schema=check_schema)
     try:
         yield ReadSession(conn)
     finally:
@@ -133,19 +135,39 @@ def data_dir_is_network(paths: Paths) -> bool:
     return mount_of(paths.data_dir).is_network
 
 
+def _sidecars(database: Path) -> tuple[Path, Path]:
+    """SQLite's WAL and shared-memory files, which it finds next to the database by name."""
+    return Path(f"{database}-wal"), Path(f"{database}-shm")
+
+
+def _keep_backup(paths: Paths) -> None:
+    """Moves the database to its backup, replacing an earlier one."""
+    backup = paths.database_backup
+    for path in (backup, *_sidecars(backup)):
+        path.unlink(missing_ok=True)
+    wal, shm = _sidecars(paths.database)
+    if wal.exists():
+        wal.rename(_sidecars(backup)[0])
+    shm.unlink(missing_ok=True)
+    paths.database.rename(backup)
+
+
 @contextmanager
-def create_database(paths: Paths, machine_id: uuid.UUID) -> Generator[WriteSession]:
+def create_database(
+    paths: Paths, machine_id: uuid.UUID, *, replace: bool = False
+) -> Generator[WriteSession]:
     """Creates the database and yields its first write session.
 
     The database is built under a temporary name and only moved into place once that session
-    has committed, so a failed setup leaves nothing that counts as set up.
+    has committed, so a failed setup leaves nothing that counts as set up, and with `replace`
+    the existing database untouched. Once replaced, it is kept as a backup.
     """
-    if paths.database.exists():
+    if paths.database.exists() and not replace:
         raise AlreadySetUpError(paths.database)
     paths.data_dir.mkdir(parents=True, exist_ok=True)
     paths.state_dir.mkdir(parents=True, exist_ok=True)
     building = paths.database.with_name(paths.database.name + ".new")
-    for leftover in (building, *(Path(f"{building}{suffix}") for suffix in ("-wal", "-shm"))):
+    for leftover in (building, *_sidecars(building)):
         leftover.unlink(missing_ok=True)
 
     # SQLite's WAL mode needs shared memory, which network filesystems don't provide.
@@ -168,4 +190,6 @@ def create_database(paths: Paths, machine_id: uuid.UUID) -> Generator[WriteSessi
         building.unlink(missing_ok=True)
         raise
     conn.close()
+    if paths.database.exists():
+        _keep_backup(paths)
     building.rename(paths.database)

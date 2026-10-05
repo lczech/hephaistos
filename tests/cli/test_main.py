@@ -4,6 +4,7 @@ import pytest
 from typer.testing import CliRunner
 
 from hephaistos import __version__
+from hephaistos.cli import terminal
 from hephaistos.cli.main import app, run
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
@@ -72,3 +73,45 @@ def test_machine_show_by_name_matches_list() -> None:
 
     result = runner.invoke(app, ["machine", "show", "desktop"])
     assert isinstance(result.exception, HephaistosError)
+
+
+def _this_id() -> str:
+    return json.loads(runner.invoke(app, ["machine", "show", "--json"]).output)["id"]
+
+
+def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    old_id = _this_id()
+
+    result = runner.invoke(app, ["setup", "--reset"])
+    assert isinstance(result.exception, HephaistosError)
+    assert "confirm with --yes" in str(result.exception)
+
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    result = runner.invoke(app, ["setup", "--reset"], input="\n")
+    assert result.exit_code == 1
+    assert f"Machine laptop ({old_id}) is replaced" in result.output
+    assert _this_id() == old_id
+    assert not paths.database_backup.exists()
+
+    result = runner.invoke(app, ["setup", "--reset"], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert "Set up Machine laptop" in result.output
+    assert result.output.endswith(f"The old database is kept as {paths.database_backup}\n")
+    assert _this_id() != old_id
+
+
+@pytest.mark.usefixtures("paths")
+def test_setup_reset_with_yes() -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    old_id = _this_id()
+    result = runner.invoke(app, ["setup", "--reset", "--yes"])
+    assert result.exit_code == 0, result.output
+    assert _this_id() != old_id
+
+
+@pytest.mark.usefixtures("paths")
+def test_setup_reset_with_nothing_to_reset() -> None:
+    result = runner.invoke(app, ["setup", "--reset", "--name", "laptop"])
+    assert result.exit_code == 0, result.output
+    assert result.output.startswith("Nothing to reset\nSet up Machine laptop")

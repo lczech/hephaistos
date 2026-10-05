@@ -48,6 +48,11 @@ class Paths:
         """The SQLite database file."""
         return self.data_dir / DATABASE_NAME
 
+    @property
+    def database_backup(self) -> Path:
+        """Where `setup --reset` keeps the previous database."""
+        return self.data_dir / f"{DATABASE_NAME}.old"
+
     @classmethod
     def from_environment(cls, env: Mapping[str, str] = os.environ) -> "Paths":
         """XDG directories, or everything under HEPHAISTOS_HOME if that is set."""

@@ -1,10 +1,10 @@
 import shlex
-import sys
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from hephaistos.cli import terminal
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -58,11 +58,6 @@ def clone_json(details: CloneDetails) -> dict[str, object]:
     }
 
 
-def _interactive() -> bool:
-    """Whether we can ask the user."""
-    return sys.stdin.isatty()
-
-
 def _choose_repository(session: ReadSession, path: Path, candidate: Candidate) -> str:
     """The Repository to add `candidate` to, from the matching ones, asking the user."""
     matches = [repository.name for repository in clones.matching(session, candidate)]
@@ -74,7 +69,7 @@ def _choose_repository(session: ReadSession, path: Path, candidate: Candidate) -
             f"  hephaistos repo add {name}\n"
             f"  hephaistos clone add {shlex.quote(str(path))} --repo {name}"
         )
-    if not _interactive():
+    if not terminal.interactive():
         raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
     if len(matches) == 1:
         if not typer.confirm(f"Add {shown} as a Clone of {matches[0]}?", default=True):
