@@ -1,0 +1,46 @@
+[project]
+name = "hephaistos"
+version = "0.1.0"
+description = "A workbench for managing repositories, terminals, and agents across distributed machines."
+readme = "README.md"
+license = "Apache-2.0"
+authors = [{ name = "Lucas Czech", email = "luc.czech@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = ["typer>=0.27"]
+
+[project.scripts]
+hephaistos = "hephaistos.cli.main:app"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.13", "pyright>=1.1.400"]
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W", "I", "UP", "B", "SIM", "RUF",
+    "ANN",  # type annotations everywhere
+    "C4", "RET", "PTH", "PERF", "PT", "TC",
+]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportImplicitOverride = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUninitializedInstanceVariable = "error"
+reportPropertyTypeMismatch = "error"
+reportImportCycles = "error"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = ["error"]
