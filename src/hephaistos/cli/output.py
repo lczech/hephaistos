@@ -19,6 +19,11 @@ TimeFormatOption = Annotated[
 ]
 
 
+def number_text(count: int, noun: str) -> str:
+    """`1 Clone`, `2 Clones`."""
+    return f"{count} {noun}{'' if count == 1 else 's'}"
+
+
 def short_path(path: Path) -> str:
     """The path with the home directory shortened to ~."""
     home = Path.home()

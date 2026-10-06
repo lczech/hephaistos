@@ -86,16 +86,25 @@ CREATE TABLE state_clones (
 ) STRICT;
 
 CREATE TABLE state_worktrees (
-    id            BLOB PRIMARY KEY CHECK (length(id) = 16),
-    clone_id      BLOB NOT NULL REFERENCES registry_clones (id),
-    resolved_path TEXT NOT NULL,
-    observed_at   INTEGER NOT NULL,
-    observed_by   BLOB NOT NULL REFERENCES registry_machines (id),
-    present       INTEGER NOT NULL CHECK (present IN (0, 1)),
-    head          TEXT,
-    branch        TEXT,
-    error         TEXT,
-    UNIQUE (clone_id, resolved_path)
+    id          BLOB PRIMARY KEY CHECK (length(id) = 16),
+    clone_id    BLOB NOT NULL REFERENCES registry_clones (id),
+    name        TEXT NOT NULL,  -- git's admin directory: <common dir>/worktrees/<name>
+    path        TEXT NOT NULL,  -- as git reports it
+    lock_reason TEXT,           -- NULL unless locked; may be away temporarily if locked
+    observed_at INTEGER NOT NULL,
+    observed_by BLOB NOT NULL REFERENCES registry_machines (id),
+    present     INTEGER NOT NULL CHECK (present IN (0, 1)),
+    head        TEXT,
+    branch      TEXT,
+    upstream    TEXT,
+    ahead       INTEGER,
+    behind      INTEGER,
+    staged      INTEGER,
+    changed     INTEGER,
+    untracked   INTEGER,
+    conflicted  INTEGER,
+    error       TEXT,
+    UNIQUE (clone_id, name)
 ) STRICT;
 
 -- Events

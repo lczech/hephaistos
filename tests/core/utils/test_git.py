@@ -6,6 +6,7 @@ from hephaistos.core.utils.git import (
     Entry,
     GitError,
     GitTimeoutError,
+    LinkedWorktree,
     NotInRepositoryError,
     branches,
     locate,
@@ -17,6 +18,7 @@ from hephaistos.core.utils.git import (
     snapshot,
     status,
     without_credentials,
+    worktrees,
 )
 from support import clone, create, git
 
@@ -230,3 +232,43 @@ def test_snapshot_status_and_branches(tmp_path: Path) -> None:
 )
 def test_shares_history(roots: list[str], known: list[str], *, expected: bool) -> None:
     assert shares_history(roots, known) is expected
+
+
+def test_worktrees(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(repo / ".worktrees" / "feature"))
+    git(repo, "worktree", "add", "--quiet", "--detach", str(tmp_path / "detached"))
+    git(repo, "worktree", "add", "--quiet", "-b", "usb", str(tmp_path / "usb"))
+    git(repo, "worktree", "lock", "--reason", "on a stick", str(tmp_path / "usb"))
+    git(repo, "worktree", "add", "--quiet", "-b", "gone", str(tmp_path / "gone"))
+    git(repo, "worktree", "lock", str(tmp_path / "gone"))
+    git(repo, "worktree", "add", "--quiet", "-b", "moved", str(tmp_path / "before"))
+    git(repo, "worktree", "move", str(tmp_path / "before"), str(tmp_path / "after"))
+    (tmp_path / "gone").rename(tmp_path / "elsewhere")
+
+    location = locate(repo)
+    assert location.common_dir == (repo / ".git").resolve()
+    listed = sorted(worktrees(repo, location.common_dir), key=lambda linked: linked.name)
+    assert listed == [
+        LinkedWorktree("before", tmp_path / "after", head, "moved", None),
+        LinkedWorktree("detached", tmp_path / "detached", head, None, None),
+        LinkedWorktree("feature", repo / ".worktrees" / "feature", head, "feature", None),
+        LinkedWorktree("gone", tmp_path / "gone", head, "gone", ""),
+        LinkedWorktree("usb", tmp_path / "usb", head, "usb", "on a stick"),
+    ]
+
+
+def test_worktrees_of_bare(tmp_path: Path) -> None:
+    bare = clone(create(tmp_path / "repo"), tmp_path / "bare.git", bare=True)
+    git(bare, "worktree", "add", "--quiet", str(tmp_path / "main"), "main")
+    location = locate(bare)
+    assert location.common_dir == bare.resolve()
+    [linked] = worktrees(bare, location.common_dir)
+    assert (linked.name, linked.branch) == ("main", "main")
+
+
+def test_locate_worktree_common_dir(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    git(repo, "worktree", "add", "--quiet", "-b", "x", str(tmp_path / "wt"))
+    assert locate(tmp_path / "wt").common_dir == (repo / ".git").resolve()

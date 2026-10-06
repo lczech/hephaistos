@@ -64,6 +64,7 @@ class Location:
 
     top: Path  # resolved: the working tree's top level, or the git directory if bare
     main: Path | None  # for a linked worktree: its main working tree or bare git directory
+    common_dir: Path  # resolved: the git directory shared by all worktrees
 
 
 _LOCATE_LINES = 4
@@ -93,12 +94,13 @@ def locate(path: Path, timeout: float = TIMEOUT) -> Location:
     else:
         raise GitError(f"{path} is inside a git directory, not a working tree")
 
+    common = (path / common_dir).resolve()
     main = None
-    if Path(git_dir).resolve() != (path / common_dir).resolve():
+    if Path(git_dir).resolve() != common:
         # The first entry of `worktree list` is the main working tree, or the bare repository.
         first = _output(path, "worktree", "list", "--porcelain", timeout=timeout).split("\n", 1)[0]
         main = Path(first.removeprefix("worktree ")).resolve()
-    return Location(top=top, main=main)
+    return Location(top=top, main=main, common_dir=common)
 
 
 @dataclass(frozen=True)
@@ -196,6 +198,69 @@ def branches(top: Path, timeout: float = TIMEOUT) -> tuple[str, ...]:
     """The local branches' names, sorted."""
     output = _output(top, "for-each-ref", "--format=%(refname)", "refs/heads", timeout=timeout)
     return tuple(sorted(line.removeprefix("refs/heads/") for line in output.splitlines()))
+
+
+_NO_COMMIT = "0" * 40
+
+
+@dataclass(frozen=True)
+class LinkedWorktree:
+    """A linked worktree as git lists it; the main working tree is not one."""
+
+    name: str  # its admin directory: <common dir>/worktrees/<name>; kept when moved
+    path: Path
+    head: str | None  # None before the first commit
+    branch: str | None  # None when HEAD is detached
+    lock_reason: str | None  # None unless locked; empty if locked without a reason
+
+
+def _worktree_names(common_dir: Path) -> dict[Path, str]:
+    """The linked worktrees' admin names, by their resolved paths."""
+    admin = common_dir / "worktrees"
+    names: dict[Path, str] = {}
+    try:
+        entries = list(admin.iterdir()) if admin.is_dir() else []
+        for entry in entries:
+            gitdir = entry / "gitdir"
+            if gitdir.is_file():
+                # It holds the path to the worktree's `.git` file, absolute or relative to `entry`.
+                names[(entry / gitdir.read_text().strip()).resolve().parent] = entry.name
+    except OSError as error:
+        raise GitError(f"reading {admin} failed: {error}") from error
+    return names
+
+
+def worktrees(top: Path, common_dir: Path, timeout: float = TIMEOUT) -> tuple[LinkedWorktree, ...]:
+    """The linked worktrees of the repository at `top`, including those whose directory is gone."""
+    # Without -z, which needs git 2.36: paths with newlines are not supported.
+    output = _output(top, "worktree", "list", "--porcelain", timeout=timeout)
+    names = _worktree_names(common_dir)
+    found: list[LinkedWorktree] = []
+    for record in output.split("\n\n")[1:]:  # the first is the main working tree
+        lines = record.splitlines()
+        if not lines or not lines[0].startswith("worktree "):
+            continue
+        path = Path(lines[0].removeprefix("worktree "))
+        attributes: dict[str, str] = {}
+        for line in lines[1:]:
+            key, _, value = line.partition(" ")
+            attributes[key] = value
+        name = names.get(path.resolve())
+        if name is None:
+            continue  # being created or removed right now
+        head = attributes.get("HEAD")
+        found.append(
+            LinkedWorktree(
+                name=name,
+                path=path,
+                head=None if head in (None, _NO_COMMIT) else head,
+                branch=attributes["branch"].removeprefix("refs/heads/")
+                if "branch" in attributes
+                else None,
+                lock_reason=attributes.get("locked"),
+            )
+        )
+    return tuple(found)
 
 
 @dataclass(frozen=True)

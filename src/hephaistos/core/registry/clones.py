@@ -13,7 +13,9 @@ from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.records import Record
 from hephaistos.core.registry.repositories import Repository
 from hephaistos.core.state import clones as state
+from hephaistos.core.state import worktrees
 from hephaistos.core.state.clones import CloneState
+from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
@@ -51,6 +53,7 @@ class CloneDetails:
     repository: Repository
     filesystem: Filesystem
     state: CloneState
+    worktrees: tuple[WorktreeState, ...]  # sorted by path
 
 
 _STATE_COLUMNS = ", ".join(f"s.{column}" for column in state.COLUMNS)
@@ -62,7 +65,10 @@ def details(
     repository_id: uuid.UUID | None = None,
     filesystem_id: uuid.UUID | None = None,
 ) -> list[CloneDetails]:
-    """The Clones, optionally of one Repository or on one Filesystem, by Repository and path."""
+    """The Clones with their Worktrees, optionally of one Repository or on one Filesystem.
+
+    Sorted by Repository and path.
+    """
     rows = session.conn.execute(
         "SELECT c.id, c.repository_id, c.filesystem_id, c.resolved_path, c.display_path,"  # noqa: S608 - _STATE_COLUMNS is our own constant
         f" r.name AS repository_name, f.name AS filesystem_name, {_STATE_COLUMNS}"
@@ -74,7 +80,10 @@ def details(
         " AND coalesce(c.filesystem_id = ?, 1)"
         " ORDER BY r.name, c.display_path",
         (repository_id, filesystem_id),
-    )
+    ).fetchall()
+    by_clone: dict[uuid.UUID, list[WorktreeState]] = {}
+    for worktree in worktrees.of_clones(session, [uuid.UUID(bytes=row["id"]) for row in rows]):
+        by_clone.setdefault(worktree.clone_id, []).append(worktree)
     return [
         CloneDetails(
             clone=Clone.from_row(row),
@@ -85,6 +94,7 @@ def details(
                 id=uuid.UUID(bytes=row["filesystem_id"]), name=row["filesystem_name"]
             ),
             state=CloneState.from_row(row),
+            worktrees=tuple(by_clone.get(uuid.UUID(bytes=row["id"]), ())),
         )
         for row in rows
     ]
@@ -192,23 +202,82 @@ def add(session: WriteSession, repository_name: str, candidate: Candidate) -> Cl
     return clone
 
 
-def find(session: ReadSession, path: Path) -> CloneDetails:
-    """The Clone that `path` lies in, on this Machine; the innermost if they are nested."""
+@dataclass(frozen=True)
+class CheckoutDetails:
+    """A Checkout: a Clone, or one of its Worktrees."""
+
+    clone: CloneDetails
+    worktree: WorktreeState | None  # None for the Clone's own working tree
+
+
+def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
+    """The Checkout on this Machine that `path` lies in, as last observed.
+
+    The innermost if they are nested, e.g. a Worktree inside its Clone's directory.
+    """
     resolved = absolute(path).resolve()
-    _, filesystem = mounts.containing(session, session.machine_id, resolved)
     containing = [
-        existing
-        for existing in details(session, filesystem_id=filesystem.id)
-        if resolved.is_relative_to(existing.clone.resolved_path)
+        (len(top.parts), CheckoutDetails(existing, worktree))
+        for existing in on_this_machine(session)
+        for top, worktree in [
+            (existing.clone.resolved_path, None),
+            *((worktree.path.resolve(), worktree) for worktree in existing.worktrees),
+        ]
+        if resolved.is_relative_to(top)
     ]
     if not containing:
-        raise HephaistosError(f"no Clone registered at {absolute(path)}")
-    return max(containing, key=lambda existing: len(existing.clone.resolved_path.parts))
+        raise HephaistosError(f"no Clone or Worktree known at {absolute(path)}")
+    return max(containing, key=lambda candidate: candidate[0])[1]
+
+
+def find(session: ReadSession, path: Path) -> CloneDetails:
+    """The Clone that `path` lies in, or whose Worktree it lies in."""
+    return find_checkout(session, path).clone
+
+
+def outdated_clone(
+    session: ReadSession, path: Path, timeout: float = git.TIMEOUT
+) -> CloneDetails | None:
+    """The Clone whose Checkout `path` lies in by git, if the record places it elsewhere.
+
+    E.g. a Worktree not observed yet, or moved since. None if the record agrees with git, or git
+    knows no Clone of ours there.
+    """
+    if not path.exists():
+        return None
+    try:
+        location = git.locate(absolute(path), timeout)
+    except git.GitError:
+        return None
+    try:
+        checkout = find_checkout(session, path)
+    except HephaistosError:
+        checkout = None
+    if checkout is not None:
+        known = checkout.worktree.path if checkout.worktree else checkout.clone.clone.resolved_path
+        if known.resolve() == location.top:
+            return None
+    top = location.main or location.top
+    return next(
+        (details for details in on_this_machine(session) if details.clone.resolved_path == top),
+        None,
+    )
+
+
+def find_unobserved(session: ReadSession, path: Path, timeout: float = git.TIMEOUT) -> CloneDetails:
+    """Like `find`, but also for a Worktree not observed yet: git knows its Clone."""
+    return outdated_clone(session, path, timeout) or find(session, path)
 
 
 def remove(session: WriteSession, path: Path) -> CloneDetails:
     """Unregisters the Clone that `path` lies in; its files stay untouched."""
-    removed = find(session, path)
+    checkout = find_checkout(session, path)
+    if checkout.worktree is not None or outdated_clone(session, path) is not None:
+        raise HephaistosError(
+            f"{absolute(path)} is in a Worktree of the Clone at"
+            f" {checkout.clone.clone.display_path}; run this in the Clone"
+        )
+    removed = checkout.clone
     records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, removed.clone)
     return removed
 

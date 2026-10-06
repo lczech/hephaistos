@@ -68,7 +68,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 | `registry_repositories` | `id`, `name` |
 | `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
 | `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error` |
-| `state_worktrees` | `id`, `clone_id`, `resolved_path`, `observed_at`, `observed_by`, `present`, `head`, `branch`, `error` |
+| `state_worktrees` | `id`, `clone_id`, `name` (git's), `path` (as git reports it), `lock_reason`, `observed_at`, `observed_by`, `present`, `head`, `branch`, status (as for Clones), `error` |
 | `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
 
 - Names are unique per entity type (Machines, Filesystems, Repositories).
@@ -76,7 +76,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - Paths: `resolved_path` has all symlinks resolved and is used for identity and comparison; `display_path` is the absolute path as typed, symlinks kept. Display shortens the home directory to `~`; Worktrees under their Clone show relative to it. A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
 - Remotes are stored without credentials and matched in normalised form (`git@host:a/b.git` and `https://host/a/b` are the same). Root commits are those of all local and remote-tracking branches. Worktrees share their Clone's root commits and remotes.
 - A bare repository is a Clone whose path is its git directory; it has Worktrees but no files to open.
-- Worktrees are identified by Clone and path while they exist: a new one gets a UUIDv7, a vanished one is removed with a `worktree.removed` Event, and one recreated at the same path is new. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a path, so Machines converge after one sync.
+- Worktrees are identified by Clone and git's admin name (`<git common dir>/worktrees/<name>`), which survives `git worktree move` (`worktree.moved`); a new one gets a UUIDv7. One whose directory is gone was removed (`worktree.removed`, row deleted), unless locked with `git worktree lock`: then it is missing. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a name, so Machines converge after one sync.
 
 ## Events
 
@@ -93,11 +93,11 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
 - Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: views of files ask the Machine's Server live.
 - Actions come from git's reflogs, read from a cursor per Checkout: commits, merges, pulls, rebases, resets, branch switches, pushes; branch creation gains its time and start. Next, after Worktrees.
-- Views show stored State with its age; they never observe. `--refresh` observes first, in a separate write session.
+- Views show stored State with its age. `--refresh` observes first, in a separate write session. Views also observe first, saying so, when git knows a Checkout that the record misses, e.g. a Worktree not observed yet.
 
 ## CLI for the first slice
 
-One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default), and entities without a name by a short ID (the end of the UUID).
+One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default; the innermost Checkout containing it), and entities without a name by a short ID (the end of the UUID). Worktrees can also be addressed by name, asking if several Clones have one. `clone` commands accept a path in one of the Clone's Worktrees, except `clone remove`.
 
 ```
 hephaistos setup
@@ -105,7 +105,7 @@ hephaistos machine list | show
 hephaistos repo list | show <name> | add <name> | rename <name> <new name>
 hephaistos clone add [path] [--repo <name>]
 hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | remove
-hephaistos worktree list [--repo <name>] | show
+hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refresh]
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>] | show <id>
 hephaistos observe [clones] [--clone <path>]…
 hephaistos db tables | db dump <table>
@@ -127,7 +127,7 @@ Next: the Server and GUI pages showing these tables, plus a Repository overview.
 - **Setup on first use of any command:** a Machine should be set up deliberately.
 - **`deleted_at`:** duplicates `modified_at`.
 - **Worktrees in the Registry:** they come and go and are discovered, not declared.
-- **An ID file inside `.git` for Worktrees:** writes into the user's repository; identity by path suffices.
+- **An ID file inside `.git` for Worktrees:** writes into the user's repository; git's admin name suffices.
 - **Separate tables for root commits and remotes:** matching scans a few hundred Checkouts at most.
 - **A declared Repository URL:** duplicates origin; derived from the Clones' remotes.
 - **Several database files (`ATTACH`) for grouping:** a transaction across them is not atomic in WAL mode.

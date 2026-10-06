@@ -8,6 +8,7 @@ from pathlib import Path
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.events.events import Event
 from hephaistos.core.registry import clones, filesystems, machines, mounts, repositories
+from hephaistos.core.state import worktrees
 
 type Label = str | Path
 type Labeller = Callable[[ReadSession, Collection[uuid.UUID]], Mapping[uuid.UUID, Label]]
@@ -18,6 +19,7 @@ _LABELLERS: dict[str, Labeller] = {
     "mount": mounts.labels,
     "repository": repositories.labels,
     "clone": clones.labels,
+    "worktree": worktrees.labels,
 }
 
 
