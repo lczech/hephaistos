@@ -15,6 +15,7 @@ from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.state.checkouts import (
     STATUS_COLUMNS,
     CheckoutState,
+    Condition,
     Failed,
     Missing,
     conditions,
@@ -129,8 +130,12 @@ class BranchPayload:
 
 def caused_events(old: CloneState, new: CloneState) -> list[tuple[EventKind, object]]:
     """The Events that going from `old` to `new` causes, with their payloads."""
-    caused = [
-        (EventKind(f"clone.{condition}"), payload) for condition, payload in conditions(old, new)
+    caused: list[tuple[EventKind, object]] = [
+        (
+            EventKind(f"clone.{condition}"),
+            Failed(new.error or "") if condition is Condition.FAILED else {},
+        )
+        for condition in conditions(old, new)
     ]
     caused += [
         (EventKind.CLONE_BRANCH_CREATED, BranchPayload(branch))

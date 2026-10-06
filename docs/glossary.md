@@ -12,7 +12,7 @@ In docs, defined terms (Core terms, Components, Later) are capitalised, includin
 | **Repository** (repo) | A logical git repository: the unit you register. It spans all its Checkouts on all Machines. |
 | **Checkout** | A git working tree of one Repository, at a path on a Filesystem: a Clone or a Worktree. Umbrella term; there is no Checkout record of its own. |
 | **Clone** | A Checkout that owns its `.git`. Registered by the user, so part of the Registry. |
-| **Worktree** | A Checkout linked to a Clone via `git worktree`. Found by observing its Clone, so part of State; identified by its Clone and path while it exists. |
+| **Worktree** | A Checkout linked to a Clone via `git worktree`. Found by observing its Clone, so part of State; identified by its Clone and git's name for it, which survives moves. |
 | **Branch** | A named line of commits, in the usual git sense. Each Clone has its own copies, which can diverge. Worktrees share their Clone's Branches. For now, a Branch is part of a Checkout's State: current Branch (or detached HEAD), ahead/behind its upstream, and whether the working tree is dirty. |
 | **Machine** | A computer where processes run, with its own copy of our data. Each login node or free node of a Cluster is its own Machine. |
 | **Filesystem** | A set of paths that resolve to the same files on every Machine that sees it. By default, each Machine has its own. A shared cluster filesystem is one Filesystem, seen by many Machines. |

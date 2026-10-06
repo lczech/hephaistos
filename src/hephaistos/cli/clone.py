@@ -8,6 +8,7 @@ from hephaistos.cli import terminal
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
+    number_text,
     print_fields,
     print_json,
     print_table,
@@ -18,8 +19,9 @@ from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session, write_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
-from hephaistos.core.registry.clones import Candidate, CloneDetails
-from hephaistos.core.state.checkouts import CheckoutState
+from hephaistos.core.registry.clones import Candidate, Clone, CloneDetails
+from hephaistos.core.state.checkouts import STATUS_COLUMNS, CheckoutState
+from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime, short_id
 from hephaistos.core.utils.paths import Paths
@@ -28,7 +30,8 @@ app = typer.Typer(no_args_is_help=True, help="Clones: git clones of Repositories
 
 HERE = Path()
 PathArgument = Annotated[
-    Path, typer.Argument(help="A path in the Clone. Default: the current directory.")
+    Path,
+    typer.Argument(help="A path in the Clone or its Worktrees. Default: the current directory."),
 ]
 RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the Repository.")]
 
@@ -38,9 +41,22 @@ RefreshOption = Annotated[
 ]
 
 
-def branch_text(details: CloneDetails) -> str:
+def note_observed(result: observer.Result, reason: str) -> None:
+    """Says on stderr that a command observed first, unasked, and why."""
+    events = number_text(len(result.events), "Event")
+    typer.echo(f"Observed first, as {reason} ({events})", err=True)
+
+
+def observe_checkout(paths: Paths, path: Path, *, refresh: bool) -> None:
+    """Observes the Clone of `path` if asked, or if git knows more than the record."""
+    result = observer.observe_checkout(paths, path, refresh=refresh)
+    if result is not None and not refresh:
+        note_observed(result, "git knows more than the record")
+
+
+def branch_text(state: CheckoutState) -> str:
     """The branch as shown in lists: its name, or `(detached)`."""
-    return details.state.branch or "(detached)"
+    return state.branch or "(detached)"
 
 
 def status_text(state: CheckoutState) -> str:
@@ -67,8 +83,72 @@ def _count_text(value: int | None) -> str:
     return "-" if value is None else str(value)
 
 
+def status_fields(state: CheckoutState) -> list[tuple[str, str]]:
+    """A Checkout's status, as `show` prints it."""
+    return [
+        ("status", status_text(state)),
+        ("upstream", state.upstream or "-"),
+        ("ahead", _count_text(state.ahead)),
+        ("behind", _count_text(state.behind)),
+        ("staged", _count_text(state.staged)),
+        ("changed", _count_text(state.changed)),
+        ("untracked", _count_text(state.untracked)),
+        ("conflicted", _count_text(state.conflicted)),
+    ]
+
+
+def _checkout_json(state: CheckoutState) -> dict[str, object]:
+    """What Clones and Worktrees share, for JSON output."""
+    return {
+        "observed_at": state.observed_at.datetime.isoformat(),
+        "observed_by": str(state.observed_by),
+        "present": state.present,
+        "head": state.head,
+        "branch": state.branch,
+        **{column: getattr(state, column) for column in STATUS_COLUMNS},
+        "error": state.error,
+    }
+
+
+def worktree_path_text(worktree: WorktreeState, clone: Clone) -> str:
+    """A Worktree's path as shown: relative to its Clone if inside it, else in full."""
+    for top in (clone.display_path, clone.resolved_path):
+        if worktree.path.is_relative_to(top):
+            return str(worktree.path.relative_to(top))
+    return short_path(worktree.path)
+
+
+def worktree_json(worktree: WorktreeState) -> dict[str, object]:
+    """A Worktree's State, for JSON output."""
+    return {
+        "id": str(worktree.id),
+        "clone_id": str(worktree.clone_id),
+        "name": worktree.name,
+        "path": str(worktree.path),
+        "lock_reason": worktree.lock_reason,
+        **_checkout_json(worktree),
+    }
+
+
+def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
+    """A Clone's Worktrees, one `show` line each."""
+    return [
+        (
+            "worktree",
+            "  ".join(
+                [
+                    worktree_path_text(worktree, details.clone),
+                    branch_text(worktree),
+                    status_text(worktree),
+                ]
+            ),
+        )
+        for worktree in details.worktrees
+    ]
+
+
 def clone_json(details: CloneDetails) -> dict[str, object]:
-    """A Clone with its State, for JSON output."""
+    """A Clone with its State and Worktrees, for JSON output."""
     clone, state = details.clone, details.state
     return {
         "id": str(clone.id),
@@ -77,23 +157,12 @@ def clone_json(details: CloneDetails) -> dict[str, object]:
         "path": str(clone.display_path),
         "resolved_path": str(clone.resolved_path),
         "created_at": id_datetime(clone.id).isoformat(),
-        "observed_at": state.observed_at.datetime.isoformat(),
-        "observed_by": str(state.observed_by),
-        "present": state.present,
         "bare": state.bare,
-        "head": state.head,
-        "branch": state.branch,
-        "upstream": state.upstream,
-        "ahead": state.ahead,
-        "behind": state.behind,
-        "staged": state.staged,
-        "changed": state.changed,
-        "untracked": state.untracked,
-        "conflicted": state.conflicted,
+        **_checkout_json(state),
         "branches": list(state.branches),
         "root_commits": list(state.root_commits),
         "remotes": dict(state.remotes),
-        "error": state.error,
+        "worktrees": [worktree_json(worktree) for worktree in details.worktrees],
     }
 
 
@@ -114,13 +183,8 @@ def _choose_repository(session: ReadSession, path: Path, candidate: Candidate) -
         if not typer.confirm(f"Add {shown} as a Clone of {matches[0]}?", default=True):
             raise typer.Abort
         return matches[0]
-    typer.echo(f"{shown} matches several Repositories:")
-    for number, name in enumerate(matches, start=1):
-        typer.echo(f"  {number}  {name}")
-    while True:
-        number: int = typer.prompt("Add it as a Clone of", type=int)
-        if 1 <= number <= len(matches):
-            return matches[number - 1]
+    heading = f"{shown} matches several Repositories:"
+    return matches[terminal.choose(heading, matches, "Add it as a Clone of")]
 
 
 @app.command()
@@ -160,7 +224,7 @@ def list_(
         [
             [
                 details.repository.name,
-                branch_text(details),
+                branch_text(details.state),
                 status_text(details.state),
                 formatted(details.state.observed_at.datetime),
                 details.filesystem.name,
@@ -179,12 +243,9 @@ def show(
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show the Clone that a path lies in."""
+    """Show the Clone that a path lies in, also through one of its Worktrees."""
     paths = Paths.from_environment()
-    if refresh:
-        with read_session(paths) as session:
-            clone_id = clones.find(session, path).clone.id
-        observer.observe(paths, [clone_id])
+    observe_checkout(paths, path, refresh=refresh)
     with read_session(paths) as session:
         details = clones.find(session, path)
         observers = machines.labels(session, [details.state.observed_by])
@@ -206,19 +267,13 @@ def show(
             ("present", "yes" if state.present else "no"),
             ("bare", "yes" if state.bare else "no"),
             ("head", state.head or "(no commits)"),
-            ("branch", branch_text(details)),
-            ("status", status_text(state)),
-            ("upstream", state.upstream or "-"),
-            ("ahead", _count_text(state.ahead)),
-            ("behind", _count_text(state.behind)),
-            ("staged", _count_text(state.staged)),
-            ("changed", _count_text(state.changed)),
-            ("untracked", _count_text(state.untracked)),
-            ("conflicted", _count_text(state.conflicted)),
+            ("branch", branch_text(state)),
+            *status_fields(state),
             ("branches", ", ".join(state.branches) or "-"),
             *(("remote", f"{name}  {url}") for name, url in sorted(state.remotes.items())),
             *(("root commit", commit) for commit in state.root_commits),
             ("error", state.error or "-"),
+            *worktree_lines(details),
         ]
     )
 

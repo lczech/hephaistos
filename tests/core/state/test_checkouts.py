@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from hephaistos.core.state.checkouts import CheckoutState, Condition, Failed, conditions
+from hephaistos.core.state.checkouts import CheckoutState, Condition, conditions
 from hephaistos.core.utils.ids import Timestamp
 
 
@@ -44,8 +44,4 @@ FAILED = _state(error="broken")
     ],
 )
 def test_conditions(old: CheckoutState, new: CheckoutState, expected: list[Condition]) -> None:
-    assert [condition for condition, _ in conditions(old, new)] == expected
-
-
-def test_failed_carries_the_error() -> None:
-    assert conditions(OK, FAILED) == [(Condition.FAILED, Failed("broken"))]
+    assert conditions(old, new) == expected

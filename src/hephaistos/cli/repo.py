@@ -2,7 +2,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli.clone import branch_text, clone_json, status_text
+from hephaistos.cli.clone import branch_text, clone_json, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -83,14 +83,22 @@ def show(
             ("created", formatted(id_datetime(repository.id))),
             *(("remote", remote) for remote in summary.remotes),
             *(
-                (
-                    "clone",
-                    (
-                        f"{short_path(details.clone.display_path)}  {branch_text(details)}"
-                        f"  {status_text(details.state)}  {details.filesystem.name}"
-                    ),
-                )
+                line
                 for details in its_clones
+                for line in [
+                    (
+                        "clone",
+                        "  ".join(
+                            [
+                                short_path(details.clone.display_path),
+                                branch_text(details.state),
+                                status_text(details.state),
+                                details.filesystem.name,
+                            ]
+                        ),
+                    ),
+                    *worktree_lines(details),
+                ]
             ),
         ]
     )

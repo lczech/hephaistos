@@ -27,6 +27,13 @@ class EventKind(StrEnum):
     CLONE_BRANCH_CREATED = "clone.branch_created"
     CLONE_BRANCH_DELETED = "clone.branch_deleted"
     CLONE_REMOTES_CHANGED = "clone.remotes_changed"
+    WORKTREE_ADDED = "worktree.added"
+    WORKTREE_REMOVED = "worktree.removed"
+    WORKTREE_MOVED = "worktree.moved"
+    WORKTREE_MISSING = "worktree.missing"
+    WORKTREE_FOUND = "worktree.found"
+    WORKTREE_FAILED = "worktree.failed"
+    WORKTREE_RECOVERED = "worktree.recovered"
 
     @property
     def default_priority(self) -> Priority:
@@ -46,7 +53,14 @@ class EventKind(StrEnum):
                 | EventKind.CLONE_BRANCH_CREATED
                 | EventKind.CLONE_BRANCH_DELETED
                 | EventKind.CLONE_REMOTES_CHANGED
+                | EventKind.WORKTREE_ADDED
+                | EventKind.WORKTREE_REMOVED
+                | EventKind.WORKTREE_MOVED
+                # Only locked Worktrees go missing, and those are expected to be away at times.
+                | EventKind.WORKTREE_MISSING
+                | EventKind.WORKTREE_FOUND
+                | EventKind.WORKTREE_RECOVERED
             ):
                 return Priority.NORMAL
-            case EventKind.CLONE_MISSING | EventKind.CLONE_FAILED:
+            case EventKind.CLONE_MISSING | EventKind.CLONE_FAILED | EventKind.WORKTREE_FAILED:
                 return Priority.HIGH

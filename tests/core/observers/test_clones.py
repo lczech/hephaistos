@@ -5,12 +5,15 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.db.sessions import read_session, write_session
+from hephaistos.core.events import subjects
 from hephaistos.core.events.kinds import Priority
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.state import clones as state
 from hephaistos.core.state.clones import CloneState
+from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git as git_facts
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from support import clone, create, git
 
@@ -121,17 +124,119 @@ def test_only_given_clones(paths: Paths, repo: Path, tmp_path: Path) -> None:
 def test_fresher_observation_is_kept(
     paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    real = observer.observation_of
+    real = observer.clone_observation
 
-    def observe_while_another_process_writes(path: Path, timeout: float) -> state.Observation:
+    def observe_while_another_process_writes(
+        path: Path, timeout: float
+    ) -> tuple[state.Observation, tuple[git_facts.LinkedWorktree, ...] | None]:
         with write_session(paths) as session:
             state.update(session, clones.find(session, path).clone.id, git_facts.snapshot(path))
         return real(path, timeout)
 
-    monkeypatch.setattr(observer, "observation_of", observe_while_another_process_writes)
+    monkeypatch.setattr(observer, "clone_observation", observe_while_another_process_writes)
     git(repo, "branch", "feature")
     result = observer.observe(paths)
     assert (result.events, result.observed, result.skipped) == ([], 0, 1)
     with read_session(paths) as session:
         kinds = [row[0] for row in session.conn.execute("SELECT kind FROM events")]
     assert kinds.count("clone.branch_created") == 1
+
+
+def _worktree(paths: Paths, path: Path) -> WorktreeState:
+    with read_session(paths) as session:
+        worktree = clones.find_checkout(session, path).worktree
+    assert worktree is not None
+    return worktree
+
+
+def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(tmp_path / "feature"))
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.branch_created", "worktree.added"]
+    assert (result.observed, result.worktrees) == (1, 1)
+    added = result.events[1]
+    assert added.payload["branch"] == "feature"
+    assert added.payload["clone_id"] == str(_state(paths, repo).clone_id)
+    first = _worktree(paths, tmp_path / "feature")
+    assert (first.name, first.branch, first.staged) == ("feature", "feature", 0)
+
+    git(repo, "worktree", "move", str(tmp_path / "feature"), str(tmp_path / "moved"))
+    (tmp_path / "moved" / "new").write_text("x")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.moved"]
+    assert result.events[0].payload["path"] == {
+        "old": str(tmp_path / "feature"),
+        "new": str(tmp_path / "moved"),
+    }
+    moved = _worktree(paths, tmp_path / "moved")
+    assert (moved.id, moved.untracked) == (first.id, 1)
+
+    shutil.rmtree(tmp_path / "moved")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.removed"]
+    with read_session(paths) as session:
+        assert clones.find(session, repo).worktrees == ()
+        assert subjects.labels(session, result.events) == {first.id: tmp_path / "moved"}
+
+
+def test_locked_worktree_goes_missing_and_is_found(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    usb = tmp_path / "usb"
+    git(repo, "worktree", "add", "--quiet", "-b", "usb", str(usb))
+    git(repo, "worktree", "lock", "--reason", "on a stick", str(usb))
+    observer.observe(paths)
+    usb.rename(tmp_path / "away")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.missing"]
+    with read_session(paths) as session:
+        [missing] = clones.find(session, repo).worktrees
+    assert (missing.present, missing.lock_reason, missing.staged) == (False, "on a stick", 0)
+
+    (tmp_path / "away").rename(usb)
+    assert _kinds(observer.observe(paths)) == ["worktree.found"]
+
+
+def test_worktree_failed_and_recovered(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(tmp_path / "feature"))
+    observer.observe(paths)
+    link = tmp_path / "feature" / ".git"
+    text = link.read_text()
+    link.write_text("gitdir: /nowhere\n")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.failed"]
+    assert result.events[0].priority == Priority.HIGH
+    assert result.events[0].payload["error"]
+    link.write_text(text)
+    assert _kinds(observer.observe(paths)) == ["worktree.recovered"]
+
+
+def test_worktrees_of_a_missing_clone_stay(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(repo / ".worktrees" / "feature"))
+    observer.observe(paths)
+    repo.rename(tmp_path / "away")
+    assert _kinds(observer.observe(paths)) == ["clone.missing"]
+    with read_session(paths) as session:
+        [kept] = clones.find(session, repo).worktrees
+    assert kept.present
+
+
+def test_finding_checkouts(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    inside = repo / ".worktrees" / "inside"
+    git(repo, "worktree", "add", "--quiet", "-b", "inside", str(inside))
+    with read_session(paths) as session:
+        with pytest.raises(HephaistosError, match="no Clone or Worktree known"):
+            clones.find_checkout(session, tmp_path / "outside")
+        assert clones.find_checkout(session, inside).worktree is None  # not observed yet
+        assert clones.outdated_clone(session, inside) == clones.find(session, repo)
+        assert clones.outdated_clone(session, repo) is None
+    git(repo, "worktree", "add", "--quiet", "-b", "outside", str(tmp_path / "outside"))
+    with read_session(paths) as session:
+        assert clones.find_unobserved(session, tmp_path / "outside").clone.resolved_path == repo
+    observer.observe(paths)
+    with read_session(paths) as session:
+        assert _worktree(paths, inside / "sub").name == "inside"
+        assert clones.find(session, tmp_path / "outside").clone.resolved_path == repo
+        assert clones.find_checkout(session, repo).worktree is None
+    with write_session(paths) as session, pytest.raises(HephaistosError, match="in a Worktree"):
+        clones.remove(session, tmp_path / "outside")

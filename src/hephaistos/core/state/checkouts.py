@@ -16,7 +16,7 @@ class Missing:
 
 @dataclass(frozen=True)
 class Failed:
-    """git failed on the Checkout; also the payload of a `.failed` Event."""
+    """git failed on the Checkout; also the payload of `clone.failed`."""
 
     error: str
 
@@ -95,18 +95,18 @@ def _health(state: CheckoutState) -> Condition | None:
     return Condition.FAILED if state.error is not None else None
 
 
-def conditions(old: CheckoutState, new: CheckoutState) -> list[tuple[Condition, object]]:
-    """The conditions entered between two observations, with their payloads."""
+def conditions(old: CheckoutState, new: CheckoutState) -> list[Condition]:
+    """The conditions entered between two observations; FAILED's error is `new.error`."""
     before, after = _health(old), _health(new)
     if before is after:
         return []
     if after is Condition.MISSING:
-        return [(Condition.MISSING, {})]
-    entered: list[tuple[Condition, object]] = []
+        return [Condition.MISSING]
+    entered: list[Condition] = []
     if before is Condition.MISSING:
-        entered.append((Condition.FOUND, {}))
+        entered.append(Condition.FOUND)
     if after is Condition.FAILED:
-        entered.append((Condition.FAILED, Failed(new.error or "")))
+        entered.append(Condition.FAILED)
     elif before is Condition.FAILED:
-        entered.append((Condition.RECOVERED, {}))
+        entered.append(Condition.RECOVERED)
     return entered

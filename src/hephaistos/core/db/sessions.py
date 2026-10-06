@@ -7,7 +7,7 @@ Timestamps from this Machine increase in commit order across all processes.
 import hashlib
 import sqlite3
 import uuid
-from collections.abc import Generator
+from collections.abc import Collection, Generator, Iterator
 from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path, PosixPath
@@ -71,6 +71,16 @@ class WriteSession(ReadSession):
     def tick(self) -> Timestamp:
         """A new Timestamp; saved with the transaction's commit."""
         return self.clock.tick()
+
+
+_CHUNK = 1000  # well below SQLite's limit on variables per statement
+
+
+def chunks(ids: Collection[uuid.UUID]) -> Iterator[list[uuid.UUID]]:
+    """The IDs in lists small enough for one `IN (…)` statement each."""
+    listed = list(ids)
+    for start in range(0, len(listed), _CHUNK):
+        yield listed[start : start + _CHUNK]
 
 
 def _connect(database: Path, *, read_only: bool) -> sqlite3.Connection:

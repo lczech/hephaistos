@@ -120,7 +120,7 @@ def test_find_innermost(set_up: Paths, tmp_path: Path) -> None:
     with read_session(set_up) as session:
         assert clones.find(session, outer).repository.name == "proj"
         assert clones.find(session, inner).repository.name == "inner"
-        with pytest.raises(HephaistosError, match="no Clone registered"):
+        with pytest.raises(HephaistosError, match="no Clone or Worktree known"):
             clones.find(session, tmp_path)
 
 
