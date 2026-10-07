@@ -42,10 +42,28 @@ def test_events_are_listed(repo: Path) -> None:
     result = runner.invoke(app, ["observe", "--clone", "."])
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()
-    assert lines[0].split() == ["id", "recorded", "machine", "priority", "kind", "subject"]
-    assert lines[1].split()[1:] == ["now", "laptop", "normal", "clone.branch_created", str(repo)]
+    assert lines[0].split() == [
+        "id",
+        "recorded",
+        "machine",
+        "priority",
+        "kind",
+        "subject",
+        "summary",
+    ]
+    start = git(repo, "rev-parse", "--short=7", "HEAD")
+    assert lines[1].split()[1:] == [
+        "now",
+        "laptop",
+        "normal",
+        "clone.branch_created",
+        str(repo),
+        "feature",
+        "from",
+        start,
+    ]
     [event] = json.loads(runner.invoke(app, ["event", "list", "-n", "1", "--json"]).output)
-    assert event["payload"] == {"branch": "feature"}
+    assert event["payload"]["branch"] == "feature"
 
 
 def test_refresh(repo: Path) -> None:
@@ -77,6 +95,7 @@ BASE = CheckoutState(
     changed=0,
     untracked=0,
     conflicted=0,
+    head_log=None,
 )
 
 

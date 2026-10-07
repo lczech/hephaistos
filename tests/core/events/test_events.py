@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -34,7 +34,7 @@ def _insert(paths: Paths, kind: str, event_id: uuid.UUID | None = None, priority
     """An Event as a Peer might send it, kind and priority unchecked."""
     with write_session(paths) as session:
         session.conn.execute(
-            "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, '{}')",
+            "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, '{}', NULL, NULL)",
             (event_id or new_id(), session.tick(), session.machine_id, kind, new_id(), priority),
         )
 
@@ -52,7 +52,7 @@ def test_read_back(set_up: Paths, session: ReadSession) -> None:
     subject = new_id()
     with write_session(set_up) as writing:
         recorded = events.record(
-            writing, EventKind.REPOSITORY_ADDED, subject, {"name": "proj"}, Priority.HIGH
+            writing, EventKind.REPOSITORY_ADDED, subject, {"name": "proj"}, priority=Priority.HIGH
         )
     [event] = events.recent(session, limit=1)
     assert event == recorded
@@ -122,3 +122,19 @@ def test_by_short_id(set_up: Paths, session: ReadSession) -> None:
         events.by_short_id(session, "0cab")
     with pytest.raises(HephaistosError, match="not an Event ID"):
         events.by_short_id(session, "xyz")
+
+
+def test_occurred_at_and_key_read_back(set_up: Paths, session: ReadSession) -> None:
+    occurred = datetime(2026, 10, 7, 14, 3, 21, 125000, tzinfo=timezone(timedelta(hours=2)))
+    with write_session(set_up) as writing:
+        recorded = events.record(
+            writing,
+            EventKind.CLONE_COMMITTED,
+            new_id(),
+            {},
+            occurred_at=occurred,
+            key=bytes(16),
+        )
+    [event] = events.recent(session, limit=1)
+    assert event == recorded
+    assert event.occurred_at == occurred

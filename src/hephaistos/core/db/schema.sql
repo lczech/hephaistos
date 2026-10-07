@@ -82,7 +82,10 @@ CREATE TABLE state_clones (
     root_commits TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(root_commits)),
     remotes      TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(remotes)),
     branches     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(branches)),
-    error        TEXT
+    error        TEXT,
+    -- Where reading the reflogs stopped; NULL until the first read, which starts at the end.
+    head_log     TEXT,  -- HEAD's: seconds and digest of the last entry read
+    push_log     TEXT CHECK (json_valid(push_log))  -- by remote-tracking ref
 ) STRICT;
 
 CREATE TABLE state_worktrees (
@@ -104,8 +107,10 @@ CREATE TABLE state_worktrees (
     untracked   INTEGER,
     conflicted  INTEGER,
     error       TEXT,
-    UNIQUE (clone_id, name)
+    head_log    TEXT,
+    removed     INTEGER NOT NULL DEFAULT 0 CHECK (removed IN (0, 1))  -- kept for its Events
 ) STRICT;
+CREATE UNIQUE INDEX state_worktrees_name ON state_worktrees (clone_id, name) WHERE removed = 0;
 
 -- Events
 
@@ -116,9 +121,12 @@ CREATE TABLE events (
     kind        TEXT NOT NULL,
     subject     BLOB NOT NULL CHECK (length(subject) = 16),
     priority    INTEGER NOT NULL,
-    payload     TEXT NOT NULL CHECK (json_valid(payload))
+    payload     TEXT NOT NULL CHECK (json_valid(payload)),
+    occurred_at INTEGER,  -- milliseconds since 1970 by the source's clock; NULL if unknown
+    key         BLOB CHECK (length(key) = 16)  -- the same fact seen by several Machines
 ) STRICT;
 CREATE INDEX events_recorded_by ON events (recorded_by, recorded_at);
 CREATE INDEX events_recorded_at ON events (recorded_at);
 CREATE INDEX events_subject ON events (subject, recorded_at);
 CREATE INDEX events_kind ON events (kind, recorded_at);
+CREATE INDEX events_key ON events (key) WHERE key IS NOT NULL;

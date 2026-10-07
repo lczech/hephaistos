@@ -22,7 +22,7 @@ def test_labels_by_subject_type(set_up: Paths, tmp_path: Path) -> None:
         repositories.add(session, "proj")
         clones.add(session, "proj", clones.inspect(repo))
         session.conn.execute(
-            "INSERT INTO events VALUES (?, ?, ?, 'newer.thing', ?, 20, '{}')",
+            "INSERT INTO events VALUES (?, ?, ?, 'newer.thing', ?, 20, '{}', NULL, NULL)",
             (new_id(), session.tick(), session.machine_id, new_id()),
         )
     with write_session(set_up) as session:

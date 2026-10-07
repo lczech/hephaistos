@@ -67,16 +67,16 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 | `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
 | `registry_repositories` | `id`, `name` |
 | `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
-| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error` |
-| `state_worktrees` | `id`, `clone_id`, `name` (git's), `path` (as git reports it), `lock_reason`, `observed_at`, `observed_by`, `present`, `head`, `branch`, status (as for Clones), `error` |
-| `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON) |
+| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error`, `head_log` and `push_log` (reflog cursors) |
+| `state_worktrees` | `id`, `clone_id`, `name` (git's), `path` (as git reports it), `lock_reason`, `observed_at`, `observed_by`, `present`, `head`, `branch`, status (as for Clones), `error`, `head_log`, `removed` |
+| `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON), `occurred_at`, `key` |
 
 - Names are unique per entity type (Machines, Filesystems, Repositories).
 - A Repository is added by name. For a Clone that matches none, `clone add` suggests a name from the origin remote (`…/hephaistos.git` → `hephaistos`), else the directory.
 - Paths: `resolved_path` has all symlinks resolved and is used for identity and comparison; `display_path` is the absolute path as typed, symlinks kept. Display shortens the home directory to `~`; Worktrees under their Clone show relative to it. A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
 - Remotes are stored without credentials and matched in normalised form (`git@host:a/b.git` and `https://host/a/b` are the same). Root commits are those of all local and remote-tracking branches. Worktrees share their Clone's root commits and remotes.
 - A bare repository is a Clone whose path is its git directory; it has Worktrees but no files to open.
-- Worktrees are identified by Clone and git's admin name (`<git common dir>/worktrees/<name>`), which survives `git worktree move` (`worktree.moved`); a new one gets a UUIDv7. One whose directory is gone was removed (`worktree.removed`, row deleted), unless locked with `git worktree lock`: then it is missing. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a name, so Machines converge after one sync.
+- Worktrees are identified by Clone and git's admin name (`<git common dir>/worktrees/<name>`), which survives `git worktree move` (`worktree.moved`); a new one gets a UUIDv7. One whose directory is gone was removed (`worktree.removed`; the row stays, marked `removed`, for its Events), unless locked with `git worktree lock`: then it is missing. They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a name, so Machines converge after one sync.
 
 ## Events
 
@@ -84,6 +84,9 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - The subject is always an ID. `events/subjects.py` maps each subject type to its module, which labels its subjects (e.g. a Repository by its current name; deleted records keep theirs). Subjects of unknown types show their short ID.
 - Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
+- Conditions are facts about what one Machine sees. Git activity, and branches created or renamed, are facts about the repository, which several Machines may read on a shared Filesystem: they carry a `key` (16 bytes of SHA-256 over Clone, Worktree name, ref, git's time, and what changed). Others have none. With sync, an arriving Event whose key exists marks the one with the larger ID as a local `duplicate`, which views leave out.
+- Events are never rewritten, one per fact; views group them: runs of one kind and subject (12 commits), a condition with its resolution (missing, then found), and chains (amends of a commit).
+- `occurred_at`: when it happened, by its source's clock, in milliseconds; NULL where unknown, e.g. for conditions found between two observations. Git activity has git's time. `recorded_at` stays the order for sync.
 - Later, with Agents: how an Event was captured, and whether it is reported or inferred.
 
 ## Observation
@@ -92,7 +95,10 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - Each observation updates `observed_at`; rows and Events change only when something changed.
 - First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
 - Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: views of files ask the Machine's Server live.
-- Actions come from git's reflogs, read from a cursor per Checkout: commits, merges, pulls, rebases, resets, branch switches, pushes; branch creation gains its time and start. Next, after Worktrees.
+- Git activity comes from git's reflogs (`git log --walk-reflogs`), read from a cursor per Checkout: the last entry read, by its time and a digest, so expiry doesn't move it; if its entry is gone, reading continues after its time. The first read starts at the end (`clone add` observes right away), or with `clone add --import-history` at the beginning; a Worktree found later starts at the beginning, as all of its reflog is new.
+  - HEAD's reflog gives `committed` (also amends with the commit they replace, cherry-picks, reverts, `am`), `merged`, `pulled`, `rebased`, `reset`, `branch_switched`, and `head_moved` with git's message for what we can't name. A rebase folds into one Event; while one is in progress, it waits. Resets that don't move (`git stash`) are skipped.
+  - Remote-tracking reflogs give `clone.pushed`; fetches are skipped. A new branch's reflog gives its creation time and start, or shows it was renamed (`clone.branch_renamed`, instead of deleted and created).
+  - Reflog messages are git's text, stable in practice but unspecified; tests pin them with real git. Bare repositories keep no reflogs by default.
 - Views show stored State with its age. `--refresh` observes first, in a separate write session. Views also observe first, saying so, when git knows a Checkout that the record misses, e.g. a Worktree not observed yet.
 
 ## CLI for the first slice
@@ -103,17 +109,18 @@ One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rena
 hephaistos setup
 hephaistos machine list | show
 hephaistos repo list | show <name> | add <name> | rename <name> <new name>
-hephaistos clone add [path] [--repo <name>]
+hephaistos clone add [path] [--repo <name>] [--import-history]
 hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | remove
 hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refresh]
-hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>] | show <id>
+hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
+                     [--repo <name>] [--clone <path>] [--worktree <path|name>] | show <id>
 hephaistos observe [clones] [--clone <path>]…
 hephaistos db tables | db dump <table>
 ```
 
 - `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and shows the commands to add the Repository first. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
 - Asking happens between a read and a write session, so no write transaction waits for input.
-- `event list` shows the newest 20 (`--limit`). `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
+- `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
 - Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
 

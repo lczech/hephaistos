@@ -21,6 +21,7 @@ def _state(*, present: bool = True, error: str | None = None) -> CheckoutState:
         changed=None,
         untracked=None,
         conflicted=None,
+        head_log=None,
     )
 
 

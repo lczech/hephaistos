@@ -188,16 +188,34 @@ def _choose_repository(session: ReadSession, path: Path, candidate: Candidate) -
 
 
 @app.command()
-def add(path: PathArgument = HERE, *, repo: RepoOption = None) -> None:
-    """Add a git clone to an existing Repository."""
+def add(
+    path: PathArgument = HERE,
+    *,
+    repo: RepoOption = None,
+    import_history: Annotated[
+        bool,
+        typer.Option(
+            "--import-history",
+            help="Record the git activity its reflogs still hold, rather than from now on.",
+        ),
+    ] = False,
+) -> None:
+    """Add a git clone to an existing Repository, and observe it."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         candidate = clones.inspect(path)
         repository = repo or _choose_repository(session, path, candidate)
     # Asking happens above, so the write transaction never waits for input.
     with write_session(paths) as session:
-        clone = clones.add(session, repository, candidate)
-    typer.echo(f"Added Clone {short_path(clone.display_path)} to {repository}")
+        clone = clones.add(session, repository, candidate, import_history=import_history)
+    # Observing right away finds its Worktrees and starts its git activity from now.
+    result = observer.observe(paths, [clone.id])
+    added = f"Added Clone {short_path(clone.display_path)} to {repository}"
+    if result.worktrees:
+        added += f", with {number_text(result.worktrees, 'Worktree')}"
+    if import_history:
+        added += f"; imported {number_text(len(result.events), 'Event')} of its history"
+    typer.echo(added)
 
 
 @app.command("list")

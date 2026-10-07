@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import PurePath
 from typing import Any, Self
 
@@ -19,6 +19,8 @@ def _encode(value: object) -> object:
     """JSON encoding for the types our payloads contain beyond JSON's own."""
     if isinstance(value, uuid.UUID | PurePath):
         return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {field.name: getattr(value, field.name) for field in dataclasses.fields(value)}
     raise TypeError(f"cannot encode {type(value).__name__} in an Event payload")
@@ -48,6 +50,8 @@ class Event:
     subject: uuid.UUID
     priority: int
     payload: dict[str, Any]
+    occurred_at: datetime | None = None  # when it happened, by its source; None if unknown
+    key: bytes | None = None  # identifies the same fact from several Machines, for deduplication
 
     @property
     def subject_type(self) -> str:
@@ -65,15 +69,32 @@ class Event:
             subject=uuid.UUID(bytes=row["subject"]),
             priority=row["priority"],
             payload=json.loads(row["payload"]),
+            occurred_at=None
+            if row["occurred_at"] is None
+            else datetime.fromtimestamp(row["occurred_at"] / 1000, UTC),
+            key=row["key"],
         )
 
 
-def record(
+@dataclass(frozen=True)
+class Caused:
+    """An Event that a change causes, before it is recorded about its subject."""
+
+    kind: EventKind
+    payload: object
+    occurred_at: datetime | None = None
+    key: bytes | None = None
+
+
+def record(  # noqa: PLR0913 - the optional ones are keyword-only
     session: WriteSession,
     kind: EventKind,
     subject: uuid.UUID,
     payload: object,
+    *,
     priority: Priority | None = None,
+    occurred_at: datetime | None = None,
+    key: bytes | None = None,
 ) -> Event:
     """Records an Event about `subject` in the session's transaction, and returns it."""
     text = to_json(payload)
@@ -85,10 +106,13 @@ def record(
         subject=subject,
         priority=priority or kind.default_priority,
         payload=json.loads(text),
+        occurred_at=occurred_at,
+        key=key,
     )
     session.conn.execute(
-        "INSERT INTO events (id, recorded_at, recorded_by, kind, subject, priority, payload)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO events"
+        " (id, recorded_at, recorded_by, kind, subject, priority, payload, occurred_at, key)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             event.id,
             event.recorded_at,
@@ -97,12 +121,14 @@ def record(
             event.subject,
             event.priority,
             text,
+            None if occurred_at is None else round(occurred_at.timestamp() * 1000),
+            event.key,
         ),
     )
     return event
 
 
-_COLUMNS = "id, recorded_at, recorded_by, kind, subject, priority, payload"
+_COLUMNS = "id, recorded_at, recorded_by, kind, subject, priority, payload, occurred_at, key"
 _GLOB_CHARACTERS = re.compile(r"[*?\[]")
 
 
@@ -121,10 +147,15 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
     min_priority: int | None = None,
     recorded_by: uuid.UUID | None = None,
     since: datetime | None = None,
+    repository_id: uuid.UUID | None = None,
+    clone_id: uuid.UUID | None = None,
+    worktree_id: uuid.UUID | None = None,
 ) -> list[Event]:
     """The Events matching all given filters, newest first; `kinds` match if any one does.
 
     A kind like `clone` matches `clone.added` but not `clones.added`; `*.deleted` is a glob.
+    Events about a Repository include those about its Clones, and those about a Clone those
+    about its Worktrees.
     """
     conditions: list[str] = []
     parameters: list[object] = []
@@ -141,6 +172,21 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
     if since is not None:
         conditions.append("recorded_at >= ?")
         parameters.append(Timestamp.of(int(since.timestamp() * 1000)))
+    if repository_id is not None:
+        conditions.append(
+            "(subject = ? OR subject IN (SELECT id FROM registry_clones WHERE repository_id = ?)"
+            " OR subject IN (SELECT w.id FROM state_worktrees w"
+            " JOIN registry_clones c ON c.id = w.clone_id WHERE c.repository_id = ?))"
+        )
+        parameters += [repository_id] * 3
+    if clone_id is not None:
+        conditions.append(
+            "(subject = ? OR subject IN (SELECT id FROM state_worktrees WHERE clone_id = ?))"
+        )
+        parameters += [clone_id] * 2
+    if worktree_id is not None:
+        conditions.append("subject = ?")
+        parameters.append(worktree_id)
     where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     rows = session.conn.execute(
         f"SELECT {_COLUMNS} FROM events{where} ORDER BY recorded_at DESC LIMIT ?",  # noqa: S608 - our own conditions; values are parameters

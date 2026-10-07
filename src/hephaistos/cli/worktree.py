@@ -139,7 +139,7 @@ def _by_name(session: ReadSession, name: str) -> Found:
     return matches[terminal.choose(heading, shown, "Show")]
 
 
-def _find(session: ReadSession, target: str) -> Found:
+def find_worktree(session: ReadSession, target: str) -> Found:
     """The Worktree at a path, or else with a name, with its Clone."""
     path = Path(target)
     return _by_path(session, path) if path.exists() else _by_name(session, target)
@@ -165,7 +165,7 @@ def show(
         if not known:
             note_observed(observer.observe(paths), f"no Worktree named {target} was known")
     with read_session(paths) as session:
-        worktree, details = _find(session, target)
+        worktree, details = find_worktree(session, target)
         observers = machines.labels(session, [worktree.observed_by])
     if as_json:
         print_json(_json(worktree, details))
