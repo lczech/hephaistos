@@ -17,6 +17,9 @@ TimeFormatOption = Annotated[
     TimeFormat | None,
     typer.Option("--time-format", help="How to show times; overrides the config's time_format."),
 ]
+LimitOption = Annotated[
+    int, typer.Option("--limit", "-n", min=0, help="Show at most this many; 0 for all.")
+]
 
 
 def number_text(count: int, noun: str) -> str:
@@ -66,11 +69,16 @@ def short_time(value: datetime, now: datetime) -> str:
     return f"{local:%Y-%m-%d}"
 
 
+def chosen_time_format(option: TimeFormat | None, default: TimeFormat) -> TimeFormat:
+    """The time format `--time-format` says, else the config, else `default`."""
+    return option or config.load(Paths.from_environment().config_file).time_format or default
+
+
 def time_formatter(
     option: TimeFormat | None, default: TimeFormat, now: datetime | None = None
 ) -> Callable[[datetime], str]:
     """Formats times as `--time-format` says, else as the config says, else as `default`."""
-    chosen = option or config.load(Paths.from_environment().config_file).time_format or default
+    chosen = chosen_time_format(option, default)
     reference = now or datetime.now(UTC)
     match chosen:
         case TimeFormat.RELATIVE:

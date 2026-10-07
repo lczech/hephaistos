@@ -9,10 +9,25 @@ from datetime import UTC, datetime
 from pathlib import PurePath
 from typing import Any, Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession
+from hephaistos.core.db.values import Decoder
 from hephaistos.core.events.kinds import EventKind, Priority
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import Timestamp, new_id
+
+#: The columns of `events`, decoded for raw views.
+DECODERS: dict[str, Decoder] = {
+    "id": values.uuid_bytes,
+    "recorded_at": values.clock,
+    "recorded_by": values.uuid_bytes,
+    "kind": values.plain,
+    "subject": values.uuid_bytes,
+    "priority": values.plain,
+    "payload": values.json_text,
+    "occurred_at": values.milliseconds,
+    "key": values.hex_bytes,
+}
 
 
 def _encode(value: object) -> object:

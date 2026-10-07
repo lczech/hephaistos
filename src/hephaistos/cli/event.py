@@ -10,6 +10,7 @@ import typer
 
 from hephaistos.cli.output import (
     JsonOption,
+    LimitOption,
     TimeFormatOption,
     number_text,
     print_fields,
@@ -69,9 +70,6 @@ CloneFilterOption = Annotated[
 WorktreeFilterOption = Annotated[
     str | None,
     typer.Option("--worktree", help="Only Events about this Worktree: a path in it, or its name."),
-]
-LimitOption = Annotated[
-    int, typer.Option("--limit", "-n", min=0, help="Show at most this many; 0 for all.")
 ]
 
 _UNIT_SECONDS = {"s": 1, "m": 60, "h": 60 * 60, "d": 24 * 60 * 60}

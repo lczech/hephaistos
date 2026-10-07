@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path, PosixPath
 
+from hephaistos.core.db import values
+from hephaistos.core.db.values import Decoder
 from hephaistos.core.utils.errors import (
     AlreadySetUpError,
     HephaistosError,
@@ -30,6 +32,15 @@ BUSY_TIMEOUT_MS = 5000
 
 sqlite3.register_adapter(uuid.UUID, lambda value: value.bytes)
 sqlite3.register_adapter(PosixPath, str)
+
+#: The columns of `meta`, decoded for raw views; its values by `META_VALUES`.
+DECODERS: dict[str, Decoder] = {"key": values.plain, "value": values.plain}
+#: The values in `meta`, by key.
+META_VALUES: dict[str, Decoder] = {
+    "machine_id": values.uuid_bytes,
+    "clock": values.clock,
+    "schema_hash": values.plain,
+}
 
 
 class ReadSession:
@@ -53,6 +64,11 @@ class ReadSession:
         """The latest Timestamp any write session on this database has given."""
         last = self.meta("clock")
         return Timestamp(last if isinstance(last, int) else 0)
+
+    @property
+    def has_current_schema(self) -> bool:
+        """Whether the database has this version's schema; only unchecked sessions may lack it."""
+        return _has_current_schema(self.conn)
 
     @property
     def journal_mode(self) -> str:
@@ -95,16 +111,19 @@ def _connect(database: Path, *, read_only: bool) -> sqlite3.Connection:
     return conn
 
 
+def _has_current_schema(conn: sqlite3.Connection) -> bool:
+    """Whether the database has this version's schema."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    row = conn.execute("SELECT value FROM meta WHERE key = 'schema_hash'").fetchone()
+    return version == SCHEMA_VERSION and row is not None and row[0] == SCHEMA_HASH
+
+
 def _open(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite3.Connection:
     """Opens this Machine's database, after checking it exists and has our schema."""
     if not paths.database.exists():
         raise NotSetUpError
     conn = _connect(paths.database, read_only=read_only)
-    if not check_schema:
-        return conn
-    version = conn.execute("PRAGMA user_version").fetchone()[0]
-    row = conn.execute("SELECT value FROM meta WHERE key = 'schema_hash'").fetchone()
-    if version != SCHEMA_VERSION or row is None or row[0] != SCHEMA_HASH:
+    if check_schema and not _has_current_schema(conn):
         conn.close()
         raise SchemaOutdatedError
     return conn

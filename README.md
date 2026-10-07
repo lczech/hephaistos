@@ -17,6 +17,7 @@ hephaistos clone list
 hephaistos worktree list
 hephaistos observe
 hephaistos event list --repo hephaistos
+hephaistos db tables                # the database as stored; `db dump <table>` for its rows
 ```
 
 ## Development

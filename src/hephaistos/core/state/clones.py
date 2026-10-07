@@ -8,11 +8,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.events import events
 from hephaistos.core.events.events import Caused, Change, Event
 from hephaistos.core.events.kinds import EventKind
-from hephaistos.core.state import activity
+from hephaistos.core.state import activity, checkouts
 from hephaistos.core.state.activity import BEGINNING, BranchOrigin, CloneActivity, Cursor
 from hephaistos.core.state.checkouts import (
     STATUS_COLUMNS,
@@ -25,6 +26,16 @@ from hephaistos.core.state.checkouts import (
 )
 from hephaistos.core.utils import git
 from hephaistos.core.utils.ids import Timestamp
+
+#: The columns of `state_clones`, decoded for raw views.
+DECODERS = checkouts.DECODERS | {
+    "clone_id": values.uuid_bytes,
+    "bare": values.plain,
+    "root_commits": values.json_text,
+    "remotes": values.json_text,
+    "branches": values.json_text,
+    "push_log": values.json_text,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

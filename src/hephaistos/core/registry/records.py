@@ -4,10 +4,20 @@ import dataclasses
 import uuid
 from collections.abc import Collection
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession, chunks
 from hephaistos.core.db.tables import Category, Table
+from hephaistos.core.db.values import Decoder
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import EventKind
+
+#: The columns all Registry tables end with, decoded for raw views.
+DECODERS: dict[str, Decoder] = {
+    "id": values.uuid_bytes,
+    "modified_at": values.clock,
+    "modified_by": values.uuid_bytes,
+    "deleted": values.plain,
+}
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)

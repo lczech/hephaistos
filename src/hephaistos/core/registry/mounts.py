@@ -5,11 +5,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.db.tables import Table
 from hephaistos.core.registry import records
 from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.records import Record
+
+#: The columns of `registry_mounts`, decoded for raw views.
+DECODERS = records.DECODERS | {
+    "machine_id": values.uuid_bytes,
+    "filesystem_id": values.uuid_bytes,
+    "path": values.plain,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

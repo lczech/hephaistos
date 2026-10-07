@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypedDict
 
+from hephaistos.core.db import values
+from hephaistos.core.db.values import Decoder
 from hephaistos.core.state.activity import Cursor
 from hephaistos.core.utils.git import Status
 from hephaistos.core.utils.ids import Timestamp
@@ -56,6 +58,18 @@ class StatusValues(TypedDict):
 
 
 STATUS_COLUMNS = tuple(StatusValues.__annotations__)
+
+
+#: The columns Clones' and Worktrees' State share, decoded for raw views.
+DECODERS: dict[str, Decoder] = {
+    "observed_at": values.clock,
+    "observed_by": values.uuid_bytes,
+    "present": values.plain,
+    "error": values.plain,
+    "head": values.plain,
+    "branch": values.plain,
+    "head_log": values.plain,
+} | dict.fromkeys(STATUS_COLUMNS, values.plain)
 
 
 def status_values(status: Status | None) -> StatusValues:
