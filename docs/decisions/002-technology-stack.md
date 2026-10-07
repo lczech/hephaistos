@@ -15,7 +15,7 @@ Code is separated by purpose; the number of processes is a deployment choice.
 | `core/` | The Core library: domain model, operations, storage, git, and the interfaces that plugins implement. All logic lives here, including observing a Machine (taking State snapshots, comparing them into Events, reading the hook inbox) and the sync merge rules. |
 | `cli/` | The CLI, command `hephaistos`. Works directly on the local database via the Core; needs no running Daemon. |
 | `daemon/` | The Daemon, command `hephaistos-daemon`: reads this Machine's config and runs the enabled parts below. |
-| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers. |
+| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers, with git at low CPU and I/O priority (`nice`, `ionice -c3`) so that it never competes with interactive work. |
 | `daemon/sync/` | Sync: talks to Peers and decides when; merging is done by the Core (see [001](001-data-ownership.md)). |
 | `daemon/server/` | The Server: HTTP/WebSocket access to the Core for GUIs, and serves the `gui/web/` files to browsers. |
 | `plugins/` | Everything tool-specific, grouped by extension point; see below. |

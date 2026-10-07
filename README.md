@@ -28,4 +28,6 @@ uv run ruff check . && uv run ruff format .
 uv run pyright
 ```
 
+`uv run scripts/bench_observe.py ~/Repos --synthetic 6` times observing the repositories found there, plus synthetic ones with Worktrees, in a temporary home.
+
 Set `HEPHAISTOS_HOME` to a scratch directory to keep experiments away from your real data, e.g. `HEPHAISTOS_HOME=/tmp/heph hephaistos setup`.

@@ -21,7 +21,7 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests"]
+src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -40,6 +40,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**" = [
+    "INP001",   # scripts are not packages
+    "T201",     # scripts print their results
+]
 "tests/**" = [
     "D",        # test names describe the test
     "INP001",   # test directories are not packages
@@ -50,7 +54,7 @@ ignore = [
 ]
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 extraPaths = ["src", "tests"]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"

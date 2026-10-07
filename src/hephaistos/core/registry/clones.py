@@ -139,7 +139,7 @@ def inspect(path: Path) -> Candidate:
     return Candidate(
         resolved_path=location.top,
         display_path=displayed(typed, location.top),
-        snapshot=git.snapshot(location.top),
+        snapshot=git.snapshot(location),
     )
 
 
