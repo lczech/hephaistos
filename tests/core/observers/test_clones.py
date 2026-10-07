@@ -40,6 +40,7 @@ def _state(paths: Paths, repo: Path) -> CloneState:
 
 
 def test_nothing_changed(paths: Paths, repo: Path) -> None:
+    observer.observe(paths)  # the first observation starts reading the reflogs
     before = _state(paths, repo)
     result = observer.observe(paths)
     assert (result.events, result.observed, result.skipped) == ([], 1, 0)
@@ -60,7 +61,7 @@ def test_branches_and_remotes(paths: Paths, repo: Path) -> None:
     git(repo, "branch", "feature")
     result = observer.observe(paths)
     assert _kinds(result) == ["clone.branch_created"]
-    assert result.events[0].payload == {"branch": "feature"}
+    assert result.events[0].payload["branch"] == "feature"
     assert result.events[0].priority == Priority.NORMAL
 
     git(repo, "branch", "--delete", "feature")
@@ -127,11 +128,12 @@ def test_fresher_observation_is_kept(
     real = observer.clone_observation
 
     def observe_while_another_process_writes(
-        path: Path, timeout: float
-    ) -> tuple[state.Observation, tuple[git_facts.LinkedWorktree, ...] | None]:
+        known: observer.Known, timeout: float
+    ) -> observer.CloneObservation:
         with write_session(paths) as session:
-            state.update(session, clones.find(session, path).clone.id, git_facts.snapshot(path))
-        return real(path, timeout)
+            clone_id = clones.find(session, known.path).clone.id
+            state.update(session, clone_id, git_facts.snapshot(known.path))
+        return real(known, timeout)
 
     monkeypatch.setattr(observer, "clone_observation", observe_while_another_process_writes)
     git(repo, "branch", "feature")

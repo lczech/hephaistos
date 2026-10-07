@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -261,6 +262,62 @@ def worktrees(top: Path, common_dir: Path, timeout: float = TIMEOUT) -> tuple[Li
             )
         )
     return tuple(found)
+
+
+@dataclass(frozen=True)
+class ReflogEntry:
+    """One entry of a reflog: `ref` moved to `new`, with git's message saying why."""
+
+    ref: str  # in full: `HEAD`, `refs/heads/main`, `refs/remotes/origin/main`
+    old: str | None  # the previous entry's `new`; None for the oldest entry read
+    new: str
+    at: datetime  # with the offset git recorded
+    message: str
+
+
+def _reflog(top: Path, *args: str, timeout: float) -> list[ReflogEntry]:
+    """Reflog entries as `git log --walk-reflogs` lists them: newest first, ref by ref."""
+    output = _output(
+        top,
+        "log",
+        "--walk-reflogs",
+        "--no-show-signature",
+        "--date=iso-strict",
+        "--format=%H%x1f%gD%x1f%gs",
+        *args,
+        timeout=timeout,
+    )
+    read: list[tuple[str, str, datetime, str]] = []
+    for line in output.splitlines():
+        new, selector, message = line.split("\x1f", 2)
+        ref, _, date = selector.rpartition("@{")
+        read.append((ref, new, datetime.fromisoformat(date.removesuffix("}")), message))
+    previous: dict[str, str] = {}
+    entries: list[ReflogEntry] = []
+    for ref, new, at, message in reversed(read):
+        entries.append(ReflogEntry(ref, previous.get(ref), new, at, message))
+        previous[ref] = new
+    return entries[::-1]
+
+
+def reflog(
+    top: Path, ref: str = "HEAD", *, limit: int | None = None, timeout: float = TIMEOUT
+) -> list[ReflogEntry]:
+    """The newest entries of a ref's reflog, or all; empty if it has none.
+
+    HEAD must exist, i.e. have a commit. Each worktree has its own HEAD reflog.
+    """
+    return _reflog(top, *([f"--max-count={limit}"] if limit else []), ref, timeout=timeout)
+
+
+def remote_reflogs(top: Path, timeout: float = TIMEOUT) -> list[ReflogEntry]:
+    """The reflogs of all remote-tracking branches, newest first for each."""
+    return _reflog(top, "--remotes", timeout=timeout)
+
+
+def is_rebasing(git_dir: Path) -> bool:
+    """Whether a rebase (or `git am`) is in progress in the working tree of `git_dir`."""
+    return (git_dir / "rebase-merge").is_dir() or (git_dir / "rebase-apply").is_dir()
 
 
 @dataclass(frozen=True)

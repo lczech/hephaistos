@@ -13,6 +13,8 @@ from hephaistos.core.utils.git import (
     main_remote,
     normalise_remote,
     parse_status,
+    reflog,
+    remote_reflogs,
     repository_name,
     shares_history,
     snapshot,
@@ -272,3 +274,29 @@ def test_locate_worktree_common_dir(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     git(repo, "worktree", "add", "--quiet", "-b", "x", str(tmp_path / "wt"))
     assert locate(tmp_path / "wt").common_dir == (repo / ".git").resolve()
+
+
+def test_reflog(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", commits=2)
+    git(repo, "switch", "--quiet", "--create", "feature")
+    first, second = git(repo, "rev-list", "--reverse", "HEAD").split()
+    entries = reflog(repo)
+    assert [(entry.ref, entry.old, entry.new) for entry in entries] == [
+        ("HEAD", second, second),
+        ("HEAD", first, second),
+        ("HEAD", None, first),
+    ]
+    assert entries[0].message == "checkout: moving from main to feature"
+    assert entries[0].at.tzinfo is not None
+    assert [entry.old for entry in reflog(repo, limit=2)] == [second, None]
+    assert reflog(repo, "refs/heads/feature")[0].message == "branch: Created from HEAD"
+
+
+def test_remote_reflogs(tmp_path: Path) -> None:
+    origin = clone(create(tmp_path / "source"), tmp_path / "origin.git", bare=True)
+    repo = clone(origin, tmp_path / "repo")
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "ahead")
+    git(repo, "push", "--quiet", "origin", "main")
+    pushed = next(entry for entry in remote_reflogs(repo) if entry.message == "update by push")
+    assert (pushed.ref, pushed.new) == ("refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"))
+    assert remote_reflogs(create(tmp_path / "alone")) == []

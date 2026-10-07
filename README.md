@@ -16,7 +16,7 @@ hephaistos clone add ~/Repos/hephaistos -r hephaistos
 hephaistos clone list
 hephaistos worktree list
 hephaistos observe
-hephaistos event list
+hephaistos event list --repo hephaistos
 ```
 
 ## Development

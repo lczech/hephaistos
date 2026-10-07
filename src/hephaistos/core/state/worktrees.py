@@ -10,8 +10,10 @@ from typing import Self
 
 from hephaistos.core.db.sessions import ReadSession, WriteSession, chunks
 from hephaistos.core.events import events
-from hephaistos.core.events.events import Change, Event
+from hephaistos.core.events.events import Caused, Change, Event
 from hephaistos.core.events.kinds import EventKind
+from hephaistos.core.state import activity
+from hephaistos.core.state.activity import ActivityPayload, CheckoutActivity, Cursor
 from hephaistos.core.state.checkouts import (
     STATUS_COLUMNS,
     CheckoutState,
@@ -51,6 +53,7 @@ class WorktreeState(CheckoutState):
             head=row["head"],
             branch=row["branch"],
             **{column: row[column] for column in STATUS_COLUMNS},
+            head_log=None if row["head_log"] is None else Cursor.from_text(row["head_log"]),
         )
 
 
@@ -67,6 +70,7 @@ COLUMNS = (
     "branch",
     *STATUS_COLUMNS,
     "error",
+    "head_log",
 )
 
 # What observing one Worktree's directory can give.
@@ -106,16 +110,16 @@ class MovedPayload:
 def of_clones(
     session: ReadSession, clone_ids: Collection[uuid.UUID] | None = None
 ) -> list[WorktreeState]:
-    """The Worktrees of these Clones, or of all, sorted by path."""
+    """The Worktrees of these Clones, or of all, sorted by path; removed ones left out."""
+    select = f"SELECT {', '.join(COLUMNS)} FROM state_worktrees WHERE removed = 0"  # noqa: S608 - our own constant
     if clone_ids is None:
-        rows = list(session.conn.execute(f"SELECT {', '.join(COLUMNS)} FROM state_worktrees"))  # noqa: S608 - our own constant
+        rows = list(session.conn.execute(select))
     else:
         rows = [
             row
             for chunk in chunks(clone_ids)
             for row in session.conn.execute(
-                f"SELECT {', '.join(COLUMNS)} FROM state_worktrees"  # noqa: S608 - our own constant; values are parameters
-                f" WHERE clone_id IN ({', '.join('?' * len(chunk))})",
+                f"{select} AND clone_id IN ({', '.join('?' * len(chunk))})",
                 chunk,
             )
         ]
@@ -124,7 +128,9 @@ def of_clones(
 
 def _write(session: WriteSession, state: WorktreeState) -> None:
     """Stores a Worktree's State, replacing the previous one."""
-    values = {column: getattr(state, column) for column in COLUMNS}
+    values = {column: getattr(state, column) for column in COLUMNS} | {
+        "head_log": None if state.head_log is None else state.head_log.to_text()
+    }
     session.conn.execute(
         f"INSERT OR REPLACE INTO state_worktrees ({', '.join(COLUMNS)})"  # noqa: S608 - our own constant
         f" VALUES ({', '.join('?' * len(COLUMNS))})",
@@ -156,6 +162,7 @@ def _state_from(
         head=linked.head,
         branch=linked.branch,
         **status_values(None),
+        head_log=None,
     )
     listed = dataclasses.replace(
         base,
@@ -184,30 +191,61 @@ def _condition_payload(condition: Condition, state: WorktreeState) -> WorktreePa
     return WorktreePayload(state.clone_id, state.path)
 
 
+def _activity_payload(clone_id: uuid.UUID, payload: ActivityPayload) -> dict[str, object]:
+    """A git activity payload for a Worktree: with its Clone, as other Worktree Events have."""
+    fields = {field.name: getattr(payload, field.name) for field in dataclasses.fields(payload)}
+    return {"clone_id": clone_id, **fields}
+
+
+def caused_events(
+    old: WorktreeState | None, new: WorktreeState, read: CheckoutActivity | None
+) -> list[Caused]:
+    """The Events that going from `old` (None if new) to `new` causes, and its git activity."""
+    clone_id = new.clone_id
+    if old is None:
+        caused = [Caused(EventKind.WORKTREE_ADDED, ListedPayload(clone_id, new.path, new.branch))]
+    else:
+        caused = [
+            Caused(EventKind(f"worktree.{condition}"), _condition_payload(condition, new))
+            for condition in conditions(old, new)
+        ]
+        if old.path.resolve() != new.path.resolve():
+            moved = MovedPayload(clone_id, Change(old.path, new.path))
+            caused.insert(0, Caused(EventKind.WORKTREE_MOVED, moved))
+    caused += [
+        Caused(
+            EventKind(f"worktree.{done.kind}"),
+            _activity_payload(clone_id, done.payload),
+            done.occurred_at,
+            activity.key(clone_id, new.name, "HEAD", done.occurred_at, done.payload.head),
+        )
+        for done in (read.activities if read else ())
+    ]
+    return caused
+
+
 def update(
     session: WriteSession,
     clone_id: uuid.UUID,
     listed: Sequence[git.LinkedWorktree],
     observations: Mapping[str, Observation],
+    read: Mapping[str, CheckoutActivity] | None = None,
 ) -> list[Event]:
     """Stores what observing a Clone's Worktrees gave, and records the Events it causes.
 
     `observations` holds, by name, those of the listed Worktrees whose directories exist. One
-    whose directory is gone was removed, unless it is locked: then it is missing.
+    whose directory is gone was removed, unless it is locked: then it is missing. Removed
+    Worktrees stay as rows, for their Events. `read` holds, by name, what reading their HEAD
+    reflogs gave.
     """
+    read = read or {}
     known = {state.name: state for state in of_clones(session, [clone_id])}
     recorded: list[Event] = []
 
-    def record(kind: EventKind, subject: uuid.UUID, payload: object) -> None:
-        recorded.append(events.record(session, kind, subject, payload))
-
     def remove(state: WorktreeState) -> None:
-        session.conn.execute("DELETE FROM state_worktrees WHERE id = ?", (state.id,))
-        record(
-            EventKind.WORKTREE_REMOVED,
-            state.id,
-            ListedPayload(clone_id, state.path, state.branch),
-        )
+        session.conn.execute("UPDATE state_worktrees SET removed = 1 WHERE id = ?", (state.id,))
+        payload = ListedPayload(clone_id, state.path, state.branch)
+        recorded.append(events.record(session, EventKind.WORKTREE_REMOVED, state.id, payload))
 
     for linked in listed:
         old = known.pop(linked.name, None)
@@ -217,26 +255,28 @@ def update(
                 remove(old)
             continue
         new = _state_from(session, clone_id, old, linked, observation)
+        done = read.get(linked.name) if new.present and new.error is None else None
+        if done is not None:
+            new = dataclasses.replace(new, head_log=done.cursor)
         _write(session, new)
-        if old is None:
-            record(EventKind.WORKTREE_ADDED, new.id, ListedPayload(clone_id, new.path, new.branch))
-            continue
-        if old.path.resolve() != new.path.resolve():
-            record(
-                EventKind.WORKTREE_MOVED, new.id, MovedPayload(clone_id, Change(old.path, new.path))
+        recorded += [
+            events.record(
+                session,
+                event.kind,
+                new.id,
+                event.payload,
+                occurred_at=event.occurred_at,
+                key=event.key,
             )
-        for condition in conditions(old, new):
-            record(EventKind(f"worktree.{condition}"), new.id, _condition_payload(condition, new))
+            for event in caused_events(old, new, done)
+        ]
     for old in known.values():
         remove(old)
     return recorded
 
 
 def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
-    """How to show these Worktrees in place of their IDs: by path.
-
-    Removed Worktrees have no State left; they show the last path an Event recorded.
-    """
+    """How to show these Worktrees in place of their IDs: by path, the last one if removed."""
     found: dict[uuid.UUID, Path] = {}
     for chunk in chunks(ids):
         placeholders = ", ".join("?" * len(chunk))
@@ -245,15 +285,4 @@ def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, 
             chunk,
         )
         found |= {uuid.UUID(bytes=row[0]): Path(row[1]) for row in rows}
-    for chunk in chunks([id_ for id_ in ids if id_ not in found]):
-        placeholders = ", ".join("?" * len(chunk))
-        rows = session.conn.execute(
-            # A moved Worktree's payload has the path as {old, new}.
-            "SELECT subject, coalesce(json_extract(payload, '$.path.new'),"  # noqa: S608 - placeholders only
-            " json_extract(payload, '$.path')) FROM events"
-            f" WHERE subject IN ({placeholders}) AND kind GLOB 'worktree.*'"
-            " ORDER BY recorded_at",
-            chunk,
-        )
-        found |= {uuid.UUID(bytes=row[0]): Path(row[1]) for row in rows if row[1] is not None}
     return found

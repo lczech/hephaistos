@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TypedDict
 
+from hephaistos.core.state.activity import Cursor
 from hephaistos.core.utils.git import Status
 from hephaistos.core.utils.ids import Timestamp
 
@@ -39,6 +40,7 @@ class CheckoutState:
     changed: int | None
     untracked: int | None
     conflicted: int | None
+    head_log: Cursor | None  # where reading HEAD's reflog stopped; None before the first read
 
 
 class StatusValues(TypedDict):

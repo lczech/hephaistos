@@ -169,8 +169,18 @@ def matching(session: ReadSession, candidate: Candidate) -> list[Repository]:
     return sorted(found, key=lambda repository: repository.name)
 
 
-def add(session: WriteSession, repository_name: str, candidate: Candidate) -> Clone:
-    """Registers `candidate` as a Clone of an existing Repository, with its initial State."""
+def add(
+    session: WriteSession,
+    repository_name: str,
+    candidate: Candidate,
+    *,
+    import_history: bool = False,
+) -> Clone:
+    """Registers `candidate` as a Clone of an existing Repository, with its initial State.
+
+    Its git activity counts from its first observation, or with `import_history` from what
+    its reflogs still hold.
+    """
     repository = repositories.by_name(session, repository_name)
     mount, filesystem = mounts.containing(session, session.machine_id, candidate.resolved_path)
     for existing in details(session, filesystem_id=filesystem.id):
@@ -198,7 +208,7 @@ def add(session: WriteSession, repository_name: str, candidate: Candidate) -> Cl
         display_path=candidate.display_path,
     )
     records.add(session, Table.REGISTRY_CLONES, EventKind.CLONE_ADDED, clone)
-    state.add(session, clone.id, candidate.snapshot)
+    state.add(session, clone.id, candidate.snapshot, import_history=import_history)
     return clone
 
 

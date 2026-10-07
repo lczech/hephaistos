@@ -1,5 +1,6 @@
 import json
 import re
+import socket
 from datetime import UTC, datetime, timedelta
 from typing import get_args
 
@@ -33,21 +34,23 @@ def _rows(*args: str) -> list[list[str]]:
 
 def test_list() -> None:
     result = runner.invoke(app, ["event", "list"])
-    assert result.output.splitlines()[0].split() == [
+    lines = result.output.splitlines()
+    assert lines[0].split() == [
         "id",
         "recorded",
         "machine",
         "priority",
         "kind",
         "subject",
+        "summary",
     ]
-    rows = _rows()
+    rows = [re.split(r"\s{2,}", line) for line in lines[1:]]
     assert [row[1:] for row in rows] == [
-        ["now", "laptop", "normal", "repository.changed", "project"],
+        ["now", "laptop", "normal", "repository.changed", "project", "name: proj → project"],
         ["now", "laptop", "normal", "repository.added", "project"],
-        ["now", "laptop", "normal", "mount.added", "/"],
+        ["now", "laptop", "normal", "mount.added", "/", "/"],
         ["now", "laptop", "normal", "filesystem.added", "laptop-local"],
-        ["now", "laptop", "normal", "machine.added", "laptop"],
+        ["now", "laptop", "normal", "machine.added", "laptop", socket.gethostname()],
     ]
     assert all(re.fullmatch(r"[0-9a-f]{8}", row[0]) for row in rows)
 

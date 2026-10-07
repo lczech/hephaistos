@@ -127,3 +127,48 @@ def test_observe_counts_worktrees() -> None:
     assert runner.invoke(app, ["observe"]).output == (
         "No changes (1 Clone and 1 Worktree observed)\n"
     )
+
+
+def _event_rows(*args: str) -> list[list[str]]:
+    result = runner.invoke(app, ["event", "list", "-n", "0", *args])
+    assert result.exit_code == 0, result.output
+    return [re.split(r"\s{2,}", line) for line in result.output.splitlines()[1:]]
+
+
+def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> None:
+    feature = repo / ".worktrees" / "feature"
+    git(feature, "commit", "--quiet", "--allow-empty", "--message", "On feature")
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "On main")
+    runner.invoke(app, ["repo", "add", "other"])
+    runner.invoke(app, ["clone", "add", str(create(tmp_path / "other")), "--repo", "other"])
+    runner.invoke(app, ["observe"])
+
+    by_worktree = _event_rows("--worktree", "feature")
+    assert [row[4] for row in by_worktree] == ["worktree.committed", "worktree.added"]
+    assert by_worktree[0][6].endswith(" On feature")
+    by_clone = {row[4] for row in _event_rows("--clone", str(feature))}
+    assert by_clone == {
+        "worktree.committed",
+        "clone.committed",
+        "worktree.added",
+        "clone.branch_created",
+        "clone.added",
+    }
+    assert {row[4] for row in _event_rows("--repo", "proj")} == by_clone | {"repository.added"}
+    assert [row[4] for row in _event_rows("--repo", "other")] == [
+        "clone.added",
+        "repository.added",
+    ]
+    refused = runner.invoke(app, ["event", "list", "--worktree", str(repo)])
+    assert "not in a Worktree" in str(refused.exception)
+
+    shown = runner.invoke(app, ["event", "show", by_worktree[0][0]]).output
+    assert re.search(r"occurred\s+\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\n", shown)
+
+
+def test_clone_add_can_import_history(repo: Path, tmp_path: Path) -> None:
+    del repo
+    runner.invoke(app, ["repo", "add", "other"])
+    other = create(tmp_path / "other", commits=2)
+    result = runner.invoke(app, ["clone", "add", str(other), "--repo", "other", "--import-history"])
+    assert result.output.endswith("; imported 2 Events of its history\n")
