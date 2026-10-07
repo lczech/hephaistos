@@ -37,7 +37,10 @@ def test_locate_from_a_subdirectory_through_a_symlink(tmp_path: Path) -> None:
 def test_locate_bare(tmp_path: Path) -> None:
     bare = clone(create(tmp_path / "repo"), tmp_path / "bare.git", bare=True)
     (bare / "refs").mkdir(exist_ok=True)
-    assert locate(bare / "refs").top == bare.resolve()
+    location = locate(bare / "refs")
+    assert location.top == bare.resolve()
+    assert location.bare
+    assert not locate(tmp_path / "repo").bare
 
 
 def test_locate_worktree_names_its_main(tmp_path: Path) -> None:
@@ -67,7 +70,7 @@ def test_locate_inside_git_directory(tmp_path: Path) -> None:
 
 def test_snapshot(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo", commits=2, origin="https://user:secret@host.org/a/b.git")
-    facts = snapshot(repo)
+    facts = snapshot(locate(repo))
     assert not facts.bare
     assert facts.head == git(repo, "rev-parse", "HEAD")
     assert facts.branch == "main"
@@ -78,14 +81,14 @@ def test_snapshot(tmp_path: Path) -> None:
 def test_snapshot_detached(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     git(repo, "checkout", "--quiet", "--detach")
-    assert snapshot(repo).branch is None
+    assert snapshot(locate(repo)).branch is None
 
 
 def test_snapshot_without_commits(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "--quiet", "--initial-branch=main")
-    facts = snapshot(repo)
+    facts = snapshot(locate(repo))
     assert facts.head is None
     assert facts.branch == "main"
     assert facts.root_commits == ()
@@ -97,14 +100,17 @@ def test_root_commits_include_other_branches(tmp_path: Path) -> None:
     main_root = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "--quiet", "--orphan", "pages")
     git(repo, "commit", "--quiet", "--allow-empty", "--message", "pages")
-    assert snapshot(repo).root_commits == tuple(sorted([main_root, git(repo, "rev-parse", "HEAD")]))
+    assert snapshot(locate(repo)).root_commits == tuple(
+        sorted([main_root, git(repo, "rev-parse", "HEAD")])
+    )
 
 
 def test_snapshot_of_bare(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
-    facts = snapshot(clone(repo, tmp_path / "bare.git", bare=True))
+    facts = snapshot(locate(clone(repo, tmp_path / "bare.git", bare=True)))
     assert facts.bare
     assert facts.head == git(repo, "rev-parse", "HEAD")
+    assert facts.branch == "main"
     assert facts.remotes == {"origin": str(repo)}
 
 
@@ -169,6 +175,7 @@ STATUS_FIELDS = (
 
 def test_parse_status() -> None:
     parsed = parse_status("\0".join(STATUS_FIELDS))
+    assert (parsed.head, parsed.branch) == ("1234", "main")
     assert (parsed.upstream, parsed.ahead, parsed.behind) == ("origin/main", 2, 1)
     assert parsed.entries == (
         Entry("a file.txt", ".", "M"),
@@ -184,7 +191,13 @@ def test_parse_status() -> None:
 
 def test_parse_status_without_upstream() -> None:
     parsed = parse_status("# branch.oid (initial)\0# branch.head main\0")
+    assert (parsed.head, parsed.branch) == (None, "main")
     assert (parsed.upstream, parsed.ahead, parsed.behind, parsed.entries) == (None, None, None, ())
+
+
+def test_parse_status_detached() -> None:
+    parsed = parse_status("# branch.oid 1234\0# branch.head (detached)\0")
+    assert (parsed.head, parsed.branch) == ("1234", None)
 
 
 def test_status(tmp_path: Path) -> None:
@@ -221,11 +234,11 @@ def test_not_in_repository(tmp_path: Path) -> None:
 def test_snapshot_status_and_branches(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     (repo / "new").write_text("x")
-    facts = snapshot(repo)
+    facts = snapshot(locate(repo))
     assert facts.branches == ("main",)
     assert facts.status is not None
     assert facts.status.untracked == 1
-    assert snapshot(clone(repo, tmp_path / "bare.git", bare=True)).status is None
+    assert snapshot(locate(clone(repo, tmp_path / "bare.git", bare=True))).status is None
 
 
 @pytest.mark.parametrize(

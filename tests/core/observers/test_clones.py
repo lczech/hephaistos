@@ -132,7 +132,7 @@ def test_fresher_observation_is_kept(
     ) -> observer.CloneObservation:
         with write_session(paths) as session:
             clone_id = clones.find(session, known.path).clone.id
-            state.update(session, clone_id, git_facts.snapshot(known.path))
+            state.update(session, clone_id, git_facts.snapshot(git_facts.locate(known.path)))
         return real(known, timeout)
 
     monkeypatch.setattr(observer, "clone_observation", observe_while_another_process_writes)

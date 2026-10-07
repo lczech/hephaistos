@@ -150,7 +150,7 @@ def clone_observation(known: Known, timeout: float = git.TIMEOUT) -> CloneObserv
             return CloneObservation(Missing())  # its repository is gone; git found one around it
         if location.main is not None:
             return CloneObservation(Failed(f"it is now a Worktree of {location.main}"))
-        snapshot = git.snapshot(path, timeout)
+        snapshot = git.snapshot(location, timeout)
         listed = git.worktrees(path, location.common_dir, timeout)
         if snapshot.head is None:
             read = CloneActivity((), known.head_log or BEGINNING, (), known.push_log or {}, {})

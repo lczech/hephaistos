@@ -35,7 +35,8 @@ def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.Complet
     executable = shutil.which("git")
     if executable is None:
         raise GitError("git is not installed")
-    # Reading must never take locks that the user's own git commands would wait for.
+    # Reading must never take locks that the user's own git commands would wait for. So a file
+    # whose index stat data is stale is rehashed on every run, until the user's git refreshes it.
     env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
     try:
         return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
@@ -66,32 +67,27 @@ class Location:
     top: Path  # resolved: the working tree's top level, or the git directory if bare
     main: Path | None  # for a linked worktree: its main working tree or bare git directory
     common_dir: Path  # resolved: the git directory shared by all worktrees
+    bare: bool
 
 
-_LOCATE_LINES = 4
+_LOCATE = ("rev-parse", "--is-bare-repository", "--is-inside-work-tree", "--absolute-git-dir")
 
 
 def locate(path: Path, timeout: float = TIMEOUT) -> Location:
     """The git repository that `path` lies in; raises GitError if none."""
-    result = _git(
-        path,
-        "rev-parse",
-        "--is-bare-repository",
-        "--is-inside-work-tree",
-        "--absolute-git-dir",
-        "--git-common-dir",
-        timeout=timeout,
-    )
+    # Asking for the top level fails outside a working tree; only then is a second call needed.
+    result = _git(path, *_LOCATE, "--git-common-dir", "--show-toplevel", timeout=timeout)
+    if result.returncode != 0:
+        result = _git(path, *_LOCATE, "--git-common-dir", timeout=timeout)
     if result.returncode != 0:
         raise NotInRepositoryError(f"{path} is not in a git repository")
-    lines = result.stdout.removesuffix("\n").split("\n")
-    if len(lines) != _LOCATE_LINES:
+    bare, inside, git_dir, common_dir, *toplevel = result.stdout.removesuffix("\n").split("\n")
+    if len(toplevel) > 1:
         raise GitError(f"unexpected output from `git rev-parse` in {path}")
-    bare, inside, git_dir, common_dir = lines
     if bare == "true":
         top = Path(git_dir).resolve()
-    elif inside == "true":
-        top = Path(_output(path, "rev-parse", "--show-toplevel", timeout=timeout)).resolve()
+    elif inside == "true" and toplevel:
+        top = Path(toplevel[0]).resolve()
     else:
         raise GitError(f"{path} is inside a git directory, not a working tree")
 
@@ -101,7 +97,7 @@ def locate(path: Path, timeout: float = TIMEOUT) -> Location:
         # The first entry of `worktree list` is the main working tree, or the bare repository.
         first = _output(path, "worktree", "list", "--porcelain", timeout=timeout).split("\n", 1)[0]
         main = Path(first.removeprefix("worktree ")).resolve()
-    return Location(top=top, main=main, common_dir=common)
+    return Location(top=top, main=main, common_dir=common, bare=bare == "true")
 
 
 @dataclass(frozen=True)
@@ -122,6 +118,8 @@ class Entry:
 class Status:
     """A working tree's state relative to HEAD and to its upstream branch."""
 
+    head: str | None  # None before the first commit
+    branch: str | None  # None when HEAD is detached
     upstream: str | None  # e.g. `origin/main`
     ahead: int | None  # None without upstream, or if it is gone
     behind: int | None
@@ -154,13 +152,21 @@ class Status:
 
 def parse_status(output: str) -> Status:
     """Parses `git status --porcelain=v2 --branch -z`."""
+    head: str | None = None
+    branch: str | None = None
     upstream: str | None = None
     ahead: int | None = None
     behind: int | None = None
     entries: list[Entry] = []
     fields = iter(output.split("\0"))
     for field in fields:
-        if field.startswith("# branch.upstream "):
+        if field.startswith("# branch.oid "):
+            oid = field.removeprefix("# branch.oid ")
+            head = None if oid == "(initial)" else oid
+        elif field.startswith("# branch.head "):
+            name = field.removeprefix("# branch.head ")
+            branch = None if name == "(detached)" else name
+        elif field.startswith("# branch.upstream "):
             upstream = field.removeprefix("# branch.upstream ")
         elif field.startswith("# branch.ab "):
             plus, minus = field.removeprefix("# branch.ab ").split()
@@ -177,7 +183,14 @@ def parse_status(output: str) -> Status:
         elif field.startswith("u "):
             parts = field.split(" ", 10)
             entries.append(Entry(parts[10], parts[1][0], parts[1][1], conflicted=True))
-    return Status(upstream=upstream, ahead=ahead, behind=behind, entries=tuple(entries))
+    return Status(
+        head=head,
+        branch=branch,
+        upstream=upstream,
+        ahead=ahead,
+        behind=behind,
+        entries=tuple(entries),
+    )
 
 
 def status(top: Path, timeout: float = TIMEOUT) -> Status:
@@ -333,21 +346,25 @@ class Snapshot:
     status: Status | None  # None if bare
 
 
-def snapshot(top: Path, timeout: float = TIMEOUT) -> Snapshot:
-    """The current facts about the repository at `top`."""
-    bare = _output(top, "rev-parse", "--is-bare-repository", timeout=timeout) == "true"
-    head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD", timeout=timeout)
-    head = head_result.stdout.strip() if head_result.returncode == 0 else None
-    branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD", timeout=timeout)
-    branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+def snapshot(location: Location, timeout: float = TIMEOUT) -> Snapshot:
+    """The current facts about the repository at `location`."""
+    top = location.top
+    found = None if location.bare else status(top, timeout)
+    if found is None:
+        head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD", timeout=timeout)
+        head = head_result.stdout.strip() if head_result.returncode == 0 else None
+        branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD", timeout=timeout)
+        branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+    else:
+        head, branch = found.head, found.branch
     return Snapshot(
-        bare=bare,
+        bare=location.bare,
         head=head,
         branch=branch,
         root_commits=root_commits(top, include_head=head is not None, timeout=timeout),
         remotes=remotes(top, timeout),
         branches=branches(top, timeout),
-        status=None if bare else status(top, timeout),
+        status=found,
     )
 
 
