@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import SCHEMA_VERSION, ReadSession, create_database, read_session
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
@@ -16,6 +17,13 @@ from hephaistos.core.registry.records import Record, add
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, mount_of, os_machine_id
+
+#: The columns of `registry_machines`, decoded for raw views.
+DECODERS = records.DECODERS | {
+    "name": values.plain,
+    "hostname": values.plain,
+    "os_machine_id": values.plain,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

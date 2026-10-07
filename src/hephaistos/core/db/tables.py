@@ -9,6 +9,19 @@ class Category(StrEnum):
     STATE = "state"
     EVENTS = "events"
 
+    @property
+    def time_column(self) -> str | None:
+        """The column saying when a row was last written; None for local tables."""
+        match self:
+            case Category.LOCAL:
+                return None
+            case Category.REGISTRY:
+                return "modified_at"
+            case Category.STATE:
+                return "observed_at"
+            case Category.EVENTS:
+                return "recorded_at"
+
 
 class Table(StrEnum):
     """All tables of the schema; the name's prefix gives the category."""

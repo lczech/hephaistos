@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
@@ -20,6 +21,14 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import absolute, displayed
+
+#: The columns of `registry_clones`, decoded for raw views.
+DECODERS = records.DECODERS | {
+    "repository_id": values.uuid_bytes,
+    "filesystem_id": values.uuid_bytes,
+    "resolved_path": values.plain,
+    "display_path": values.plain,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

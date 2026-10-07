@@ -7,6 +7,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
@@ -15,6 +16,11 @@ from hephaistos.core.registry.records import Record
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
+
+#: The columns of `registry_repositories`, decoded for raw views.
+DECODERS = records.DECODERS | {
+    "name": values.plain,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -8,11 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
+from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession, chunks
 from hephaistos.core.events import events
 from hephaistos.core.events.events import Caused, Change, Event
 from hephaistos.core.events.kinds import EventKind
-from hephaistos.core.state import activity
+from hephaistos.core.state import activity, checkouts
 from hephaistos.core.state.activity import ActivityPayload, CheckoutActivity, Cursor
 from hephaistos.core.state.checkouts import (
     STATUS_COLUMNS,
@@ -25,6 +26,16 @@ from hephaistos.core.state.checkouts import (
 )
 from hephaistos.core.utils import git
 from hephaistos.core.utils.ids import Timestamp, new_id
+
+#: The columns of `state_worktrees`, decoded for raw views.
+DECODERS = checkouts.DECODERS | {
+    "id": values.uuid_bytes,
+    "clone_id": values.uuid_bytes,
+    "name": values.plain,
+    "path": values.plain,
+    "lock_reason": values.plain,
+    "removed": values.plain,
+}
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -14,7 +14,7 @@ One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, s
 src/hephaistos/
   core/
     config.py     TOML
-    db/           connection, read and write sessions, schema
+    db/           connection, read and write sessions, schema, raw views
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
     events/       events.py (storage and reading), kinds.py, subjects.py
@@ -115,7 +115,7 @@ hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refre
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
                      [--repo <name>] [--clone <path>] [--worktree <path|name>] | show <id>
 hephaistos observe [clones] [--clone <path>]…
-hephaistos db tables | db dump <table>
+hephaistos db tables | dump <table> [-c <column>]… [--table|--blocks] [--short-ids]
 ```
 
 - `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and shows the commands to add the Repository first. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
@@ -123,6 +123,7 @@ hephaistos db tables | db dump <table>
 - `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
 - Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
+- `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row.
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.
 
@@ -130,7 +131,6 @@ Next: the Server and GUI pages showing these tables, plus a Repository overview.
 
 - **IDs as text:** readable in `sqlite3`, but the Server converts for every view anyway.
 - **Per-origin sequence numbers for sync:** the hybrid clock already orders each Machine's Events.
-- **Separate occurred and recorded times for Events:** rarely different; a hook's own time goes into the payload.
 - **Setup on first use of any command:** a Machine should be set up deliberately.
 - **`deleted_at`:** duplicates `modified_at`.
 - **Worktrees in the Registry:** they come and go and are discovered, not declared.
