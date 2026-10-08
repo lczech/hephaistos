@@ -98,7 +98,7 @@ class WorktreePayload:
 
 @dataclass(frozen=True)
 class ListedPayload(WorktreePayload):
-    """The payload of `worktree.added` and `worktree.removed`."""
+    """The payload of `worktree.added`, `.removed` and `.restored`."""
 
     branch: str | None
 
@@ -135,6 +135,16 @@ def of_clones(
             )
         ]
     return sorted((WorktreeState.from_row(row) for row in rows), key=lambda state: state.path)
+
+
+def removed_of(session: ReadSession, clone_id: uuid.UUID) -> dict[str, WorktreeState]:
+    """The Clone's removed Worktrees by name: of each name, the last observed."""
+    rows = session.conn.execute(
+        f"SELECT {', '.join(COLUMNS)} FROM state_worktrees"  # noqa: S608 - our own constant
+        " WHERE clone_id = ? AND removed = 1 ORDER BY observed_at",
+        (clone_id,),
+    )
+    return {row["name"]: WorktreeState.from_row(row) for row in rows}
 
 
 def _write(session: WriteSession, state: WorktreeState) -> None:
@@ -209,12 +219,20 @@ def _activity_payload(clone_id: uuid.UUID, payload: ActivityPayload) -> dict[str
 
 
 def caused_events(
-    old: WorktreeState | None, new: WorktreeState, read: CheckoutActivity | None
+    old: WorktreeState | None,
+    new: WorktreeState,
+    read: CheckoutActivity | None,
+    *,
+    restored: bool = False,
 ) -> list[Caused]:
-    """The Events that going from `old` (None if new) to `new` causes, and its git activity."""
+    """The Events that going from `old` (None if new) to `new` causes, and its git activity.
+
+    If `restored`, `old` is the removed Worktree that `new` turned out to be.
+    """
     clone_id = new.clone_id
+    listed = ListedPayload(clone_id, new.path, new.branch)
     if old is None:
-        caused = [Caused(EventKind.WORKTREE_ADDED, ListedPayload(clone_id, new.path, new.branch))]
+        caused = [Caused(EventKind.WORKTREE_ADDED, listed)]
     else:
         caused = [
             Caused(EventKind(f"worktree.{condition}"), _condition_payload(condition, new))
@@ -223,6 +241,8 @@ def caused_events(
         if old.path.resolve() != new.path.resolve():
             moved = MovedPayload(clone_id, Change(old.path, new.path))
             caused.insert(0, Caused(EventKind.WORKTREE_MOVED, moved))
+        if restored:
+            caused.insert(0, Caused(EventKind.WORKTREE_RESTORED, listed))
     caused += [
         Caused(
             EventKind(f"worktree.{done.kind}"),
@@ -235,22 +255,26 @@ def caused_events(
     return caused
 
 
-def update(
+def update(  # noqa: PLR0913 - the optional ones are keyword-only
     session: WriteSession,
     clone_id: uuid.UUID,
     listed: Sequence[git.LinkedWorktree],
     observations: Mapping[str, Observation],
+    *,
     read: Mapping[str, CheckoutActivity] | None = None,
+    restored: Collection[str] = (),
 ) -> list[Event]:
     """Stores what observing a Clone's Worktrees gave, and records the Events it causes.
 
     `observations` holds, by name, those of the listed Worktrees whose directories exist. One
     whose directory is gone was removed, unless it is locked: then it is missing. Removed
     Worktrees stay as rows, for their Events. `read` holds, by name, what reading their HEAD
-    reflogs gave.
+    reflogs gave. `restored` names those that are the last removed Worktree of their name, as
+    their history continues from it: they get its row back.
     """
     read = read or {}
     known = {state.name: state for state in of_clones(session, [clone_id])}
+    removed = removed_of(session, clone_id) if restored else {}
     recorded: list[Event] = []
 
     def remove(state: WorktreeState) -> None:
@@ -265,11 +289,14 @@ def update(
             if old is not None:
                 remove(old)
             continue
+        restoring = old is None and linked.name in restored and linked.name in removed
+        if restoring:
+            old = removed[linked.name]
         new = _state_from(session, clone_id, old, linked, observation)
         done = read.get(linked.name) if new.present and new.error is None else None
         if done is not None:
             new = dataclasses.replace(new, head_log=done.cursor)
-        _write(session, new)
+        _write(session, new)  # also clears `removed`, which it doesn't write
         recorded += [
             events.record(
                 session,
@@ -279,7 +306,7 @@ def update(
                 occurred_at=event.occurred_at,
                 key=event.key,
             )
-            for event in caused_events(old, new, done)
+            for event in caused_events(old, new, done, restored=restoring)
         ]
     for old in known.values():
         remove(old)

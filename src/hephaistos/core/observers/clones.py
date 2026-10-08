@@ -23,6 +23,7 @@ from hephaistos.core.state.activity import (
     Push,
 )
 from hephaistos.core.state.checkouts import Failed, Missing
+from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.paths import Paths
 
@@ -49,16 +50,18 @@ class Known:
     head_log: Cursor | None
     push_log: Mapping[str, Cursor] | None
     worktree_logs: Mapping[str, Cursor | None]  # by name
+    removed_logs: Mapping[str, Cursor | None]  # of the last removed Worktree of each name
 
     @classmethod
-    def of(cls, details: clones.CloneDetails) -> Self:
-        """What the record holds about this Clone."""
+    def of(cls, details: clones.CloneDetails, removed: Collection[WorktreeState] = ()) -> Self:
+        """What the record holds about this Clone, and its `removed` Worktrees."""
         return cls(
             path=details.clone.resolved_path,
             branches=frozenset(details.state.branches),
             head_log=details.state.head_log,
             push_log=details.state.push_log,
             worktree_logs={worktree.name: worktree.head_log for worktree in details.worktrees},
+            removed_logs={worktree.name: worktree.head_log for worktree in removed},
         )
 
     def worktree_log(self, name: str) -> Cursor | None:
@@ -71,15 +74,31 @@ class Known:
             return self.worktree_logs[name]
         return None if self.head_log is None else BEGINNING
 
+    def removed_log(self, name: str) -> Cursor | None:
+        """Where reading stopped for a removed Worktree of this name; None if there is none.
 
-def _unread(top: Path, cursor: Cursor, timeout: float) -> list[git.ReflogEntry]:
-    """The HEAD reflog's entries after `cursor`, oldest first."""
+        Only for a name that no current Worktree has.
+        """
+        return None if name in self.worktree_logs else self.removed_logs.get(name)
+
+
+def _unread(top: Path, cursor: Cursor, timeout: float) -> tuple[list[git.ReflogEntry], bool]:
+    """The HEAD reflog's entries after `cursor`, oldest first, and whether its entry is there.
+
+    If it isn't, e.g. expired, the entries after its time.
+    """
     entries = git.reflog(top, limit=PAGE, timeout=timeout)
     found = activity.unread(entries, cursor)
     if found is None and len(entries) == PAGE:
         entries = git.reflog(top, timeout=timeout)
         found = activity.unread(entries, cursor)
-    return activity.newer(entries, cursor) if found is None else found
+    return (activity.newer(entries, cursor), False) if found is None else (found, True)
+
+
+def _activity(entries: list[git.ReflogEntry], git_dir: Path, cursor: Cursor) -> CheckoutActivity:
+    """The activity in a HEAD reflog's entries read after `cursor`, oldest first."""
+    found, count = activity.activities(entries, rebasing=git.is_rebasing(git_dir))
+    return CheckoutActivity(found, activity.cursor_after(entries[count - 1]) if count else cursor)
 
 
 def head_activity(
@@ -91,9 +110,19 @@ def head_activity(
     """
     if cursor is None:
         return CheckoutActivity((), activity.end(git.reflog(top, limit=1, timeout=timeout)))
-    entries = _unread(top, cursor, timeout)
-    found, count = activity.activities(entries, rebasing=git.is_rebasing(git_dir))
-    return CheckoutActivity(found, activity.cursor_after(entries[count - 1]) if count else cursor)
+    entries, _ = _unread(top, cursor, timeout)
+    return _activity(entries, git_dir, cursor)
+
+
+def continued_activity(
+    top: Path, git_dir: Path, cursor: Cursor, timeout: float = git.TIMEOUT
+) -> CheckoutActivity | None:
+    """Like `head_activity`, but None unless the reflog still holds the cursor's entry.
+
+    That tells whether a Checkout's history continues from the cursor.
+    """
+    entries, found = _unread(top, cursor, timeout)
+    return _activity(entries, git_dir, cursor) if found else None
 
 
 def push_activity(
@@ -187,18 +216,31 @@ class WorktreeObservation:
 
     observation: worktree_state.Observation
     read: CheckoutActivity | None = None
+    restored: bool = False  # the removed Worktree of its name, as its history continues
 
 
 def worktree_observation(
-    linked: git.LinkedWorktree, git_dir: Path, cursor: Cursor | None, timeout: float = git.TIMEOUT
+    linked: git.LinkedWorktree,
+    git_dir: Path,
+    cursor: Cursor | None,
+    removed: Cursor | None = None,
+    timeout: float = git.TIMEOUT,
 ) -> WorktreeObservation:
-    """The status and git activity of a Worktree, or why there are none; any error fails it."""
+    """The status and git activity of a Worktree, or why there are none; any error fails it.
+
+    `removed` is where reading stopped for a removed Worktree of the same name: if the
+    reflog continues from there, it is that one, restored, and reading continues too.
+    """
     try:
         if not linked.path.is_dir():
             return WorktreeObservation(Missing())
         status = git.status(linked.path, timeout)
         if linked.head is None:
             return WorktreeObservation(status, CheckoutActivity((), cursor or BEGINNING))
+        if removed is not None:
+            read = continued_activity(linked.path, git_dir, removed, timeout)
+            if read is not None:
+                return WorktreeObservation(status, read, restored=True)
         return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor, timeout))
     except git.GitError as error:
         return WorktreeObservation(Failed(str(error)))
@@ -221,7 +263,10 @@ def observe(
     with read_session(paths) as session:
         started = session.clock_value
         targets = [
-            (existing.clone.id, Known.of(existing))
+            (
+                existing.clone.id,
+                Known.of(existing, worktree_state.removed_of(session, existing.clone.id).values()),
+            )
             for existing in clones.on_this_machine(session)
             if clone_ids is None or existing.clone.id in clone_ids
         ]
@@ -238,6 +283,7 @@ def observe(
                 [linked for _, linked, _, _ in jobs],
                 [common / "worktrees" / linked.name for _, linked, common, _ in jobs],
                 [known.worktree_log(linked.name) for _, linked, _, known in jobs],
+                [known.removed_log(linked.name) for _, linked, _, known in jobs],
                 repeat(timeout),
             )
         )
@@ -265,11 +311,12 @@ def observe(
                     clone_id,
                     listed,
                     {name: worktree.observation for name, worktree in worktrees.items()},
-                    {
+                    read={
                         name: worktree.read
                         for name, worktree in worktrees.items()
                         if worktree.read is not None
                     },
+                    restored={name for name, worktree in worktrees.items() if worktree.restored},
                 )
                 counted += len(listed)
     return Result(

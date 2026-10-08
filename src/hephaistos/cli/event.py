@@ -251,7 +251,7 @@ def _summary(kind: EventKind, payload: dict[str, Any]) -> str:  # noqa: C901, PL
             | EventKind.WORKTREE_BRANCH_SWITCHED
         ):
             return _payload_text(payload["branch"])
-        case EventKind.WORKTREE_ADDED | EventKind.WORKTREE_REMOVED:
+        case EventKind.WORKTREE_ADDED | EventKind.WORKTREE_REMOVED | EventKind.WORKTREE_RESTORED:
             return payload["branch"] or "(detached)"
         case EventKind.WORKTREE_MOVED:
             path = payload["path"]
