@@ -107,6 +107,29 @@ def test_write_session_persists_clock(set_up: Paths) -> None:
         assert session.tick() > second
 
 
+def _add_and_fail(paths: Paths) -> None:
+    with write_session(paths) as session:
+        repositories.add(session, "lost")
+        raise ValueError("rolled back")
+
+
+def test_events_are_logged_once_committed(set_up: Paths, caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level("INFO")
+    with pytest.raises(ValueError, match="rolled back"):
+        _add_and_fail(set_up)
+    [rolled_back] = caplog.records
+    assert rolled_back.levelname == "WARNING"
+    assert rolled_back.getMessage() == "rolled back: ValueError: rolled back"
+    assert vars(rolled_back)["events"] == 1
+    assert rolled_back.exc_info is None
+    caplog.clear()
+    with write_session(set_up) as session:
+        added = repositories.add(session, "kept")
+    [logged] = caplog.records
+    assert logged.getMessage() == "recorded repository.added"
+    assert getattr(logged, "subject") == added.id  # noqa: B009 - an extra field
+
+
 WRITER = """
 import sys, time
 from pathlib import Path

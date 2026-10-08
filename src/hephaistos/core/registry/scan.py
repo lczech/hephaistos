@@ -5,6 +5,7 @@ taken, is skipped, with the commands that add it by hand.
 """
 
 import dataclasses
+import logging
 import shlex
 import uuid
 from collections import Counter
@@ -22,6 +23,8 @@ from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import absolute, shell_path
 
 DEPTH = 3  # directory levels searched below the scanned one
+
+log = logging.getLogger(__name__)
 
 
 class Action(StrEnum):
@@ -84,6 +87,7 @@ def _found(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]]]:
                 if not child.name.startswith(".") and child.is_dir()
             )
         except OSError as error:
+            log.debug("cannot search %s: %s", directory, error)
             unreadable.append((directory, error.strerror or str(error)))
             return
         for child in children:
@@ -151,6 +155,8 @@ class _Planner:
         try:
             candidate = clones.candidate(typed, location)
         except HephaistosError as error:  # git failed, or it is a submodule
+            if isinstance(error, git.GitError):
+                log.warning("skipping %s: %s", typed, error)
             self.planned[top] = self.add(Planned(typed, Action.SKIP, note=str(error)))
             return
         self.planned[top] = self._matched(typed, candidate, note, worktree)
@@ -225,6 +231,7 @@ class _Planner:
             try:
                 main_location = git.locate(main)
             except git.GitError as error:
+                log.warning("skipping %s: %s", typed, error)
                 self.add(Planned(typed, Action.SKIP, note=str(error)))
                 return
             self.clone(main, main_location, typed)
@@ -321,6 +328,7 @@ def plan(session: ReadSession, root: Path, depth: int = DEPTH) -> list[Planned]:
         try:
             location = git.locate(path)
         except git.GitError as error:
+            log.warning("skipping %s: %s", path, error)
             planner.add(Planned(path, Action.SKIP, note=str(error)))
             continue
         if location.main is None:

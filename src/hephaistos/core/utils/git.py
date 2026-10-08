@@ -3,10 +3,14 @@
 Knows nothing about our records. Paths passed in must be existing directories.
 """
 
+import functools
+import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
+import time
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +20,8 @@ from urllib.parse import urlsplit, urlunsplit
 from hephaistos.core.utils.errors import HephaistosError
 
 TIMEOUT = 30.0  # seconds for one git command; a hung network filesystem must not block us
+
+log = logging.getLogger(__name__)
 
 
 class GitError(HephaistosError):
@@ -62,8 +68,9 @@ def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.Complet
     # whose index stat data is stale is rehashed on every run, until the user's git refreshes it.
     env = {key: value for key, value in os.environ.items() if key not in LOCAL_VARIABLES}
     env["GIT_OPTIONAL_LOCKS"] = "0"
+    started = time.monotonic()
     try:
-        return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+        result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             [executable, "-C", str(path), *args],
             capture_output=True,
             encoding="utf-8",
@@ -73,7 +80,34 @@ def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.Complet
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
+        _log_call(path, args, started, None, None)
         raise GitTimeoutError(f"`git {args[0]}` timed out after {timeout:g} s in {path}") from None
+    _log_call(path, args, started, result.returncode, result.stderr)
+    return result
+
+
+def _log_call(
+    path: Path, args: tuple[str, ...], started: float, returncode: int | None, stderr: str | None
+) -> None:
+    """Logs a git call at debug level: None for a timeout; stderr only if it failed."""
+    if not log.isEnabledFor(logging.DEBUG):
+        return
+    fields: dict[str, object] = {"dir": path, "duration": round(time.monotonic() - started, 3)}
+    if returncode is None:
+        fields["timed_out"] = True
+    else:
+        fields["exit_code"] = returncode
+    if returncode and stderr:
+        fields["stderr"] = stderr.strip()
+    _log_ignored_variables()
+    log.debug("git %s", shlex.join(args), extra=fields)
+
+
+@functools.cache
+def _log_ignored_variables() -> None:
+    """Logs once which of LOCAL_VARIABLES are set: by name only, as values may be anything."""
+    if ignored := sorted(LOCAL_VARIABLES.intersection(os.environ)):
+        log.debug("ignoring git's variables %s", ", ".join(ignored))
 
 
 def _output(path: Path, *args: str, timeout: float = TIMEOUT) -> str:
