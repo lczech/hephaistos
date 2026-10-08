@@ -101,15 +101,39 @@ def test_unexpected_errors_are_logged_with_their_traceback(
 
     monkeypatch.setattr(machines, "listing", broken)
     assert _run(monkeypatch, "machine", "list") == 1
-    today = logs.day_files(paths.state_dir)[-1][1]
-    err = capsys.readouterr().err.splitlines()
-    assert err[0] == "error: unexpected KeyError: 'branch'"
-    assert err[1].startswith(f"details: {today} (pid ")
     error, end = _logged(paths)[-2:]
     assert error["level"] == "ERROR"
     assert error["message"] == "unexpected KeyError"
     assert str(error["error"]).endswith("KeyError: 'branch'")
     assert end["message"] == "end: unexpected"
+
+    err = capsys.readouterr().err.splitlines()
+    assert err == [
+        "error: unexpected KeyError: 'branch'",
+        f"details: hephaistos log show --pid {error['pid']}",
+    ]
+    details = runner.invoke(app, err[1].split()[2:]).output.splitlines()
+    assert details[0].endswith(
+        "start: hephaistos machine list version=" + __version__ + f" cwd={Path.cwd()}"
+    )
+    assert details[-2] == "    KeyError: 'branch'"
+    assert details[-1].endswith("end: unexpected exit_code=1 duration=" + str(end["duration"]))
+
+
+def test_log_commands_dont_log_their_runs(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _run(monkeypatch, "--version") == 0
+    assert _run(monkeypatch, "log", "show") == 0
+    assert (
+        capsys.readouterr()
+        .out.splitlines()[-1]
+        .endswith("end: ok exit_code=0 duration=" + str(_logged(paths)[-1]["duration"]))
+    )
+    assert [line["message"] for line in _logged(paths)] == [
+        "start: hephaistos --version",
+        "end: ok",
+    ]
 
 
 @pytest.mark.parametrize(

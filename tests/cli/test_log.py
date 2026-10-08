@@ -1,0 +1,130 @@
+import json
+import sys
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from hephaistos.cli import terminal
+from hephaistos.cli.log import record_text
+from hephaistos.cli.main import app
+from hephaistos.core.utils import logs
+from hephaistos.core.utils.paths import Paths
+
+runner = CliRunner()
+
+NOW = datetime.now(UTC).replace(microsecond=123000)
+TRACEBACK = "Traceback (most recent call last):\n  File \"x.py\", line 1\nKeyError: 'branch'"
+
+
+def _write(paths: Paths, at: datetime, message: str, level: str = "INFO", **fields: object) -> None:
+    record = {"at": at.isoformat(), "level": level, "process": "cli", "pid": 7, "message": message}
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    with logs.day_file(paths.state_dir, at.date()).open("a") as file:
+        file.write(logs.json_text(record | fields) + "\n")
+
+
+def test_record_text() -> None:
+    at = datetime(2026, 10, 8, 12, 0, 1, 5000, tzinfo=UTC)
+    record: logs.Record = {
+        "at": at.isoformat(),
+        "level": "ERROR",
+        "process": "cli",
+        "pid": 7,
+        "logger": "hephaistos.cli.main",
+        "message": "unexpected KeyError",
+        "path": "/x",
+        "count": 2,
+        "error": TRACEBACK,
+    }
+    local = at.astimezone()
+    head = "ERROR cli[7] unexpected KeyError path=/x count=2"
+    assert record_text(record).splitlines() == [
+        f"{local:%H:%M:%S}.005 {head}",
+        "    Traceback (most recent call last):",
+        '      File "x.py", line 1',
+        "    KeyError: 'branch'",
+    ]
+    assert record_text(record, dated=True, brief=True).splitlines() == [
+        f"{local:%m-%d %H:%M:%S}.005 {head}",
+        "    ↳ KeyError: 'branch'",
+    ]
+
+
+def test_show(paths: Paths) -> None:
+    _write(paths, NOW - timedelta(days=1), "yesterday", "WARNING")
+    _write(paths, NOW - timedelta(minutes=2), "unexpected KeyError", "ERROR", error=TRACEBACK)
+    _write(paths, NOW - timedelta(minutes=1), "recorded clone.added", event="e1")
+    with logs.day_file(paths.state_dir, NOW.date()).open("a") as file:
+        file.write("cut sho\n")
+
+    result = runner.invoke(app, ["log", "show"])
+    assert result.exit_code == 0, result.output
+    lines = result.stdout.splitlines()
+    assert len(lines) == 6
+    assert lines[0].endswith("WARNING cli[7] yesterday")
+    assert lines[1].endswith("ERROR cli[7] unexpected KeyError")
+    assert lines[-1].endswith("INFO  cli[7] recorded clone.added event=e1")
+    assert result.stderr == "skipped 1 unreadable line\n"
+
+    brief = runner.invoke(app, ["log", "show", "--brief", "-n", "2", "--level", "error"])
+    assert brief.stdout.splitlines()[1:] == ["    ↳ KeyError: 'branch'"]
+    since = runner.invoke(app, ["log", "show", "--since", "90s", "--json"])
+    [record] = [json.loads(line) for line in since.stdout.splitlines()]
+    assert record["event"] == "e1"
+
+
+@pytest.mark.usefixtures("paths")
+def test_show_follow_refuses_until() -> None:
+    result = runner.invoke(app, ["log", "show", "--follow", "--until", "1h"])
+    assert result.exit_code == 2
+    assert "leave out --until" in result.output
+
+
+def test_pages_on_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    paged = tmp_path / "paged"
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setenv("PAGER", f"sh -c 'cat > {paged}'")
+    terminal.page("one\ntwo")
+    assert paged.read_text() == "one\ntwo\n"
+
+
+def test_prune(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    today = NOW.date()
+    for days in (40, 8, 7, 0):
+        _write(paths, NOW - timedelta(days=days), f"{days} days ago")
+    (paths.state_dir / "notes.txt").write_text("not a log")
+
+    refused = runner.invoke(app, ["log", "prune", "--keep", "7d"])
+    assert refused.exit_code == 1
+    assert "add --yes to delete them" in str(refused.exception)
+
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    declined = runner.invoke(app, ["log", "prune", "--keep", "7d"], input="n\n")
+    assert declined.exit_code == 1
+    assert declined.output.splitlines()[1].endswith(
+        f"{today - timedelta(days=40)} to {today - timedelta(days=8)}: 2 files"
+    )
+    assert len(logs.day_files(paths.state_dir)) == 4
+
+    result = runner.invoke(app, ["log", "prune", "--keep", "7d", "--yes"])
+    assert result.exit_code == 0, result.output
+    assert result.output.startswith("Deleted 2 log files (")
+    assert [day for day, _ in logs.day_files(paths.state_dir)] == [
+        today - timedelta(days=7),
+        today,
+    ]
+    assert (paths.state_dir / "notes.txt").exists()
+    assert runner.invoke(app, ["log", "prune", "--keep", "7d"]).output == "Nothing to prune\n"
+
+    everything = runner.invoke(app, ["log", "prune", "--keep", "0d", "--yes"])
+    assert everything.output.startswith("Deleted 1 log file (")
+    assert [day for day, _ in logs.day_files(paths.state_dir)] == [today]
+
+
+@pytest.mark.usefixtures("paths")
+def test_prune_takes_days() -> None:
+    result = runner.invoke(app, ["log", "prune", "--keep", "2w"])
+    assert result.exit_code == 2
+    assert "not a number of days like 7d" in result.output

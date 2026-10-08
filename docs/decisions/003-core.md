@@ -128,6 +128,10 @@ hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--s
 hephaistos observe [clones] [--clone <path>]…
 hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
 hephaistos db tables | dump <table> [-c <column>]… [--table|--blocks] [--short-ids]
+hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process cli|daemon]
+                    [--pid <pid>] [-n <count>] [--follow] [--brief] [--json] [--no-pager]
+               | prune [--keep <days>d] [--yes]
+hephaistos [--debug] …
 ```
 
 - `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and suggests `scan`, which adds a new Repository with it. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), a path inside a Worktree (the message names its Clone), and a submodule (its superproject is the Clone).
@@ -138,6 +142,7 @@ hephaistos db tables | dump <table> [-c <column>]… [--table|--blocks] [--short
 - `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
 - Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
+- `log show` shows the newest 50 records, oldest first, local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints them as stored, `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default 30d), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
 - `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row.
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.

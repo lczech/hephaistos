@@ -1,8 +1,7 @@
 import json
-import re
 import uuid
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal, cast
 
@@ -13,6 +12,7 @@ from hephaistos.cli.output import (
     LimitOption,
     TimeFormatOption,
     number_text,
+    parse_time,
     print_fields,
     print_json,
     print_table,
@@ -72,23 +72,6 @@ WorktreeFilterOption = Annotated[
     typer.Option("--worktree", help="Only Events about this Worktree: a path in it, or its name."),
 ]
 
-_UNIT_SECONDS = {"s": 1, "m": 60, "h": 60 * 60, "d": 24 * 60 * 60}
-_DURATION = re.compile(r"(\d+)([smhd])")
-
-
-def parse_since(value: str, now: datetime) -> datetime:
-    """A duration before `now` (`2h`), or a date or time in ISO form, local unless it says."""
-    if match := _DURATION.fullmatch(value):
-        return now - timedelta(seconds=int(match[1]) * _UNIT_SECONDS[match[2]])
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        raise typer.BadParameter(
-            f"{value!r} is neither a duration like 2h nor a date like 2026-10-05",
-            param_hint="--since",
-        ) from None
-    return parsed if parsed.tzinfo else parsed.astimezone()
-
 
 def _priority_text(value: int) -> str:
     """A priority by name, or as a number if this version doesn't know it."""
@@ -146,7 +129,7 @@ def list_(  # noqa: PLR0913 - one option per filter
     as_json: JsonOption = False,
 ) -> None:
     """List Events, newest first."""
-    since_time = parse_since(since, datetime.now(UTC)) if since else None
+    since_time = parse_time(since, datetime.now(UTC)) if since else None
     with read_session(Paths.from_environment()) as session:
         found = events.recent(
             session,
