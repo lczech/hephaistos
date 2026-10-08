@@ -141,6 +141,38 @@ def test_find_innermost(set_up: Paths, tmp_path: Path) -> None:
             clones.find(session, tmp_path)
 
 
+def test_paths_in_repositories_of_their_own_are_refused(set_up: Paths, tmp_path: Path) -> None:
+    outer = create(tmp_path / "outer")
+    tool = create(outer / "vendor" / "tool")
+    lib = submodule(create(tmp_path / "lib"), outer, "lib")
+    (lib / "src").mkdir()
+    add(set_up, outer)
+    nested = r"vendor/tool is a git repository of its own, not a Clone; run this in the Clone at"
+    inside = r"lib/src is in the submodule at .*outer/lib; run this in the Clone at"
+    with read_session(set_up) as session:
+        for path, message in [(tool, nested), (lib / "src", inside)]:
+            with pytest.raises(HephaistosError, match=message):
+                clones.find(session, path)
+            with pytest.raises(HephaistosError, match=message):
+                clones.find_unobserved(session, path)
+        assert clones.find(session, outer / "vendor").clone.resolved_path == outer.resolve()
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match=nested):
+        clones.remove(session, tool)
+    with read_session(set_up) as session:
+        assert [details.clone.resolved_path for details in clones.details(session)] == [outer]
+
+
+def test_clone_without_its_repository_is_found_inside_another(
+    set_up: Paths, tmp_path: Path
+) -> None:
+    dotfiles = create(tmp_path / "dotfiles")  # e.g. a home directory kept in git
+    repo = create(dotfiles / "repo")
+    add(set_up, repo)
+    shutil.rmtree(repo / ".git")
+    with read_session(set_up) as session:
+        assert clones.find(session, repo).clone.resolved_path == repo
+
+
 def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     first = add(set_up, repo)
