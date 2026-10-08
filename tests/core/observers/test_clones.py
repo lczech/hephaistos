@@ -111,6 +111,34 @@ def test_timeout_fails_then_recovers(paths: Paths) -> None:
     assert _kinds(observer.observe(paths)) == ["clone.recovered"]
 
 
+def test_unexpected_error_fails_only_its_clone(
+    paths: Paths, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other = create(tmp_path / "other")
+    candidate = clones.inspect(other)
+    with write_session(paths) as session:
+        repositories.add(session, "other")
+        clones.add(session, "other", candidate)
+    observer.observe(paths)
+    real = git_facts.snapshot
+
+    def broken(
+        location: git_facts.Location, timeout: float = git_facts.TIMEOUT
+    ) -> git_facts.Snapshot:
+        if location.top == repo.resolve():
+            raise ValueError("a bug")
+        return real(location, timeout)
+
+    monkeypatch.setattr(git_facts, "snapshot", broken)
+    git(other, "branch", "feature")
+    result = observer.observe(paths)
+    assert sorted(_kinds(result)) == ["clone.branch_created", "clone.failed"]
+    [failed] = [event for event in result.events if event.kind == "clone.failed"]
+    assert failed.payload["error"] == "unexpected ValueError: a bug"
+    monkeypatch.setattr(git_facts, "snapshot", real)
+    assert _kinds(observer.observe(paths)) == ["clone.recovered"]
+
+
 def test_only_given_clones(paths: Paths, repo: Path, tmp_path: Path) -> None:
     other = create(tmp_path / "other")
     candidate = clones.inspect(other)
@@ -210,6 +238,29 @@ def test_worktree_failed_and_recovered(paths: Paths, repo: Path, tmp_path: Path)
     assert result.events[0].priority == Priority.HIGH
     assert result.events[0].payload["error"]
     link.write_text(text)
+    assert _kinds(observer.observe(paths)) == ["worktree.recovered"]
+
+
+def test_unexpected_error_fails_only_its_worktree(
+    paths: Paths, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("broken", "fine"):
+        git(repo, "worktree", "add", "--quiet", "-b", name, str(tmp_path / name))
+    observer.observe(paths)
+    real = git_facts.status
+
+    def broken(top: Path, timeout: float = git_facts.TIMEOUT) -> git_facts.Status:
+        if top.resolve() == (tmp_path / "broken").resolve():
+            raise ValueError("a bug")
+        return real(top, timeout)
+
+    monkeypatch.setattr(git_facts, "status", broken)
+    (tmp_path / "fine" / "new").write_text("x")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.failed"]
+    assert result.events[0].payload["error"] == "unexpected ValueError: a bug"
+    assert _worktree(paths, tmp_path / "fine").untracked == 1
+    monkeypatch.setattr(git_facts, "status", real)
     assert _kinds(observer.observe(paths)) == ["worktree.recovered"]
 
 

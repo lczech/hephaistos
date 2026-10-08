@@ -139,31 +139,46 @@ class CloneObservation:
     read: CloneActivity | None = None
 
 
-def clone_observation(known: Known, timeout: float = git.TIMEOUT) -> CloneObservation:
-    """A snapshot of a Clone with its Worktrees and git activity, or why there is none."""
+def _unexpected(error: Exception) -> Failed:
+    """Why a Checkout failed, for an error that git didn't report: a bug, likely ours."""
+    return Failed(f"unexpected {type(error).__name__}: {error}")
+
+
+def _observed_clone(known: Known, timeout: float) -> CloneObservation:
+    """`clone_observation`, raising GitError where git fails."""
     path = known.path
     if not path.is_dir():
         return CloneObservation(Missing())
+    location = git.locate(path, timeout)
+    if location.top != path:
+        return CloneObservation(Missing())  # its repository is gone; git found one around it
+    if location.main is not None:
+        return CloneObservation(Failed(f"it is now a Worktree of {location.main}"))
+    snapshot = git.snapshot(location, timeout)
+    listed = git.worktrees(path, location.common_dir, timeout)
+    if snapshot.head is None:
+        read = CloneActivity((), known.head_log or BEGINNING, (), known.push_log or {}, {})
+    else:
+        head = head_activity(path, location.common_dir, known.head_log, timeout)
+        pushes, push_cursors = push_activity(path, known.push_log, timeout)
+        origins = branch_origins(path, set(snapshot.branches) - known.branches, timeout)
+        read = CloneActivity(head.activities, head.cursor, pushes, push_cursors, origins)
+    return CloneObservation(snapshot, listed, location.common_dir, read)
+
+
+def clone_observation(known: Known, timeout: float = git.TIMEOUT) -> CloneObservation:
+    """A snapshot of a Clone with its Worktrees and git activity, or why there is none.
+
+    Any error makes it failed, so that one Clone never stops observing the others.
+    """
     try:
-        location = git.locate(path, timeout)
-        if location.top != path:
-            return CloneObservation(Missing())  # its repository is gone; git found one around it
-        if location.main is not None:
-            return CloneObservation(Failed(f"it is now a Worktree of {location.main}"))
-        snapshot = git.snapshot(location, timeout)
-        listed = git.worktrees(path, location.common_dir, timeout)
-        if snapshot.head is None:
-            read = CloneActivity((), known.head_log or BEGINNING, (), known.push_log or {}, {})
-        else:
-            head = head_activity(path, location.common_dir, known.head_log, timeout)
-            pushes, push_cursors = push_activity(path, known.push_log, timeout)
-            origins = branch_origins(path, set(snapshot.branches) - known.branches, timeout)
-            read = CloneActivity(head.activities, head.cursor, pushes, push_cursors, origins)
+        return _observed_clone(known, timeout)
     except git.NotInRepositoryError:
         return CloneObservation(Missing())
     except git.GitError as error:
         return CloneObservation(Failed(str(error)))
-    return CloneObservation(snapshot, listed, location.common_dir, read)
+    except Exception as error:  # noqa: BLE001 - see the docstring
+        return CloneObservation(_unexpected(error))
 
 
 @dataclass(frozen=True)
@@ -177,16 +192,18 @@ class WorktreeObservation:
 def worktree_observation(
     linked: git.LinkedWorktree, git_dir: Path, cursor: Cursor | None, timeout: float = git.TIMEOUT
 ) -> WorktreeObservation:
-    """The status and git activity of a Worktree, or why there are none."""
-    if not linked.path.is_dir():
-        return WorktreeObservation(Missing())
+    """The status and git activity of a Worktree, or why there are none; any error fails it."""
     try:
+        if not linked.path.is_dir():
+            return WorktreeObservation(Missing())
         status = git.status(linked.path, timeout)
         if linked.head is None:
             return WorktreeObservation(status, CheckoutActivity((), cursor or BEGINNING))
         return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor, timeout))
     except git.GitError as error:
         return WorktreeObservation(Failed(str(error)))
+    except Exception as error:  # noqa: BLE001 - one Worktree must not stop observing the others
+        return WorktreeObservation(_unexpected(error))
 
 
 def observe(
