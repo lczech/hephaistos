@@ -137,6 +137,10 @@ def test_snapshot_of_bare(tmp_path: Path) -> None:
         ("ssh://git:pw@host/a/b", "ssh://git@host/a/b"),
         ("ssh://git@host/a/b", "ssh://git@host/a/b"),
         ("git@github.com:a/b.git", "git@github.com:a/b.git"),
+        ("https://user:pw@[::1]:8443/a/b", "https://[::1]:8443/a/b"),
+        ("ssh://git:pw@[::1]/a/b", "ssh://git@[::1]/a/b"),
+        ("https://token@host:notaport/a/b", "https://host:notaport/a/b"),
+        ("https://token@[broken/a/b", "https://[broken/a/b"),
         ("/srv/git/b", "/srv/git/b"),
     ],
 )
@@ -154,6 +158,9 @@ def test_without_credentials(url: str, expected: str) -> None:
         ("github.com:a/b", "github.com/a/b"),
         ("/srv/git/b.git", "/srv/git/b"),
         ("file:///srv/git/b.git", "/srv/git/b"),
+        ("ssh://git@[::1]:22/a/b.git", "::1/a/b"),
+        ("https://host:notaport/a/b?x=1", "host/a/b"),
+        ("https://[broken/a/b", "https://[broken/a/b"),
     ],
 )
 def test_normalise_remote(url: str, expected: str) -> None:
