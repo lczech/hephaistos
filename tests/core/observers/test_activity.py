@@ -49,6 +49,34 @@ def _kinds(result: observer.Result) -> list[str]:
     return [event.kind for event in result.events]
 
 
+def test_first_commit_of_a_clone_added_without_commits(paths: Paths, tmp_path: Path) -> None:
+    machines.set_up(paths, "laptop")
+    repo = tmp_path / "new"
+    repo.mkdir()
+    git(repo, "init", "--quiet", "--initial-branch=main")
+    _add(paths, repo)
+    assert observer.observe(paths).events == []
+    commit = _commit(repo, "First")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.branch_created", "clone.committed"]
+    assert (result.events[1].payload["how"], result.events[1].payload["head"]["new"]) == (
+        "initial",
+        commit,
+    )
+    assert observer.observe(paths).events == []
+
+
+def test_worktree_without_commits(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    orphan = tmp_path / "orphan"
+    git(repo, "worktree", "add", "--quiet", "--orphan", "-b", "pages", str(orphan))
+    assert _kinds(observer.observe(paths)) == ["worktree.added"]
+    _commit(orphan, "First page")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.branch_created", "worktree.committed"]
+    assert result.events[1].payload["how"] == "initial"
+    assert observer.observe(paths).events == []
+
+
 def test_commits_count_from_the_first_observation(
     paths: Paths, origin: Path, tmp_path: Path
 ) -> None:
