@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal, cast
 
 import typer
 
@@ -196,9 +196,53 @@ def print_events(
 SUMMARY_WIDTH = 60
 
 
-def _commit_text(commit: str | None) -> str:
-    """A commit by its short hash."""
-    return "-" if commit is None else commit[:7]
+_MISSING = object()  # a payload field that isn't there
+
+
+def _fields(value: object) -> dict[str, object] | None:
+    """The fields of a JSON object; None for any other value."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else None
+
+
+def _field(payload: object, *keys: str) -> object:
+    """A payload's field, through nested objects; `_MISSING` if it isn't there."""
+    value = payload
+    for key in keys:
+        fields = _fields(value)
+        if fields is None or key not in fields:
+            return _MISSING
+        value = fields[key]
+    return value
+
+
+def _text(value: object) -> str:
+    """A payload field as text: as it is if text, `?` if missing, else as JSON.
+
+    So a payload from another version shows what fits, and the rest as stored.
+    """
+    if value is _MISSING:
+        return "?"
+    return value if isinstance(value, str) else json.dumps(value)
+
+
+def _given(value: object) -> bool:
+    """Whether an optional payload field has a value."""
+    return value is not None and value is not _MISSING
+
+
+def _commit_text(commit: object) -> str:
+    """A commit by its short hash; `-` for none."""
+    if commit is None:
+        return "-"
+    return commit[:7] if isinstance(commit, str) else _text(commit)
+
+
+def _path_change_text(change: object) -> str:
+    """A change of path as `old → new`, the home directory as `~`."""
+    old, new = _field(change, "old"), _field(change, "new")
+    return " → ".join(
+        short_path(Path(path)) if isinstance(path, str) else _text(path) for path in (old, new)
+    )
 
 
 def summary_text(event: Event) -> str:
@@ -210,12 +254,17 @@ def summary_text(event: Event) -> str:
         kind = EventKind(event.kind)
     except ValueError:
         return ""
-    text = _summary(kind, event.payload)
+    fields = _fields(event.payload)
+    text = _text(event.payload) if fields is None else _summary(kind, fields)
     return text if len(text) <= SUMMARY_WIDTH else f"{text[: SUMMARY_WIDTH - 1]}…"
 
 
-def _summary(kind: EventKind, payload: dict[str, Any]) -> str:  # noqa: C901, PLR0911, PLR0912 - one case per kind
-    """`summary_text` for a kind this version knows."""
+def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901, PLR0911, PLR0912 - one case per kind
+    """`summary_text` for a kind this version knows; fields that don't fit show as stored."""
+
+    def field(*keys: str) -> object:
+        return _field(payload, *keys)
+
     # Exhaustive: the type checker reports a new kind missing here.
     match kind:
         case (
@@ -233,57 +282,66 @@ def _summary(kind: EventKind, payload: dict[str, Any]) -> str:  # noqa: C901, PL
         ):
             return ""
         case EventKind.MACHINE_ADDED:
-            return payload["hostname"]
+            return _text(field("hostname"))
         case EventKind.MOUNT_ADDED:
-            return payload["path"]
+            return _text(field("path"))
         case EventKind.REPOSITORY_CHANGED | EventKind.CLONE_REMOTES_CHANGED:
             return ", ".join(f"{name}: {_payload_text(value)}" for name, value in payload.items())
         case EventKind.CLONE_FAILED | EventKind.WORKTREE_FAILED:
-            return payload["error"]
+            return _text(field("error"))
         case EventKind.CLONE_BRANCH_CREATED:
-            start = payload.get("start")
-            return payload["branch"] + (f" from {_commit_text(start)}" if start else "")
+            start = field("start")
+            return _text(field("branch")) + (
+                f" from {_commit_text(start)}" if _given(start) else ""
+            )
         case EventKind.CLONE_BRANCH_DELETED:
-            return payload["branch"]
+            return _text(field("branch"))
         case (
             EventKind.CLONE_BRANCH_RENAMED
             | EventKind.CLONE_BRANCH_SWITCHED
             | EventKind.WORKTREE_BRANCH_SWITCHED
         ):
-            return _payload_text(payload["branch"])
+            return _payload_text(field("branch"))
         case EventKind.WORKTREE_ADDED | EventKind.WORKTREE_REMOVED | EventKind.WORKTREE_RESTORED:
-            return payload["branch"] or "(detached)"
+            branch = field("branch")
+            return "(detached)" if branch is None else _text(branch)
         case EventKind.WORKTREE_MOVED:
-            path = payload["path"]
-            return f"{short_path(Path(path['old']))} → {short_path(Path(path['new']))}"
+            return _path_change_text(field("path"))
         case EventKind.CLONE_MOVED:
-            path = payload.get("display_path") or payload["resolved_path"]
-            return f"{short_path(Path(path['old']))} → {short_path(Path(path['new']))}"
+            display = field("display_path")
+            return _path_change_text(display if _given(display) else field("resolved_path"))
         case EventKind.CLONE_COMMITTED | EventKind.WORKTREE_COMMITTED:
-            how = "" if payload["how"] == "commit" else f" ({payload['how']})"
-            return f"{_commit_text(payload['head']['new'])} {payload['subject']}{how}"
+            how = field("how")
+            suffix = "" if how == "commit" else f" ({_text(how)})"
+            return f"{_commit_text(field('head', 'new'))} {_text(field('subject'))}{suffix}"
         case EventKind.CLONE_MERGED | EventKind.WORKTREE_MERGED:
-            merged = payload["source"] or _commit_text(payload["head"]["new"])
-            return merged + (" (fast-forward)" if payload["fast_forward"] else "")
+            source = field("source")
+            merged = _text(source) if _given(source) else _commit_text(field("head", "new"))
+            return merged + (" (fast-forward)" if field("fast_forward") is True else "")
         case EventKind.CLONE_PULLED | EventKind.WORKTREE_PULLED:
-            return f"{payload['how']} to {_commit_text(payload['head']['new'])}"
+            return f"{_text(field('how'))} to {_commit_text(field('head', 'new'))}"
         case EventKind.CLONE_REBASED | EventKind.WORKTREE_REBASED:
-            commits = number_text(payload["commits"], "commit")
-            onto = payload["onto"]
-            return commits + (f" onto {_commit_text(onto)}" if onto else "")
+            commits, onto = field("commits"), field("onto")
+            text = (
+                number_text(commits, "commit")
+                if isinstance(commits, int)
+                else f"{_text(commits)} commits"
+            )
+            return text + (f" onto {_commit_text(onto)}" if _given(onto) else "")
         case EventKind.CLONE_RESET | EventKind.WORKTREE_RESET:
-            return f"to {payload['target']}"
+            return f"to {_text(field('target'))}"
         case EventKind.CLONE_HEAD_MOVED | EventKind.WORKTREE_HEAD_MOVED:
-            return payload["message"]
+            return _text(field("message"))
         case EventKind.CLONE_PUSHED:
-            return f"{payload['branch']} {_commit_text(payload['commit']['new'])}"
+            return f"{_text(field('branch'))} {_commit_text(field('commit', 'new'))}"
 
 
-def _payload_text(value: Any) -> str:  # noqa: ANN401 - any JSON value
+def _payload_text(value: object) -> str:
     """A payload value as text; a change as `old → new`."""
-    if isinstance(value, dict) and set(value) == {"old", "new"}:  # pyright: ignore[reportUnknownArgumentType]
-        return f"{_payload_text(value['old'])} → {_payload_text(value['new'])}"
-    return value if isinstance(value, str) else json.dumps(value)
+    fields = _fields(value)
+    if fields is not None and set(fields) == {"old", "new"}:
+        return f"{_payload_text(fields['old'])} → {_payload_text(fields['new'])}"
+    return _text(value)
 
 
 @app.command()
@@ -304,6 +362,7 @@ def show(
         print_json(_event_json(event, labels, names))
         return
     formatted = time_formatter(time_format, TimeFormat.FULL)
+    fields = _fields(event.payload)
     print_fields(
         [
             ("id", str(event.id)),
@@ -314,10 +373,10 @@ def show(
             ("kind", event.kind),
             ("subject", _subject_text(event, labels)),
             ("subject id", str(event.subject)),
+            # A payload that isn't an object, e.g. from another version, is shown whole.
+            *([("payload", _text(event.payload))] if fields is None else []),
         ]
     )
-    if event.payload:
+    if fields:
         typer.echo("payload")
-        print_fields(
-            [(key, _payload_text(value)) for key, value in event.payload.items()], indent="  "
-        )
+        print_fields([(key, _payload_text(value)) for key, value in fields.items()], indent="  ")
