@@ -2,15 +2,14 @@ import dataclasses
 import json
 import re
 import socket
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import get_args
 
 import pytest
-import typer
 from typer.testing import CliRunner
 
-from hephaistos.cli.event import PriorityName, parse_since, summary_text
+from hephaistos.cli.event import PriorityName, summary_text
 from hephaistos.cli.main import app
 from hephaistos.core.db.sessions import write_session
 from hephaistos.core.events import events
@@ -153,16 +152,6 @@ def test_json() -> None:
 
     shown = json.loads(runner.invoke(app, ["event", "show", event["id"], "--json"]).output)
     assert shown == event
-
-
-def test_parse_since() -> None:
-    now = datetime(2026, 10, 5, 14, 0, tzinfo=UTC)
-    assert parse_since("30m", now) == now - timedelta(minutes=30)
-    assert parse_since("2d", now) == now - timedelta(days=2)
-    assert parse_since("2026-10-01", now) == datetime(2026, 10, 1).astimezone()
-    assert parse_since("2026-10-01T08:00+02:00", now) == datetime(2026, 10, 1, 6, 0, tzinfo=UTC)
-    with pytest.raises(typer.BadParameter):
-        parse_since("2 hours", now)
 
 
 def test_priority_names_match() -> None:

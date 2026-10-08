@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
+import typer
 
-from hephaistos.cli.output import relative_time, short_time, time_formatter
+from hephaistos.cli.output import parse_time, relative_time, short_time, time_formatter
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.utils.paths import Paths
 
@@ -47,3 +48,13 @@ def test_time_format_from_option_then_config_then_default(paths: Paths) -> None:
     paths.config_file.write_text('time_format = "full"\n')
     assert time_formatter(None, TimeFormat.RELATIVE, NOW)(value) == "2026-10-05 12:03:21"
     assert time_formatter(TimeFormat.RELATIVE, TimeFormat.FULL, NOW)(value) == "2h"
+
+
+def test_parse_time() -> None:
+    now = datetime(2026, 10, 5, 14, 0, tzinfo=UTC)
+    assert parse_time("30m", now) == now - timedelta(minutes=30)
+    assert parse_time("2d", now) == now - timedelta(days=2)
+    assert parse_time("2026-10-01", now) == datetime(2026, 10, 1).astimezone()
+    assert parse_time("2026-10-01T08:00+02:00", now) == datetime(2026, 10, 1, 6, 0, tzinfo=UTC)
+    with pytest.raises(typer.BadParameter):
+        parse_time("2 hours", now)

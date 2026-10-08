@@ -5,6 +5,14 @@ import pytest
 from hephaistos.core.utils.paths import Paths
 
 
+@pytest.fixture(autouse=True)
+def never_real_files(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Even tests without `paths` keep away from the real config, data and logs."""
+    monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path_factory.mktemp("home")))
+
+
 @pytest.fixture
 def paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Paths:
     """Our files in a temporary HEPHAISTOS_HOME, never in the real ones."""

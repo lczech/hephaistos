@@ -3,6 +3,7 @@
 One JSON record per line, one file per UTC day. Several processes append to the same file:
 each record is one write on an O_APPEND descriptor, so records don't interleave on local
 filesystems. Files are never rewritten; the first record of a day deletes the old ones.
+Readers skip lines that aren't records, e.g. cut short by a crash.
 """
 
 import json
@@ -11,7 +12,9 @@ import os
 import re
 import sys
 import threading
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Iterator, Mapping
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import TracebackType
@@ -20,6 +23,9 @@ from typing import override
 LOG_LEVEL = logging.INFO
 RETENTION_DAYS = 30
 LEVEL_VARIABLE = "HEPHAISTOS_LOG_LEVEL"
+FOLLOW_INTERVAL = 0.5  # seconds between looking for new records
+
+type Record = dict[str, object]  # as written: `at`, `level`, `message`, …
 
 _DAY_FILE = re.compile(r"(\d{4}-\d{2}-\d{2})\.jsonl")
 # What every LogRecord has; anything else was passed as `extra` and becomes a field.
@@ -37,11 +43,13 @@ def day_files(directory: Path) -> list[tuple[date, Path]]:
         paths = list(directory.iterdir())
     except FileNotFoundError:
         return []
-    found = [
-        (date.fromisoformat(match[1]), path)
-        for path in paths
-        if (match := _DAY_FILE.fullmatch(path.name))
-    ]
+    found: list[tuple[date, Path]] = []
+    for path in paths:
+        if match := _DAY_FILE.fullmatch(path.name):
+            try:
+                found.append((date.fromisoformat(match[1]), path))
+            except ValueError:
+                continue  # not a day, e.g. 2026-13-01
     return sorted(found)
 
 
@@ -53,6 +61,12 @@ def delete_older(directory: Path, day: date) -> list[Path]:
             path.unlink(missing_ok=True)
             deleted.append(path)
     return deleted
+
+
+def json_text(record: Record) -> str:
+    """A record as one line of JSON; lone surrogates (from undecodable names) as escapes."""
+    text = json.dumps(record, ensure_ascii=False, default=str)
+    return text.encode(errors="backslashreplace").decode()
 
 
 def record_time(record: logging.LogRecord) -> datetime:
@@ -88,7 +102,7 @@ class JsonFormatter(logging.Formatter):
 
     @override
     def format(self, record: logging.LogRecord) -> str:
-        return json.dumps(self.fields(record), ensure_ascii=False, default=str)
+        return json_text(self.fields(record))
 
 
 class DayFileHandler(logging.Handler):
@@ -111,8 +125,7 @@ class DayFileHandler(logging.Handler):
         if self.failure is not None:
             return
         try:
-            # Lone surrogates (undecodable file names) become JSON escapes, not errors.
-            line = (self.format(record) + "\n").encode(errors="backslashreplace")
+            line = (self.format(record) + "\n").encode()
             day = record_time(record).date()
             path = day_file(self.directory, day)
             new_day = day != self._day and not path.exists()
@@ -183,3 +196,128 @@ def stop() -> None:
     root.setLevel(logging.WARNING)
     sys.excepthook = sys.__excepthook__
     threading.excepthook = threading.__excepthook__
+
+
+def parsed(line: bytes) -> Record | None:
+    """The record on a line; None if there is none."""
+    try:
+        record = json.loads(line)
+    except ValueError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    fields: Record = record  # pyright: ignore[reportUnknownVariableType]
+    if not all(isinstance(fields.get(key), str) for key in ("at", "level", "message")):
+        return None
+    try:
+        datetime.fromisoformat(str(fields["at"]))
+    except ValueError:
+        return None
+    return fields
+
+
+def record_at(record: Record) -> datetime:
+    """When a record was made; its `at` was checked when it was parsed."""
+    return datetime.fromisoformat(str(record["at"]))
+
+
+@dataclass(frozen=True)
+class Selection:
+    """Which records to read; all by default."""
+
+    since: datetime | None = None
+    until: datetime | None = None
+    level: int = logging.NOTSET  # and above
+    process: str | None = None
+    pid: int | None = None
+
+    def covers(self, day: date) -> bool:
+        """Whether a UTC day's file may hold selected records."""
+        return (self.since is None or day >= self.since.astimezone(UTC).date()) and (
+            self.until is None or day <= self.until.astimezone(UTC).date()
+        )
+
+    def matches(self, record: Record) -> bool:
+        """Whether a record is selected."""
+        at = record_at(record)
+        level = logging.getLevelNamesMapping().get(str(record["level"]), logging.NOTSET)
+        return (
+            (self.since is None or at >= self.since)
+            and (self.until is None or at <= self.until)
+            and level >= self.level
+            and (self.process is None or record.get("process") == self.process)
+            and (self.pid is None or record.get("pid") == self.pid)
+        )
+
+
+@dataclass(frozen=True)
+class Reading:
+    """The records read, oldest first, and where to follow on from."""
+
+    records: list[Record]
+    skipped: int  # lines that aren't records
+    today: date
+    offset: int  # in today's file, after its last complete line
+
+
+def read(
+    directory: Path, selection: Selection, limit: int = 0, today: date | None = None
+) -> Reading:
+    """The newest `limit` selected records (0: all), reading the newest files first.
+
+    The last line of today's file is left out unless complete: it may still be written.
+    """
+    today = today or datetime.now(UTC).date()
+    offset = 0
+    skipped = 0
+    newest_first: list[list[Record]] = []
+    for day, path in reversed(day_files(directory)):
+        if not selection.covers(day):
+            continue
+        data = path.read_bytes()
+        if day == today:
+            data = data[: data.rfind(b"\n") + 1]
+            offset = len(data)
+        found: list[Record] = []
+        for line in data.splitlines():
+            record = parsed(line)
+            if record is None:
+                skipped += bool(line.strip())
+            elif selection.matches(record):
+                found.append(record)
+        newest_first.append(found)
+        if limit and sum(map(len, newest_first)) >= limit:
+            break
+    records = [record for found in reversed(newest_first) for record in found]
+    return Reading(records[-limit:] if limit else records, skipped, today, offset)
+
+
+def follow(
+    directory: Path,
+    selection: Selection,
+    after: Reading,
+    *,
+    today: Callable[[], date] = lambda: datetime.now(UTC).date(),
+    sleep: Callable[[float], None] = time.sleep,
+) -> Iterator[Record]:
+    """The selected records written after a reading, as they come; never ends.
+
+    Moves on to the next day's file once the day is over and its file stays unchanged.
+    """
+    day, offset, pending = after.today, after.offset, b""
+    while True:
+        try:
+            with day_file(directory, day).open("rb") as file:
+                file.seek(offset)
+                chunk = file.read()
+        except FileNotFoundError:
+            chunk = b""
+        offset += len(chunk)
+        *lines, pending = (pending + chunk).split(b"\n")
+        for line in lines:
+            if (record := parsed(line)) is not None and selection.matches(record):
+                yield record
+        if not chunk and (current := today()) != day:
+            day, offset, pending = current, 0, b""
+            continue
+        sleep(FOLLOW_INTERVAL)

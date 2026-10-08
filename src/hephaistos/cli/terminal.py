@@ -1,11 +1,17 @@
 """Talking with the user at a terminal."""
 
+import os
+import shlex
+import subprocess
 import sys
 from collections.abc import Sequence
 
 import typer
 
 from hephaistos.core.utils.errors import HephaistosError
+
+PAGER = "less"
+LESS = "FRX"  # as git sets it: quit if it fits on one screen, keep colours, leave it shown
 
 
 def interactive() -> bool:
@@ -33,3 +39,16 @@ def choose(heading: str, options: Sequence[str], prompt: str) -> int:
         number: int = typer.prompt(prompt, type=int)
         if 1 <= number <= len(options):
             return number - 1
+
+
+def page(text: str) -> None:
+    """Prints `text`; on a terminal through $PAGER (else less), as git does."""
+    if not sys.stdout.isatty():
+        typer.echo(text)
+        return
+    command = shlex.split(os.environ.get("PAGER") or PAGER)
+    env = os.environ | {"LESS": os.environ.get("LESS", LESS)}
+    try:
+        subprocess.run(command, input=text + "\n", text=True, env=env, check=False)  # noqa: S603 - the user's pager
+    except OSError:
+        typer.echo(text)
