@@ -17,6 +17,7 @@ for version in $versions; do
             || ! make -C "$build/git-$version" -j"$(nproc)" prefix="$prefix" \
                 NO_CURL=1 NO_OPENSSL=1 NO_EXPAT=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_PYTHON=1 \
                 install >"$build/make.log" 2>&1; then
+            tail -n 20 "$build/make.log" >&2 2>/dev/null
             echo "building git $version failed; see $build" >&2
             failed="$failed $version"
             continue
