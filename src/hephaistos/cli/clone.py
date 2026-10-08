@@ -298,8 +298,11 @@ def show(
 @app.command()
 def remove(path: PathArgument = HERE) -> None:
     """Unregister the Clone that a path lies in; its files stay untouched."""
-    with write_session(Paths.from_environment()) as session:
-        removed = clones.remove(session, path)
+    paths = Paths.from_environment()
+    with read_session(paths) as session:
+        removed = clones.removable(session, path)
+    with write_session(paths) as session:
+        clones.remove(session, removed)
         [summary] = repositories.summaries(session, removed.repository.id)
     name = removed.repository.name
     typer.echo(

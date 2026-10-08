@@ -27,7 +27,7 @@ def test_labels_by_subject_type(set_up: Paths, tmp_path: Path) -> None:
         )
     with write_session(set_up) as session:
         repositories.rename(session, "proj", "project")
-        clones.remove(session, repo)
+        clones.remove(session, clones.removable(session, repo))
 
     with read_session(set_up) as session:
         found = events.recent(session)

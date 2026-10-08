@@ -393,17 +393,31 @@ def find_unobserved(session: ReadSession, path: Path, timeout: float = git.TIMEO
     return outdated_clone(session, path, timeout) or find(session, path)
 
 
-def remove(session: WriteSession, path: Path) -> CloneDetails:
-    """Unregisters the Clone that `path` lies in; its files stay untouched."""
+def removable(session: ReadSession, path: Path) -> CloneDetails:
+    """The Clone that `path` lies in, for `remove`; raises HephaistosError if in a Worktree.
+
+    It asks git, so it belongs in a read session: a write session must not wait for git.
+    """
     checkout = find_checkout(session, path)
     if checkout.worktree is not None or outdated_clone(session, path) is not None:
         raise HephaistosError(
             f"{absolute(path)} is in a Worktree of the Clone at"
             f" {checkout.clone.clone.display_path}; run this in the Clone"
         )
-    removed = checkout.clone
-    records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, removed.clone)
-    return removed
+    return checkout.clone
+
+
+def remove(session: WriteSession, removing: CloneDetails) -> None:
+    """Unregisters a Clone found by `removable`; its files stay untouched.
+
+    Raises HephaistosError if its record changed meanwhile.
+    """
+    current = at(session, removing.clone.resolved_path)
+    if current is None or current.clone != removing.clone:
+        raise HephaistosError(
+            f"the Clone at {removing.clone.display_path} changed meanwhile; try again"
+        )
+    records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, removing.clone)
 
 
 def remove_all(

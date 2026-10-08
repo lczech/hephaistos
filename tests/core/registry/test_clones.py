@@ -156,8 +156,8 @@ def test_paths_in_repositories_of_their_own_are_refused(set_up: Paths, tmp_path:
             with pytest.raises(HephaistosError, match=message):
                 clones.find_unobserved(session, path)
         assert clones.find(session, outer / "vendor").clone.resolved_path == outer.resolve()
-    with write_session(set_up) as session, pytest.raises(HephaistosError, match=nested):
-        clones.remove(session, tool)
+    with read_session(set_up) as session, pytest.raises(HephaistosError, match=nested):
+        clones.removable(session, tool)
     with read_session(set_up) as session:
         assert [details.clone.resolved_path for details in clones.details(session)] == [outer]
 
@@ -176,8 +176,12 @@ def test_clone_without_its_repository_is_found_inside_another(
 def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     first = add(set_up, repo)
+    with read_session(set_up) as session:
+        removing = clones.removable(session, repo)
     with write_session(set_up) as session:
-        clones.remove(session, repo)
+        clones.remove(session, removing)
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match="meanwhile"):
+        clones.remove(session, removing)
     with read_session(set_up) as session:
         assert clones.details(session) == []
         [summary] = repositories.summaries(session)
@@ -309,7 +313,7 @@ def test_move_refuses_a_clone_changed_meanwhile(set_up: Paths, tmp_path: Path) -
     with read_session(set_up) as session:
         planned = clones.moves(session, repo, moved)
     with write_session(set_up) as session:
-        clones.remove(session, repo)
+        clones.remove(session, clones.removable(session, repo))
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="meanwhile"):
         clones.move(session, planned)
 
