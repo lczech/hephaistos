@@ -291,5 +291,5 @@ def test_finding_checkouts(paths: Paths, repo: Path, tmp_path: Path) -> None:
         assert _worktree(paths, inside / "sub").name == "inside"
         assert clones.find(session, tmp_path / "outside").clone.resolved_path == repo
         assert clones.find_checkout(session, repo).worktree is None
-    with write_session(paths) as session, pytest.raises(HephaistosError, match="in a Worktree"):
-        clones.remove(session, tmp_path / "outside")
+    with read_session(paths) as session, pytest.raises(HephaistosError, match="in a Worktree"):
+        clones.removable(session, tmp_path / "outside")
