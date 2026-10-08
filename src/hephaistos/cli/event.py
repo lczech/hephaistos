@@ -256,6 +256,9 @@ def _summary(kind: EventKind, payload: dict[str, Any]) -> str:  # noqa: C901, PL
         case EventKind.WORKTREE_MOVED:
             path = payload["path"]
             return f"{short_path(Path(path['old']))} → {short_path(Path(path['new']))}"
+        case EventKind.CLONE_MOVED:
+            path = payload.get("display_path") or payload["resolved_path"]
+            return f"{short_path(Path(path['old']))} → {short_path(Path(path['new']))}"
         case EventKind.CLONE_COMMITTED | EventKind.WORKTREE_COMMITTED:
             how = "" if payload["how"] == "commit" else f" ({payload['how']})"
             return f"{_commit_text(payload['head']['new'])} {payload['subject']}{how}"

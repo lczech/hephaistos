@@ -153,27 +153,51 @@ class _Planner:
         except HephaistosError as error:  # git failed, or it is a submodule
             self.planned[top] = self.add(Planned(typed, Action.SKIP, note=str(error)))
             return
+        self.planned[top] = self._matched(typed, candidate, note, worktree)
+
+    def _matched(self, typed: Path, candidate: Candidate, note: str, worktree: Path | None) -> int:
+        """Plans `candidate` by the Repositories it matches; returns the index of its row."""
         matches = self.histories.matching(candidate)
         if len(matches) > 1:
             # The note names them once the new Repositories are named.
-            skipped = Planned(typed, Action.SKIP, fix=_add_by_hand(typed))
-            self.planned[top] = index = self.add(skipped)
+            index = self.add(Planned(typed, Action.SKIP, fix=_add_by_hand(typed)))
             self.ambiguous[index] = matches
-            return
+            return index
         key = matches[0] if matches else new_id()
+        stored = key in self.names and key not in self.new
+        if stored and (missing := self._missing(key, candidate)):
+            # Joining would make it a Clone of its own, so that the move can't be recorded.
+            moves = (
+                f"hephaistos clone move {shell_path(gone)} {shell_path(typed)}" for gone in missing
+            )
+            fix = (*moves, *_add_by_hand(typed, self.names[key]))
+            return self.add(
+                Planned(typed, Action.SKIP, note="maybe moved from", about=missing[0], fix=fix)
+            )
         self.histories.include(key, candidate.snapshot.root_commits, candidate.snapshot.remotes)
-        if key in self.names and key not in self.new:
-            row = Planned(typed, Action.JOIN, self.names[key], note, worktree, candidate=candidate)
-            self.planned[top] = self.add(row)
-            return
+        if stored:
+            return self.add(
+                Planned(typed, Action.JOIN, self.names[key], note, worktree, candidate=candidate)
+            )
         if not matches:
             self.names[key] = candidate.suggested_name  # until all are planned
             self.new[key] = []
         row = Planned(typed, Action.NEW, self.names[key], note, worktree, candidate=candidate)
         index = self.add(row)
-        self.planned[top] = index
         self.new[key].append(index)
         self.candidates[index] = candidate
+        return index
+
+    def _missing(self, key: uuid.UUID, candidate: Candidate) -> list[Path]:
+        """Where Clones of `key` on this machine were, if gone and sharing `candidate`'s history."""
+        roots = set(candidate.snapshot.root_commits)
+        return [
+            existing.clone.display_path
+            for existing in self.clones.values()
+            if existing.repository.id == key
+            and not existing.clone.resolved_path.exists()
+            and git.shares_history(roots, set(existing.state.root_commits))
+        ]
 
     def worktree(self, typed: Path, location: git.Location) -> None:
         """Plans the Worktree at `location`, found at `typed`: through its Clone."""

@@ -9,6 +9,7 @@ from hephaistos.core.utils.git import (
     LinkedWorktree,
     NotInRepositoryError,
     branches,
+    broken_worktrees,
     is_local,
     locate,
     main_remote,
@@ -299,6 +300,23 @@ def test_worktrees(tmp_path: Path) -> None:
         LinkedWorktree("gone", tmp_path / "gone", head, "gone", ""),
         LinkedWorktree("usb", tmp_path / "usb", head, "usb", "on a stick"),
     ]
+
+
+def test_broken_worktrees(tmp_path: Path) -> None:
+    repo = create(tmp_path / "old")
+    for name in ("inside", "locked"):
+        git(repo, "worktree", "add", "--quiet", str(repo / ".worktrees" / name))
+    git(repo, "worktree", "lock", str(repo / ".worktrees" / "locked"))
+    git(repo, "worktree", "add", "--quiet", str(tmp_path / "outside"))
+    location = locate(repo)
+    assert broken_worktrees(repo, location.common_dir) == ()
+
+    moved = repo.rename(tmp_path / "new")
+    location = locate(moved)
+    broken = broken_worktrees(moved, location.common_dir)
+    assert sorted(linked.name for linked in broken) == ["inside", "outside"]
+    git(moved, "worktree", "repair", str(moved / ".worktrees" / "inside"))
+    assert broken_worktrees(moved, location.common_dir) == ()
 
 
 def test_worktrees_of_bare(tmp_path: Path) -> None:

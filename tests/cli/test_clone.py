@@ -110,6 +110,52 @@ def test_remove(repo: Path) -> None:
     )
 
 
+def test_move_from_missing_to_found(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    git(repo, "worktree", "add", "--quiet", str(repo / ".worktrees" / "fix"))
+    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["observe"])
+    [worktree] = _json("worktree", "list")
+    (tmp_path / "work").mkdir()
+    moved = repo.rename(tmp_path / "work" / "repo")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PWD", str(tmp_path))
+    runner.invoke(app, ["observe"])
+
+    result = runner.invoke(app, ["scan", str(tmp_path / "work")])
+    assert f"  hephaistos clone move {repo} {moved}" in result.output.splitlines()
+    result = runner.invoke(app, ["clone", "move", str(repo), str(moved)])
+    assert str(result.exception).startswith("the links to Worktrees of")
+    git(moved, "worktree", "repair", str(moved / ".worktrees" / "fix"))
+    result = runner.invoke(app, ["clone", "move", str(repo), str(moved)])
+    assert result.exit_code == 0, result.output
+
+    kinds = [event["kind"] for event in _json("event", "list")]
+    assert set(kinds[:2]) == {"clone.found", "worktree.moved"}  # observed right after the move
+    assert kinds[2:4] == ["clone.moved", "clone.missing"]
+    [after] = _json("worktree", "list")
+    assert (after["id"], after["path"]) == (worktree["id"], str(moved / ".worktrees" / "fix"))
+
+
+def test_move_with_hint_for_nested(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["scan", str(create(repo / "lib")), "--yes"])
+    moved = repo.rename(tmp_path / "moved")
+    result = runner.invoke(app, ["clone", "move", str(repo), str(moved)])
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines() == [
+        f"Moved Clone {repo} of proj to {moved}",
+        "Clones inside it, also moved? Record them with:",
+        f"  hephaistos clone move {repo / 'lib'} {moved / 'lib'}",
+    ]
+    monkeypatch.setenv("HOME", str(tmp_path))  # for short paths
+    result = runner.invoke(app, ["event", "list", "--kind", "clone.moved"])
+    assert result.output.rstrip().endswith("~/repo → ~/moved")
+
+
 def _json(*args: str) -> Any:  # noqa: ANN401 - any JSON value
     return json.loads(runner.invoke(app, [*args, "--json"]).output)
 

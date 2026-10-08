@@ -177,6 +177,18 @@ def test_matching_several_names_them_as_planned(set_up: Paths, tmp_path: Path) -
     assert (planned["c-both"].action, planned["c-both"].note) == (Action.SKIP, "matches one, tool")
 
 
+def test_moved_clone_is_skipped(set_up: Paths, tmp_path: Path) -> None:
+    root = tmp_path / "Repos"
+    add_clone(set_up, create(root / "proj"), "proj")
+    moved = (root / "proj").rename(root / "renamed")
+    [row] = plan(set_up, root)
+    assert (row.action, row.note, row.about) == (Action.SKIP, "maybe moved from", root / "proj")
+    assert row.fix == (
+        f"hephaistos clone move {root / 'proj'} {moved}",
+        f"hephaistos clone add {moved} --repo proj",
+    )
+
+
 def test_worktrees(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
     stored = create(root / "stored")
