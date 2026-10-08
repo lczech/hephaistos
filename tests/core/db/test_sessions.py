@@ -11,7 +11,12 @@ from hephaistos.core.db import sessions
 from hephaistos.core.db.sessions import SCHEMA, read_session, write_session
 from hephaistos.core.db.tables import Category, Table
 from hephaistos.core.registry import machines, repositories
-from hephaistos.core.utils.errors import AlreadySetUpError, NotSetUpError, SchemaOutdatedError
+from hephaistos.core.utils.errors import (
+    AlreadySetUpError,
+    DatabaseBusyError,
+    NotSetUpError,
+    SchemaOutdatedError,
+)
 from hephaistos.core.utils.ids import Timestamp
 from hephaistos.core.utils.paths import Paths
 
@@ -160,6 +165,20 @@ def test_reading_does_not_wait_for_a_write_session(set_up: Paths) -> None:
         assert [summary.repository.name for summary in repositories.summaries(reading)] == [
             "pending"
         ]
+
+
+def test_database_busy_too_long_is_reported(set_up: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sessions, "BUSY_TIMEOUT_MS", 50)
+    holder = sqlite3.connect(set_up.database, autocommit=True)
+    try:
+        holder.execute("BEGIN IMMEDIATE")  # another process, writing for long
+        with pytest.raises(DatabaseBusyError, match=r"busy for 0\.05 s"), write_session(set_up):
+            pass
+        with read_session(set_up) as session:  # reading doesn't wait
+            assert session.clock_value > 0
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
 
 
 def test_write_session_rolls_back_on_error(set_up: Paths) -> None:

@@ -21,6 +21,17 @@ class AlreadySetUpError(HephaistosError):
         super().__init__(f"hephaistos is already set up on this Machine ({database})")
 
 
+class DatabaseBusyError(HephaistosError):
+    """Another process kept the database locked for longer than we wait."""
+
+    def __init__(self, seconds: float) -> None:
+        """Creates the error, saying how long we waited."""
+        super().__init__(
+            f"the database stayed busy for {seconds:g} s, as another hephaistos process"
+            " is writing to it; try again"
+        )
+
+
 class SchemaOutdatedError(HephaistosError):
     """The database was created with a different schema than this version's."""
 

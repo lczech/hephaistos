@@ -16,6 +16,7 @@ from hephaistos.core.db import values
 from hephaistos.core.db.values import Decoder
 from hephaistos.core.utils.errors import (
     AlreadySetUpError,
+    DatabaseBusyError,
     HephaistosError,
     NotSetUpError,
     SchemaOutdatedError,
@@ -130,13 +131,25 @@ def _open(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite
 
 
 @contextmanager
+def _reporting_busy() -> Generator[None]:
+    """Reports a database that stayed locked longer than the busy timeout as ours to show."""
+    try:
+        yield
+    except sqlite3.OperationalError as error:
+        if error.sqlite_errorcode & 0xFF == sqlite3.SQLITE_BUSY:  # also its extended codes
+            raise DatabaseBusyError(BUSY_TIMEOUT_MS / 1000) from error
+        raise
+
+
+@contextmanager
 def read_session(paths: Paths, *, check_schema: bool = True) -> Generator[ReadSession]:
     """A read-only session on this Machine's database; on an outdated one only if unchecked."""
-    conn = _open(paths, read_only=True, check_schema=check_schema)
-    try:
-        yield ReadSession(conn)
-    finally:
-        conn.close()
+    with _reporting_busy():
+        conn = _open(paths, read_only=True, check_schema=check_schema)
+        try:
+            yield ReadSession(conn)
+        finally:
+            conn.close()
 
 
 @contextmanager
@@ -156,12 +169,13 @@ def _transaction(conn: sqlite3.Connection) -> Generator[WriteSession]:
 @contextmanager
 def write_session(paths: Paths) -> Generator[WriteSession]:
     """A write session on this Machine's database: committed on success, else rolled back."""
-    conn = _open(paths, read_only=False)
-    try:
-        with _transaction(conn) as session:
-            yield session
-    finally:
-        conn.close()
+    with _reporting_busy():
+        conn = _open(paths, read_only=False)
+        try:
+            with _transaction(conn) as session:
+                yield session
+        finally:
+            conn.close()
 
 
 def data_dir_is_network(paths: Paths) -> bool:
