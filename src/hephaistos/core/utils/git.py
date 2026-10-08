@@ -467,13 +467,17 @@ def without_credentials(url: str) -> str:
     """The URL without a password, and without the user name for HTTP, where it may be a token."""
     if "://" not in url:
         return url
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+    except ValueError:  # invalid, e.g. an IPv6 host without its bracket: still no credentials
+        scheme, _, rest = url.partition("://")
+        authority, slash, path = rest.partition("/")
+        return f"{scheme}://{authority.rpartition('@')[2]}{slash}{path}"
     if parts.password is None and (parts.username is None or not parts.scheme.startswith("http")):
         return url
     user = "" if parts.scheme.startswith("http") else f"{parts.username}@"
-    host = parts.hostname or ""
-    port = f":{parts.port}" if parts.port else ""
-    return urlunsplit((parts.scheme, f"{user}{host}{port}", parts.path, parts.query, ""))
+    host = parts.netloc.rpartition("@")[2]  # as written: with its port, and an IPv6 one's brackets
+    return urlunsplit((parts.scheme, f"{user}{host}", parts.path, parts.query, ""))
 
 
 _SCP_LIKE = re.compile(r"(?:[^@/]+@)?(?P<host>[^:/]+):(?P<path>.*)")
@@ -482,7 +486,10 @@ _SCP_LIKE = re.compile(r"(?:[^@/]+@)?(?P<host>[^:/]+):(?P<path>.*)")
 def normalise_remote(url: str) -> str:
     """The URL as `host/path`, so that SSH and HTTPS URLs of the same repository are equal."""
     if "://" in url:
-        parts = urlsplit(url)
+        try:
+            parts = urlsplit(url)
+        except ValueError:  # invalid, e.g. an IPv6 host without its bracket: equal only to itself
+            return url
         host = "" if parts.scheme == "file" else parts.hostname or ""
         path = parts.path
     elif match := _SCP_LIKE.fullmatch(url):
