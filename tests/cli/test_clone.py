@@ -110,6 +110,18 @@ def test_remove(repo: Path) -> None:
     )
 
 
+def test_nested_repository_is_refused(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    nested = create(repo / "vendor" / "tool")
+    monkeypatch.chdir(nested)
+    monkeypatch.setenv("PWD", str(nested))
+    for command in (["clone", "show"], ["clone", "remove"], ["event", "list", "--clone", "."]):
+        result = runner.invoke(app, command)
+        assert isinstance(result.exception, HephaistosError), command
+        assert "is a git repository of its own, not a Clone" in str(result.exception)
+    assert len(_json("clone", "list")) == 1
+
+
 def test_move_from_missing_to_found(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

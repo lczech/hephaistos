@@ -284,11 +284,8 @@ class CheckoutDetails:
     worktree: WorktreeState | None  # None for the Clone's own working tree
 
 
-def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
-    """The Checkout on this Machine that `path` lies in, as last observed.
-
-    The innermost if they are nested, e.g. a Worktree inside its Clone's directory.
-    """
+def _recorded_checkout(session: ReadSession, path: Path) -> CheckoutDetails | None:
+    """The innermost Checkout whose recorded directory contains `path`; None if none does."""
     resolved = absolute(path).resolve()
     containing = [
         (len(top.parts), CheckoutDetails(existing, worktree))
@@ -299,9 +296,76 @@ def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
         ]
         if resolved.is_relative_to(top)
     ]
-    if not containing:
+    return max(containing, key=lambda candidate: candidate[0])[1] if containing else None
+
+
+def _git_location(path: Path, timeout: float) -> git.Location | None:
+    """Where git places `path`; None if it doesn't exist, or git can't tell."""
+    if not path.exists():
+        return None
+    try:
+        return git.locate(absolute(path), timeout)
+    except git.GitError:
+        return None
+
+
+def _foreign_text(path: Path, location: git.Location, around: CheckoutDetails) -> str:
+    """Why `path` is refused: git places it in a repository of its own inside `around`."""
+    typed = absolute(path)
+    top = displayed(typed, location.top)
+    try:
+        submodule = git.superproject(location.top) is not None
+    except git.GitError:
+        submodule = False
+    kind, where = (
+        ("Worktree", around.worktree.path)
+        if around.worktree
+        else ("Clone", around.clone.clone.display_path)
+    )
+    advice = f"run this in the {kind} at {where} instead"
+    if typed.resolve() == location.top:
+        what = f"{top} is a submodule" if submodule else f"{top} is a git repository of its own"
+    else:
+        what = f"{typed} is in the {'submodule' if submodule else 'git repository'} at {top}"
+    if submodule:
+        return f"{what}; {advice}"
+    return f"{what}, not a Clone; {advice}, or add it with `hephaistos clone add`"
+
+
+def _outdated(
+    session: ReadSession, path: Path, checkout: CheckoutDetails | None, location: git.Location
+) -> CloneDetails | None:
+    """The Clone whose Checkout git places `path` in, if `checkout`, the record's, differs.
+
+    Raises HephaistosError if git places it in a repository of its own inside `checkout`, e.g.
+    a nested one or a submodule: git tells which repository a path is in.
+    """
+    if checkout is None:
+        return at(session, location.main or location.top)
+    known = checkout.worktree.path if checkout.worktree else checkout.clone.clone.resolved_path
+    if known.resolve() == location.top:
+        return None
+    found = at(session, location.main or location.top)
+    # Around it instead, git found another repository: the Checkout's own is gone.
+    if found is None and location.top.is_relative_to(known.resolve()):
+        raise HephaistosError(_foreign_text(path, location, checkout))
+    return found
+
+
+def find_checkout(
+    session: ReadSession, path: Path, timeout: float = git.TIMEOUT
+) -> CheckoutDetails:
+    """The Checkout on this Machine that `path` lies in, as last observed.
+
+    The innermost if they are nested, e.g. a Worktree inside its Clone's directory. Raises
+    HephaistosError if git places `path` in a repository of its own inside it.
+    """
+    checkout = _recorded_checkout(session, path)
+    if (location := _git_location(path, timeout)) is not None:
+        _outdated(session, path, checkout, location)
+    if checkout is None:
         raise HephaistosError(f"no Clone or Worktree known at {absolute(path)}")
-    return max(containing, key=lambda candidate: candidate[0])[1]
+    return checkout
 
 
 def find(session: ReadSession, path: Path) -> CloneDetails:
@@ -315,23 +379,13 @@ def outdated_clone(
     """The Clone whose Checkout `path` lies in by git, if the record places it elsewhere.
 
     E.g. a Worktree not observed yet, or moved since. None if the record agrees with git, or git
-    knows no Clone of ours there.
+    knows no Clone of ours there. Raises HephaistosError if git places `path` in a repository of
+    its own inside a Checkout.
     """
-    if not path.exists():
+    location = _git_location(path, timeout)
+    if location is None:
         return None
-    try:
-        location = git.locate(absolute(path), timeout)
-    except git.GitError:
-        return None
-    try:
-        checkout = find_checkout(session, path)
-    except HephaistosError:
-        checkout = None
-    if checkout is not None:
-        known = checkout.worktree.path if checkout.worktree else checkout.clone.clone.resolved_path
-        if known.resolve() == location.top:
-            return None
-    return at(session, location.main or location.top)
+    return _outdated(session, path, _recorded_checkout(session, path), location)
 
 
 def find_unobserved(session: ReadSession, path: Path, timeout: float = git.TIMEOUT) -> CloneDetails:

@@ -103,7 +103,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## CLI for the first slice
 
-One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default; the innermost Checkout containing it), and entities without a name by a short ID (the end of the UUID). Worktrees can also be addressed by name, asking if several Clones have one. `clone` commands accept a path in one of the Clone's Worktrees, except `clone remove`.
+One subcommand per entity, with the verbs `list`, `show`, `add`, `remove`, `rename`; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default; the innermost Checkout containing it, by git), and entities without a name by a short ID (the end of the UUID). A path in a repository of its own inside a Checkout, nested or a submodule, is refused: git tells which repository a path is in. Worktrees can also be addressed by name, asking if several Clones have one. `clone` commands accept a path in one of the Clone's Worktrees, except `clone remove`.
 
 ```
 hephaistos setup
