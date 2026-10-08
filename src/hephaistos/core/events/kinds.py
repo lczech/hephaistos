@@ -21,6 +21,7 @@ class EventKind(StrEnum):
     REPOSITORY_DELETED = "repository.deleted"
     CLONE_ADDED = "clone.added"
     CLONE_DELETED = "clone.deleted"
+    CLONE_MOVED = "clone.moved"
     CLONE_MISSING = "clone.missing"
     CLONE_FOUND = "clone.found"
     CLONE_FAILED = "clone.failed"
@@ -66,6 +67,7 @@ class EventKind(StrEnum):
                 | EventKind.REPOSITORY_DELETED
                 | EventKind.CLONE_ADDED
                 | EventKind.CLONE_DELETED
+                | EventKind.CLONE_MOVED
                 | EventKind.CLONE_FOUND
                 | EventKind.CLONE_RECOVERED
                 | EventKind.CLONE_BRANCH_CREATED

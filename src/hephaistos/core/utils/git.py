@@ -284,6 +284,32 @@ def worktrees(top: Path, common_dir: Path, timeout: float = TIMEOUT) -> tuple[Li
     return tuple(found)
 
 
+def broken_worktrees(
+    top: Path, common_dir: Path, timeout: float = TIMEOUT
+) -> tuple[LinkedWorktree, ...]:
+    """The linked worktrees whose links to the repository at `top` are broken, e.g. by a move.
+
+    Those whose directory is gone (git calls them prunable), unless locked, and those whose `.git`
+    file points elsewhere. `git worktree repair` fixes them.
+    """
+    broken: list[LinkedWorktree] = []
+    for linked in worktrees(top, common_dir, timeout):
+        if not linked.path.exists():
+            if linked.lock_reason is None:
+                broken.append(linked)
+            continue
+        try:
+            text = (linked.path / ".git").read_text()
+        except OSError:
+            broken.append(linked)
+            continue
+        # The path may be relative to the worktree, as with `worktree.useRelativePaths`.
+        pointed = (linked.path / text.removeprefix("gitdir:").strip()).resolve()
+        if pointed != (common_dir / "worktrees" / linked.name).resolve():
+            broken.append(linked)
+    return tuple(broken)
+
+
 @dataclass(frozen=True)
 class ReflogEntry:
     """One entry of a reflog: `ref` moved to `new`, with git's message saying why."""

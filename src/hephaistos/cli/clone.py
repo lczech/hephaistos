@@ -309,3 +309,39 @@ def remove(path: PathArgument = HERE) -> None:
         typer.echo(
             f"{name} has no Clones left; `hephaistos repo remove {shlex.quote(name)}` removes it"
         )
+
+
+@app.command()
+def move(
+    old: Annotated[Path, typer.Argument(help="Where the Clone was.")],
+    new: Annotated[Path, typer.Argument(help="Where it is now.")],
+    *,
+    nested: Annotated[
+        bool, typer.Option("--nested", help="Also the Clones inside it, moved along.")
+    ] = False,
+) -> None:
+    """Record that a Clone was moved: move its directory first (e.g. with `mv`).
+
+    Its Worktrees must be linked to it again first, with `git worktree repair`.
+    """
+    paths = Paths.from_environment()
+    with read_session(paths) as session:
+        planned = clones.moves(session, old, new, nested=nested)
+        left = [] if nested else clones.nested_clones(session, planned[0].clone)
+    with write_session(paths) as session:
+        clones.move(session, planned)
+    observer.observe(paths, [moving.clone.clone.id for moving in planned])
+    for moving in planned:
+        typer.echo(
+            f"Moved Clone {short_path(moving.clone.clone.display_path)}"
+            f" of {moving.clone.repository.name} to {short_path(moving.to.display_path)}"
+        )
+    hints = [
+        (inner.clone.display_path, place)
+        for inner in left
+        if (place := planned[0].place_of(inner)).is_dir()
+    ]
+    if hints:
+        typer.echo("Clones inside it, also moved? Record them with:")
+        for was, now in hints:
+            typer.echo(f"  hephaistos clone move {shell_path(was)} {shell_path(now)}")

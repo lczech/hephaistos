@@ -1,7 +1,8 @@
+import dataclasses
 import sqlite3
 import uuid
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
@@ -21,7 +22,7 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
-from hephaistos.core.utils.paths import absolute, displayed
+from hephaistos.core.utils.paths import absolute, displayed, shell_path
 
 #: The columns of `registry_clones`, decoded for raw views.
 DECODERS = records.DECODERS | {
@@ -156,8 +157,8 @@ def candidate(typed: Path, location: git.Location) -> Candidate:
     )
 
 
-def inspect(path: Path) -> Candidate:
-    """The git repository at or above `path`, which must not be a linked Worktree."""
+def _located(path: Path) -> tuple[Path, git.Location]:
+    """`path` made absolute, and the git repository at or above it, which must not be a Worktree."""
     typed = absolute(path)
     if not typed.is_dir():
         raise HephaistosError(f"no such directory: {typed}")
@@ -166,7 +167,12 @@ def inspect(path: Path) -> Candidate:
         raise HephaistosError(
             f"{typed} is in a Worktree of the Clone at {location.main}; add that instead"
         )
-    return candidate(typed, location)
+    return typed, location
+
+
+def inspect(path: Path) -> Candidate:
+    """The git repository at or above `path`, which must not be a linked Worktree."""
+    return candidate(*_located(path))
 
 
 def _normalised(remotes: Mapping[str, str]) -> set[str]:
@@ -223,6 +229,14 @@ def at(session: ReadSession, resolved_path: Path) -> CloneDetails | None:
     )
 
 
+def _check_unregistered(session: ReadSession, candidate: Candidate) -> None:
+    """Raises HephaistosError if `candidate` is a Clone already."""
+    if (existing := at(session, candidate.resolved_path)) is not None:
+        raise HephaistosError(
+            f"{candidate.display_path} is already a Clone of {existing.repository.name}"
+        )
+
+
 def add(
     session: WriteSession,
     repository_name: str,
@@ -237,10 +251,7 @@ def add(
     """
     repository = repositories.by_name(session, repository_name)
     mount, _ = mounts.containing(session, session.machine_id, candidate.resolved_path)
-    if (existing := at(session, candidate.resolved_path)) is not None:
-        raise HephaistosError(
-            f"{candidate.display_path} is already a Clone of {existing.repository.name}"
-        )
+    _check_unregistered(session, candidate)
 
     roots = set(candidate.snapshot.root_commits)
     known = {
@@ -353,6 +364,125 @@ def remove_all(
         raise HephaistosError(f"the Clones of {repository.name} changed meanwhile; try again")
     for existing in its_clones:
         records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, existing.clone)
+
+
+@dataclass(frozen=True)
+class Move:
+    """A Clone, and the repository it was moved to."""
+
+    clone: CloneDetails
+    to: Candidate
+
+    def place_of(self, inner: CloneDetails) -> Path:
+        """Where a Clone inside this one is after the move, if it was moved along."""
+        return self.to.display_path / inner.clone.resolved_path.relative_to(
+            self.clone.clone.resolved_path
+        )
+
+
+def nested_clones(session: ReadSession, outer: CloneDetails) -> list[CloneDetails]:
+    """The Clones on this Machine inside the directory of `outer`, sorted by path."""
+    top = outer.clone.resolved_path
+    return sorted(
+        (
+            inner
+            for inner in on_this_machine(session)
+            if inner.clone.resolved_path != top and inner.clone.resolved_path.is_relative_to(top)
+        ),
+        key=lambda inner: inner.clone.resolved_path,
+    )
+
+
+def _repair_text(moving: CloneDetails, to: Candidate, broken: Sequence[git.LinkedWorktree]) -> str:
+    """Why a move is refused while Worktree links are broken, with the command repairing them."""
+    old_top = moving.clone.resolved_path
+    moved: list[str] = []
+    unknown = False
+    for linked in broken:
+        if linked.path.exists():
+            continue  # repaired from the Clone's side, without its path
+        resolved = linked.path.resolve()
+        if (
+            resolved.is_relative_to(old_top)
+            and (guess := to.display_path / resolved.relative_to(old_top)).is_dir()
+        ):
+            moved.append(shell_path(guess))
+        else:
+            moved.append(f"<new path of {shell_path(linked.path)}>")
+            unknown = True
+    shown = shell_path(to.display_path)
+    repair = " ".join(["git", "-C", shown, "worktree", "repair", *moved])
+    lines = [f"the links to Worktrees of {shown} are broken; repair them first:", repair]
+    if unknown:
+        lines.append(f"(for a deleted Worktree: git -C {shown} worktree prune)")
+    return "\n  ".join(lines)
+
+
+def _checked(session: ReadSession, moving: CloneDetails, path: Path) -> Move:
+    """The move of `moving` to `path`, checked; raises HephaistosError if it can't be recorded."""
+    old = moving.clone.resolved_path
+    if old.is_dir():
+        try:
+            still = git.locate(old).top == old
+        except git.GitError:
+            still = False
+        if still:
+            raise HephaistosError(
+                f"{moving.clone.display_path} is still a git repository;"
+                " `clone move` records moves already made"
+            )
+    typed, location = _located(path)
+    to = candidate(typed, location)
+    _check_unregistered(session, to)
+    if not git.shares_history(set(to.snapshot.root_commits), set(moving.state.root_commits)):
+        raise HephaistosError(
+            f"{to.display_path} shares no history with the Clone at {moving.clone.display_path}"
+        )
+    if broken := git.broken_worktrees(location.top, location.common_dir):
+        raise HephaistosError(_repair_text(moving, to, broken))
+    return Move(moving, to)
+
+
+def moves(session: ReadSession, old: Path, new: Path, *, nested: bool = False) -> list[Move]:
+    """The move of the Clone at `old` to `new`, checked; raises HephaistosError if not possible.
+
+    With `nested`, also those of the Clones inside it, to the same places inside `new`.
+    """
+    checkout = find_checkout(session, old)
+    if checkout.worktree is not None:
+        raise HephaistosError(
+            f"{absolute(old)} is in a Worktree of the Clone at"
+            f" {checkout.clone.clone.display_path}; `git worktree move` moves Worktrees"
+        )
+    outer = checkout.clone
+    found = [_checked(session, outer, new)]
+    if nested:
+        for inner in nested_clones(session, outer):
+            try:
+                found.append(_checked(session, inner, found[0].place_of(inner)))
+            except HephaistosError as error:
+                raise HephaistosError(
+                    f"{error}\nmove {inner.clone.display_path} separately, or leave out --nested"
+                ) from error
+    return found
+
+
+def move(session: WriteSession, planned: Sequence[Move]) -> None:
+    """Records the checked moves; raises HephaistosError if a Clone changed meanwhile."""
+    for moving in planned:
+        old = moving.clone.clone
+        current = at(session, old.resolved_path)
+        if current is None or current.clone != old:
+            raise HephaistosError(f"the Clone at {old.display_path} changed meanwhile; try again")
+        _check_unregistered(session, moving.to)
+        mount, _ = mounts.containing(session, session.machine_id, moving.to.resolved_path)
+        new = dataclasses.replace(
+            old,
+            filesystem_id=mount.filesystem_id,
+            resolved_path=moving.to.resolved_path,
+            display_path=moving.to.display_path,
+        )
+        records.change(session, Table.REGISTRY_CLONES, EventKind.CLONE_MOVED, old, new)
 
 
 def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
