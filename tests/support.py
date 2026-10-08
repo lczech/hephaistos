@@ -27,3 +27,19 @@ def clone(source: Path, path: Path, *, bare: bool = False) -> Path:
     """A clone of `source`, sharing its history; its origin is `source`."""
     git(source.parent, "clone", "--quiet", *(["--bare"] if bare else []), str(source), str(path))
     return path
+
+
+def submodule(source: Path, superproject: Path, name: str) -> Path:
+    """`source` added to `superproject` as a submodule at `name`, committed."""
+    git(
+        superproject,
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "--quiet",
+        str(source),
+        name,
+    )
+    git(superproject, "commit", "--quiet", "--message", f"add {name}")
+    return superproject / name

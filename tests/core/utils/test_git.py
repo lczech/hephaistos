@@ -20,10 +20,11 @@ from hephaistos.core.utils.git import (
     shares_history,
     snapshot,
     status,
+    superproject,
     without_credentials,
     worktrees,
 )
-from support import clone, create, git
+from support import clone, create, git, submodule
 
 
 def test_locate_from_a_subdirectory_through_a_symlink(tmp_path: Path) -> None:
@@ -61,6 +62,16 @@ def test_locate_worktree_of_bare(tmp_path: Path) -> None:
 def test_locate_outside_any_repository(tmp_path: Path) -> None:
     with pytest.raises(GitError, match="not in a git repository"):
         locate(tmp_path)
+
+
+def test_superproject(tmp_path: Path) -> None:
+    outer = create(tmp_path / "outer")
+    lib = submodule(create(tmp_path / "lib"), outer, "lib")
+    create(outer / "nested")  # inside, but not a submodule
+    assert superproject(lib) == outer.resolve()
+    assert superproject(outer) is None
+    assert superproject(outer / "nested") is None
+    assert superproject(tmp_path / "lib") is None
 
 
 def test_locate_inside_git_directory(tmp_path: Path) -> None:

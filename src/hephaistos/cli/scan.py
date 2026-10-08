@@ -11,7 +11,6 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import scan as scanning
 from hephaistos.core.registry.scan import Action, Planned
-from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, absolute
 
 #: How the summary line counts what plans leave out.
@@ -106,10 +105,7 @@ def scan(
         typer.echo("Nothing to add")
         return
     if not yes:
-        if not terminal.interactive():
-            raise HephaistosError("not asking without a terminal; add --yes to add these")
-        if not typer.confirm(f"{_changes_text(counts, done=False)}?", default=True):
-            raise typer.Abort
+        terminal.confirm(f"{_changes_text(counts, done=False)}?", default=True, action="add these")
 
     with write_session(paths) as session:
         added = scanning.add(session, planned, import_history=import_history)

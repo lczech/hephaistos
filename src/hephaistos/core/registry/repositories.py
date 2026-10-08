@@ -84,6 +84,16 @@ def rename(session: WriteSession, name: str, new_name: str) -> Repository:
     return renamed
 
 
+def remove(session: WriteSession, name: str) -> Repository:
+    """Removes a Repository without Clones."""
+    repository = by_name(session, name)
+    [summary] = summaries(session, repository.id)
+    if summary.clones:
+        raise HephaistosError(f"{name} still has Clones; remove them first")
+    records.delete(session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_DELETED, repository)
+    return repository
+
+
 def summaries(
     session: ReadSession, repository_id: uuid.UUID | None = None
 ) -> list[RepositorySummary]:

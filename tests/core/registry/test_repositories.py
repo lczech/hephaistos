@@ -61,6 +61,29 @@ def test_rename_records_an_event(set_up: Paths) -> None:
     assert json.loads(row["payload"]) == {"name": {"old": "proj", "new": "project"}}
 
 
+def test_remove_frees_the_name(set_up: Paths) -> None:
+    with write_session(set_up) as session:
+        added = repositories.add(session, "proj")
+    with write_session(set_up) as session:
+        repositories.remove(session, "proj")
+    with read_session(set_up) as session:
+        assert repositories.summaries(session) == []
+        row = session.conn.execute(
+            "SELECT kind, subject FROM events ORDER BY recorded_at DESC LIMIT 1"
+        ).fetchone()
+    assert (row["kind"], row["subject"]) == ("repository.deleted", added.id.bytes)
+    with write_session(set_up) as session:
+        assert repositories.add(session, "proj").id != added.id
+
+
+def test_remove_refuses_with_clones(set_up: Paths, tmp_path: Path) -> None:
+    with write_session(set_up) as session:
+        repositories.add(session, "proj")
+        clones.add(session, "proj", clones.inspect(create(tmp_path / "repo")))
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match="still has"):
+        repositories.remove(session, "proj")
+
+
 def test_change_without_difference_records_nothing(set_up: Paths) -> None:
     with write_session(set_up) as session:
         added = repositories.add(session, "proj")

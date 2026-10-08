@@ -18,6 +18,7 @@ class EventKind(StrEnum):
     MOUNT_ADDED = "mount.added"
     REPOSITORY_ADDED = "repository.added"
     REPOSITORY_CHANGED = "repository.changed"
+    REPOSITORY_DELETED = "repository.deleted"
     CLONE_ADDED = "clone.added"
     CLONE_DELETED = "clone.deleted"
     CLONE_MISSING = "clone.missing"
@@ -62,6 +63,7 @@ class EventKind(StrEnum):
                 | EventKind.MOUNT_ADDED
                 | EventKind.REPOSITORY_ADDED
                 | EventKind.REPOSITORY_CHANGED
+                | EventKind.REPOSITORY_DELETED
                 | EventKind.CLONE_ADDED
                 | EventKind.CLONE_DELETED
                 | EventKind.CLONE_FOUND

@@ -145,10 +145,13 @@ class Candidate:
 
 
 def candidate(typed: Path, location: git.Location) -> Candidate:
-    """The git repository at `location`, found at `typed`, inspected."""
+    """The git repository at `location`, found at `typed`, inspected; not a submodule."""
+    display_path = displayed(typed, location.top)
+    if (parent := git.superproject(location.top)) is not None:
+        raise HephaistosError(f"{display_path} is a submodule of {parent}; add that instead")
     return Candidate(
         resolved_path=location.top,
-        display_path=displayed(typed, location.top),
+        display_path=display_path,
         snapshot=git.snapshot(location),
     )
 
@@ -336,6 +339,20 @@ def remove(session: WriteSession, path: Path) -> CloneDetails:
     removed = checkout.clone
     records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, removed.clone)
     return removed
+
+
+def remove_all(
+    session: WriteSession, repository: Repository, expected: Collection[uuid.UUID]
+) -> None:
+    """Unregisters the Clones of `repository` on every Machine; their files stay untouched.
+
+    They must be the `expected` ones, as confirmed by the user; else raises HephaistosError.
+    """
+    its_clones = details(session, repository_id=repository.id)
+    if {existing.clone.id for existing in its_clones} != set(expected):
+        raise HephaistosError(f"the Clones of {repository.name} changed meanwhile; try again")
+    for existing in its_clones:
+        records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_DELETED, existing.clone)
 
 
 def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
