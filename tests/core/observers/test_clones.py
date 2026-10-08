@@ -94,6 +94,26 @@ def test_directory_without_repository_is_missing(paths: Paths, repo: Path) -> No
     assert _kinds(observer.observe(paths)) == ["clone.missing"]
 
 
+def test_repository_gone_inside_another_is_missing(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    git(tmp_path, "init", "--quiet")  # e.g. a home directory kept in git
+    observer.observe(paths)
+    shutil.rmtree(repo / ".git")
+    assert _kinds(observer.observe(paths)) == ["clone.missing"]
+    assert not _state(paths, repo).present
+
+
+def test_path_now_a_worktree_fails(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    observer.observe(paths)
+    shutil.rmtree(repo)
+    other = create(tmp_path / "other")
+    git(other, "worktree", "add", "--quiet", str(repo))
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.failed"]
+    assert result.events[0].payload["error"] == f"it is now a Worktree of {other}"
+
+
 def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
     shutil.rmtree(repo)
     create(repo)
