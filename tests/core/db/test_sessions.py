@@ -1,12 +1,16 @@
+import itertools
 import re
 import sqlite3
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from hephaistos.core.db import sessions
 from hephaistos.core.db.sessions import SCHEMA, read_session, write_session
 from hephaistos.core.db.tables import Category, Table
-from hephaistos.core.registry import machines
+from hephaistos.core.registry import machines, repositories
 from hephaistos.core.utils.errors import AlreadySetUpError, NotSetUpError, SchemaOutdatedError
 from hephaistos.core.utils.ids import Timestamp
 from hephaistos.core.utils.paths import Paths
@@ -96,6 +100,66 @@ def test_write_session_persists_clock(set_up: Paths) -> None:
     assert _clock(set_up) == second
     with write_session(set_up) as session:
         assert session.tick() > second
+
+
+WRITER = """
+import sys, time
+from pathlib import Path
+from hephaistos.core.db.sessions import write_session
+from hephaistos.core.registry import repositories
+from hephaistos.core.utils.paths import Paths
+
+paths = Paths.from_environment()
+while not Path(sys.argv[3]).exists():  # all start together
+    time.sleep(0.001)
+for number in range(int(sys.argv[2])):
+    with write_session(paths) as session:
+        repositories.add(session, f"{sys.argv[1]}-{number}")
+        time.sleep(0.002)  # holds the lock a while, so that the others wait
+    time.sleep(0.001)  # lets the others take their turn
+"""
+
+
+def test_concurrent_writers_wait_and_keep_the_clock_in_commit_order(
+    set_up: Paths, tmp_path: Path
+) -> None:
+    writers, sessions_each = 4, 25
+    start = tmp_path / "start"
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", WRITER, f"writer{index}", str(sessions_each), str(start)],
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for index in range(writers)
+    ]
+    start.touch()
+    for process in processes:
+        _, errors = process.communicate(timeout=60)
+        assert process.returncode == 0, errors
+    with read_session(set_up) as session:
+        times = [
+            row[0]
+            for row in session.conn.execute(
+                "SELECT recorded_at FROM events WHERE kind = 'repository.added' ORDER BY rowid"
+            )
+        ]
+        names = {row[0] for row in session.conn.execute("SELECT name FROM registry_repositories")}
+    assert len(times) == writers * sessions_each
+    assert all(earlier < later for earlier, later in itertools.pairwise(times))
+    assert _clock(set_up) == times[-1]
+    assert len(names) == writers * sessions_each
+
+
+def test_reading_does_not_wait_for_a_write_session(set_up: Paths) -> None:
+    with write_session(set_up) as session:
+        repositories.add(session, "pending")
+        with read_session(set_up) as reading:
+            assert repositories.summaries(reading) == []
+    with read_session(set_up) as reading:
+        assert [summary.repository.name for summary in repositories.summaries(reading)] == [
+            "pending"
+        ]
 
 
 def test_write_session_rolls_back_on_error(set_up: Paths) -> None:
