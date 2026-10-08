@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos.core.utils import git as git_facts
 from hephaistos.core.utils.git import (
     Entry,
     GitError,
@@ -257,6 +258,33 @@ def test_timeout(tmp_path: Path) -> None:
 def test_not_in_repository(tmp_path: Path) -> None:
     with pytest.raises(NotInRepositoryError):
         locate(tmp_path)
+
+
+def test_variables_of_another_repository_are_ignored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other = create(tmp_path / "other")
+    repo = create(tmp_path / "repo")
+    git(repo, "worktree", "add", "--quiet", str(tmp_path / "wt"))
+    (repo / "new").write_text("x")
+    head = git(repo, "rev-parse", "HEAD")
+    (tmp_path / "plain").mkdir()
+    # As inside a git hook of `other`.
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(other / ".git" / "index"))
+    assert locate(tmp_path / "wt").main == repo.resolve()
+    facts = snapshot(locate(repo))
+    assert facts.head == head
+    assert facts.status is not None
+    assert facts.status.untracked == 1
+    with pytest.raises(NotInRepositoryError):
+        locate(tmp_path / "plain")
+
+
+def test_local_variables_are_those_git_lists() -> None:
+    listed = set(git(Path(), "rev-parse", "--local-env-vars").split())
+    assert listed <= git_facts.LOCAL_VARIABLES
 
 
 def test_snapshot_status_and_branches(tmp_path: Path) -> None:

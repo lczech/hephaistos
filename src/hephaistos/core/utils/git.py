@@ -30,6 +30,29 @@ class NotInRepositoryError(GitError):
     """A path is not in a git repository."""
 
 
+# The variables that tie git to one repository, as `git rev-parse --local-env-vars` lists them.
+# Set when we run inside a git hook or `git rebase --exec`; they would override `git -C`.
+LOCAL_VARIABLES = frozenset(
+    {
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_CONFIG",
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_DIR",
+        "GIT_GRAFT_FILE",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_NO_REPLACE_OBJECTS",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PREFIX",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_SHALLOW_FILE",
+        "GIT_WORK_TREE",
+    }
+)
+
+
 def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.CompletedProcess[str]:
     """Runs git in `path`; the caller checks the exit code."""
     executable = shutil.which("git")
@@ -37,7 +60,8 @@ def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.Complet
         raise GitError("git is not installed")
     # Reading must never take locks that the user's own git commands would wait for. So a file
     # whose index stat data is stale is rehashed on every run, until the user's git refreshes it.
-    env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
+    env = {key: value for key, value in os.environ.items() if key not in LOCAL_VARIABLES}
+    env["GIT_OPTIONAL_LOCKS"] = "0"
     try:
         return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             [executable, "-C", str(path), *args],
