@@ -15,7 +15,7 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git as git_facts
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, git
+from support import clone, create, git, needs_git
 
 
 @pytest.fixture
@@ -227,6 +227,18 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
     with read_session(paths) as session:
         assert clones.find(session, repo).worktrees == ()
         assert subjects.labels(session, result.events) == {first.id: tmp_path / "moved"}
+
+
+@needs_git(2, 48)
+def test_worktree_with_relative_links_added_and_moved(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    relative = ("-c", "worktree.useRelativePaths=true")
+    git(repo, *relative, "worktree", "add", "--quiet", "-b", "rel", str(tmp_path / "rel"))
+    assert _kinds(observer.observe(paths)) == ["clone.branch_created", "worktree.added"]
+    git(repo, *relative, "worktree", "move", str(tmp_path / "rel"), str(tmp_path / "moved"))
+    assert _kinds(observer.observe(paths)) == ["worktree.moved"]
+    assert _worktree(paths, tmp_path / "moved").name == "rel"
 
 
 def test_locked_worktree_goes_missing_and_is_found(
