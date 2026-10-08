@@ -153,6 +153,32 @@ def test_unfinished_rebase_waits_while_in_progress() -> None:
     assert found[1].payload.head == Change("base", "p1")
 
 
+def test_quit_rebase_ends_with_its_last_step() -> None:
+    entries = _entries(
+        ("base", "commit: Base"),
+        ("onto", "rebase (start): checkout main"),
+        ("p1", "rebase (pick): One"),
+        ("x", "commit: After quitting"),
+        ("onto", "rebase (start): checkout main"),
+        ("p2", "rebase (pick): Two"),
+        ("p2", "rebase (finish): returning to refs/heads/feature"),
+        ("y", "commit: After"),
+    )
+    found, count = activity.activities(entries[1:], rebasing=False)
+    assert count == len(entries) - 1
+    assert _kinds(found) == [
+        ActivityKind.REBASED,
+        ActivityKind.COMMITTED,
+        ActivityKind.REBASED,
+        ActivityKind.COMMITTED,
+    ]
+    assert found[0].payload == RebasedPayload(Change("base", "p1"), "onto", 1, None)
+    assert found[2].payload == RebasedPayload(Change("x", "p2"), "onto", 1, "feature")
+    # A rebase in progress after a quit one waits; the quit one doesn't.
+    found, count = activity.activities(entries[1:6], rebasing=True)
+    assert (_kinds(found), count) == ([ActivityKind.REBASED, ActivityKind.COMMITTED], 3)
+
+
 def test_cursor() -> None:
     entries = _entries(("a", "commit: A"), ("b", "commit: B"), ("c", "commit: C"))[::-1]
     after_a = activity.cursor_after(entries[2])
