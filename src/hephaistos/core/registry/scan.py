@@ -123,6 +123,7 @@ class _Planner:
         self.planned: dict[Path, int] = {}  # resolved paths of Clones in the plan, by row
         self.new: dict[uuid.UUID, list[int]] = {}  # the rows of each new Repository, by key
         self.candidates: dict[int, Candidate] = {}  # of the new Repositories' rows
+        self.ambiguous: dict[int, list[uuid.UUID]] = {}  # rows matching several, with those
 
     def add(self, row: Planned) -> int:
         """Adds a row to the plan; returns its index."""
@@ -154,14 +155,10 @@ class _Planner:
             return
         matches = self.histories.matching(candidate)
         if len(matches) > 1:
-            names = sorted(self.names[key] for key in matches)
-            skipped = Planned(
-                typed,
-                Action.SKIP,
-                note=f"matches {', '.join(names)}",
-                fix=_add_by_hand(typed),
-            )
-            self.planned[top] = self.add(skipped)
+            # The note names them once the new Repositories are named.
+            skipped = Planned(typed, Action.SKIP, fix=_add_by_hand(typed))
+            self.planned[top] = index = self.add(skipped)
+            self.ambiguous[index] = matches
             return
         key = matches[0] if matches else new_id()
         self.histories.include(key, candidate.snapshot.root_commits, candidate.snapshot.remotes)
@@ -226,6 +223,11 @@ class _Planner:
         for key, indexes in self.new.items():
             indexes.sort(key=lambda index: str(self.rows[index].path))
             self.names[key] = self._name(indexes)
+        for index, keys in self.ambiguous.items():
+            names = sorted(self.names[key] for key in keys)
+            self.rows[index] = dataclasses.replace(
+                self.rows[index], note=f"matches {', '.join(names)}"
+            )
         counts = Counter(self.names[key] for key in self.new)
         for key, indexes in self.new.items():
             name = self.names[key]
