@@ -31,14 +31,10 @@ def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(terminal, "interactive", lambda: True)
 
 
-@pytest.mark.usefixtures("repo")
-def test_no_match_shows_the_commands() -> None:
+def test_no_match_suggests_scan(repo: Path) -> None:
     result = runner.invoke(app, ["clone", "add"])
     assert isinstance(result.exception, HephaistosError)
-    assert str(result.exception).splitlines()[1:] == [
-        "  hephaistos repo add hephaistos",
-        "  hephaistos clone add . --repo hephaistos",
-    ]
+    assert str(result.exception).splitlines()[1:] == [f"  hephaistos scan {repo}"]
 
 
 def test_add_with_repo_then_list_and_show(repo: Path) -> None:

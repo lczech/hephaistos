@@ -13,6 +13,7 @@ hephaistos setup                 # once per Machine
 hephaistos machine show
 hephaistos repo add hephaistos
 hephaistos clone add ~/Repos/hephaistos -r hephaistos
+hephaistos scan ~/Repos             # adds all clones there, with new Repositories where needed
 hephaistos clone list
 hephaistos worktree list
 hephaistos observe

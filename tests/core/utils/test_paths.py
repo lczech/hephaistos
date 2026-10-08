@@ -10,6 +10,7 @@ from hephaistos.core.utils.paths import (
     machine_key,
     mount_of,
     parse_mountinfo,
+    shell_path,
 )
 
 MOUNTINFO = r"""
@@ -99,3 +100,12 @@ def test_displayed_falls_back_to_target(tmp_path: Path) -> None:
     (tmp_path / "real" / "short").symlink_to(tmp_path / "real" / "deep" / "er")
     target = (tmp_path / "real").resolve()
     assert displayed(tmp_path / "real" / "short", target) == target
+
+
+def test_shell_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HOME", "/home/me")
+    assert shell_path(Path("/home/me")) == "~"
+    assert shell_path(Path("/home/me/Repos/x")) == "~/Repos/x"
+    assert shell_path(Path("/home/me/my repo")) == "~/'my repo'"
+    assert shell_path(Path("/srv/it's")) == """'/srv/it'"'"'s'"""
+    assert shell_path(Path("/home/meet")) == "/home/meet"

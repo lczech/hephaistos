@@ -1,4 +1,3 @@
-import shlex
 from pathlib import Path
 from typing import Annotated
 
@@ -24,7 +23,7 @@ from hephaistos.core.state.checkouts import STATUS_COLUMNS, CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime, short_id
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, shell_path
 
 app = typer.Typer(no_args_is_help=True, help="Clones: git clones of Repositories.")
 
@@ -36,6 +35,13 @@ PathArgument = Annotated[
 RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the Repository.")]
 
 
+ImportHistoryOption = Annotated[
+    bool,
+    typer.Option(
+        "--import-history",
+        help="Record the git activity the reflogs still hold, rather than from now on.",
+    ),
+]
 RefreshOption = Annotated[
     bool, typer.Option("--refresh", help="Observe first, rather than show the last observation.")
 ]
@@ -166,16 +172,14 @@ def clone_json(details: CloneDetails) -> dict[str, object]:
     }
 
 
-def _choose_repository(session: ReadSession, path: Path, candidate: Candidate) -> str:
+def _choose_repository(session: ReadSession, candidate: Candidate) -> str:
     """The Repository to add `candidate` to, from the matching ones, asking the user."""
     matches = [repository.name for repository in clones.matching(session, candidate)]
     shown = short_path(candidate.display_path)
     if not matches:
-        name = shlex.quote(candidate.suggested_name)
         raise HephaistosError(
-            f"no Repository matches {shown}; add one first:\n"
-            f"  hephaistos repo add {name}\n"
-            f"  hephaistos clone add {shlex.quote(str(path))} --repo {name}"
+            f"no Repository matches {shown}; add it with a new Repository:\n"
+            f"  hephaistos scan {shell_path(candidate.display_path)}"
         )
     if not terminal.interactive():
         raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
@@ -192,19 +196,13 @@ def add(
     path: PathArgument = HERE,
     *,
     repo: RepoOption = None,
-    import_history: Annotated[
-        bool,
-        typer.Option(
-            "--import-history",
-            help="Record the git activity its reflogs still hold, rather than from now on.",
-        ),
-    ] = False,
+    import_history: ImportHistoryOption = False,
 ) -> None:
     """Add a git clone to an existing Repository, and observe it."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         candidate = clones.inspect(path)
-        repository = repo or _choose_repository(session, path, candidate)
+        repository = repo or _choose_repository(session, candidate)
     # Asking happens above, so the write transaction never waits for input.
     with write_session(paths) as session:
         clone = clones.add(session, repository, candidate, import_history=import_history)
