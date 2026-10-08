@@ -219,6 +219,25 @@ def test_worktrees(set_up: Paths, tmp_path: Path) -> None:
     )
 
 
+def test_bare_repositories_are_skipped(set_up: Paths, tmp_path: Path) -> None:
+    bare = clone(create(tmp_path / "source"), tmp_path / "proj.git", bare=True)
+    root = tmp_path / "Repos"
+    git(bare, "worktree", "add", "--quiet", "-b", "feature", str(root / "feature"))
+    planned = plan(set_up, root)
+    assert actions(planned, root) == {
+        "feature": (Action.WORKTREE, None),
+        "../proj.git": (Action.SKIP, None),
+    }
+    skipped = next(row for row in planned if row.action is Action.SKIP)
+    assert skipped.note == "a bare repository; scans skip those"
+    assert skipped.fix == (f"hephaistos clone add {bare} --repo <name>",)
+    [row] = plan(set_up, bare)
+    assert (row.path, row.action) == (bare, Action.SKIP)
+    add(set_up, planned)
+    with read_session(set_up) as session:
+        assert clones.details(session) == []
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="root reads any directory")
 def test_unreadable_directories(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
