@@ -40,6 +40,7 @@ class EventKind(StrEnum):
     CLONE_PUSHED = "clone.pushed"
     WORKTREE_ADDED = "worktree.added"
     WORKTREE_REMOVED = "worktree.removed"
+    WORKTREE_RESTORED = "worktree.restored"
     WORKTREE_MOVED = "worktree.moved"
     WORKTREE_MISSING = "worktree.missing"
     WORKTREE_FOUND = "worktree.found"
@@ -75,6 +76,7 @@ class EventKind(StrEnum):
                 | EventKind.CLONE_REMOTES_CHANGED
                 | EventKind.WORKTREE_ADDED
                 | EventKind.WORKTREE_REMOVED
+                | EventKind.WORKTREE_RESTORED
                 | EventKind.WORKTREE_MOVED
                 # Only locked Worktrees go missing, and those are expected to be away at times.
                 | EventKind.WORKTREE_MISSING

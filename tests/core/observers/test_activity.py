@@ -195,12 +195,42 @@ def test_worktree_activity(paths: Paths, repo: Path, tmp_path: Path) -> None:
     assert observer.observe(paths).events == []
 
 
+def test_worktree_whose_history_continues_is_restored(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    side = tmp_path / "side"
+    git(repo, "worktree", "add", "--quiet", "-b", "side", str(side))
+    _commit(side, "Before")
+    added = observer.observe(paths).events[1]
+    assert added.kind == "worktree.added"
+
+    away = side.rename(tmp_path / "away")  # e.g. a filesystem not mounted for a while
+    assert _kinds(observer.observe(paths)) == ["worktree.removed"]
+    commit = _commit(away, "While away")
+    away.rename(side)
+    result = observer.observe(paths)
+    assert _kinds(result) == ["worktree.restored", "worktree.committed"]
+    assert {event.subject for event in result.events} == {added.subject}
+    assert result.events[1].payload["head"]["new"] == commit
+
+    moved = side.rename(tmp_path / "moved")  # by hand, then repaired
+    assert _kinds(observer.observe(paths)) == ["worktree.removed"]
+    git(moved, "worktree", "repair")
+    assert _kinds(observer.observe(paths)) == ["worktree.restored", "worktree.moved"]
+    with read_session(paths) as session:
+        [current] = clones.find(session, repo).worktrees
+    assert (current.id, current.path) == (added.subject, moved)
+
+
 def test_removed_worktree_is_kept_and_its_name_reused(
     paths: Paths, repo: Path, tmp_path: Path
 ) -> None:
     side = tmp_path / "side"
     git(repo, "worktree", "add", "--quiet", "-b", "side", str(side))
-    added = observer.observe(paths).events[-1]
+    # Else the new one's reflog might equal it, if made within the same second.
+    _commit(side, "Its own history")
+    added = observer.observe(paths).events[1]
+    assert added.kind == "worktree.added"
     shutil.rmtree(side)
     git(repo, "worktree", "prune")
     [removed] = observer.observe(paths).events
