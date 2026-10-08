@@ -81,6 +81,30 @@ def test_import_history(paths: Paths, origin: Path, tmp_path: Path) -> None:
     assert kinds == ["clone.head_moved", "clone.committed", "worktree.added", "worktree.committed"]
 
 
+def test_more_entries_than_a_page(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(observer, "PAGE", 2)
+    # Dated before the cursor, so that only finding it on a further page reads them.
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z")
+    commits = [_commit(repo, f"Commit {number}") for number in range(5)]
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.committed"] * 5
+    assert [event.payload["head"]["new"] for event in result.events] == commits
+    assert observer.observe(paths).events == []
+
+
+def test_cursor_entry_gone_reads_what_is_newer(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    commits = [_commit(repo, f"Commit {number}") for number in range(2)]
+    git(repo, "reflog", "delete", "HEAD@{2}")  # the entry the cursor names, as if expired
+    result = observer.observe(paths)
+    assert [event.payload["head"]["new"] for event in result.events] == commits
+    assert observer.observe(paths).events == []
+
+
 def test_amend_switch_reset_and_stash(paths: Paths, repo: Path) -> None:
     first = _commit(repo, "First")
     _commit(repo, "First, better", "--amend")
