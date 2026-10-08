@@ -406,3 +406,26 @@ def test_remote_reflogs(tmp_path: Path) -> None:
     pushed = next(entry for entry in remote_reflogs(repo) if entry.message == "update by push")
     assert (pushed.ref, pushed.new) == ("refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"))
     assert remote_reflogs(create(tmp_path / "alone")) == []
+
+
+def test_git_calls_are_logged_at_debug_level(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level("DEBUG")
+    repo = create(tmp_path / "repo")
+    for name in git_facts.LOCAL_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GIT_DIR", str(repo / ".git"))
+    # Logged once per process: forget that it was.
+    git_facts._log_ignored_variables.cache_clear()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    git_facts.locate(repo)
+    with pytest.raises(git_facts.GitError):
+        git_facts.reflog(repo, "refs/heads/none")
+    ignored, located, failed = caplog.records
+    assert ignored.getMessage() == "ignoring git's variables GIT_DIR"
+    assert located.getMessage().startswith("git rev-parse --is-bare-repository")
+    assert vars(located)["dir"] == repo
+    assert vars(located)["exit_code"] == 0
+    assert "stderr" not in vars(located)
+    assert vars(failed)["exit_code"] != 0
+    assert vars(failed)["stderr"]

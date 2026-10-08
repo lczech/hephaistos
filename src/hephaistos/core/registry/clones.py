@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import sqlite3
 import uuid
 from collections import defaultdict
@@ -23,6 +24,8 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import absolute, displayed, shell_path
+
+log = logging.getLogger(__name__)
 
 #: The columns of `registry_clones`, decoded for raw views.
 DECODERS = records.DECODERS | {
@@ -305,7 +308,8 @@ def _git_location(path: Path, timeout: float) -> git.Location | None:
         return None
     try:
         return git.locate(absolute(path), timeout)
-    except git.GitError:
+    except git.GitError as error:
+        log.debug("no git location for %s: %s", path, error)
         return None
 
 
@@ -315,7 +319,8 @@ def _foreign_text(path: Path, location: git.Location, around: CheckoutDetails) -
     top = displayed(typed, location.top)
     try:
         submodule = git.superproject(location.top) is not None
-    except git.GitError:
+    except git.GitError as error:
+        log.debug("taken as no submodule: %s", error)
         submodule = False
     kind, where = (
         ("Worktree", around.worktree.path)
@@ -492,7 +497,8 @@ def _checked(session: ReadSession, moving: CloneDetails, path: Path) -> Move:
     if old.is_dir():
         try:
             still = git.locate(old).top == old
-        except git.GitError:
+        except git.GitError as error:
+            log.debug("taken as no longer a repository: %s", error)
             still = False
         if still:
             raise HephaistosError(

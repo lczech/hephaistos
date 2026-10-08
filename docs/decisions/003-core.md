@@ -23,6 +23,7 @@ src/hephaistos/
       errors.py   errors with messages for the user
       ids.py      UUIDv7, hybrid logical clock
       paths.py    XDG directories, per-Machine subdirectory, filesystem type detection
+      logs.py     log files: JSON Lines, one per UTC day
       git.py      reads facts by running git's commands for scripts; knows nothing about our records
   cli/            one module per subcommand, named like it (clone.py for `hephaistos clone`)
   daemon/{watcher,sync,server}/
@@ -40,7 +41,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
   - config: `~/.config/hephaistos/config.toml`, optional; built-in defaults apply. One file for all Machines sharing a home directory: settings at the top apply to all of them, a section `[machines.<hostname>]` (full, or its first part) overrides them on one.
   - data: `~/.local/share/hephaistos/<machine>/`
-  - logs: `~/.local/state/hephaistos/<machine>/`, rotating files.
+  - logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day (`2026-10-08.jsonl`).
 - The config file holds how this Machine runs (e.g. Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry, once it holds settings; until then `time_format` stays in the file.
 - `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
 - SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
@@ -56,6 +57,14 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw views.
 - **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
 - **Schema version:** `PRAGMA user_version`. Until the data is relied on, schema changes edit the initial schema, and an outdated database is reported with a clear message (`setup --reset` replaces it, keeping a backup; one-off scripts where data is worth keeping). Migrations start from a declared schema 1.
+
+## Logs
+
+- The log is local diagnostics about hephaistos itself: never synced, and nothing reads it to decide anything. Events stay the record of work.
+- stdlib `logging`; each record is one line of JSON: `at` (UTC), `level`, `process` (`cli`, `daemon`), `pid`, `logger`, `message`, its extra fields, and `error` with a traceback. Each record is one write in append mode, so processes writing at once need no lock. Files are never rewritten: the first record of a day deletes those older than 30 days.
+- INFO: each run's start (arguments) and end (outcome, duration), and each Event committed. WARNING: expected failures caught per unit, e.g. git failing for one Checkout, and transactions rolled back. ERROR: unexpected exceptions, with traceback. DEBUG: git calls, transactions, fallbacks taken, each Checkout observed. Never git's output, payloads or file contents.
+- Failures are caught per unit of work (a Checkout; later a sync or a request), logged, and the rest goes on. A run logs anything else and ends: the CLI prints `error: unexpected …` and where the details are. Exceptions ending a thread are logged too.
+- `HEPHAISTOS_LOG_LEVEL` sets the level (default INFO). `--debug`, anywhere in a command, logs that run at DEBUG and also shows its records on stderr. Logging is best effort: if the file can't be written, the command warns and goes on.
 
 ## Tables
 

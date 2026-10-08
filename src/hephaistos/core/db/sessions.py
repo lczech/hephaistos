@@ -5,7 +5,9 @@ Timestamps from this Machine increase in commit order across all processes.
 """
 
 import hashlib
+import logging
 import sqlite3
+import time
 import uuid
 from collections.abc import Collection, Generator, Iterator
 from contextlib import contextmanager
@@ -30,6 +32,8 @@ SCHEMA = files("hephaistos.core.db").joinpath("schema.sql").read_text()
 # Until migrations exist, any change to the schema makes existing databases outdated.
 SCHEMA_HASH = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 BUSY_TIMEOUT_MS = 5000
+
+log = logging.getLogger(__name__)
 
 sqlite3.register_adapter(uuid.UUID, lambda value: value.bytes)
 sqlite3.register_adapter(PosixPath, str)
@@ -84,6 +88,7 @@ class WriteSession(ReadSession):
         """Wraps a connection inside an open transaction and loads the clock."""
         super().__init__(conn)
         self.clock = Clock(self.clock_value)
+        self.recorded: list[tuple[str, uuid.UUID, uuid.UUID]] = []  # kind, ID, subject ID
 
     def tick(self) -> Timestamp:
         """A new Timestamp; saved with the transaction's commit."""
@@ -154,16 +159,26 @@ def read_session(paths: Paths, *, check_schema: bool = True) -> Generator[ReadSe
 
 @contextmanager
 def _transaction(conn: sqlite3.Connection) -> Generator[WriteSession]:
-    """Runs a write session as one transaction, saving the clock on commit."""
+    """Runs a write session as one transaction, saving the clock on commit; logs how it ended."""
+    started = time.monotonic()
     conn.execute("BEGIN IMMEDIATE")
+    session: WriteSession | None = None
     try:
         session = WriteSession(conn)
         yield session
         conn.execute("UPDATE meta SET value = ? WHERE key = 'clock'", (session.clock.last,))
         conn.execute("COMMIT")
-    except BaseException:
+    except BaseException as error:
         conn.execute("ROLLBACK")
+        cause = f"{type(error).__name__}: {error}" if str(error) else type(error).__name__
+        events = len(session.recorded) if session else 0
+        duration = round(time.monotonic() - started, 3)
+        log.warning("rolled back: %s", cause, extra={"events": events, "duration": duration})
         raise
+    duration = round(time.monotonic() - started, 3)
+    log.debug("committed", extra={"events": len(session.recorded), "duration": duration})
+    for kind, event, subject in session.recorded:
+        log.info("recorded %s", kind, extra={"event": event, "subject": subject})
 
 
 @contextmanager

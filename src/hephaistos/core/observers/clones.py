@@ -1,5 +1,7 @@
 """Observes the Clones on this Machine and their Worktrees: git first, then one write session."""
 
+import logging
+import time
 import uuid
 from collections.abc import Collection, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -29,6 +31,8 @@ from hephaistos.core.utils.paths import Paths
 
 WORKERS = 8  # git mostly waits for the disk, so a few run in parallel
 PAGE = 64  # reflog entries read at first; more only if the cursor isn't among them
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -168,9 +172,26 @@ class CloneObservation:
     read: CloneActivity | None = None
 
 
-def _unexpected(error: Exception) -> Failed:
-    """Why a Checkout failed, for an error that git didn't report: a bug, likely ours."""
+def _failed(path: Path, error: Exception) -> Failed:
+    """Why a Checkout failed, logged; errors git didn't report (likely bugs) with traceback."""
+    if isinstance(error, git.GitError):
+        log.warning("observing %s failed: %s", path, error)
+        return Failed(str(error))
+    log.error("observing %s failed unexpectedly", path, exc_info=error)
     return Failed(f"unexpected {type(error).__name__}: {error}")
+
+
+def _log_observed(path: Path, observation: object, started: float) -> None:
+    """Logs at debug level how observing a Checkout ended."""
+    outcome = (
+        "missing"
+        if isinstance(observation, Missing)
+        else "failed"
+        if isinstance(observation, Failed)
+        else "ok"
+    )
+    duration = round(time.monotonic() - started, 3)
+    log.debug("observed %s", path, extra={"outcome": outcome, "duration": duration})
 
 
 def _observed_clone(known: Known, timeout: float) -> CloneObservation:
@@ -200,14 +221,15 @@ def clone_observation(known: Known, timeout: float = git.TIMEOUT) -> CloneObserv
 
     Any error makes it failed, so that one Clone never stops observing the others.
     """
+    started = time.monotonic()
     try:
-        return _observed_clone(known, timeout)
+        observed = _observed_clone(known, timeout)
     except git.NotInRepositoryError:
-        return CloneObservation(Missing())
-    except git.GitError as error:
-        return CloneObservation(Failed(str(error)))
+        observed = CloneObservation(Missing())
     except Exception as error:  # noqa: BLE001 - see the docstring
-        return CloneObservation(_unexpected(error))
+        observed = CloneObservation(_failed(known.path, error))
+    _log_observed(known.path, observed.observation, started)
+    return observed
 
 
 @dataclass(frozen=True)
@@ -231,21 +253,33 @@ def worktree_observation(
     `removed` is where reading stopped for a removed Worktree of the same name: if the
     reflog continues from there, it is that one, restored, and reading continues too.
     """
+    started = time.monotonic()
     try:
-        if not linked.path.is_dir():
-            return WorktreeObservation(Missing())
-        status = git.status(linked.path, timeout)
-        if linked.head is None:
-            return WorktreeObservation(status, CheckoutActivity((), cursor or BEGINNING))
-        if removed is not None:
-            read = continued_activity(linked.path, git_dir, removed, timeout)
-            if read is not None:
-                return WorktreeObservation(status, read, restored=True)
-        return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor, timeout))
-    except git.GitError as error:
-        return WorktreeObservation(Failed(str(error)))
+        observed = _observed_worktree(linked, git_dir, cursor, removed, timeout)
     except Exception as error:  # noqa: BLE001 - one Worktree must not stop observing the others
-        return WorktreeObservation(_unexpected(error))
+        observed = WorktreeObservation(_failed(linked.path, error))
+    _log_observed(linked.path, observed.observation, started)
+    return observed
+
+
+def _observed_worktree(
+    linked: git.LinkedWorktree,
+    git_dir: Path,
+    cursor: Cursor | None,
+    removed: Cursor | None,
+    timeout: float,
+) -> WorktreeObservation:
+    """`worktree_observation`, raising GitError where git fails."""
+    if not linked.path.is_dir():
+        return WorktreeObservation(Missing())
+    status = git.status(linked.path, timeout)
+    if linked.head is None:
+        return WorktreeObservation(status, CheckoutActivity((), cursor or BEGINNING))
+    if removed is not None:
+        read = continued_activity(linked.path, git_dir, removed, timeout)
+        if read is not None:
+            return WorktreeObservation(status, read, restored=True)
+    return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor, timeout))
 
 
 def observe(

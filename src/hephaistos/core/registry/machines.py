@@ -1,3 +1,4 @@
+import logging
 import socket
 import sqlite3
 import uuid
@@ -17,6 +18,8 @@ from hephaistos.core.registry.records import Record, add
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, mount_of, os_machine_id
+
+log = logging.getLogger(__name__)
 
 #: The columns of `registry_machines`, decoded for raw views.
 DECODERS = records.DECODERS | {
@@ -87,7 +90,8 @@ def previous(paths: Paths) -> Machine | None:
     try:
         with read_session(paths, check_schema=False) as session:
             return this(session)
-    except (HephaistosError, LookupError, sqlite3.Error):
+    except (HephaistosError, LookupError, sqlite3.Error) as error:
+        log.debug("the existing database is unreadable: %s", error)
         return None
 
 

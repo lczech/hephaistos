@@ -140,6 +140,7 @@ def record(  # noqa: PLR0913 - the optional ones are keyword-only
             event.key,
         ),
     )
+    session.recorded.append((event.kind, event.id, event.subject))
     return event
 
 

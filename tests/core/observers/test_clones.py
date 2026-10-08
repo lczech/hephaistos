@@ -123,16 +123,24 @@ def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
     assert _state(paths, repo).error is not None
 
 
-@pytest.mark.usefixtures("repo")
-def test_timeout_fails_then_recovers(paths: Paths) -> None:
+def test_timeout_fails_then_recovers(
+    paths: Paths, repo: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     result = observer.observe(paths, timeout=1e-6)
     assert _kinds(result) == ["clone.failed"]
     assert "timed out" in result.events[0].payload["error"]
+    [warning] = [record for record in caplog.records if record.levelname == "WARNING"]
+    assert warning.getMessage().startswith(f"observing {repo} failed: `git rev-parse` timed out")
+    assert warning.exc_info is None
     assert _kinds(observer.observe(paths)) == ["clone.recovered"]
 
 
 def test_unexpected_error_fails_only_its_clone(
-    paths: Paths, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    paths: Paths,
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     other = create(tmp_path / "other")
     candidate = clones.inspect(other)
@@ -155,6 +163,11 @@ def test_unexpected_error_fails_only_its_clone(
     assert sorted(_kinds(result)) == ["clone.branch_created", "clone.failed"]
     [failed] = [event for event in result.events if event.kind == "clone.failed"]
     assert failed.payload["error"] == "unexpected ValueError: a bug"
+    [logged] = [record for record in caplog.records if record.levelname == "ERROR"]
+    assert logged.getMessage() == f"observing {repo} failed unexpectedly"
+    assert logged.exc_info is not None
+    assert logged.exc_info[1] is not None
+    assert str(logged.exc_info[1]) == "a bug"
     monkeypatch.setattr(git_facts, "snapshot", real)
     assert _kinds(observer.observe(paths)) == ["clone.recovered"]
 
@@ -274,7 +287,11 @@ def test_worktree_failed_and_recovered(paths: Paths, repo: Path, tmp_path: Path)
 
 
 def test_unexpected_error_fails_only_its_worktree(
-    paths: Paths, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    paths: Paths,
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     for name in ("broken", "fine"):
         git(repo, "worktree", "add", "--quiet", "-b", name, str(tmp_path / name))
@@ -291,6 +308,9 @@ def test_unexpected_error_fails_only_its_worktree(
     result = observer.observe(paths)
     assert _kinds(result) == ["worktree.failed"]
     assert result.events[0].payload["error"] == "unexpected ValueError: a bug"
+    [logged] = [record for record in caplog.records if record.levelname == "ERROR"]
+    assert logged.getMessage() == f"observing {tmp_path / 'broken'} failed unexpectedly"
+    assert logged.exc_info is not None
     assert _worktree(paths, tmp_path / "fine").untracked == 1
     monkeypatch.setattr(git_facts, "status", real)
     assert _kinds(observer.observe(paths)) == ["worktree.recovered"]
