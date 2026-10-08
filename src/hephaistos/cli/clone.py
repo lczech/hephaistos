@@ -1,3 +1,4 @@
+import shlex
 from pathlib import Path
 from typing import Annotated
 
@@ -299,7 +300,12 @@ def remove(path: PathArgument = HERE) -> None:
     """Unregister the Clone that a path lies in; its files stay untouched."""
     with write_session(Paths.from_environment()) as session:
         removed = clones.remove(session, path)
+        [summary] = repositories.summaries(session, removed.repository.id)
+    name = removed.repository.name
     typer.echo(
-        f"Removed Clone {short_path(removed.clone.display_path)} of {removed.repository.name}"
-        " (files untouched)"
+        f"Removed Clone {short_path(removed.clone.display_path)} of {name} (files untouched)"
     )
+    if not summary.clones:
+        typer.echo(
+            f"{name} has no Clones left; `hephaistos repo remove {shlex.quote(name)}` removes it"
+        )

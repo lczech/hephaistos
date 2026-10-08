@@ -2,10 +2,12 @@ from typing import Annotated
 
 import typer
 
+from hephaistos.cli import terminal
 from hephaistos.cli.clone import branch_text, clone_json, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
+    number_text,
     print_fields,
     print_json,
     print_table,
@@ -17,6 +19,7 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
 from hephaistos.core.registry.clones import CloneDetails
 from hephaistos.core.registry.repositories import RepositorySummary
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths
 
@@ -121,3 +124,37 @@ def rename(
     with write_session(Paths.from_environment()) as session:
         repositories.rename(session, name, new_name)
     typer.echo(f"Renamed Repository {name} to {new_name}")
+
+
+@app.command()
+def remove(
+    name: NameArgument,
+    *,
+    with_clones: Annotated[
+        bool, typer.Option("--clones", help="Also remove its Clones, on every Machine.")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Remove its Clones without asking.")] = False,
+) -> None:
+    """Remove a Repository; its Clones' files stay untouched."""
+    paths = Paths.from_environment()
+    with read_session(paths) as session:
+        repository = repositories.by_name(session, name)
+        its_clones = clones.details(session, repository_id=repository.id)
+    counted = number_text(len(its_clones), "Clone")
+    listed = "\n".join(
+        f"  {short_path(details.clone.display_path)}  {details.filesystem.name}"
+        for details in its_clones
+    )
+    if its_clones and not with_clones:
+        them = "it" if len(its_clones) == 1 else "them"
+        raise HephaistosError(
+            f"{name} still has {counted}:\n{listed}\nremove {them} first, or add --clones"
+        )
+    if its_clones and not yes:
+        typer.echo(f"{name} has {counted}:\n{listed}")
+        terminal.confirm(f"Remove {name} and its {counted}?", default=False, action="remove them")
+    with write_session(paths) as session:
+        clones.remove_all(session, repository, [details.clone.id for details in its_clones])
+        repositories.remove(session, name)
+    with_text = f" and its {counted}" if its_clones else ""
+    typer.echo(f"Removed Repository {name}{with_text} (files untouched)")

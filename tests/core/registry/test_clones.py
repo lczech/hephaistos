@@ -9,7 +9,7 @@ from hephaistos.core.registry.clones import Candidate, CloneDetails
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.git import Snapshot
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, git
+from support import clone, create, git, submodule
 
 
 @pytest.fixture
@@ -103,6 +103,15 @@ def test_worktree_is_refused(tmp_path: Path) -> None:
         clones.inspect(tmp_path / "wt")
 
 
+def test_submodule_is_refused(tmp_path: Path) -> None:
+    outer = create(tmp_path / "outer")
+    lib = submodule(create(tmp_path / "lib"), outer, "lib")
+    (lib / "src").mkdir()
+    with pytest.raises(HephaistosError, match=r"outer/lib is a submodule of .*outer; add that"):
+        clones.inspect(lib / "src")
+    assert clones.inspect(outer).resolved_path == outer.resolve()
+
+
 def test_bare_clone(set_up: Paths, tmp_path: Path) -> None:
     bare = clone(create(tmp_path / "repo"), tmp_path / "bare.git", bare=True)
     details = add(set_up, bare)
@@ -134,6 +143,19 @@ def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
         [summary] = repositories.summaries(session)
     assert summary.clones == 0
     assert add(set_up, repo).clone.id != first.clone.id
+
+
+def test_remove_all_removes_the_expected(set_up: Paths, tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    first = add(set_up, repo)
+    second = add(set_up, clone(repo, tmp_path / "copy"))
+    with write_session(set_up) as session:
+        repository = repositories.by_name(session, "proj")
+        with pytest.raises(HephaistosError, match="changed meanwhile"):
+            clones.remove_all(session, repository, [first.clone.id])
+        clones.remove_all(session, repository, [first.clone.id, second.clone.id])
+    with read_session(set_up) as session:
+        assert clones.details(session) == []
 
 
 @pytest.mark.parametrize(

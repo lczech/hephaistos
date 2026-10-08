@@ -221,6 +221,7 @@ def _summary(kind: EventKind, payload: dict[str, Any]) -> str:  # noqa: C901, PL
         case (
             EventKind.FILESYSTEM_ADDED
             | EventKind.REPOSITORY_ADDED
+            | EventKind.REPOSITORY_DELETED
             | EventKind.CLONE_ADDED
             | EventKind.CLONE_DELETED
             | EventKind.CLONE_MISSING

@@ -150,7 +150,7 @@ class _Planner:
             return
         try:
             candidate = clones.candidate(typed, location)
-        except git.GitError as error:
+        except HephaistosError as error:  # git failed, or it is a submodule
             self.planned[top] = self.add(Planned(typed, Action.SKIP, note=str(error)))
             return
         matches = self.histories.matching(candidate)
@@ -261,10 +261,10 @@ class _Planner:
         return sorted(self.rows, key=lambda row: str(row.path))
 
 
-def plan(session: ReadSession, root: Path, depth: int = DEPTH) -> list[Planned]:
-    """What adding the git clones under `root` does, at most `depth` levels down.
+def _searched(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]]]:
+    """Like `_found`, but if `root` is a Clone or a Worktree, just that one.
 
-    If `root` is a Clone or a Worktree, just that one; inside one, raises HephaistosError.
+    Inside one, or at a submodule, raises HephaistosError.
     """
     typed = absolute(root)
     if not typed.is_dir():
@@ -272,16 +272,25 @@ def plan(session: ReadSession, root: Path, depth: int = DEPTH) -> list[Planned]:
     try:
         location = git.locate(typed)
     except git.NotInRepositoryError:
-        found, unreadable = _found(typed, depth)
-    else:
-        if location.top != typed.resolve():
-            kind = "Clone" if location.main is None else "Worktree"
-            raise HephaistosError(
-                f"{typed} is inside the {kind} at {location.top}; scan from outside it,"
-                " or add a clone in it with `hephaistos clone add <path>`"
-            )
-        found, unreadable = [typed], []
+        return _found(typed, depth)
+    if location.top != typed.resolve():
+        kind = "Clone" if location.main is None else "Worktree"
+        raise HephaistosError(
+            f"{typed} is inside the {kind} at {location.top}; scan from outside it,"
+            " or add a clone in it with `hephaistos clone add <path>`"
+        )
+    if (parent := git.superproject(typed)) is not None:
+        raise HephaistosError(f"{typed} is a submodule of {parent}; scan from outside it")
+    return [typed], []
 
+
+def plan(session: ReadSession, root: Path, depth: int = DEPTH) -> list[Planned]:
+    """What adding the git clones under `root` does, at most `depth` levels down.
+
+    If `root` is a Clone or a Worktree, just that one; inside one, or at a submodule, raises
+    HephaistosError.
+    """
+    found, unreadable = _searched(root, depth)
     planner = _Planner(session)
     worktrees: list[tuple[Path, git.Location]] = []
     for path in found:

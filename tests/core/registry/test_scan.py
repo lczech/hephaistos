@@ -10,7 +10,7 @@ from hephaistos.core.registry import clones, machines, repositories, scan
 from hephaistos.core.registry.scan import Action, Planned
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, git
+from support import clone, create, git, submodule
 
 
 @pytest.fixture
@@ -104,6 +104,9 @@ def test_starting_at_or_in_a_clone(set_up: Paths, tmp_path: Path) -> None:
         plan(set_up, repo / "sub")
     with pytest.raises(HephaistosError, match="no such directory"):
         plan(set_up, tmp_path / "nope")
+    lib = submodule(create(tmp_path / "lib"), repo, "lib")
+    with pytest.raises(HephaistosError, match=r"repo/lib is a submodule of .*repo; scan from"):
+        plan(set_up, lib)
 
 
 def test_names_are_never_guessed(set_up: Paths, tmp_path: Path) -> None:

@@ -100,6 +100,13 @@ def locate(path: Path, timeout: float = TIMEOUT) -> Location:
     return Location(top=top, main=main, common_dir=common, bare=bare == "true")
 
 
+def superproject(path: Path, timeout: float = TIMEOUT) -> Path | None:
+    """The working tree that has the repository at `path` as a submodule; None if none has."""
+    # Not part of `locate`: git checks it by running `ls-files` in the parent directory.
+    output = _output(path, "rev-parse", "--show-superproject-working-tree", timeout=timeout)
+    return Path(output).resolve() if output else None
+
+
 @dataclass(frozen=True)
 class Entry:
     """A path that `git status` reports, with git's state letters for index and working tree.
