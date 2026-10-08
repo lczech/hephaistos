@@ -1,7 +1,11 @@
 """Helpers for tests: git repositories to work on."""
 
+import functools
+import re
 import subprocess
 from pathlib import Path
+
+import pytest
 
 
 def git(path: Path, *args: str) -> str:
@@ -43,3 +47,18 @@ def submodule(source: Path, superproject: Path, name: str) -> Path:
     )
     git(superproject, "commit", "--quiet", "--message", f"add {name}")
     return superproject / name
+
+
+@functools.cache
+def git_version() -> tuple[int, ...]:
+    """The version of the git that tests run, e.g. `(2, 43, 0)`."""
+    output = subprocess.run(["git", "--version"], check=True, capture_output=True, text=True)
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", output.stdout)
+    assert match is not None, output.stdout
+    return tuple(int(part) for part in match.groups())
+
+
+def needs_git(*version: int) -> pytest.MarkDecorator:
+    """Skips a test with an older git; `scripts/test_git_versions.sh` runs newer ones."""
+    shown = ".".join(map(str, version))
+    return pytest.mark.skipif(git_version() < version, reason=f"needs git {shown}")

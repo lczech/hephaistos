@@ -26,7 +26,7 @@ from hephaistos.core.utils.git import (
     without_credentials,
     worktrees,
 )
-from support import clone, create, git, submodule
+from support import clone, create, git, needs_git, submodule
 
 
 def test_locate_from_a_subdirectory_through_a_symlink(tmp_path: Path) -> None:
@@ -352,6 +352,19 @@ def test_broken_worktrees(tmp_path: Path) -> None:
     assert sorted(linked.name for linked in broken) == ["inside", "outside"]
     git(moved, "worktree", "repair", str(moved / ".worktrees" / "inside"))
     assert broken_worktrees(moved, location.common_dir) == ()
+
+
+@needs_git(2, 48)
+def test_worktrees_with_relative_links(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    relative = ("-c", "worktree.useRelativePaths=true")
+    git(repo, *relative, "worktree", "add", "--quiet", "-b", "rel", str(tmp_path / "rel"))
+    link = (repo / ".git" / "worktrees" / "rel" / "gitdir").read_text().strip()
+    assert not Path(link).is_absolute()
+    location = locate(tmp_path / "rel")
+    assert location.main == repo.resolve()
+    [linked] = worktrees(repo, location.common_dir)
+    assert (linked.name, linked.path, linked.branch) == ("rel", tmp_path / "rel", "rel")
 
 
 def test_worktrees_of_bare(tmp_path: Path) -> None:
