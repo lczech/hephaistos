@@ -161,6 +161,19 @@ def test_matching_several_repositories_is_skipped(set_up: Paths, tmp_path: Path)
     assert row.fix == (f"hephaistos clone add {root / 'third'} --repo <name>",)
 
 
+def test_matching_several_names_them_as_planned(set_up: Paths, tmp_path: Path) -> None:
+    source = create(tmp_path / "source")
+    add_clone(set_up, source, "one")
+    root = tmp_path / "Repos"
+    tool = create(root / "b-tool", origin="git@host:me/tool.git")
+    clone(tool, root / "a-copy")  # named `b-tool` by its origin, until all are planned
+    both = clone(tool, root / "c-both")
+    git(both, "pull", "--quiet", "--no-rebase", "--allow-unrelated-histories", str(source), "main")
+    planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
+    assert (planned["a-copy"].action, planned["a-copy"].repository) == (Action.NEW, "tool")
+    assert (planned["c-both"].action, planned["c-both"].note) == (Action.SKIP, "matches one, tool")
+
+
 def test_worktrees(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
     stored = create(root / "stored")
