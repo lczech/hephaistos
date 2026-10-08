@@ -238,20 +238,30 @@ def _run(entries: Sequence[ReflogEntry]) -> list[Activity]:
     return [Activity(ActivityKind.REBASED, last.at, RebasedPayload(head, onto, commits, branch))]
 
 
-def _run_end(entries: Sequence[ReflogEntry], start: int) -> int | None:
-    """The index of the entry that ends the rebase starting at `start`; None if unfinished."""
+def _run_end(entries: Sequence[ReflogEntry], start: int) -> tuple[int, bool]:
+    """The index of the last entry of the rebase starting at `start`, and whether it is over.
+
+    It is over at its finish or abort, or once another rebase starts: `git rebase --quit`
+    leaves no entry. Otherwise it ends with its last step so far.
+    """
+    last = start
     for index in range(start, len(entries)):
         step = _RUN_STEP.fullmatch(entries[index].message)
-        if step and step["step"] in _RUN_ENDS:
-            return index
-    return None
+        if step is None:
+            continue  # e.g. an amend while the rebase stopped to edit
+        if step["step"] in _RUN_ENDS:
+            return index, True
+        if step["step"] == "start" and index > start:
+            return last, True
+        last = index
+    return last, False
 
 
 def activities(entries: Sequence[ReflogEntry], *, rebasing: bool) -> tuple[list[Activity], int]:
     """The activity in a HEAD reflog's entries (oldest first), and how many entries it covers.
 
     A rebase folds into one Activity. While one is in progress, it is left for later: the
-    count stops before its start. One without an end otherwise ends with the entries.
+    count stops before its start. One without an end otherwise ends with its last step.
     """
     found: list[Activity] = []
     index = 0
@@ -260,11 +270,9 @@ def activities(entries: Sequence[ReflogEntry], *, rebasing: bool) -> tuple[list[
             found += _single(entries[index])
             index += 1
             continue
-        end = _run_end(entries, index)
-        if end is None:
-            if rebasing:
-                return found, index
-            end = len(entries) - 1
+        end, over = _run_end(entries, index)
+        if not over and rebasing:
+            return found, index
         found += _run(entries[index : end + 1])
         index = end + 1
     return found, len(entries)

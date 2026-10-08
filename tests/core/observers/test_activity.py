@@ -146,6 +146,26 @@ def test_rebase_waits_until_finished(paths: Paths, repo: Path) -> None:
     assert (rebased.payload["commits"], rebased.payload["branch"]) == (2, "feature")
 
 
+def test_quit_rebase_and_work_after_it(paths: Paths, repo: Path) -> None:
+    (repo / "file").write_text("main")
+    git(repo, "add", "file")
+    _commit(repo, "On main")
+    git(repo, "switch", "--quiet", "--create", "feature", "HEAD~1")
+    (repo / "file").write_text("feature")
+    git(repo, "add", "file")
+    _commit(repo, "On feature")
+    observer.observe(paths)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        git(repo, "rebase", "main")
+    git(repo, "rebase", "--quit")  # leaves no reflog entry
+    git(repo, "add", "file")
+    _commit(repo, "After quitting")
+    assert _kinds(observer.observe(paths)) == ["clone.rebased", "clone.committed"]
+    _commit(repo, "Later")
+    assert _kinds(observer.observe(paths)) == ["clone.committed"]
+
+
 def test_branch_created_and_renamed(paths: Paths, repo: Path) -> None:
     start = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "feature")
