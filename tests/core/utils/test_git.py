@@ -9,6 +9,7 @@ from hephaistos.core.utils.git import (
     LinkedWorktree,
     NotInRepositoryError,
     branches,
+    is_local,
     locate,
     main_remote,
     normalise_remote,
@@ -144,6 +145,21 @@ def test_without_credentials(url: str, expected: str) -> None:
 )
 def test_normalise_remote(url: str, expected: str) -> None:
     assert normalise_remote(url) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "local"),
+    [
+        ("/home/me/Repos/proj", True),
+        ("../proj", True),
+        ("file:///srv/git/proj.git", True),
+        ("git@github.com:me/proj.git", False),
+        ("https://github.com/me/proj", False),
+        ("ssh://host/srv/proj.git", False),
+    ],
+)
+def test_is_local(url: str, *, local: bool) -> None:
+    assert is_local(url) is local
 
 
 def test_repository_name() -> None:

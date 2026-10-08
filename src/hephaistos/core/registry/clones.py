@@ -1,6 +1,7 @@
 import sqlite3
 import uuid
-from collections.abc import Collection, Mapping
+from collections import defaultdict
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
@@ -126,13 +127,30 @@ class Candidate:
     snapshot: git.Snapshot
 
     @property
+    def remote_name(self) -> str | None:
+        """A name from the main remote, unless that is a path on this machine."""
+        url = git.main_remote(self.snapshot.remotes)
+        if url is None or git.is_local(url):
+            return None
+        return git.repository_name(url) or None
+
+    @property
     def suggested_name(self) -> str:
-        """A name for a new Repository: from the origin remote, else from the directory."""
+        """A name for a new Repository: from the main remote, else from the directory."""
         url = git.main_remote(self.snapshot.remotes)
         if url is not None and (name := git.repository_name(url)):
             return name
         name = self.display_path.name.removesuffix(".git")
         return self.display_path.parent.name if not name or name.startswith(".") else name
+
+
+def candidate(typed: Path, location: git.Location) -> Candidate:
+    """The git repository at `location`, found at `typed`, inspected."""
+    return Candidate(
+        resolved_path=location.top,
+        display_path=displayed(typed, location.top),
+        snapshot=git.snapshot(location),
+    )
 
 
 def inspect(path: Path) -> Candidate:
@@ -145,11 +163,7 @@ def inspect(path: Path) -> Candidate:
         raise HephaistosError(
             f"{typed} is in a Worktree of the Clone at {location.main}; add that instead"
         )
-    return Candidate(
-        resolved_path=location.top,
-        display_path=displayed(typed, location.top),
-        snapshot=git.snapshot(location),
-    )
+    return candidate(typed, location)
 
 
 def _normalised(remotes: Mapping[str, str]) -> set[str]:
@@ -157,25 +171,53 @@ def _normalised(remotes: Mapping[str, str]) -> set[str]:
     return {git.normalise_remote(url) for url in remotes.values()}
 
 
+class Histories:
+    """Root commits and remotes by Repository ID, to find the Repositories a Candidate may join."""
+
+    def __init__(self, stored: Iterable[CloneDetails] = ()) -> None:
+        """Starts with the histories of the `stored` Clones."""
+        self._roots: defaultdict[uuid.UUID, set[str]] = defaultdict(set)
+        self._remotes: defaultdict[uuid.UUID, set[str]] = defaultdict(set)
+        for existing in stored:
+            state = existing.state
+            self.include(existing.repository.id, state.root_commits, state.remotes)
+
+    def include(
+        self, repository_id: uuid.UUID, roots: Collection[str], remotes: Mapping[str, str]
+    ) -> None:
+        """Adds a Clone's root commits and remotes to its Repository's."""
+        self._roots[repository_id].update(roots)
+        self._remotes[repository_id].update(_normalised(remotes))
+
+    def matching(self, candidate: Candidate) -> list[uuid.UUID]:
+        """The Repositories that `candidate` shares a root commit or remote with, and may join."""
+        roots = set(candidate.snapshot.root_commits)
+        remotes = _normalised(candidate.snapshot.remotes)
+        return [
+            key
+            for key, known in self._roots.items()
+            if (roots & known or remotes & self._remotes[key]) and git.shares_history(roots, known)
+        ]
+
+
 def matching(session: ReadSession, candidate: Candidate) -> list[Repository]:
     """The Repositories that `candidate` shares a root commit or remote with, and may join."""
-    roots = set(candidate.snapshot.root_commits)
-    remotes = _normalised(candidate.snapshot.remotes)
-    repositories_by_id: dict[uuid.UUID, Repository] = {}
-    known_roots: dict[uuid.UUID, set[str]] = {}
-    known_remotes: dict[uuid.UUID, set[str]] = {}
-    for existing in details(session):
-        key = existing.repository.id
-        repositories_by_id[key] = existing.repository
-        known_roots.setdefault(key, set()).update(existing.state.root_commits)
-        known_remotes.setdefault(key, set()).update(_normalised(existing.state.remotes))
-    found = [
-        repository
-        for key, repository in repositories_by_id.items()
-        if (roots & known_roots[key] or remotes & known_remotes[key])
-        and git.shares_history(roots, known_roots[key])
-    ]
+    stored = details(session)
+    by_id = {existing.repository.id: existing.repository for existing in stored}
+    found = [by_id[key] for key in Histories(stored).matching(candidate)]
     return sorted(found, key=lambda repository: repository.name)
+
+
+def at(session: ReadSession, resolved_path: Path) -> CloneDetails | None:
+    """The Clone on this Machine at this path, symlinks resolved; None if there is none."""
+    return next(
+        (
+            existing
+            for existing in on_this_machine(session)
+            if existing.clone.resolved_path == resolved_path
+        ),
+        None,
+    )
 
 
 def add(
@@ -191,12 +233,11 @@ def add(
     its reflogs still hold.
     """
     repository = repositories.by_name(session, repository_name)
-    mount, filesystem = mounts.containing(session, session.machine_id, candidate.resolved_path)
-    for existing in details(session, filesystem_id=filesystem.id):
-        if existing.clone.resolved_path == candidate.resolved_path:
-            raise HephaistosError(
-                f"{candidate.display_path} is already a Clone of {existing.repository.name}"
-            )
+    mount, _ = mounts.containing(session, session.machine_id, candidate.resolved_path)
+    if (existing := at(session, candidate.resolved_path)) is not None:
+        raise HephaistosError(
+            f"{candidate.display_path} is already a Clone of {existing.repository.name}"
+        )
 
     roots = set(candidate.snapshot.root_commits)
     known = {
@@ -276,11 +317,7 @@ def outdated_clone(
         known = checkout.worktree.path if checkout.worktree else checkout.clone.clone.resolved_path
         if known.resolve() == location.top:
             return None
-    top = location.main or location.top
-    return next(
-        (details for details in on_this_machine(session) if details.clone.resolved_path == top),
-        None,
-    )
+    return at(session, location.main or location.top)
 
 
 def find_unobserved(session: ReadSession, path: Path, timeout: float = git.TIMEOUT) -> CloneDetails:

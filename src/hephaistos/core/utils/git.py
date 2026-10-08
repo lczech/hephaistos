@@ -436,6 +436,11 @@ def normalise_remote(url: str) -> str:
     return f"{host}/{path}" if host else f"/{path}"
 
 
+def is_local(url: str) -> bool:
+    """Whether a remote is a path on this machine, e.g. for a clone of another clone."""
+    return normalise_remote(url).startswith("/")
+
+
 def repository_name(url: str) -> str:
     """The last part of a remote's path, e.g. `hephaistos` for `git@host:a/hephaistos.git`."""
     return normalise_remote(url).rsplit("/", 1)[-1]

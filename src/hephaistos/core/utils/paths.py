@@ -2,6 +2,7 @@
 
 import os
 import re
+import shlex
 import socket
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -148,3 +149,13 @@ def displayed(typed: Path, target: Path) -> Path:
         return target
     candidate = typed.parents[depth - 1] if depth else typed
     return candidate if candidate.resolve() == target else target
+
+
+def shell_path(path: Path) -> str:
+    """A path as a shell argument, with the home directory as `~`; quoted only where needed."""
+    home = Path.home()
+    if path == home:
+        return "~"
+    if path.is_relative_to(home):
+        return f"~/{shlex.quote(str(path.relative_to(home)))}"
+    return shlex.quote(str(path))

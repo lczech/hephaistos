@@ -115,11 +115,13 @@ hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refre
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
                      [--repo <name>] [--clone <path>] [--worktree <path|name>] | show <id>
 hephaistos observe [clones] [--clone <path>]…
+hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
 hephaistos db tables | dump <table> [-c <column>]… [--table|--blocks] [--short-ids]
 ```
 
-- `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and shows the commands to add the Repository first. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
+- `clone add` attaches to an existing Repository only. If the Clone matches Repositories (root commits, remotes), it asks in a terminal; without one, it requires `--repo`. Without a match, it fails and suggests `scan`, which adds a new Repository with it. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), and a path inside a Worktree (the message names its Clone).
 - Asking happens between a read and a write session, so no write transaction waits for input.
+- `scan` adds the clones under a directory (3 levels by default) in one transaction, after showing the plan and asking once: each joins the Repository it matches, else a Repository without Clones by name, else a new one; clones found together match each other too. A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone add` suggests. A Worktree brings its Clone, wherever that is, and one not observed yet has its Clone observed. It stops at clones without searching inside them, skips hidden directories, follows symlinks (preferring real paths), and refuses to start inside a Clone. Nothing is guessed: a clone matching several Repositories, or whose new Repository's name is taken, is skipped with the commands to add it by hand.
 - `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
 - Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
