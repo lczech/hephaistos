@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.events import subjects
 from hephaistos.core.events.kinds import Priority
@@ -126,7 +127,9 @@ def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
 def test_timeout_fails_then_recovers(
     paths: Paths, repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    result = observer.observe(paths, timeout=1e-6)
+    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=1e-6)))
+    result = observer.observe(paths)
+    config.activate(config.DEFAULTS)
     assert _kinds(result) == ["clone.failed"]
     assert "timed out" in result.events[0].payload["error"]
     [warning] = [record for record in caplog.records if record.levelname == "WARNING"]
@@ -150,12 +153,10 @@ def test_unexpected_error_fails_only_its_clone(
     observer.observe(paths)
     real = git_facts.snapshot
 
-    def broken(
-        location: git_facts.Location, timeout: float = git_facts.TIMEOUT
-    ) -> git_facts.Snapshot:
+    def broken(location: git_facts.Location) -> git_facts.Snapshot:
         if location.top == repo.resolve():
             raise ValueError("a bug")
-        return real(location, timeout)
+        return real(location)
 
     monkeypatch.setattr(git_facts, "snapshot", broken)
     git(other, "branch", "feature")
@@ -188,13 +189,11 @@ def test_fresher_observation_is_kept(
 ) -> None:
     real = observer.clone_observation
 
-    def observe_while_another_process_writes(
-        known: observer.Known, timeout: float
-    ) -> observer.CloneObservation:
+    def observe_while_another_process_writes(known: observer.Known) -> observer.CloneObservation:
         with write_session(paths) as session:
             clone_id = clones.find(session, known.path).clone.id
             state.update(session, clone_id, git_facts.snapshot(git_facts.locate(known.path)))
-        return real(known, timeout)
+        return real(known)
 
     monkeypatch.setattr(observer, "clone_observation", observe_while_another_process_writes)
     git(repo, "branch", "feature")
@@ -298,10 +297,10 @@ def test_unexpected_error_fails_only_its_worktree(
     observer.observe(paths)
     real = git_facts.status
 
-    def broken(top: Path, timeout: float = git_facts.TIMEOUT) -> git_facts.Status:
+    def broken(top: Path) -> git_facts.Status:
         if top.resolve() == (tmp_path / "broken").resolve():
             raise ValueError("a bug")
-        return real(top, timeout)
+        return real(top)
 
     monkeypatch.setattr(git_facts, "status", broken)
     (tmp_path / "fine" / "new").write_text("x")

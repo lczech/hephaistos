@@ -11,6 +11,8 @@ from typer.testing import CliRunner
 
 from hephaistos.cli.event import PriorityName, summary_text
 from hephaistos.cli.main import app
+from hephaistos.core import config
+from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import write_session
 from hephaistos.core.events import events
 from hephaistos.core.events.events import Change, Event, to_json
@@ -111,12 +113,13 @@ def test_bad_since() -> None:
     assert "neither a duration" in result.output
 
 
-def test_time_format_option_and_config(paths: Paths) -> None:
+@pytest.mark.usefixtures("paths")
+def test_time_format_option_and_setting() -> None:
     full = r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d"
     lines = runner.invoke(app, ["event", "list", "--time-format", "full"]).output.splitlines()
     assert re.search(full, lines[1])
 
-    paths.config_file.write_text('time_format = "full"\n')
+    config.activate(dataclasses.replace(config.DEFAULTS, time_format=TimeFormat.FULL))
     assert re.search(full, runner.invoke(app, ["event", "list"]).output.splitlines()[1])
 
 

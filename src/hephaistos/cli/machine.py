@@ -44,7 +44,7 @@ def _setup_json(setup: LocalSetup) -> dict[str, object]:
     """This Machine's setup, for JSON output."""
     paths = setup.paths
     return {
-        "config_file": str(paths.config_file),
+        "config_dir": str(paths.config_dir),
         "data_dir": str(paths.data_dir),
         "state_dir": str(paths.state_dir),
         "database": str(paths.database),
@@ -57,9 +57,8 @@ def _setup_json(setup: LocalSetup) -> dict[str, object]:
 def _setup_fields(setup: LocalSetup) -> list[tuple[str, str]]:
     """This Machine's setup, as `show` prints it."""
     paths = setup.paths
-    config_note = "" if paths.config_file.exists() else " (not present)"
     return [
-        ("config", short_path(paths.config_file) + config_note),
+        ("config", short_path(paths.config_dir)),
         ("data", short_path(paths.data_dir)),
         ("logs", short_path(paths.state_dir)),
         ("database", f"{setup.journal_mode.upper()} journal, on {setup.data_fstype}"),

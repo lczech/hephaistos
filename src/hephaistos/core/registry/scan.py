@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from hephaistos.core import config
 from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.registry import clones, repositories
 from hephaistos.core.registry.clones import Candidate, Histories
@@ -21,8 +22,6 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import absolute, shell_path
-
-DEPTH = 3  # directory levels searched below the scanned one
 
 log = logging.getLogger(__name__)
 
@@ -315,13 +314,13 @@ def _searched(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]
     return [typed], []
 
 
-def plan(session: ReadSession, root: Path, depth: int = DEPTH) -> list[Planned]:
-    """What adding the git clones under `root` does, at most `depth` levels down.
+def plan(session: ReadSession, root: Path, depth: int | None = None) -> list[Planned]:
+    """What adding the git clones under `root` does, at most `depth` levels down (the setting).
 
     If `root` is a Clone or a Worktree, just that one; inside one, or at a submodule, raises
     HephaistosError.
     """
-    found, unreadable = _searched(root, depth)
+    found, unreadable = _searched(root, config.settings().scan.depth if depth is None else depth)
     planner = _Planner(session)
     worktrees: list[tuple[Path, git.Location]] = []
     for path in found:

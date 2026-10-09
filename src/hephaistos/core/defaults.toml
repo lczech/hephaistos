@@ -1,0 +1,28 @@
+# hephaistos's settings and their defaults. Override any of them in
+# ~/.config/hephaistos/config.toml (every Machine reading it), in
+# config.<hostname>.toml (one Machine), or as environment variables
+# HEPHAISTOS_<SECTION>_<KEY>. Later layers win.
+# `hephaistos config show` shows what applies and why.
+
+# How times are shown: auto (relative in lists, full in `show`), relative (3m),
+# short (14:03 today, 10-05 14:03 this year, else 2025-10-05),
+# or full (2026-10-05 14:03:21).
+time_format = "auto"
+
+[log]
+# Records below this level aren't written: debug, info, warning, error, critical.
+level = "info"
+# Days of log files kept before today's; older ones are deleted. 0: only today's.
+retention_days = 30
+
+[git]
+# Seconds one git command may take; a hung network filesystem must not block us.
+timeout = 30.0
+
+[observe]
+# Clones observed in parallel; git mostly waits for the disk.
+workers = 8
+
+[scan]
+# Directory levels searched below the scanned one.
+depth = 3

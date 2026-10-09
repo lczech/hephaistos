@@ -13,16 +13,15 @@ import re
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import TracebackType
 from typing import override
 
-LOG_LEVEL = logging.INFO
-RETENTION_DAYS = 30
-LEVEL_VARIABLE = "HEPHAISTOS_LOG_LEVEL"
+from hephaistos.core import config
+
 FOLLOW_INTERVAL = 0.5  # seconds between looking for new records
 
 type Record = dict[str, object]  # as written: `at`, `level`, `message`, …
@@ -106,16 +105,15 @@ class JsonFormatter(logging.Formatter):
 
 
 class DayFileHandler(logging.Handler):
-    """Appends records to the file of their UTC day, deleting files past retention.
+    """Appends records to the file of their UTC day, deleting files past `log.retention_days`.
 
     Logging is best effort: the first failure is kept in `failure` and ends writing.
     """
 
-    def __init__(self, directory: Path, process: str, retention_days: int = RETENTION_DAYS) -> None:
+    def __init__(self, directory: Path, process: str) -> None:
         """Writes into `directory`, created when needed."""
         super().__init__()
         self.directory = directory
-        self.retention_days = retention_days
         self.failure: OSError | None = None
         self._day: date | None = None
         self.setFormatter(JsonFormatter(process))
@@ -138,15 +136,10 @@ class DayFileHandler(logging.Handler):
             finally:
                 os.close(descriptor)
             if new_day:
-                delete_older(self.directory, day - timedelta(days=self.retention_days))
+                kept = config.settings().log.retention_days
+                delete_older(self.directory, day - timedelta(days=kept))
         except OSError as error:
             self.failure = error
-
-
-def level_from(env: Mapping[str, str] = os.environ) -> int:
-    """The level set by HEPHAISTOS_LOG_LEVEL (e.g. `debug`), else LOG_LEVEL; invalid ones too."""
-    name = env.get(LEVEL_VARIABLE, "").upper()
-    return logging.getLevelNamesMapping().get(name, LOG_LEVEL)
 
 
 _log = logging.getLogger(__name__)

@@ -77,7 +77,7 @@ def test_first_record_of_a_day_deletes_files_past_retention(tmp_path: Path) -> N
     for days in (31, 30, 1):
         logs.day_file(tmp_path, today - timedelta(days=days)).write_text("{}\n")
     (tmp_path / "notes.txt").write_text("not a log")
-    handler = logs.DayFileHandler(tmp_path, "cli", retention_days=30)
+    handler = logs.DayFileHandler(tmp_path, "cli")  # retention_days = 30
     handler.emit(_record("first", datetime(2026, 10, 8, 9, tzinfo=UTC)))
     assert [day for day, _ in logs.day_files(tmp_path)] == [
         date(2026, 9, 8),
@@ -103,15 +103,6 @@ def test_failure_ends_writing_quietly(tmp_path: Path) -> None:
     handler.emit(_record("lost"))
     assert isinstance(handler.failure, OSError)
     handler.emit(_record("also lost"))
-
-
-@pytest.mark.parametrize(
-    ("value", "level"),
-    [(None, logging.INFO), ("debug", logging.DEBUG), ("WARNING", logging.WARNING), ("x", 20)],
-)
-def test_level_from(value: str | None, level: int) -> None:
-    env = {} if value is None else {logs.LEVEL_VARIABLE: value}
-    assert logs.level_from(env) == level
 
 
 def _fail() -> None:

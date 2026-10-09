@@ -11,12 +11,11 @@ import typer
 
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
-from hephaistos.core.utils.paths import Paths
 
 JsonOption = Annotated[bool, typer.Option("--json", help="Output as JSON.")]
 TimeFormatOption = Annotated[
     TimeFormat | None,
-    typer.Option("--time-format", help="How to show times; overrides the config's time_format."),
+    typer.Option("--time-format", help="How to show times; overrides the setting time_format."),
 ]
 LimitOption = Annotated[
     int, typer.Option("--limit", "-n", min=0, help="Show at most this many; 0 for all.")
@@ -88,14 +87,15 @@ def short_time(value: datetime, now: datetime) -> str:
 
 
 def chosen_time_format(option: TimeFormat | None, default: TimeFormat) -> TimeFormat:
-    """The time format `--time-format` says, else the config, else `default`."""
-    return option or config.load(Paths.from_environment().config_file).time_format or default
+    """The time format `--time-format` says, else the setting; `default` for `auto`."""
+    chosen = option or config.settings().time_format
+    return default if chosen is TimeFormat.AUTO else chosen
 
 
 def time_formatter(
     option: TimeFormat | None, default: TimeFormat, now: datetime | None = None
 ) -> Callable[[datetime], str]:
-    """Formats times as `--time-format` says, else as the config says, else as `default`."""
+    """Formats times as `--time-format` says, else as the setting says; `default` for `auto`."""
     chosen = chosen_time_format(option, default)
     reference = now or datetime.now(UTC)
     match chosen:
@@ -103,7 +103,7 @@ def time_formatter(
             return lambda value: relative_time(value, reference)
         case TimeFormat.SHORT:
             return lambda value: short_time(value, reference)
-        case TimeFormat.FULL:
+        case TimeFormat.FULL | TimeFormat.AUTO:  # `auto` only if `default` is
             return full_time
 
 

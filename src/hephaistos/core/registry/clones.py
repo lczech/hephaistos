@@ -302,12 +302,12 @@ def _recorded_checkout(session: ReadSession, path: Path) -> CheckoutDetails | No
     return max(containing, key=lambda candidate: candidate[0])[1] if containing else None
 
 
-def _git_location(path: Path, timeout: float) -> git.Location | None:
+def _git_location(path: Path) -> git.Location | None:
     """Where git places `path`; None if it doesn't exist, or git can't tell."""
     if not path.exists():
         return None
     try:
-        return git.locate(absolute(path), timeout)
+        return git.locate(absolute(path))
     except git.GitError as error:
         log.debug("no git location for %s: %s", path, error)
         return None
@@ -357,16 +357,14 @@ def _outdated(
     return found
 
 
-def find_checkout(
-    session: ReadSession, path: Path, timeout: float = git.TIMEOUT
-) -> CheckoutDetails:
+def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
     """The Checkout on this Machine that `path` lies in, as last observed.
 
     The innermost if they are nested, e.g. a Worktree inside its Clone's directory. Raises
     HephaistosError if git places `path` in a repository of its own inside it.
     """
     checkout = _recorded_checkout(session, path)
-    if (location := _git_location(path, timeout)) is not None:
+    if (location := _git_location(path)) is not None:
         _outdated(session, path, checkout, location)
     if checkout is None:
         raise HephaistosError(f"no Clone or Worktree known at {absolute(path)}")
@@ -378,24 +376,22 @@ def find(session: ReadSession, path: Path) -> CloneDetails:
     return find_checkout(session, path).clone
 
 
-def outdated_clone(
-    session: ReadSession, path: Path, timeout: float = git.TIMEOUT
-) -> CloneDetails | None:
+def outdated_clone(session: ReadSession, path: Path) -> CloneDetails | None:
     """The Clone whose Checkout `path` lies in by git, if the record places it elsewhere.
 
     E.g. a Worktree not observed yet, or moved since. None if the record agrees with git, or git
     knows no Clone of ours there. Raises HephaistosError if git places `path` in a repository of
     its own inside a Checkout.
     """
-    location = _git_location(path, timeout)
+    location = _git_location(path)
     if location is None:
         return None
     return _outdated(session, path, _recorded_checkout(session, path), location)
 
 
-def find_unobserved(session: ReadSession, path: Path, timeout: float = git.TIMEOUT) -> CloneDetails:
+def find_unobserved(session: ReadSession, path: Path) -> CloneDetails:
     """Like `find`, but also for a Worktree not observed yet: git knows its Clone."""
-    return outdated_clone(session, path, timeout) or find(session, path)
+    return outdated_clone(session, path) or find(session, path)
 
 
 def removable(session: ReadSession, path: Path) -> CloneDetails:

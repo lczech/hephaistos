@@ -19,7 +19,7 @@ def set_up(paths: Paths) -> Paths:
     return paths
 
 
-def plan(paths: Paths, root: Path, depth: int = scan.DEPTH) -> list[Planned]:
+def plan(paths: Paths, root: Path, depth: int | None = None) -> list[Planned]:
     with read_session(paths) as session:
         return scan.plan(session, root, depth)
 

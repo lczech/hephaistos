@@ -6,10 +6,10 @@ import uuid
 from collections.abc import Collection, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from itertools import repeat
 from pathlib import Path
 from typing import Self
 
+from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.events.events import Event
 from hephaistos.core.registry import clones
@@ -29,7 +29,6 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.paths import Paths
 
-WORKERS = 8  # git mostly waits for the disk, so a few run in parallel
 PAGE = 64  # reflog entries read at first; more only if the cursor isn't among them
 
 log = logging.getLogger(__name__)
@@ -86,15 +85,15 @@ class Known:
         return None if name in self.worktree_logs else self.removed_logs.get(name)
 
 
-def _unread(top: Path, cursor: Cursor, timeout: float) -> tuple[list[git.ReflogEntry], bool]:
+def _unread(top: Path, cursor: Cursor) -> tuple[list[git.ReflogEntry], bool]:
     """The HEAD reflog's entries after `cursor`, oldest first, and whether its entry is there.
 
     If it isn't, e.g. expired, the entries after its time.
     """
-    entries = git.reflog(top, limit=PAGE, timeout=timeout)
+    entries = git.reflog(top, limit=PAGE)
     found = activity.unread(entries, cursor)
     if found is None and len(entries) == PAGE:
-        entries = git.reflog(top, timeout=timeout)
+        entries = git.reflog(top)
         found = activity.unread(entries, cursor)
     return (activity.newer(entries, cursor), False) if found is None else (found, True)
 
@@ -105,39 +104,35 @@ def _activity(entries: list[git.ReflogEntry], git_dir: Path, cursor: Cursor) -> 
     return CheckoutActivity(found, activity.cursor_after(entries[count - 1]) if count else cursor)
 
 
-def head_activity(
-    top: Path, git_dir: Path, cursor: Cursor | None, timeout: float = git.TIMEOUT
-) -> CheckoutActivity:
+def head_activity(top: Path, git_dir: Path, cursor: Cursor | None) -> CheckoutActivity:
     """What was done in the Checkout at `top` since `cursor`; HEAD must have a commit.
 
     Without a cursor, reading starts at the end: nothing was done yet.
     """
     if cursor is None:
-        return CheckoutActivity((), activity.end(git.reflog(top, limit=1, timeout=timeout)))
-    entries, _ = _unread(top, cursor, timeout)
+        return CheckoutActivity((), activity.end(git.reflog(top, limit=1)))
+    entries, _ = _unread(top, cursor)
     return _activity(entries, git_dir, cursor)
 
 
-def continued_activity(
-    top: Path, git_dir: Path, cursor: Cursor, timeout: float = git.TIMEOUT
-) -> CheckoutActivity | None:
+def continued_activity(top: Path, git_dir: Path, cursor: Cursor) -> CheckoutActivity | None:
     """Like `head_activity`, but None unless the reflog still holds the cursor's entry.
 
     That tells whether a Checkout's history continues from the cursor.
     """
-    entries, found = _unread(top, cursor, timeout)
+    entries, found = _unread(top, cursor)
     return _activity(entries, git_dir, cursor) if found else None
 
 
 def push_activity(
-    top: Path, cursors: Mapping[str, Cursor] | None, timeout: float = git.TIMEOUT
+    top: Path, cursors: Mapping[str, Cursor] | None
 ) -> tuple[list[Push], dict[str, Cursor]]:
     """The pushes since `cursors` (by remote-tracking ref), and where reading stopped.
 
     Without cursors, reading starts at the end; a ref without one is new, so all of it is.
     """
     by_ref: dict[str, list[git.ReflogEntry]] = {}
-    for entry in git.remote_reflogs(top, timeout):
+    for entry in git.remote_reflogs(top):
         by_ref.setdefault(entry.ref, []).append(entry)
     pushes: list[Push] = []
     for ref, entries in by_ref.items():
@@ -148,14 +143,12 @@ def push_activity(
     return pushes, {ref: activity.end(entries) for ref, entries in by_ref.items()}
 
 
-def branch_origins(
-    top: Path, branches: Collection[str], timeout: float = git.TIMEOUT
-) -> dict[str, BranchOrigin]:
+def branch_origins(top: Path, branches: Collection[str]) -> dict[str, BranchOrigin]:
     """Where these branches came from, by their reflogs."""
     origins: dict[str, BranchOrigin] = {}
     for branch in branches:
         try:
-            entries = git.reflog(top, f"refs/heads/{branch}", timeout=timeout)
+            entries = git.reflog(top, f"refs/heads/{branch}")
         except git.GitError:
             continue  # deleted meanwhile
         origins[branch] = activity.branch_origin(branch, entries)
@@ -194,36 +187,36 @@ def _log_observed(path: Path, observation: object, started: float) -> None:
     log.debug("observed %s", path, extra={"outcome": outcome, "duration": duration})
 
 
-def _observed_clone(known: Known, timeout: float) -> CloneObservation:
+def _observed_clone(known: Known) -> CloneObservation:
     """`clone_observation`, raising GitError where git fails."""
     path = known.path
     if not path.is_dir():
         return CloneObservation(Missing())
-    location = git.locate(path, timeout)
+    location = git.locate(path)
     if location.top != path:
         return CloneObservation(Missing())  # its repository is gone; git found one around it
     if location.main is not None:
         return CloneObservation(Failed(f"it is now a Worktree of {location.main}"))
-    snapshot = git.snapshot(location, timeout)
-    listed = git.worktrees(path, location.common_dir, timeout)
+    snapshot = git.snapshot(location)
+    listed = git.worktrees(path, location.common_dir)
     if snapshot.head is None:
         read = CloneActivity((), known.head_log or BEGINNING, (), known.push_log or {}, {})
     else:
-        head = head_activity(path, location.common_dir, known.head_log, timeout)
-        pushes, push_cursors = push_activity(path, known.push_log, timeout)
-        origins = branch_origins(path, set(snapshot.branches) - known.branches, timeout)
+        head = head_activity(path, location.common_dir, known.head_log)
+        pushes, push_cursors = push_activity(path, known.push_log)
+        origins = branch_origins(path, set(snapshot.branches) - known.branches)
         read = CloneActivity(head.activities, head.cursor, pushes, push_cursors, origins)
     return CloneObservation(snapshot, listed, location.common_dir, read)
 
 
-def clone_observation(known: Known, timeout: float = git.TIMEOUT) -> CloneObservation:
+def clone_observation(known: Known) -> CloneObservation:
     """A snapshot of a Clone with its Worktrees and git activity, or why there is none.
 
     Any error makes it failed, so that one Clone never stops observing the others.
     """
     started = time.monotonic()
     try:
-        observed = _observed_clone(known, timeout)
+        observed = _observed_clone(known)
     except git.NotInRepositoryError:
         observed = CloneObservation(Missing())
     except Exception as error:  # noqa: BLE001 - see the docstring
@@ -246,7 +239,6 @@ def worktree_observation(
     git_dir: Path,
     cursor: Cursor | None,
     removed: Cursor | None = None,
-    timeout: float = git.TIMEOUT,
 ) -> WorktreeObservation:
     """The status and git activity of a Worktree, or why there are none; any error fails it.
 
@@ -255,7 +247,7 @@ def worktree_observation(
     """
     started = time.monotonic()
     try:
-        observed = _observed_worktree(linked, git_dir, cursor, removed, timeout)
+        observed = _observed_worktree(linked, git_dir, cursor, removed)
     except Exception as error:  # noqa: BLE001 - one Worktree must not stop observing the others
         observed = WorktreeObservation(_failed(linked.path, error))
     _log_observed(linked.path, observed.observation, started)
@@ -267,26 +259,23 @@ def _observed_worktree(
     git_dir: Path,
     cursor: Cursor | None,
     removed: Cursor | None,
-    timeout: float,
 ) -> WorktreeObservation:
     """`worktree_observation`, raising GitError where git fails."""
     if not linked.path.is_dir():
         return WorktreeObservation(Missing())
-    status = git.status(linked.path, timeout)
+    status = git.status(linked.path)
     if linked.head is None:
         return WorktreeObservation(status, CheckoutActivity((), cursor or BEGINNING))
     if removed is not None:
-        read = continued_activity(linked.path, git_dir, removed, timeout)
+        read = continued_activity(linked.path, git_dir, removed)
         if read is not None:
             return WorktreeObservation(status, read, restored=True)
-    return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor, timeout))
+    return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor))
 
 
 def observe(
     paths: Paths,
     clone_ids: Collection[uuid.UUID] | None = None,
-    *,
-    timeout: float = git.TIMEOUT,
 ) -> Result:
     """Observes this Machine's Clones and their Worktrees, or those of the Clones in `clone_ids`.
 
@@ -304,8 +293,8 @@ def observe(
             for existing in clones.on_this_machine(session)
             if clone_ids is None or existing.clone.id in clone_ids
         ]
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        looked = list(pool.map(clone_observation, [known for _, known in targets], repeat(timeout)))
+    with ThreadPoolExecutor(max_workers=config.settings().observe.workers) as pool:
+        looked = list(pool.map(clone_observation, [known for _, known in targets]))
         jobs = [
             (index, linked, observed.common_dir or Path(), targets[index][1])
             for index, observed in enumerate(looked)
@@ -318,7 +307,6 @@ def observe(
                 [common / "worktrees" / linked.name for _, linked, common, _ in jobs],
                 [known.worktree_log(linked.name) for _, linked, _, known in jobs],
                 [known.removed_log(linked.name) for _, linked, _, known in jobs],
-                repeat(timeout),
             )
         )
     by_clone: list[dict[str, WorktreeObservation]] = [{} for _ in targets]
@@ -361,9 +349,7 @@ def observe(
     )
 
 
-def observe_checkout(
-    paths: Paths, path: Path, *, refresh: bool = False, timeout: float = git.TIMEOUT
-) -> Result | None:
+def observe_checkout(paths: Paths, path: Path, *, refresh: bool = False) -> Result | None:
     """Observes the Clone of the Checkout that `path` lies in, if needed; None if not.
 
     Needed if `refresh`, or if the record places `path` elsewhere than git does, e.g. in a
@@ -371,8 +357,8 @@ def observe_checkout(
     """
     with read_session(paths) as session:
         clone = (
-            clones.find_unobserved(session, path, timeout)
+            clones.find_unobserved(session, path)
             if refresh
-            else clones.outdated_clone(session, path, timeout)
+            else clones.outdated_clone(session, path)
         )
-    return None if clone is None else observe(paths, [clone.clone.id], timeout=timeout)
+    return None if clone is None else observe(paths, [clone.clone.id])

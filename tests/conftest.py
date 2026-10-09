@@ -1,7 +1,9 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
 
 
@@ -11,6 +13,16 @@ def never_real_files(
 ) -> None:
     """Even tests without `paths` keep away from the real config, data and logs."""
     monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path_factory.mktemp("home")))
+    for key in config.KEYS:
+        monkeypatch.delenv(config.variable(key), raising=False)
+
+
+@pytest.fixture(autouse=True)
+def default_settings() -> Iterator[None]:
+    """Each test starts with the default settings, whatever the one before activated."""
+    config.activate(config.DEFAULTS)
+    yield
+    config.activate(config.DEFAULTS)
 
 
 @pytest.fixture

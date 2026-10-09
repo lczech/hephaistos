@@ -13,7 +13,7 @@ One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, s
 ```
 src/hephaistos/
   core/
-    config.py     TOML
+    config.py     settings: shipped defaults.toml, config files, environment
     db/           connection, read and write sessions, schema, raw views
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
@@ -39,13 +39,27 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); `setup` fails on a Machine that is already set up.
 - Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Later setup steps (hooks, autostart, remote setup) also exist as their own commands.
 - Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
-  - config: `~/.config/hephaistos/config.toml`, optional; built-in defaults apply. One file for all Machines sharing a home directory: settings at the top apply to all of them, a section `[machines.<hostname>]` (full, or its first part) overrides them on one.
+  - config: `~/.config/hephaistos/`, optional files; see Settings.
   - data: `~/.local/share/hephaistos/<machine>/`
   - logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day (`2026-10-08.jsonl`).
-- The config file holds how this Machine runs (e.g. Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry, once it holds settings; until then `time_format` stays in the file.
 - `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
 - SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
 - A Machine set up twice (e.g. after deleting its data) gets a new ID; the same `os_machine_id` suggests merging them.
+
+## Settings
+
+- Layers, each overriding the ones before it key by key:
+  1. `defaults.toml`, shipped in the package: every setting with its default and documentation.
+  2. Later: Registry settings, shared by all Machines and edited in the GUI.
+  3. `config.toml` in the config directory: every Machine reading it, e.g. sharing a home directory.
+  4. `config.<hostname>.toml`: the first part of the hostname (`login1`), then all of it (`login1.hpc.example.org`).
+  5. Environment variables `HEPHAISTOS_<SECTION>_<KEY>`, e.g. `HEPHAISTOS_GIT_TIMEOUT`, for every setting; empty ones count as unset.
+  6. Command-line options, e.g. `--time-format`, `--debug` for `log.level`.
+- TOML, one or two levels of sections. Every setting has a real value: no null; "unset" behaviour gets a name (`time_format = "auto"`) or a natural number (0). A missing key leaves it to the layer below.
+- Checked against typed sections (`Settings` in `config.py`) with limits: unknown keys and wrong types or values fail, naming the file or variable and the key.
+- Each process loads its settings once, at startup (CLI `run()`, Daemon), and activates them; the Core reads them where it uses them (`config.settings().git.timeout`). Changes apply to the next command, or to the Daemon after a restart.
+- A broken config stops every command but `--help`, `--version` and `log` (which run on the defaults, with a warning); the Daemon doesn't start.
+- Files hold how this Machine runs (e.g. timeouts, workers, Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry layer, once it exists; until then `time_format` stays in the files.
 
 ## Conventions
 
@@ -61,10 +75,10 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 ## Logs
 
 - The log is local diagnostics about hephaistos itself: never synced, and nothing reads it to decide anything. Events stay the record of work.
-- stdlib `logging`; each record is one line of JSON: `at` (UTC), `level`, `process` (`cli`, `daemon`), `pid`, `logger`, `message`, its extra fields, and `error` with a traceback. Each record is one write in append mode, so processes writing at once need no lock. Files are never rewritten: the first record of a day deletes those older than 30 days.
+- stdlib `logging`; each record is one line of JSON: `at` (UTC), `level`, `process` (`cli`, `daemon`), `pid`, `logger`, `message`, its extra fields, and `error` with a traceback. Each record is one write in append mode, so processes writing at once need no lock. Files are never rewritten: the first record of a day deletes those older than `log.retention_days` (30).
 - INFO: each run's start (arguments) and end (outcome, duration), and each Event committed. WARNING: expected failures caught per unit, e.g. git failing for one Checkout, and transactions rolled back. ERROR: unexpected exceptions, with traceback. DEBUG: git calls, transactions, fallbacks taken, each Checkout observed. Never git's output, payloads or file contents.
 - Failures are caught per unit of work (a Checkout; later a sync or a request), logged, and the rest goes on. A run logs anything else and ends: the CLI prints `error: unexpected …` and where the details are. Exceptions ending a thread are logged too.
-- `HEPHAISTOS_LOG_LEVEL` sets the level (default INFO). `--debug`, anywhere in a command, logs that run at DEBUG and also shows its records on stderr. Logging is best effort: if the file can't be written, the command warns and goes on.
+- `log.level` sets the level (default `info`). `--debug`, anywhere in a command, logs that run at DEBUG and also shows its records on stderr. Logging is best effort: if the file can't be written, the command warns and goes on.
 
 ## Tables
 
@@ -138,11 +152,11 @@ hephaistos [--debug] …
 - `repo remove` refuses while the Repository has Clones; `--clones` also removes them, on every Machine, after asking. `clone remove` says when it leaves a Repository without Clones.
 - `clone move` records a move already made on disk; the Clone keeps its ID and history. The old path must no longer be a repository, and the new one must share the Clone's history. It refuses while links to its Worktrees are broken (an observation would take them as removed), printing the `git worktree repair` command. Clones inside it move along with `--nested`, all or nothing; without it, their commands are printed.
 - Asking happens between a read and a write session, so no write transaction waits for input.
-- `scan` adds the clones under a directory (3 levels by default) in one transaction, after showing the plan and asking once: each joins the Repository it matches, else a Repository without Clones by name, else a new one; clones found together match each other too. A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone add` suggests. A Worktree brings its Clone, wherever that is, and one not observed yet has its Clone observed. It stops at clones without searching inside them, skips hidden directories, follows symlinks (preferring real paths), and refuses to start inside a Clone or at a submodule. A clone that may be a missing Clone, moved, is skipped with the commands for either. Nothing is guessed: a clone matching several Repositories, or whose new Repository's name is taken, is skipped with the commands to add it by hand.
+- `scan` adds the clones under a directory (`scan.depth` levels, 3 by default) in one transaction, after showing the plan and asking once: each joins the Repository it matches, else a Repository without Clones by name, else a new one; clones found together match each other too. A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone add` suggests. A Worktree brings its Clone, wherever that is, and one not observed yet has its Clone observed. It stops at clones without searching inside them, skips hidden directories, follows symlinks (preferring real paths), and refuses to start inside a Clone or at a submodule. A clone that may be a missing Clone, moved, is skipped with the commands for either. Nothing is guessed: a clone matching several Repositories, or whose new Repository's name is taken, is skipped with the commands to add it by hand.
 - `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
-- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format relative|short|full` and `time_format` in the config override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
+- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format auto|relative|short|full` and the setting `time_format` override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
-- `log show` shows the newest 50 records, oldest first, local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints them as stored, `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default 30d), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
+- `log show` shows the newest 50 records, oldest first, local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints them as stored, `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default `log.retention_days`), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
 - `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row.
 
 Next: the Server and GUI pages showing these tables, plus a Repository overview.
