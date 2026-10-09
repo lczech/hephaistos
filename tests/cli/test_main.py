@@ -15,6 +15,11 @@ from hephaistos.core.utils.paths import Paths
 runner = CliRunner()
 
 
+def test_help_rewraps_paragraphs() -> None:
+    result = runner.invoke(app, ["scan", "--help"], env={"COLUMNS": "200"})
+    assert "skips hidden directories. A clone that matches several Repositories" in result.output
+
+
 def test_version() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
