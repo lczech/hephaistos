@@ -270,3 +270,7 @@ def test_a_broken_config_stops_commands_but_log(
 
     assert _run(monkeypatch, "--version") == 0
     assert _run(monkeypatch, "machine", "--help") == 0
+
+    capsys.readouterr()
+    assert _run(monkeypatch, "config", "show", "git.timeout") == 1
+    assert capsys.readouterr() == ("30.0\n", f"error: {problem}\n")  # no warning first

@@ -14,7 +14,7 @@ import logging
 import os
 import socket
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass
 from enum import StrEnum
 from importlib.resources import files
@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Annotated, Any, cast, get_args, get_origin, get_type_hints
 
 from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.paths import HOME_VARIABLE
 
 
 class TimeFormat(StrEnum):
@@ -146,9 +147,13 @@ _SECTIONS = frozenset(key.rpartition(".")[0] for key in _LEAVES) - {""}
 DEFAULT = "default"  # the source of a value from `defaults.toml`
 
 
+PREFIX = "HEPHAISTOS_"  # of our environment variables
+OTHER_VARIABLES = frozenset({HOME_VARIABLE})  # ours, but not settings
+
+
 def variable(key: str) -> str:
     """The environment variable for a setting, e.g. `HEPHAISTOS_GIT_TIMEOUT`."""
-    return "HEPHAISTOS_" + key.upper().replace(".", "_")
+    return PREFIX + key.upper().replace(".", "_")
 
 
 def unknown_text(key: str) -> str:
@@ -184,8 +189,8 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
     return value
 
 
-def _layer(data: Mapping[str, object], source: str, prefix: str = "") -> dict[str, object]:
-    """The settings a file sets, checked, by key."""
+def _table(data: Mapping[str, object], source: str, prefix: str = "") -> dict[str, object]:
+    """The settings a TOML table sets, checked, by key."""
     values: dict[str, object] = {}
     for name, value in data.items():
         key = prefix + name
@@ -194,7 +199,7 @@ def _layer(data: Mapping[str, object], source: str, prefix: str = "") -> dict[st
         elif key in _SECTIONS:
             if not isinstance(value, dict):
                 raise ConfigError(f"{source}: {key} must be a section [{key}]")
-            values |= _layer(cast("dict[str, object]", value), source, f"{key}.")
+            values |= _table(cast("dict[str, object]", value), source, f"{key}.")
         else:
             raise ConfigError(f"{source}: {unknown_text(key)}")
     return values
@@ -224,18 +229,32 @@ def _built[T](section: type[T], values: Mapping[str, object], prefix: str = "") 
     return section(**arguments)
 
 
-_DEFAULT_VALUES = _layer(
-    tomllib.loads(files("hephaistos.core").joinpath("defaults.toml").read_text()), "defaults.toml"
-)
+DEFAULTS_TEXT = files("hephaistos.core").joinpath("defaults.toml").read_text()
+_DEFAULT_VALUES = _table(tomllib.loads(DEFAULTS_TEXT), "defaults.toml")
 DEFAULTS = _built(Settings, _DEFAULT_VALUES)
 
 
 @dataclass(frozen=True)
+class Layer:
+    """What one config file or environment variable sets, checked on its own.
+
+    A file that is missing, or broken (with its `error`), sets nothing.
+    """
+
+    source: str  # a file's path or a variable's name
+    values: dict[str, object]
+    error: ConfigError | None = None
+    exists: bool = True
+    path: Path | None = None  # the file's; None for a variable
+
+
+@dataclass(frozen=True)
 class Loaded:
-    """Settings as loaded, and where each value comes from: a file, a variable, or `default`."""
+    """Settings as loaded, also by key, and where each value comes from."""
 
     settings: Settings
-    sources: dict[str, str]
+    values: dict[str, object]
+    sources: dict[str, str]  # a layer's source, or DEFAULT
 
 
 def files_for(directory: Path, hostname: str) -> list[Path]:
@@ -244,15 +263,59 @@ def files_for(directory: Path, hostname: str) -> list[Path]:
     return [directory / f"{name}.toml" for name in names]
 
 
-def _file_layer(path: Path) -> dict[str, object]:
-    """The settings a config file sets; none if there is no file."""
+def other_hosts_files(directory: Path, hostname: str) -> list[Path]:
+    """The config files in `directory` that are for other hosts."""
+    own = set(files_for(directory, hostname))
+    return sorted(path for path in directory.glob("config.*.toml") if path not in own)
+
+
+def _file_layer(path: Path) -> Layer:
+    """What a config file sets."""
+    source = str(path)
     try:
         data = tomllib.loads(path.read_text())
     except FileNotFoundError:
-        return {}
+        return Layer(source, {}, exists=False, path=path)
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
-        raise ConfigError(f"cannot read {path}: {error}") from error
-    return _layer(data, str(path))
+        return Layer(source, {}, ConfigError(f"cannot read {path}: {error}"), path=path)
+    try:
+        return Layer(source, _table(data, source), path=path)
+    except ConfigError as error:
+        return Layer(source, {}, error, path=path)
+
+
+def _variable_layer(key: str, text: str) -> Layer:
+    """What a setting's environment variable sets."""
+    name = variable(key)
+    leaf = _LEAVES[key]
+    try:
+        return Layer(name, {key: _checked(leaf, _from_text(leaf, text), f"{name}:")})
+    except ConfigError as error:
+        return Layer(name, {}, error)
+
+
+def layers(
+    directory: Path, hostname: str | None = None, env: Mapping[str, str] = os.environ
+) -> list[Layer]:
+    """What each config file and variable sets, each overriding the ones before it.
+
+    The files in `directory` for this Machine (or `hostname`), then the variables in `env`.
+    """
+    found = [_file_layer(path) for path in files_for(directory, hostname or socket.gethostname())]
+    # Empty variables count as unset, as in most tools.
+    return found + [
+        _variable_layer(key, env[variable(key)]) for key in KEYS if env.get(variable(key))
+    ]
+
+
+def merged(found: Sequence[Layer]) -> Loaded:
+    """The defaults, overridden by these layers in turn; broken ones set nothing."""
+    values = dict(_DEFAULT_VALUES)
+    sources = dict.fromkeys(values, DEFAULT)
+    for layer in found:
+        values |= layer.values
+        sources |= dict.fromkeys(layer.values, layer.source)
+    return Loaded(_built(Settings, values), values, sources)
 
 
 def load(
@@ -260,20 +323,29 @@ def load(
 ) -> Loaded:
     """The settings for this Machine (or `hostname`) from the files in `directory` and `env`.
 
-    Raises ConfigError for files that can't be read and unknown or invalid settings.
+    Raises the first ConfigError of a file that can't be read or of an unknown or invalid setting.
     """
-    values = dict(_DEFAULT_VALUES)
-    sources = dict.fromkeys(values, DEFAULT)
-    for path in files_for(directory, hostname or socket.gethostname()):
-        layer = _file_layer(path)
-        values |= layer
-        sources |= dict.fromkeys(layer, str(path))
-    for key, leaf in _LEAVES.items():
-        name = variable(key)
-        if text := env.get(name):  # empty ones as if unset, like most tools
-            values[key] = _checked(leaf, _from_text(leaf, text), f"{name}:")
-            sources[key] = name
-    return Loaded(_built(Settings, values), sources)
+    found = layers(directory, hostname, env)
+    for layer in found:
+        if layer.error is not None:
+            raise layer.error
+    return merged(found)
+
+
+def unknown_variables(env: Mapping[str, str] = os.environ) -> dict[str, str | None]:
+    """Our environment variables that aren't settings, each with the setting's closest to it."""
+    settings_variables = [variable(key) for key in KEYS]
+    known = {*settings_variables, *OTHER_VARIABLES}
+    # Compared without the prefix, which all share.
+    by_rest = {name.removeprefix(PREFIX): name for name in settings_variables}
+
+    def closest(name: str) -> str | None:
+        close = difflib.get_close_matches(name.removeprefix(PREFIX), by_rest, n=1)
+        return by_rest[close[0]] if close else None
+
+    return {
+        name: closest(name) for name in sorted(env) if name.startswith(PREFIX) and name not in known
+    }
 
 
 _active = DEFAULTS

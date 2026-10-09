@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DATABASE_NAME = "hephaistos.db"
+HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
 
 NETWORK_FILESYSTEMS = frozenset(
     {
@@ -58,7 +59,7 @@ class Paths:
     def from_environment(cls, env: Mapping[str, str] = os.environ) -> "Paths":
         """XDG directories, or everything under HEPHAISTOS_HOME if that is set."""
         key = machine_key()
-        if home := env.get("HEPHAISTOS_HOME"):
+        if home := env.get(HOME_VARIABLE):
             base = Path(home)
             return cls(base, base / "data" / key, base / "state" / key)
 

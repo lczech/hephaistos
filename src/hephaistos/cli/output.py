@@ -114,13 +114,18 @@ def print_fields(fields: Sequence[tuple[str, str]], indent: str = "") -> None:
         typer.echo(f"{indent}{label:<{width}}  {value}")
 
 
-def print_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> None:
-    """Prints rows under a header line, with the columns aligned."""
-    widths = [max(len(row[column]) for row in (headers, *rows)) for column in range(len(headers))]
-    for row in (headers, *rows):
+def print_rows(rows: Sequence[Sequence[str]]) -> None:
+    """Prints rows with the columns aligned."""
+    widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
+    for row in rows:
         typer.echo(
             "  ".join(f"{cell:<{width}}" for cell, width in zip(row, widths, strict=True)).rstrip()
         )
+
+
+def print_table(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> None:
+    """Prints rows under a header line, with the columns aligned."""
+    print_rows([headers, *rows])
 
 
 def print_json(value: object) -> None:
