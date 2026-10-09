@@ -39,7 +39,12 @@ SHOWS_CONFIG = "config"  # reports a broken config itself
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(no_args_is_help=True, help=__description__, pretty_exceptions_show_locals=False)
+app = typer.Typer(
+    no_args_is_help=True,
+    help=__description__,
+    pretty_exceptions_show_locals=False,
+    rich_markup_mode="markdown",  # rewraps docstrings' paragraphs; `code` as code
+)
 app.add_typer(machine.app, name="machine")
 app.add_typer(repo.app, name="repo")
 app.add_typer(clone.app, name="clone")
