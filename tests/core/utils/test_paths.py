@@ -26,7 +26,7 @@ MOUNTINFO = r"""
 def test_hephaistos_home_holds_everything(tmp_path: Path) -> None:
     paths = Paths.from_environment({"HEPHAISTOS_HOME": str(tmp_path)})
     key = machine_key()
-    assert paths.config_file == tmp_path / "config.toml"
+    assert paths.config_dir == tmp_path
     assert paths.data_dir == tmp_path / "data" / key
     assert paths.state_dir == tmp_path / "state" / key
     assert paths.database == tmp_path / "data" / key / "hephaistos.db"
@@ -36,7 +36,7 @@ def test_xdg_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
     paths = Paths.from_environment({})
     key = machine_key()
-    assert paths.config_file == tmp_path / ".config/hephaistos/config.toml"
+    assert paths.config_dir == tmp_path / ".config/hephaistos"
     assert paths.data_dir == tmp_path / ".local/share/hephaistos" / key
     assert paths.state_dir == tmp_path / ".local/state/hephaistos" / key
 

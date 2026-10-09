@@ -1,3 +1,4 @@
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,7 @@ from typer.testing import CliRunner
 
 from hephaistos.cli import terminal
 from hephaistos.cli.main import app
+from hephaistos.core import config
 from hephaistos.core.utils.errors import HephaistosError
 from support import clone, create, git
 
@@ -81,6 +83,9 @@ def test_nothing_found(tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
     assert _lines(str(empty)) == [f"No git clones found under {empty} (depth 3)"]
+    config.activate(dataclasses.replace(config.DEFAULTS, scan=config.Scan(depth=1)))
+    assert _lines(str(empty)) == [f"No git clones found under {empty} (depth 1)"]
+    assert _lines(str(empty), "-d", "0") == [f"No git clones found under {empty} (depth 0)"]
 
 
 def test_new_worktree_is_observed(root: Path) -> None:

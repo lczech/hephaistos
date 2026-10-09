@@ -8,6 +8,7 @@ observes them repeatedly, after a warm-up, and shows where the time goes.
 """
 
 import argparse
+import dataclasses
 import os
 import statistics
 import subprocess
@@ -20,6 +21,7 @@ from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from hephaistos.core import config
 from hephaistos.core.db.sessions import WriteSession, write_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
@@ -105,10 +107,10 @@ class Timings:
         """Wraps what is timed: git's runner, the Clone observation, the sessions."""
         run_git = git._git  # noqa: SLF001 # pyright: ignore[reportPrivateUsage] - runs every git command
 
-        def timed_git(path: Path, *args: str, timeout: float = git.TIMEOUT) -> object:
+        def timed_git(path: Path, *args: str) -> object:
             start = time.perf_counter()
             try:
-                return run_git(path, *args, timeout=timeout)
+                return run_git(path, *args)
             finally:
                 name = " ".join(arg for arg in args[:2] if not arg.startswith("-"))
                 with self.lock:
@@ -116,10 +118,10 @@ class Timings:
 
         observe_clone = observer.clone_observation
 
-        def timed_clone(known: observer.Known, timeout: float) -> observer.CloneObservation:
+        def timed_clone(known: observer.Known) -> observer.CloneObservation:
             start = time.perf_counter()
             try:
-                return observe_clone(known, timeout)
+                return observe_clone(known)
             finally:
                 with self.lock:
                     self.clones[str(known.path)] += time.perf_counter() - start
@@ -150,8 +152,9 @@ class Timings:
     def report(self, runs: int, totals: list[float], result: observer.Result) -> None:
         """Prints the timings, per run."""
         ms = 1000 / runs
+        workers = config.settings().observe.workers
         print(
-            f"{result.observed} Clones, {result.worktrees} Worktrees, {observer.WORKERS} workers, "
+            f"{result.observed} Clones, {result.worktrees} Worktrees, {workers} workers, "
             f"{runs} runs\nobserve(): median {statistics.median(totals) * 1000:.0f} ms, "
             f"min {min(totals) * 1000:.0f}, max {max(totals) * 1000:.0f}"
         )
@@ -177,7 +180,7 @@ def main() -> None:
     parser.add_argument("--synthetic", type=int, default=0, help="synthetic repositories to add")
     parser.add_argument("--worktrees", type=int, default=4, help="per synthetic repository")
     parser.add_argument("--runs", type=int, default=10)
-    parser.add_argument("--workers", type=int, default=observer.WORKERS)
+    parser.add_argument("--workers", type=int, default=config.DEFAULTS.observe.workers)
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory(prefix="hephaistos-bench-") as scratch:
@@ -194,7 +197,7 @@ def main() -> None:
             for repo in found:
                 register(session, repo, names)
 
-        observer.WORKERS = args.workers
+        config.activate(dataclasses.replace(config.DEFAULTS, observe=config.Observe(args.workers)))
         timings = Timings()
         timings.install()
         observer.observe(paths)  # warm-up: starts the activity cursors, fills the disk cache

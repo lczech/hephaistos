@@ -1,11 +1,12 @@
+import dataclasses
 from datetime import UTC, datetime, timedelta
 
 import pytest
 import typer
 
 from hephaistos.cli.output import parse_time, relative_time, short_time, time_formatter
+from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
-from hephaistos.core.utils.paths import Paths
 
 NOW = datetime(2026, 10, 5, 14, 3, 21).astimezone()
 
@@ -39,15 +40,15 @@ def test_short_time(value: datetime, shown: str) -> None:
     assert short_time(value, NOW) == shown
 
 
-def test_time_format_from_option_then_config_then_default(paths: Paths) -> None:
+def test_time_format_from_option_then_setting_then_default() -> None:
     value = NOW - timedelta(hours=2)
     assert time_formatter(None, TimeFormat.RELATIVE, NOW)(value) == "2h"
     assert time_formatter(TimeFormat.SHORT, TimeFormat.RELATIVE, NOW)(value) == "12:03"
 
-    paths.config_file.parent.mkdir(parents=True)
-    paths.config_file.write_text('time_format = "full"\n')
+    config.activate(dataclasses.replace(config.DEFAULTS, time_format=TimeFormat.FULL))
     assert time_formatter(None, TimeFormat.RELATIVE, NOW)(value) == "2026-10-05 12:03:21"
     assert time_formatter(TimeFormat.RELATIVE, TimeFormat.FULL, NOW)(value) == "2h"
+    assert time_formatter(TimeFormat.AUTO, TimeFormat.RELATIVE, NOW)(value) == "2h"
 
 
 def test_parse_time() -> None:

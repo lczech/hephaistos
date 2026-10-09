@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import sys
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,7 @@ from typer.testing import CliRunner
 from hephaistos.cli import terminal
 from hephaistos.cli.log import record_text
 from hephaistos.cli.main import app
+from hephaistos.core import config
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 
@@ -118,7 +120,9 @@ def test_prune(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
     assert (paths.state_dir / "notes.txt").exists()
     assert runner.invoke(app, ["log", "prune", "--keep", "7d"]).output == "Nothing to prune\n"
 
-    everything = runner.invoke(app, ["log", "prune", "--keep", "0d", "--yes"])
+    retention = dataclasses.replace(config.DEFAULTS.log, retention_days=0)
+    config.activate(dataclasses.replace(config.DEFAULTS, log=retention))
+    everything = runner.invoke(app, ["log", "prune", "--yes"])
     assert everything.output.startswith("Deleted 1 log file (")
     assert [day for day, _ in logs.day_files(paths.state_dir)] == [today]
 

@@ -11,6 +11,7 @@ import typer
 
 from hephaistos.cli import terminal
 from hephaistos.cli.output import JsonOption, LimitOption, number_text, parse_time, short_path
+from hephaistos.core import config
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.logs import JsonFormatter, Record
 from hephaistos.core.utils.paths import Paths
@@ -150,18 +151,20 @@ def _keep_days(value: str) -> int:
 @app.command()
 def prune(
     keep: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--keep",
             "-k",
-            help="Keep today's file and those of this many days before; delete older ones.",
+            help="Keep today's file and those of this many days before, e.g. 7d; delete older"
+            " ones. Default: log.retention_days.",
         ),
-    ] = f"{logs.RETENTION_DAYS}d",
+    ] = None,
     *,
     yes: Annotated[bool, typer.Option("--yes", help="Delete without asking.")] = False,
 ) -> None:
-    """Delete old log files, whole days at a time; each day deletes those past 30 days anyway."""
-    before = datetime.now(UTC).date() - timedelta(days=_keep_days(keep))
+    """Delete old log files, whole days at a time; each day deletes those past retention anyway."""
+    days = config.settings().log.retention_days if keep is None else _keep_days(keep)
+    before = datetime.now(UTC).date() - timedelta(days=days)
     directory = _directory()
     old = [(day, path) for day, path in logs.day_files(directory) if day < before]
     if not old:

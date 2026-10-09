@@ -1,7 +1,9 @@
+import dataclasses
 from pathlib import Path
 
 import pytest
 
+from hephaistos.core import config
 from hephaistos.core.utils import git as git_facts
 from hephaistos.core.utils.git import (
     Entry,
@@ -258,8 +260,9 @@ def test_branches(tmp_path: Path) -> None:
 
 def test_timeout(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
-    with pytest.raises(GitTimeoutError, match="timed out"):
-        status(repo, timeout=1e-6)
+    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=1e-6)))
+    with pytest.raises(GitTimeoutError, match="timed out after 1e-06 s"):
+        status(repo)
 
 
 def test_not_in_repository(tmp_path: Path) -> None:

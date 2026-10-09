@@ -17,9 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
+from hephaistos.core import config
 from hephaistos.core.utils.errors import HephaistosError
-
-TIMEOUT = 30.0  # seconds for one git command; a hung network filesystem must not block us
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ LOCAL_VARIABLES = frozenset(
 )
 
 
-def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.CompletedProcess[str]:
+def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Runs git in `path`; the caller checks the exit code."""
     executable = shutil.which("git")
     if executable is None:
@@ -68,6 +67,7 @@ def _git(path: Path, *args: str, timeout: float = TIMEOUT) -> subprocess.Complet
     # whose index stat data is stale is rehashed on every run, until the user's git refreshes it.
     env = {key: value for key, value in os.environ.items() if key not in LOCAL_VARIABLES}
     env["GIT_OPTIONAL_LOCKS"] = "0"
+    timeout = config.settings().git.timeout  # a hung network filesystem must not block us
     started = time.monotonic()
     try:
         result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
@@ -110,9 +110,9 @@ def _log_ignored_variables() -> None:
         log.debug("ignoring git's variables %s", ", ".join(ignored))
 
 
-def _output(path: Path, *args: str, timeout: float = TIMEOUT) -> str:
+def _output(path: Path, *args: str) -> str:
     """The output of git without the final newline; raises GitError if it fails."""
-    result = _git(path, *args, timeout=timeout)
+    result = _git(path, *args)
     if result.returncode != 0:
         raise GitError(f"`git {' '.join(args)}` failed in {path}: {result.stderr.strip()}")
     return result.stdout.removesuffix("\n")
@@ -131,12 +131,12 @@ class Location:
 _LOCATE = ("rev-parse", "--is-bare-repository", "--is-inside-work-tree", "--absolute-git-dir")
 
 
-def locate(path: Path, timeout: float = TIMEOUT) -> Location:
+def locate(path: Path) -> Location:
     """The git repository that `path` lies in; raises GitError if none."""
     # Asking for the top level fails outside a working tree; only then is a second call needed.
-    result = _git(path, *_LOCATE, "--git-common-dir", "--show-toplevel", timeout=timeout)
+    result = _git(path, *_LOCATE, "--git-common-dir", "--show-toplevel")
     if result.returncode != 0:
-        result = _git(path, *_LOCATE, "--git-common-dir", timeout=timeout)
+        result = _git(path, *_LOCATE, "--git-common-dir")
     if result.returncode != 0:
         raise NotInRepositoryError(f"{path} is not in a git repository")
     bare, inside, git_dir, common_dir, *toplevel = result.stdout.removesuffix("\n").split("\n")
@@ -153,15 +153,15 @@ def locate(path: Path, timeout: float = TIMEOUT) -> Location:
     main = None
     if Path(git_dir).resolve() != common:
         # The first entry of `worktree list` is the main working tree, or the bare repository.
-        first = _output(path, "worktree", "list", "--porcelain", timeout=timeout).split("\n", 1)[0]
+        first = _output(path, "worktree", "list", "--porcelain").split("\n", 1)[0]
         main = Path(first.removeprefix("worktree ")).resolve()
     return Location(top=top, main=main, common_dir=common, bare=bare == "true")
 
 
-def superproject(path: Path, timeout: float = TIMEOUT) -> Path | None:
+def superproject(path: Path) -> Path | None:
     """The working tree that has the repository at `path` as a submodule; None if none has."""
     # Not part of `locate`: git checks it by running `ls-files` in the parent directory.
-    output = _output(path, "rev-parse", "--show-superproject-working-tree", timeout=timeout)
+    output = _output(path, "rev-parse", "--show-superproject-working-tree")
     return Path(output).resolve() if output else None
 
 
@@ -258,7 +258,7 @@ def parse_status(output: str) -> Status:
     )
 
 
-def status(top: Path, timeout: float = TIMEOUT) -> Status:
+def status(top: Path) -> Status:
     """The status of the working tree at `top`; ignored files are left out."""
     return parse_status(
         _output(
@@ -268,14 +268,13 @@ def status(top: Path, timeout: float = TIMEOUT) -> Status:
             "--branch",
             "-z",
             "--untracked-files=normal",
-            timeout=timeout,
         )
     )
 
 
-def branches(top: Path, timeout: float = TIMEOUT) -> tuple[str, ...]:
+def branches(top: Path) -> tuple[str, ...]:
     """The local branches' names, sorted."""
-    output = _output(top, "for-each-ref", "--format=%(refname)", "refs/heads", timeout=timeout)
+    output = _output(top, "for-each-ref", "--format=%(refname)", "refs/heads")
     return tuple(sorted(line.removeprefix("refs/heads/") for line in output.splitlines()))
 
 
@@ -309,10 +308,10 @@ def _worktree_names(common_dir: Path) -> dict[Path, str]:
     return names
 
 
-def worktrees(top: Path, common_dir: Path, timeout: float = TIMEOUT) -> tuple[LinkedWorktree, ...]:
+def worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
     """The linked worktrees of the repository at `top`, including those whose directory is gone."""
     # Without -z, which needs git 2.36: paths with newlines are not supported.
-    output = _output(top, "worktree", "list", "--porcelain", timeout=timeout)
+    output = _output(top, "worktree", "list", "--porcelain")
     names = _worktree_names(common_dir)
     found: list[LinkedWorktree] = []
     for record in output.split("\n\n")[1:]:  # the first is the main working tree
@@ -342,16 +341,14 @@ def worktrees(top: Path, common_dir: Path, timeout: float = TIMEOUT) -> tuple[Li
     return tuple(found)
 
 
-def broken_worktrees(
-    top: Path, common_dir: Path, timeout: float = TIMEOUT
-) -> tuple[LinkedWorktree, ...]:
+def broken_worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
     """The linked worktrees whose links to the repository at `top` are broken, e.g. by a move.
 
     Those whose directory is gone (git calls them prunable), unless locked, and those whose `.git`
     file points elsewhere. `git worktree repair` fixes them.
     """
     broken: list[LinkedWorktree] = []
-    for linked in worktrees(top, common_dir, timeout):
+    for linked in worktrees(top, common_dir):
         if not linked.path.exists():
             if linked.lock_reason is None:
                 broken.append(linked)
@@ -379,7 +376,7 @@ class ReflogEntry:
     message: str
 
 
-def _reflog(top: Path, *args: str, timeout: float) -> list[ReflogEntry]:
+def _reflog(top: Path, *args: str) -> list[ReflogEntry]:
     """Reflog entries as `git log --walk-reflogs` lists them: newest first, ref by ref."""
     output = _output(
         top,
@@ -389,7 +386,6 @@ def _reflog(top: Path, *args: str, timeout: float) -> list[ReflogEntry]:
         "--date=iso-strict",
         "--format=%H%x1f%gD%x1f%gs",
         *args,
-        timeout=timeout,
     )
     read: list[tuple[str, str, datetime, str]] = []
     for line in output.splitlines():
@@ -404,19 +400,17 @@ def _reflog(top: Path, *args: str, timeout: float) -> list[ReflogEntry]:
     return entries[::-1]
 
 
-def reflog(
-    top: Path, ref: str = "HEAD", *, limit: int | None = None, timeout: float = TIMEOUT
-) -> list[ReflogEntry]:
+def reflog(top: Path, ref: str = "HEAD", *, limit: int | None = None) -> list[ReflogEntry]:
     """The newest entries of a ref's reflog, or all; empty if it has none.
 
     HEAD must exist, i.e. have a commit. Each worktree has its own HEAD reflog.
     """
-    return _reflog(top, *([f"--max-count={limit}"] if limit else []), ref, timeout=timeout)
+    return _reflog(top, *([f"--max-count={limit}"] if limit else []), ref)
 
 
-def remote_reflogs(top: Path, timeout: float = TIMEOUT) -> list[ReflogEntry]:
+def remote_reflogs(top: Path) -> list[ReflogEntry]:
     """The reflogs of all remote-tracking branches, newest first for each."""
-    return _reflog(top, "--remotes", timeout=timeout)
+    return _reflog(top, "--remotes")
 
 
 def is_rebasing(git_dir: Path) -> bool:
@@ -437,14 +431,14 @@ class Snapshot:
     status: Status | None  # None if bare
 
 
-def snapshot(location: Location, timeout: float = TIMEOUT) -> Snapshot:
+def snapshot(location: Location) -> Snapshot:
     """The current facts about the repository at `location`."""
     top = location.top
-    found = None if location.bare else status(top, timeout)
+    found = None if location.bare else status(top)
     if found is None:
-        head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD", timeout=timeout)
+        head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD")
         head = head_result.stdout.strip() if head_result.returncode == 0 else None
-        branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD", timeout=timeout)
+        branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD")
         branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
     else:
         head, branch = found.head, found.branch
@@ -452,21 +446,17 @@ def snapshot(location: Location, timeout: float = TIMEOUT) -> Snapshot:
         bare=location.bare,
         head=head,
         branch=branch,
-        root_commits=root_commits(top, include_head=head is not None, timeout=timeout),
-        remotes=remotes(top, timeout),
-        branches=branches(top, timeout),
+        root_commits=root_commits(top, include_head=head is not None),
+        remotes=remotes(top),
+        branches=branches(top),
         status=found,
     )
 
 
-def root_commits(
-    top: Path, *, include_head: bool = True, timeout: float = TIMEOUT
-) -> tuple[str, ...]:
+def root_commits(top: Path, *, include_head: bool = True) -> tuple[str, ...]:
     """The commits without parents, reachable from HEAD and all local and remote branches."""
     refs = ["HEAD"] if include_head else []
-    output = _output(
-        top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes", timeout=timeout
-    )
+    output = _output(top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
     return tuple(sorted(set(output.split()))) if output else ()
 
 
@@ -475,9 +465,9 @@ def shares_history(roots: Collection[str], known: Collection[str]) -> bool:
     return not roots or not known or not set(roots).isdisjoint(known)
 
 
-def remotes(top: Path, timeout: float = TIMEOUT) -> dict[str, str]:
+def remotes(top: Path) -> dict[str, str]:
     """The remotes' names and URLs, without credentials."""
-    result = _git(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$", timeout=timeout)
+    result = _git(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$")
     if result.returncode == 1:  # no remotes
         return {}
     if result.returncode != 0:

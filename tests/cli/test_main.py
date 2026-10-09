@@ -234,3 +234,39 @@ def test_setup_reset_with_nothing_to_reset() -> None:
     result = runner.invoke(app, ["setup", "--reset", "--name", "laptop"])
     assert result.exit_code == 0, result.output
     assert result.output.startswith("Nothing to reset\nSet up Machine laptop")
+
+
+def test_settings_are_loaded_and_used(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    paths.config_dir.mkdir(parents=True)
+    (paths.config_dir / "config.toml").write_text('[log]\nlevel = "warning"\n')
+    assert _run(monkeypatch, "--version") == 0
+    assert _logged(paths) == []  # nothing at warning level or above
+    monkeypatch.setenv("HEPHAISTOS_LOG_LEVEL", "debug")
+    assert _run(monkeypatch, "setup", "--name", "laptop") == 0
+    assert "DEBUG" in {line["level"] for line in _logged(paths)}
+    assert capsys.readouterr().err == ""
+
+
+def test_a_broken_config_stops_commands_but_log(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    paths.config_dir.mkdir(parents=True)
+    broken = paths.config_dir / "config.toml"
+    broken.write_text("[git]\ntimeout = 0\n")
+    problem = f"{broken}: git.timeout must be more than 0, not 0.0"
+
+    assert _run(monkeypatch, "machine", "list") == 1
+    assert capsys.readouterr().err == f"error: {problem}\n"
+    assert _logged(paths)[-1]["message"] == f"end: error: {problem}"
+
+    assert _run(monkeypatch, "log", "show", "-n", "1") == 0
+    out, err = capsys.readouterr()
+    assert out.rstrip().endswith(
+        f"end: error: {problem} exit_code=1 duration=" + str(_logged(paths)[-1]["duration"])
+    )
+    assert err == f"warning: {problem}; using the defaults\n"
+
+    assert _run(monkeypatch, "--version") == 0
+    assert _run(monkeypatch, "machine", "--help") == 0

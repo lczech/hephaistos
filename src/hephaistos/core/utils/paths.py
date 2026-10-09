@@ -40,7 +40,7 @@ def machine_key() -> str:
 class Paths:
     """Where this Machine keeps its config, data (the database) and logs."""
 
-    config_file: Path
+    config_dir: Path
     data_dir: Path
     state_dir: Path
 
@@ -60,7 +60,7 @@ class Paths:
         key = machine_key()
         if home := env.get("HEPHAISTOS_HOME"):
             base = Path(home)
-            return cls(base / "config.toml", base / "data" / key, base / "state" / key)
+            return cls(base, base / "data" / key, base / "state" / key)
 
         def xdg(variable: str, default: str) -> Path:
             """An XDG base directory: the variable if set and absolute, else the default."""
@@ -69,7 +69,7 @@ class Paths:
             return Path(value) if Path(value).is_absolute() else Path.home() / default
 
         return cls(
-            xdg("XDG_CONFIG_HOME", ".config") / "hephaistos" / "config.toml",
+            xdg("XDG_CONFIG_HOME", ".config") / "hephaistos",
             xdg("XDG_DATA_HOME", ".local/share") / "hephaistos" / key,
             xdg("XDG_STATE_HOME", ".local/state") / "hephaistos" / key,
         )

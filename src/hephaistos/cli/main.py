@@ -11,6 +11,8 @@ import typer
 from hephaistos import __description__, __version__
 from hephaistos.cli import clone, db, event, log, machine, observe, repo, scan, terminal, worktree
 from hephaistos.cli.output import short_path
+from hephaistos.core import config
+from hephaistos.core.config import ConfigError
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
@@ -19,6 +21,8 @@ from hephaistos.core.utils.paths import Paths
 DEBUG_OPTION = "--debug"
 # What a run's exit code tells, for its log; ours are reported as errors before exiting.
 OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", 130: "interrupted"}
+# Commands that run on the default settings if the config is broken: to look into it.
+ON_DEFAULTS = frozenset({"log"})
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +45,24 @@ def without_debug(args: list[str]) -> tuple[list[str], bool]:
     return kept + args[end:], len(kept) < end
 
 
-def _invoke(args: list[str], logged: logs.DayFileHandler) -> tuple[int | str | None, str]:
+def _check_config(args: list[str], problem: ConfigError) -> None:
+    """Raises a broken config's problem, or warns if the command runs on the defaults anyway.
+
+    Showing help or the version needs no settings, and ON_DEFAULTS help to look into it.
+    """
+    head = args[: args.index("--")] if "--" in args else args
+    if head and head[0] not in ON_DEFAULTS and {"--help", "--version"}.isdisjoint(head):
+        raise problem
+    typer.echo(f"warning: {problem}; using the defaults", err=True)
+
+
+def _invoke(
+    args: list[str], logged: logs.DayFileHandler, problem: ConfigError | None
+) -> tuple[int | str | None, str]:
     """Runs the command; returns its exit code and outcome, having reported any error."""
     try:
+        if problem is not None:
+            _check_config(args, problem)
         app(args)
     except SystemExit as stop:
         code = stop.code
@@ -66,24 +85,33 @@ def _invoke(args: list[str], logged: logs.DayFileHandler) -> tuple[int | str | N
 def run() -> None:
     """Entry point: runs a command and logs it; our own errors are messages, not tracebacks.
 
-    With `--debug`, this run logs at debug level and also shows its records on stderr.
+    Settings are loaded first; a broken config stops all commands but `--help`, `--version` and
+    those in ON_DEFAULTS. With `--debug`, this run logs at debug level and also shows its records
+    on stderr.
     `log` commands log only what goes wrong, so that showing the log doesn't add to it.
     """
     args, debug = without_debug(sys.argv[1:])
-    logged = logs.DayFileHandler(Paths.from_environment().state_dir, "cli")
+    paths = Paths.from_environment()
+    problem = None
+    try:
+        settings = config.load(paths.config_dir).settings
+    except ConfigError as error:
+        problem, settings = error, config.DEFAULTS
+    config.activate(settings)
+    logged = logs.DayFileHandler(paths.state_dir, "cli")
     handlers: list[logging.Handler] = [logged]
     if debug:
         shown = logging.StreamHandler(sys.stderr)
         shown.setFormatter(log.TextFormatter("cli"))
         handlers.append(shown)
-    logs.start(handlers, logging.DEBUG if debug else logs.level_from())
+    logs.start(handlers, logging.DEBUG if debug else settings.log.level.number)
     started = time.monotonic()
     command = shlex.join(["hephaistos", *args])
     quiet = args[:1] == ["log"]
     if not quiet:
         logger.info("start: %s", command, extra={"version": __version__, "cwd": Path.cwd()})
     try:
-        code, outcome = _invoke(args, logged)
+        code, outcome = _invoke(args, logged, problem)
         duration = round(time.monotonic() - started, 3)
         if not quiet:
             logger.info("end: %s", outcome, extra={"exit_code": code, "duration": duration})

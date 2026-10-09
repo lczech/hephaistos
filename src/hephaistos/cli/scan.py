@@ -7,6 +7,7 @@ import typer
 from hephaistos.cli import terminal
 from hephaistos.cli.clone import ImportHistoryOption
 from hephaistos.cli.output import number_text, print_table, short_path
+from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import scan as scanning
@@ -78,8 +79,11 @@ def scan(
     ] = Path(),
     *,
     depth: Annotated[
-        int, typer.Option("--depth", "-d", min=0, help="How many directory levels down.")
-    ] = scanning.DEPTH,
+        int | None,
+        typer.Option(
+            "--depth", "-d", min=0, help="How many directory levels down. Default: scan.depth."
+        ),
+    ] = None,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", "-v", help="Also list what needs nothing: known ones, and more."),
@@ -93,6 +97,7 @@ def scan(
     matches several Repositories, or whose new Repository's name is taken, is skipped.
     """
     paths = Paths.from_environment()
+    depth = config.settings().scan.depth if depth is None else depth
     with read_session(paths) as session:
         planned = scanning.plan(session, directory, depth)
     _print_plan(planned, verbose=verbose)
