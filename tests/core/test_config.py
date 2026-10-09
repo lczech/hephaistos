@@ -123,3 +123,45 @@ def test_activate() -> None:
 
 def test_log_level_numbers() -> None:
     assert [level.number for level in LogLevel] == [10, 20, 30, 40, 50]
+
+
+def test_layers_keep_what_is_broken_apart(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text("[git]\ntimeout = 60\n")
+    (tmp_path / "config.laptop.toml").write_text("[git]\ntimeout = 0\n")
+    env = {"HEPHAISTOS_SCAN_DEPTH": "5", "HEPHAISTOS_OBSERVE_WORKERS": "none"}
+    found = config.layers(tmp_path, "laptop", env)
+    assert [(Path(layer.source).name, layer.exists) for layer in found] == [
+        ("config.toml", True),
+        ("config.laptop.toml", True),
+        ("HEPHAISTOS_OBSERVE_WORKERS", True),
+        ("HEPHAISTOS_SCAN_DEPTH", True),
+    ]
+    assert [layer.error is None for layer in found] == [True, False, False, True]
+    merged = config.merged(found)
+    assert (merged.settings.git.timeout, merged.settings.scan.depth) == (60.0, 5)
+    assert merged.values["observe.workers"] == 8
+    with pytest.raises(ConfigError, match=r"git\.timeout must be more than 0"):
+        load(tmp_path, "laptop", env)
+
+    assert not config.layers(tmp_path, "desktop", {})[1].exists
+
+
+def test_other_hosts_files(tmp_path: Path) -> None:
+    for name in ("config.toml", "config.login1.toml", "config.login2.toml", "notes.toml"):
+        (tmp_path / name).write_text("")
+    other = config.other_hosts_files(tmp_path, "login1.hpc.example.org")
+    assert [path.name for path in other] == ["config.login2.toml"]
+
+
+def test_unknown_variables() -> None:
+    env = {
+        "HEPHAISTOS_HOME": "/x",
+        "HEPHAISTOS_GIT_TIMEOUT": "3",
+        "HEPHAISTOS_GIT_TIMOUT": "3",
+        "HEPHAISTOS_COLOUR": "1",
+        "PATH": "/bin",
+    }
+    assert config.unknown_variables(env) == {
+        "HEPHAISTOS_COLOUR": None,
+        "HEPHAISTOS_GIT_TIMOUT": "HEPHAISTOS_GIT_TIMEOUT",
+    }

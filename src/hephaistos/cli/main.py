@@ -9,7 +9,19 @@ from typing import Annotated
 import typer
 
 from hephaistos import __description__, __version__
-from hephaistos.cli import clone, db, event, log, machine, observe, repo, scan, terminal, worktree
+from hephaistos.cli import (
+    clone,
+    db,
+    event,
+    log,
+    machine,
+    observe,
+    repo,
+    scan,
+    terminal,
+    worktree,
+)
+from hephaistos.cli import config as config_command
 from hephaistos.cli.output import short_path
 from hephaistos.core import config
 from hephaistos.core.config import ConfigError
@@ -22,7 +34,8 @@ DEBUG_OPTION = "--debug"
 # What a run's exit code tells, for its log; ours are reported as errors before exiting.
 OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", 130: "interrupted"}
 # Commands that run on the default settings if the config is broken: to look into it.
-ON_DEFAULTS = frozenset({"log"})
+ON_DEFAULTS = frozenset({"log", "config"})
+SHOWS_CONFIG = "config"  # reports a broken config itself
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +47,7 @@ app.add_typer(worktree.app, name="worktree")
 app.add_typer(event.app, name="event")
 app.add_typer(db.app, name="db")
 app.add_typer(log.app, name="log")
+app.add_typer(config_command.app, name="config")
 app.command()(observe.observe)
 app.command()(scan.scan)
 
@@ -53,7 +67,8 @@ def _check_config(args: list[str], problem: ConfigError) -> None:
     head = args[: args.index("--")] if "--" in args else args
     if head and head[0] not in ON_DEFAULTS and {"--help", "--version"}.isdisjoint(head):
         raise problem
-    typer.echo(f"warning: {problem}; using the defaults", err=True)
+    if head[:1] != [SHOWS_CONFIG]:
+        typer.echo(f"warning: {problem}; using the defaults", err=True)
 
 
 def _invoke(
