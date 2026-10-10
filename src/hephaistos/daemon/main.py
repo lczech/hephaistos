@@ -12,6 +12,7 @@ import signal
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Protocol
 
 from hephaistos import __version__
@@ -29,6 +30,7 @@ FIRST_RESTART_DELAY = 1.0  # seconds before restarting a crashed part; doubles w
 LAST_RESTART_DELAY = 60.0
 STEADY_TIME = 600.0  # seconds a part runs without crashing to count as recovered
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
+SOURCE = Path(__file__).parents[3]  # the checkout, when running from one: `src/hephaistos/…`
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +47,14 @@ class Part(Protocol):
     def kill(self) -> None:
         """Kills the processes it started, at once."""
         ...
+
+
+def running_version(source: Path = SOURCE) -> str:
+    """Our version, with the commit it runs from a checkout, e.g. `0.1.0 (bfc66f6-dirty)`."""
+    if not (source / ".git").exists() or not (source / "src" / "hephaistos").is_dir():
+        return __version__
+    described = git.describe(source)
+    return __version__ if described is None else f"{__version__} ({described})"
 
 
 def _enabled(settings: config.Settings) -> list[str]:
@@ -86,12 +96,10 @@ async def keep_running(part: Part) -> None:
 class Daemon:
     """The running Daemon: its parts, and the status file they report to."""
 
-    def __init__(self, paths: Paths, names: list[str]) -> None:
+    def __init__(self, paths: Paths, names: list[str], version: str) -> None:
         """Prepares the parts named; `run` starts them."""
         self._paths = paths
-        self._status = Status(
-            os.getpid(), __version__, datetime.now(UTC), parts=dict.fromkeys(names)
-        )
+        self._status = Status(os.getpid(), version, datetime.now(UTC), parts=dict.fromkeys(names))
         builders: dict[str, Callable[[], Part]] = {
             Watcher.name: lambda: Watcher(paths, self._reporter(Watcher.name)),
         }
@@ -161,12 +169,17 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
         previous = status.read(paths.state_dir)
         if previous is not None and previous.stopped_at is None:
             log.warning("the previous Daemon (pid %d) ended without stopping", previous.pid)
-        daemon = Daemon(paths, names)
-        interval = config.settings().watcher.interval
+        version = running_version()
+        daemon = Daemon(paths, names, version)
         log.info(
             "running: %s",
             ", ".join(names),
-            extra={"interval": interval, "git": found.executable, "git_version": found.version},
+            extra={
+                "version": version,
+                "interval": config.settings().watcher.interval,
+                "git": found.executable,
+                "git_version": found.version,
+            },
         )
         announce(f"Running: {', '.join(names)}; Ctrl+C stops the Daemon")
         reason = daemon.run()

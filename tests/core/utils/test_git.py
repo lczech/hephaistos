@@ -432,3 +432,15 @@ def test_git_calls_are_logged_at_debug_level(
     assert "stderr" not in vars(located)
     assert vars(failed)["exit_code"] != 0
     assert vars(failed)["stderr"]
+
+
+def test_describe(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", commits=0)
+    assert git_facts.describe(repo) is None  # no commit yet
+    (repo / "file").write_text("one")
+    git(repo, "add", "file")
+    git(repo, "commit", "--quiet", "--message", "one")
+    short = git(repo, "rev-parse", "--short", "HEAD")
+    assert git_facts.describe(repo) == short
+    (repo / "file").write_text("two")
+    assert git_facts.describe(repo) == f"{short}-dirty"

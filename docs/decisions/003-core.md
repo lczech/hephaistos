@@ -58,7 +58,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - TOML, one or two levels of sections. Every setting has a real value: no null; "unset" behaviour gets a name (`time_format = "auto"`) or a natural number (0). A missing key leaves it to the layer below.
 - Checked against typed sections (`Settings` in `config.py`) with limits: unknown keys and wrong types or values fail, naming the file or variable and the key.
 - Each process loads its settings once, at startup (CLI `run()`, Daemon), and activates them; the Core reads them where it uses them (`config.settings().git.timeout`). Changes apply to the next command, or to the Daemon after a restart.
-- A broken config stops every command but `--help`, `--version` and `log` (which run on the defaults, with a warning); the Daemon doesn't start.
+- A broken config stops every command but `--help`, `--version`, `log`, `config` and `daemon` (which run on the defaults, with a warning); `daemon run` doesn't start.
 - Files hold how this Machine runs (e.g. timeouts, workers, Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry layer, once it exists; until then `time_format` stays in the files.
 
 ## Conventions
@@ -131,8 +131,11 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - A failed pass is logged, and the next one runs on schedule; a busy database is retried 3 times (after 1, 2, 4 s). A dead worker is replaced. A crashed part restarts after 1 s, doubling up to 60 s, and back to 1 s once it ran 10 minutes.
 - A Daemon that can't start (broken config, no parts enabled, not set up, no git, already running) exits with 78 (`EX_CONFIG`), which its systemd unit doesn't restart.
 - Stopping is immediate: a pass cut short loses nothing, as git only reads and SQLite rolls back. A second signal exits at once.
-- `daemon.json` in the state directory tells how it runs: pid, version, start and stop, and each part's last pass (when, how long, any error). Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
+- `daemon.json` in the state directory tells how it runs: pid, version (from a checkout with its commit, `0.1.0 (bfc66f6-dirty)`), start and stop, and each part's last pass (when, how long, any error). Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
 - Log: INFO for start (parts, interval, git and its version), stop, and passes recording Events; DEBUG for passes without; ERROR for failed passes and crashes.
+- `daemon install` writes a systemd user unit, `~/.config/systemd/user/hephaistos.service`, then enables and starts it. The unit runs the hephaistos that installed it, by the path it was run as (a link such as `~/.local/bin/hephaistos` survives reinstalling the tool), with the shell's `HEPHAISTOS_HOME` and XDG directories; settings variables don't reach it, and `install` says so. Run again, it rewrites a changed unit and restarts the Daemon; it leaves a unit alone that it didn't write. `--linger` runs `loginctl enable-linger`, so the Daemon starts at boot and survives logout; `uninstall` leaves linger as it is.
+- `start`, `stop` and `restart` go through systemd. `stop` also ends a Daemon run by hand (SIGTERM to the lock's holder); `start` refuses while one runs. Without systemd user services, `daemon run` in tmux takes their place.
+- `status` shows the unit, the Daemon (from the lock and `daemon.json`) and the Watcher's last pass, `stalled` if it is more than 3 intervals plus `git.timeout` ago; it warns if the unit's program is gone or its paths differ from the shell's. It exits with 0 if the Daemon runs, 3 if not.
 
 ## CLI for the first slice
 
@@ -156,7 +159,7 @@ hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process
                     [--pid <pid>] [-n <count>] [--follow] [--brief] [--json] [--no-pager]
                | prune [--keep <days>d] [--yes]
 hephaistos config show [<key>|<section>] | defaults
-hephaistos daemon run
+hephaistos daemon run | status | install [--linger] | uninstall | start | stop | restart
 hephaistos [--debug] …
 ```
 

@@ -19,6 +19,8 @@ hephaistos worktree list
 hephaistos observe
 hephaistos event list --repo hephaistos
 hephaistos db tables                # the database as stored; `db dump <table>` for its rows
+hephaistos daemon install          # observes in the background, from login on; `--linger`: from boot
+hephaistos daemon status
 ```
 
 ## Development
