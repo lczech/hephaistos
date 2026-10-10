@@ -69,9 +69,9 @@ def needs_git(*version: int) -> pytest.MarkDecorator:
     return pytest.mark.skipif(git_version() < version, reason=f"needs git {shown}")
 
 
-def run_cli(monkeypatch: pytest.MonkeyPatch, *args: str) -> object:
-    """Runs a command as the entry point does; returns its exit code."""
-    monkeypatch.setattr("sys.argv", ["hephaistos", *args])
+def run_cli(monkeypatch: pytest.MonkeyPatch, *args: str, program: str = "hephaistos") -> object:
+    """Runs a command as the entry point does, run as `program`; returns its exit code."""
+    monkeypatch.setattr("sys.argv", [program, *args])
     with pytest.raises(SystemExit) as exit_info:
         run()
     return exit_info.value.code

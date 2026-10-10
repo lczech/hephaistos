@@ -35,8 +35,9 @@ from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 DEBUG_OPTION = "--debug"
 # What a run's exit code tells, for its log; ours are reported as errors before exiting.
 OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", EX_CONFIG: "not started", 130: "interrupted"}
-# Commands that run on the default settings if the config is broken: to look into it.
-ON_DEFAULTS = frozenset({"log", "config"})
+# Commands that run on the default settings if the config is broken: to look into it, or to
+# stop the Daemon. Not `daemon run`: a Daemon on other settings than intended would mislead.
+ON_DEFAULTS = frozenset({"log", "config", "daemon"})
 SHOWS_CONFIG = "config"  # reports a broken config itself
 RUNS_DAEMON = ["daemon", "run"]  # its records are the Daemon's; a broken config doesn't start it
 
@@ -74,10 +75,11 @@ def _check_config(args: list[str], problem: ConfigError) -> None:
     Showing help or the version needs no settings, and ON_DEFAULTS help to look into it.
     """
     head = args[: args.index("--")] if "--" in args else args
-    if head and head[0] not in ON_DEFAULTS and {"--help", "--version"}.isdisjoint(head):
+    if head and {"--help", "--version"}.isdisjoint(head):
         if head[:2] == RUNS_DAEMON:
             raise NotStartedError(str(problem)) from problem
-        raise problem
+        if head[0] not in ON_DEFAULTS:
+            raise problem
     if head[:1] != [SHOWS_CONFIG]:
         typer.echo(f"warning: {problem}; using the defaults", err=True)
 

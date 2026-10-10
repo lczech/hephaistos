@@ -486,6 +486,19 @@ def root_commits(top: Path, *, include_head: bool = True) -> tuple[str, ...]:
     return tuple(sorted(set(output.split()))) if output else ()
 
 
+def describe(top: Path) -> str | None:
+    """The commit checked out, as `git describe --always --dirty` names it, e.g. `bfc66f6-dirty`.
+
+    None if git can't say, e.g. as there is no commit yet.
+    """
+    try:
+        result = _git(top, "describe", "--always", "--dirty")
+    except GitError:
+        return None
+    described = result.stdout.strip()
+    return described if result.returncode == 0 and described else None
+
+
 def shares_history(roots: Collection[str], known: Collection[str]) -> bool:
     """Whether root commits are compatible with `known` ones: some in common, or either empty."""
     return not roots or not known or not set(roots).isdisjoint(known)

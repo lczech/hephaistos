@@ -7,6 +7,7 @@ lock knows that no Daemon runs. The status file is replaced as a whole, never ha
 import fcntl
 import json
 import os
+import time
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -17,6 +18,8 @@ from typing import Any
 from hephaistos.daemon.errors import NotStartedError
 
 LOCK_NAME = "daemon.lock"
+LOCK_WAIT = 1.0  # seconds a starting Daemon waits for the lock, which `is_running` takes briefly
+LOCK_RETRY = 0.05  # seconds between attempts
 STATUS_NAME = "daemon.json"
 
 
@@ -101,18 +104,46 @@ def read(directory: Path) -> Status | None:
         return None
 
 
+def _locked(descriptor: int, operation: int) -> bool:
+    """Whether `flock` got the lock, waiting LOCK_WAIT at most, e.g. while `is_running` looks."""
+    deadline = time.monotonic() + LOCK_WAIT
+    while True:
+        try:
+            fcntl.flock(descriptor, operation | fcntl.LOCK_NB)
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(LOCK_RETRY)
+        else:
+            return True
+
+
 @contextmanager
 def held_lock(directory: Path) -> Generator[None]:
     """Holds the Daemon's lock in `directory`; raises NotStartedError if another Daemon has it."""
     directory.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(directory / LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o644)
     try:
-        try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not _locked(descriptor, fcntl.LOCK_EX):
             running = read(directory)
             pid = f" (pid {running.pid})" if running else ""
-            raise NotStartedError(f"a Daemon is already running on this Machine{pid}") from None
+            raise NotStartedError(f"a Daemon is already running on this Machine{pid}")
         yield
     finally:
         os.close(descriptor)  # releases the lock
+
+
+def is_running(directory: Path) -> bool:
+    """Whether a Daemon holds the lock in `directory`."""
+    try:
+        descriptor = os.open(directory / LOCK_NAME, os.O_RDONLY)
+    except FileNotFoundError:
+        return False
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)  # released by closing
+        except BlockingIOError:
+            return True
+        return False
+    finally:
+        os.close(descriptor)

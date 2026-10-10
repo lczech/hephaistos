@@ -47,3 +47,13 @@ def test_doctor_who() -> None:
     result = runner.invoke(app, ["daemon", "run", "--doctor-who"])  # not set up: no Daemon
     assert result.exit_code == 0
     assert len(result.output.splitlines()) == 10
+
+
+def test_other_commands_run_on_a_broken_config(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0")
+    monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl
+    assert run_cli(monkeypatch, "daemon", "status") == 3  # not running
+    problem = "HEPHAISTOS_WATCHER_INTERVAL: must be at least 1, not 0.0"
+    assert capsys.readouterr().err == f"warning: {problem}; using the defaults\n"

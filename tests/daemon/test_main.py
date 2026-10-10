@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos import __version__
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.events import events
@@ -20,7 +21,7 @@ from hephaistos.daemon import main, status
 from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.status import PassStatus, Status
 from hephaistos.daemon.watcher.schedule import Watcher
-from support import git, logged
+from support import create, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
 
@@ -176,3 +177,11 @@ def test_ctrl_c_stops_it_and_a_crash_is_noticed(paths: Paths) -> None:
     assert daemon.returncode == 0
     assert "the previous Daemon (pid 41233) ended without stopping" in _messages(paths)
     assert "stopped: SIGINT" in _messages(paths)
+
+
+def test_running_version(tmp_path: Path) -> None:
+    assert main.running_version(tmp_path) == __version__  # not a checkout
+    checkout = create(tmp_path / "checkout")
+    (checkout / "src" / "hephaistos").mkdir(parents=True)
+    short = git(checkout, "rev-parse", "--short", "HEAD")
+    assert main.running_version(checkout) == f"{__version__} ({short})"
