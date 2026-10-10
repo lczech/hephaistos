@@ -11,6 +11,7 @@ import typer
 from hephaistos import __description__, __version__
 from hephaistos.cli import (
     clone,
+    daemon,
     db,
     event,
     log,
@@ -29,13 +30,15 @@ from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 
 DEBUG_OPTION = "--debug"
 # What a run's exit code tells, for its log; ours are reported as errors before exiting.
-OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", 130: "interrupted"}
+OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", EX_CONFIG: "not started", 130: "interrupted"}
 # Commands that run on the default settings if the config is broken: to look into it.
 ON_DEFAULTS = frozenset({"log", "config"})
 SHOWS_CONFIG = "config"  # reports a broken config itself
+RUNS_DAEMON = ["daemon", "run"]  # its records are the Daemon's; a broken config doesn't start it
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,7 @@ app.add_typer(event.app, name="event")
 app.add_typer(db.app, name="db")
 app.add_typer(log.app, name="log")
 app.add_typer(config_command.app, name="config")
+app.add_typer(daemon.app, name="daemon")
 app.command()(observe.observe)
 app.command()(scan.scan)
 
@@ -71,6 +75,8 @@ def _check_config(args: list[str], problem: ConfigError) -> None:
     """
     head = args[: args.index("--")] if "--" in args else args
     if head and head[0] not in ON_DEFAULTS and {"--help", "--version"}.isdisjoint(head):
+        if head[:2] == RUNS_DAEMON:
+            raise NotStartedError(str(problem)) from problem
         raise problem
     if head[:1] != [SHOWS_CONFIG]:
         typer.echo(f"warning: {problem}; using the defaults", err=True)
@@ -91,7 +97,7 @@ def _invoke(
         return code, f"error: {code}"  # a message, exiting with 1
     except HephaistosError as error:
         typer.echo(f"error: {error}", err=True)
-        return 1, f"error: {error}"
+        return error.exit_code, f"error: {error}"
     except Exception as error:
         logger.exception("unexpected %s", type(error).__name__)
         typer.echo(f"error: unexpected {type(error).__name__}: {error}", err=True)
@@ -118,13 +124,9 @@ def run() -> None:
     except ConfigError as error:
         problem, settings = error, config.DEFAULTS
     config.activate(settings)
-    logged = logs.DayFileHandler(paths.state_dir, "cli")
-    handlers: list[logging.Handler] = [logged]
-    if debug:
-        shown = logging.StreamHandler(sys.stderr)
-        shown.setFormatter(log.TextFormatter("cli"))
-        handlers.append(shown)
-    logs.start(handlers, logging.DEBUG if debug else settings.log.level.number)
+    process = "daemon" if args[:2] == RUNS_DAEMON else "cli"
+    level = logging.DEBUG if debug else settings.log.level.number
+    logged = logs.start(logs.Setup(paths.state_dir, process, level, shown=debug))
     started = time.monotonic()
     command = shlex.join(["hephaistos", *args])
     quiet = args[:1] == ["log"]

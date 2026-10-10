@@ -1,11 +1,10 @@
-"""`hephaistos log`: show and prune this Machine's log; the log as text."""
+"""`hephaistos log`: show and prune this Machine's log."""
 
-import json
 import logging
 import re
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Literal, override
+from typing import Annotated, Literal
 
 import typer
 
@@ -13,7 +12,7 @@ from hephaistos.cli import terminal
 from hephaistos.cli.output import JsonOption, LimitOption, number_text, parse_time, short_path
 from hephaistos.core import config
 from hephaistos.core.utils import logs
-from hephaistos.core.utils.logs import JsonFormatter, Record
+from hephaistos.core.utils.logs import Record, record_text
 from hephaistos.core.utils.paths import Paths
 
 app = typer.Typer(
@@ -23,55 +22,9 @@ app = typer.Typer(
 LevelName = Literal["debug", "info", "warning", "error", "critical"]
 ProcessName = Literal["cli", "daemon"]
 
-# Fields every record has, shown in fixed places; the rest follow as `key=value`.
-_FIXED = frozenset({"at", "level", "process", "pid", "logger", "message", "error", "stack"})
 _DAYS = re.compile(r"(\d+)d")
 
 log = logging.getLogger(__name__)
-
-
-def _value_text(value: object) -> str:
-    """A field's value: strings as they are, anything else as JSON."""
-    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
-
-
-def record_text(record: Record, *, dated: bool = False, brief: bool = False) -> str:
-    """A record as one line in local time, with its traceback (if any) indented below.
-
-    E.g. `14:03:21.123 INFO  cli[4242] recorded clone.moved event=… subject=…`; `dated` puts
-    the day in front (`10-08 14:03:21.123`), `brief` shortens a traceback to its last line.
-    """
-    at = logs.record_at(record).astimezone()
-    seconds = f"{at:%m-%d %H:%M:%S}" if dated else f"{at:%H:%M:%S}"
-    parts = [
-        f"{seconds}.{at.microsecond // 1000:03d}",
-        f"{record['level']!s:<5}",
-        f"{record.get('process', '?')}[{record.get('pid', '?')}]",
-        str(record["message"]),
-        *(f"{key}={_value_text(value)}" for key, value in record.items() if key not in _FIXED),
-    ]
-    lines = [" ".join(parts)]
-    for key in ("error", "stack"):
-        if key in record:
-            below = str(record[key]).splitlines()
-            if brief:
-                below = [f"↳ {line}" for line in below[-1:]]
-            lines += (f"    {line}" for line in below)
-    # Lone surrogates (from undecodable names) can't be printed; their escapes can.
-    return "\n".join(lines).encode(errors="backslashreplace").decode()
-
-
-class TextFormatter(logging.Formatter):
-    """Records as `record_text` shows them when read back from the log file."""
-
-    def __init__(self, process: str) -> None:
-        """Formats records of a process of this kind: `cli` or `daemon`."""
-        super().__init__()
-        self._json = JsonFormatter(process)
-
-    @override
-    def format(self, record: logging.LogRecord) -> str:
-        return record_text(json.loads(self._json.format(record)))
 
 
 def _directory() -> Path:

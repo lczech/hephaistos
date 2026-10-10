@@ -26,6 +26,8 @@ FOLLOW_INTERVAL = 0.5  # seconds between looking for new records
 
 type Record = dict[str, object]  # as written: `at`, `level`, `message`, …
 
+# Fields every record has, shown in fixed places as text; the rest follow as `key=value`.
+_FIXED = frozenset({"at", "level", "process", "pid", "logger", "message", "error", "stack"})
 _DAY_FILE = re.compile(r"(\d{4}-\d{2}-\d{2})\.jsonl")
 # What every LogRecord has; anything else was passed as `extra` and becomes a field.
 _STANDARD = frozenset(vars(logging.LogRecord("", 0, "", 0, "", (), None))) | {"message"}
@@ -142,8 +144,19 @@ class DayFileHandler(logging.Handler):
             self.failure = error
 
 
+@dataclass(frozen=True)
+class Setup:
+    """How a process logs: into which directory, as which process, from which level."""
+
+    directory: Path
+    process: str  # `cli` or `daemon`
+    level: int
+    shown: bool = False  # also on stderr, as text
+
+
 _log = logging.getLogger(__name__)
 _installed: list[logging.Handler] = []
+_active: Setup | None = None
 
 
 def _log_uncaught(
@@ -164,23 +177,40 @@ def _log_uncaught_in_thread(args: threading.ExceptHookArgs) -> None:
     threading.__excepthook__(args)
 
 
-def start(handlers: list[logging.Handler], level: int) -> None:
-    """Sends all records at `level` and above to `handlers`, also uncaught exceptions.
+def start(setup: Setup) -> DayFileHandler:
+    """Sends all records at the setup's level and above to the log, also uncaught exceptions.
 
-    Replaces what an earlier `start` set up.
+    Replaces what an earlier `start` set up. Returns the handler writing the log files, whose
+    `failure` tells if writing them failed.
     """
+    global _active  # noqa: PLW0603 - one setup per process, as for the settings
     stop()
+    written = DayFileHandler(setup.directory, setup.process)
+    handlers: list[logging.Handler] = [written]
+    if setup.shown:
+        shown = logging.StreamHandler(sys.stderr)
+        shown.setFormatter(TextFormatter(setup.process))
+        handlers.append(shown)
     root = logging.getLogger()
-    root.setLevel(level)
+    root.setLevel(setup.level)
     for handler in handlers:
         root.addHandler(handler)
         _installed.append(handler)
     sys.excepthook = _log_uncaught
     threading.excepthook = _log_uncaught_in_thread
+    _active = setup
+    return written
+
+
+def active() -> Setup | None:
+    """How this process logs, as `start` set it up; None if it doesn't."""
+    return _active
 
 
 def stop() -> None:
     """Undoes `start`."""
+    global _active  # noqa: PLW0603
+    _active = None
     root = logging.getLogger()
     for handler in _installed:
         root.removeHandler(handler)
@@ -212,6 +242,50 @@ def parsed(line: bytes) -> Record | None:
 def record_at(record: Record) -> datetime:
     """When a record was made; its `at` was checked when it was parsed."""
     return datetime.fromisoformat(str(record["at"]))
+
+
+def _field_text(value: object) -> str:
+    """A field's value: strings as they are, anything else as JSON."""
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def record_text(record: Record, *, dated: bool = False, brief: bool = False) -> str:
+    """A record as one line in local time, with its traceback (if any) indented below.
+
+    E.g. `14:03:21.123 INFO  cli[4242] recorded clone.moved event=… subject=…`; `dated` puts
+    the day in front (`10-08 14:03:21.123`), `brief` shortens a traceback to its last line.
+    """
+    at = record_at(record).astimezone()
+    seconds = f"{at:%m-%d %H:%M:%S}" if dated else f"{at:%H:%M:%S}"
+    parts = [
+        f"{seconds}.{at.microsecond // 1000:03d}",
+        f"{record['level']!s:<5}",
+        f"{record.get('process', '?')}[{record.get('pid', '?')}]",
+        str(record["message"]),
+        *(f"{key}={_field_text(value)}" for key, value in record.items() if key not in _FIXED),
+    ]
+    lines = [" ".join(parts)]
+    for key in ("error", "stack"):
+        if key in record:
+            below = str(record[key]).splitlines()
+            if brief:
+                below = [f"↳ {line}" for line in below[-1:]]
+            lines += (f"    {line}" for line in below)
+    # Lone surrogates (from undecodable names) can't be printed; their escapes can.
+    return "\n".join(lines).encode(errors="backslashreplace").decode()
+
+
+class TextFormatter(logging.Formatter):
+    """Records as `record_text` shows them when read back from the log file."""
+
+    def __init__(self, process: str) -> None:
+        """Formats records of a process of this kind: `cli` or `daemon`."""
+        super().__init__()
+        self._json = JsonFormatter(process)
+
+    @override
+    def format(self, record: logging.LogRecord) -> str:
+        return record_text(json.loads(self._json.format(record)))
 
 
 @dataclass(frozen=True)

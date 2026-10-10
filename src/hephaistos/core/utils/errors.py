@@ -4,6 +4,8 @@ from pathlib import Path
 class HephaistosError(Exception):
     """An error with a message meant for the user."""
 
+    exit_code = 1  # of a command that it ends
+
 
 class NotSetUpError(HephaistosError):
     """This Machine has no database yet."""

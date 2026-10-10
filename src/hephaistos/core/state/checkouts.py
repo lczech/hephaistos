@@ -1,5 +1,6 @@
 """What Clones and Worktrees share: their status, and how they can go missing or fail."""
 
+import dataclasses
 import uuid
 from dataclasses import dataclass
 from enum import StrEnum
@@ -102,6 +103,12 @@ class Condition(StrEnum):
     FOUND = "found"
     FAILED = "failed"
     RECOVERED = "recovered"
+
+
+def same_state(old: CheckoutState, new: CheckoutState) -> bool:
+    """Whether a newer observation found nothing new, apart from when and by whom it was made."""
+    unchanged = dataclasses.replace(old, observed_at=new.observed_at, observed_by=new.observed_by)
+    return unchanged == new
 
 
 def _health(state: CheckoutState) -> Condition | None:

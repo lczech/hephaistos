@@ -93,6 +93,14 @@ class Scan:
 
 
 @dataclass(frozen=True)
+class Watcher:
+    """The section [watcher]."""
+
+    enabled: bool
+    interval: Annotated[float, AtLeast(1)]
+
+
+@dataclass(frozen=True)
 class Settings:
     """All settings, by section; `defaults.toml` documents them and holds their defaults."""
 
@@ -101,6 +109,7 @@ class Settings:
     git: Git
     observe: Observe
     scan: Scan
+    watcher: Watcher
 
 
 class ConfigError(HephaistosError):
@@ -109,7 +118,7 @@ class ConfigError(HephaistosError):
 
 @dataclass(frozen=True)
 class _Leaf:
-    """A setting's type (int, float or a StrEnum) and limits."""
+    """A setting's type (bool, int, float or a StrEnum) and limits."""
 
     kind: type
     limits: tuple[object, ...]
@@ -151,6 +160,9 @@ PREFIX = "HEPHAISTOS_"  # of our environment variables
 OTHER_VARIABLES = frozenset({HOME_VARIABLE})  # ours, but not settings
 
 
+BOOLEAN_TEXTS = {"true": True, "1": True, "false": False, "0": False}  # in variables
+
+
 def variable(key: str) -> str:
     """The environment variable for a setting, e.g. `HEPHAISTOS_GIT_TIMEOUT`."""
     return PREFIX + key.upper().replace(".", "_")
@@ -167,6 +179,11 @@ def _value_text(value: object) -> str:
     return json.dumps(value, default=str)
 
 
+def setting_text(value: object) -> str:
+    """A setting's value as written in TOML, but strings without quotes: `true`, `60.0`, `auto`."""
+    return json.dumps(value) if isinstance(value, bool) else str(value)
+
+
 def _checked(leaf: _Leaf, value: object, where: str) -> object:
     """A value of the setting's type within its limits; raises ConfigError otherwise."""
     kind = leaf.kind
@@ -175,6 +192,10 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
             choices = ", ".join(kind)
             raise ConfigError(f"{where} must be one of {choices}, not {_value_text(value)}")
         return kind(value)
+    if kind is bool:
+        if not isinstance(value, bool):
+            raise ConfigError(f"{where} must be true or false, not {_value_text(value)}")
+        return value
     number = isinstance(value, int | float) and not isinstance(value, bool)
     if kind is float and number:
         value = float(cast("float", value))
@@ -207,6 +228,8 @@ def _table(data: Mapping[str, object], source: str, prefix: str = "") -> dict[st
 
 def _from_text(leaf: _Leaf, text: str) -> object:
     """An environment variable's value as the setting's type, where it is one."""
+    if leaf.kind is bool:
+        return BOOLEAN_TEXTS.get(text.lower(), text)
     for kind in (int, float):
         if leaf.kind is kind:
             try:

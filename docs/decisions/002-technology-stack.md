@@ -14,8 +14,8 @@ Code is separated by purpose; the number of processes is a deployment choice.
 |---|---|
 | `core/` | The Core library: domain model, operations, storage, git, and the interfaces that plugins implement. All logic lives here, including observing a Machine (taking State snapshots, comparing them into Events, reading the hook inbox) and the sync merge rules. |
 | `cli/` | The CLI, command `hephaistos`. Works directly on the local database via the Core; needs no running Daemon. |
-| `daemon/` | The Daemon, command `hephaistos-daemon`: reads this Machine's config and runs the enabled parts below. |
-| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers, with git at low CPU and I/O priority (`nice`, `ionice -c3`) so that it never competes with interactive work. |
+| `daemon/` | The Daemon, command `hephaistos daemon run`: reads this Machine's config and runs the enabled parts below. |
+| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers, in a worker process at low CPU and I/O priority (`nice`, `ionice -c3`), so that git never competes with interactive work and the other parts keep their priority. |
 | `daemon/sync/` | Sync: talks to Peers and decides when; merging is done by the Core (see [001](001-data-ownership.md)). |
 | `daemon/server/` | The Server: HTTP/WebSocket access to the Core for GUIs, and serves the `gui/web/` files to browsers. |
 | `plugins/` | Everything tool-specific, grouped by extension point; see below. |
@@ -33,7 +33,7 @@ plugins ──────────────────┘
 gui/desktop ─> gui/web ──HTTP──> server
 ```
 
-- **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
+- **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. One command for CLI and Daemon keeps a single thing on the PATH. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
 - **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the terminals plugin (e.g. tmux). Electron only does desktop integration; logic stays in the Core.
 - **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently (WAL mode, so reads never wait for writes). The database must be on a local disk, since SQLite locking is unreliable on network filesystems. Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
 

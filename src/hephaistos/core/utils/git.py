@@ -58,6 +58,32 @@ LOCAL_VARIABLES = frozenset(
 )
 
 
+@dataclass(frozen=True)
+class Installation:
+    """The git that we run."""
+
+    executable: Path
+    version: str  # as `git --version` says it, e.g. `git version 2.43.0`
+
+
+def installation() -> Installation:
+    """The git on the PATH, which we run; raises GitError if there is none or it fails."""
+    executable = shutil.which("git")
+    if executable is None:
+        raise GitError("git is not installed")
+    try:
+        result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+            [executable, "--version"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=config.settings().git.timeout,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise GitError(f"{executable} doesn't run: {error}") from None
+    return Installation(Path(executable), result.stdout.strip())
+
+
 def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Runs git in `path`; the caller checks the exit code."""
     executable = shutil.which("git")

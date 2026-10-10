@@ -33,7 +33,7 @@ Our own software parts; see [technology stack](decisions/002-technology-stack.md
 
 - **Core**: the library holding all logic. Not a process.
 - **CLI**: the command-line client, `hephaistos`.
-- **Daemon**: the background process on a Machine, `hephaistos-daemon`. It runs the parts enabled there, or a single pass of them (one-shot mode):
+- **Daemon**: the background process on a Machine, `hephaistos daemon run`. It runs the parts enabled there, or a single pass of them (one-shot mode):
   - **Watcher**: observes this Machine and records State and Events.
   - **Sync**: exchanges data with Peers.
   - **Server**: HTTP/WebSocket access for GUIs; also serves the GUI files.
