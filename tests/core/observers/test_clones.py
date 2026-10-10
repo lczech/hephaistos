@@ -44,7 +44,7 @@ def test_nothing_changed(paths: Paths, repo: Path) -> None:
     observer.observe(paths)  # the first observation starts reading the reflogs
     before = _state(paths, repo)
     result = observer.observe(paths)
-    assert (result.events, result.observed, result.skipped) == ([], 1, 0)
+    assert (result.events, result.observed, result.skipped, result.updated) == ([], 1, 0, 0)
     after = _state(paths, repo)
     assert after.observed_at > before.observed_at
     assert after == dataclasses.replace(before, observed_at=after.observed_at)
@@ -53,7 +53,8 @@ def test_nothing_changed(paths: Paths, repo: Path) -> None:
 def test_status_changes_update_state_without_events(paths: Paths, repo: Path) -> None:
     (repo / "new").write_text("x")
     git(repo, "commit", "--quiet", "--allow-empty", "--message", "ahead")
-    assert observer.observe(paths).events == []
+    result = observer.observe(paths)
+    assert (result.events, result.updated) == ([], 1)
     after = _state(paths, repo)
     assert (after.untracked, after.ahead, after.behind, after.upstream) == (1, 1, 0, "origin/main")
 
@@ -215,7 +216,7 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
     git(repo, "worktree", "add", "--quiet", "-b", "feature", str(tmp_path / "feature"))
     result = observer.observe(paths)
     assert _kinds(result) == ["clone.branch_created", "worktree.added"]
-    assert (result.observed, result.worktrees) == (1, 1)
+    assert (result.observed, result.worktrees, result.updated) == (1, 1, 2)
     added = result.events[1]
     assert added.payload["branch"] == "feature"
     assert added.payload["clone_id"] == str(_state(paths, repo).clone_id)
@@ -225,7 +226,7 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
     git(repo, "worktree", "move", str(tmp_path / "feature"), str(tmp_path / "moved"))
     (tmp_path / "moved" / "new").write_text("x")
     result = observer.observe(paths)
-    assert _kinds(result) == ["worktree.moved"]
+    assert (_kinds(result), result.updated) == (["worktree.moved"], 1)
     assert result.events[0].payload["path"] == {
         "old": str(tmp_path / "feature"),
         "new": str(tmp_path / "moved"),
@@ -235,7 +236,7 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
 
     shutil.rmtree(tmp_path / "moved")
     result = observer.observe(paths)
-    assert _kinds(result) == ["worktree.removed"]
+    assert (_kinds(result), result.updated) == (["worktree.removed"], 1)
     with read_session(paths) as session:
         assert clones.find(session, repo).worktrees == ()
         assert subjects.labels(session, result.events) == {first.id: tmp_path / "moved"}

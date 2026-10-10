@@ -31,18 +31,20 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     result = runner.invoke(app, ["config", "show"])
     assert result.exit_code == 0, result.output
-    assert result.stdout.splitlines()[:8] == [
+    assert result.stdout.splitlines()[:10] == [
         "time_format         short  config.toml",
         "log.level           info   default",
         "log.retention_days  30     default",
         "git.timeout         60.0   config.toml",
         "observe.workers     4      HEPHAISTOS_OBSERVE_WORKERS",
         f"scan.depth          5      config.{HOST}.toml",
+        "watcher.enabled     true   default",
+        "watcher.interval    60.0   default",
         "",
         f"Host: {HOST}",
     ]
     width = len(short_path(directory / f"config.{HOST}.toml"))
-    assert result.stdout.splitlines()[8:] == [
+    assert result.stdout.splitlines()[10:] == [
         f"{short_path(directory / name):<{width}}  {state}".rstrip()
         for name, state in [
             ("config.toml", "read"),

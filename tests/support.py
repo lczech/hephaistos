@@ -1,11 +1,16 @@
-"""Helpers for tests: git repositories to work on."""
+"""Helpers for tests: git repositories to work on, and running the CLI as its entry point does."""
 
 import functools
+import json
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
+
+from hephaistos.cli.main import run
+from hephaistos.core.utils import logs
+from hephaistos.core.utils.paths import Paths
 
 
 def git(path: Path, *args: str) -> str:
@@ -62,3 +67,20 @@ def needs_git(*version: int) -> pytest.MarkDecorator:
     """Skips a test with an older git; `scripts/test_git_versions.sh` runs newer ones."""
     shown = ".".join(map(str, version))
     return pytest.mark.skipif(git_version() < version, reason=f"needs git {shown}")
+
+
+def run_cli(monkeypatch: pytest.MonkeyPatch, *args: str) -> object:
+    """Runs a command as the entry point does; returns its exit code."""
+    monkeypatch.setattr("sys.argv", ["hephaistos", *args])
+    with pytest.raises(SystemExit) as exit_info:
+        run()
+    return exit_info.value.code
+
+
+def logged(paths: Paths) -> list[dict[str, object]]:
+    """The records in the log files."""
+    return [
+        json.loads(line)
+        for _, path in logs.day_files(paths.state_dir)
+        for line in path.read_text().splitlines()
+    ]

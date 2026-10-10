@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -110,8 +111,7 @@ def _fail() -> None:
 
 
 def test_start_logs_uncaught_exceptions_in_threads(tmp_path: Path) -> None:
-    handler = logs.DayFileHandler(tmp_path, "daemon")
-    logs.start([handler], logging.INFO)
+    handler = logs.start(logs.Setup(tmp_path, "daemon", logging.INFO))
     try:
         thread = threading.Thread(target=_fail, name="observer")
         thread.start()
@@ -130,7 +130,7 @@ WRITER = """
 import logging, sys
 from pathlib import Path
 from hephaistos.core.utils import logs
-logs.start([logs.DayFileHandler(Path(sys.argv[1]), "cli")], logging.INFO)
+logs.start(logs.Setup(Path(sys.argv[1]), "cli", logging.INFO))
 for number in range(300):
     logging.getLogger("hephaistos.test").info("record %d", number, extra={"pad": "x" * 2000})
 """
@@ -224,3 +224,47 @@ def test_follow_continues_where_reading_stopped_and_into_the_next_day(tmp_path: 
     assert next(following)["message"] == "after"
     _write(tmp_path, _line(DAY + timedelta(days=1), "tomorrow"))
     assert next(following)["message"] == "tomorrow"
+
+
+def test_start_shows_records_on_stderr_and_is_remembered(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    setup = logs.Setup(tmp_path, "daemon", logging.DEBUG, shown=True)
+    logs.start(setup)
+    try:
+        assert logs.active() == setup
+        logging.getLogger("hephaistos.test").debug("shown %d", 1, extra={"count": 2})
+    finally:
+        logs.stop()
+    assert logs.active() is None
+    shown = capsys.readouterr().err.split(" ", 1)[1]  # after the time
+    assert shown == f"DEBUG daemon[{os.getpid()}] shown 1 count=2\n"
+    [path] = [path for _, path in logs.day_files(tmp_path)]
+    assert [line["message"] for line in _lines(path)] == ["shown 1"]
+
+
+def test_record_text() -> None:
+    at = datetime(2026, 10, 8, 12, 0, 1, 5000, tzinfo=UTC)
+    record: logs.Record = {
+        "at": at.isoformat(),
+        "level": "ERROR",
+        "process": "cli",
+        "pid": 7,
+        "logger": "hephaistos.cli.main",
+        "message": "unexpected KeyError",
+        "path": "/x",
+        "count": 2,
+        "error": "Traceback (most recent call last):\n  File \"x.py\", line 1\nKeyError: 'branch'",
+    }
+    local = at.astimezone()
+    head = "ERROR cli[7] unexpected KeyError path=/x count=2"
+    assert logs.record_text(record).splitlines() == [
+        f"{local:%H:%M:%S}.005 {head}",
+        "    Traceback (most recent call last):",
+        '      File "x.py", line 1',
+        "    KeyError: 'branch'",
+    ]
+    assert logs.record_text(record, dated=True, brief=True).splitlines() == [
+        f"{local:%m-%d %H:%M:%S}.005 {head}",
+        "    ↳ KeyError: 'branch'",
+    ]

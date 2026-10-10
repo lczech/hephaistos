@@ -26,3 +26,11 @@ workers = 8
 [scan]
 # Directory levels searched below the scanned one.
 depth = 3
+
+# Daemon parts: `hephaistos daemon run` runs those enabled.
+
+[watcher]
+# Observes this Machine's Clones and their Worktrees, at low priority.
+enabled = true
+# Seconds from the end of one pass to the start of the next.
+interval = 60.0

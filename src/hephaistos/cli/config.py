@@ -77,9 +77,14 @@ def show(
     found = config.layers(directory, hostname)
     loaded = config.merged(found)
     if key in config.KEYS:
-        typer.echo(str(loaded.values[key]))
+        typer.echo(config.setting_text(loaded.values[key]))
     else:
-        print_rows([(k, str(loaded.values[k]), _source_text(loaded.sources[k])) for k in keys])
+        print_rows(
+            [
+                (k, config.setting_text(loaded.values[k]), _source_text(loaded.sources[k]))
+                for k in keys
+            ]
+        )
         typer.echo(f"\nHost: {hostname}")
         print_rows(_sources_rows(directory, hostname, found))
     errors = [layer.error for layer in found if layer.error is not None]

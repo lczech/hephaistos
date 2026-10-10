@@ -24,7 +24,7 @@ from hephaistos.core.state.activity import (
     Cursor,
     Push,
 )
-from hephaistos.core.state.checkouts import Failed, Missing
+from hephaistos.core.state.checkouts import Failed, Missing, same_state
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.paths import Paths
@@ -42,6 +42,7 @@ class Result:
     observed: int  # Clones
     skipped: int  # Clones observed by another process meanwhile, or removed
     worktrees: int  # Worktrees observed, of the observed Clones
+    updated: int  # Checkouts whose State changed, with or without Events
 
 
 @dataclass(frozen=True)
@@ -273,6 +274,14 @@ def _observed_worktree(
     return WorktreeObservation(status, head_activity(linked.path, git_dir, cursor))
 
 
+def _updated(before: Collection[WorktreeState], after: Collection[WorktreeState]) -> int:
+    """How many Worktrees were added, removed or changed between two readings of their State."""
+    old = {state.id: state for state in before}
+    new = {state.id: state for state in after}
+    changed = sum(1 for id_, state in new.items() if id_ in old and not same_state(old[id_], state))
+    return changed + len(old.keys() ^ new.keys())
+
+
 def observe(
     paths: Paths,
     clone_ids: Collection[uuid.UUID] | None = None,
@@ -314,7 +323,7 @@ def observe(
         by_clone[index][linked.name] = observed
 
     recorded: list[Event] = []
-    skipped = counted = 0
+    skipped = counted = updated = 0
     with write_session(paths) as session:
         current = {existing.clone.id: existing.state for existing in clones.details(session)}
         for index, (clone_id, _) in enumerate(targets):
@@ -325,9 +334,12 @@ def observe(
             observed = looked[index]
             recorded += state.update(session, clone_id, observed.observation, observed.read)
             new = state.get(session, clone_id)
+            if new is not None and not same_state(known, new):
+                updated += 1
             listed = observed.worktrees
             if listed is not None and new is not None and new.present and new.error is None:
                 worktrees = by_clone[index]
+                before = worktree_state.of_clones(session, [clone_id])
                 recorded += worktree_state.update(
                     session,
                     clone_id,
@@ -340,12 +352,14 @@ def observe(
                     },
                     restored={name for name, worktree in worktrees.items() if worktree.restored},
                 )
+                updated += _updated(before, worktree_state.of_clones(session, [clone_id]))
                 counted += len(listed)
     return Result(
         events=recorded,
         observed=len(targets) - skipped,
         skipped=skipped,
         worktrees=counted,
+        updated=updated,
     )
 
 

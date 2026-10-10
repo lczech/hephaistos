@@ -23,7 +23,7 @@ src/hephaistos/
       errors.py   errors with messages for the user
       ids.py      UUIDv7, hybrid logical clock
       paths.py    XDG directories, per-Machine subdirectory, filesystem type detection
-      logs.py     log files: JSON Lines, one per UTC day
+      logs.py     log files: JSON Lines, one per UTC day; records as text
       git.py      reads facts by running git's commands for scripts; knows nothing about our records
   cli/            one module per subcommand, named like it (clone.py for `hephaistos clone`)
   daemon/{watcher,sync,server}/
@@ -114,7 +114,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## Observation
 
-- An observer observes one kind of thing: it takes a snapshot and has the State compare it with what is stored, which writes the changes and records their Events. Observers know nothing about timing; the Watcher schedules them, with intervals per observer in its config.
+- An observer observes one kind of thing: it takes a snapshot and has the State compare it with what is stored, which writes the changes and records their Events. Observers know nothing about timing; the Watcher schedules them (`watcher.interval`).
 - Each observation updates `observed_at`; rows and Events change only when something changed.
 - First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
 - Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: views of files ask the Machine's Server live.
@@ -123,6 +123,16 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
   - Remote-tracking reflogs give `clone.pushed`; fetches are skipped. A new branch's reflog gives its creation time and start, or shows it was renamed (`clone.branch_renamed`, instead of deleted and created).
   - Reflog messages are git's text, stable in practice but unspecified; tests pin them with real git. Bare repositories keep no reflogs by default.
 - Views show stored State with its age. `--refresh` observes first, in a separate write session. Views also observe first, saying so, when git knows a Checkout that the record misses, e.g. a Worktree not observed yet.
+
+## Daemon
+
+- `hephaistos daemon run` runs the parts this Machine enables (`watcher.enabled`; later the Server and Sync) in the foreground, until SIGINT or SIGTERM; systemd runs it like this. One runs per Machine: it holds an exclusive `flock` on `daemon.lock` in the state directory, which the kernel releases however it ends.
+- The Watcher passes at start, then `watcher.interval` seconds (60) after each pass ends. Passes run in a worker process that lowers its own CPU and I/O priority once (nice 19, `ionice -c3`), before starting threads, so they and git inherit it. The worker leads its own process group: Ctrl+C in a terminal doesn't reach it, and the Daemon stops it with its git in one signal.
+- A failed pass is logged, and the next one runs on schedule; a busy database is retried 3 times (after 1, 2, 4 s). A dead worker is replaced. A crashed part restarts after 1 s, doubling up to 60 s, and back to 1 s once it ran 10 minutes.
+- A Daemon that can't start (broken config, no parts enabled, not set up, no git, already running) exits with 78 (`EX_CONFIG`), which its systemd unit doesn't restart.
+- Stopping is immediate: a pass cut short loses nothing, as git only reads and SQLite rolls back. A second signal exits at once.
+- `daemon.json` in the state directory tells how it runs: pid, version, start and stop, and each part's last pass (when, how long, any error). Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
+- Log: INFO for start (parts, interval, git and its version), stop, and passes recording Events; DEBUG for passes without; ERROR for failed passes and crashes.
 
 ## CLI for the first slice
 
@@ -146,6 +156,7 @@ hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process
                     [--pid <pid>] [-n <count>] [--follow] [--brief] [--json] [--no-pager]
                | prune [--keep <days>d] [--yes]
 hephaistos config show [<key>|<section>] | defaults
+hephaistos daemon run
 hephaistos [--debug] …
 ```
 

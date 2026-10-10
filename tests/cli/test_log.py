@@ -8,7 +8,6 @@ import pytest
 from typer.testing import CliRunner
 
 from hephaistos.cli import terminal
-from hephaistos.cli.log import record_text
 from hephaistos.cli.main import app
 from hephaistos.core import config
 from hephaistos.core.utils import logs
@@ -25,33 +24,6 @@ def _write(paths: Paths, at: datetime, message: str, level: str = "INFO", **fiel
     paths.state_dir.mkdir(parents=True, exist_ok=True)
     with logs.day_file(paths.state_dir, at.date()).open("a") as file:
         file.write(logs.json_text(record | fields) + "\n")
-
-
-def test_record_text() -> None:
-    at = datetime(2026, 10, 8, 12, 0, 1, 5000, tzinfo=UTC)
-    record: logs.Record = {
-        "at": at.isoformat(),
-        "level": "ERROR",
-        "process": "cli",
-        "pid": 7,
-        "logger": "hephaistos.cli.main",
-        "message": "unexpected KeyError",
-        "path": "/x",
-        "count": 2,
-        "error": TRACEBACK,
-    }
-    local = at.astimezone()
-    head = "ERROR cli[7] unexpected KeyError path=/x count=2"
-    assert record_text(record).splitlines() == [
-        f"{local:%H:%M:%S}.005 {head}",
-        "    Traceback (most recent call last):",
-        '      File "x.py", line 1',
-        "    KeyError: 'branch'",
-    ]
-    assert record_text(record, dated=True, brief=True).splitlines() == [
-        f"{local:%m-%d %H:%M:%S}.005 {head}",
-        "    ↳ KeyError: 'branch'",
-    ]
 
 
 def test_show(paths: Paths) -> None:
