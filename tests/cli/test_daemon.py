@@ -1,13 +1,21 @@
+import json
+import os
+from datetime import UTC, datetime
+
 import pytest
 from typer.testing import CliRunner
 
 from hephaistos.cli.main import app
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon import status
 from hephaistos.daemon.errors import EX_CONFIG
+from hephaistos.daemon.server import token
+from hephaistos.daemon.status import ServerStatus, Status
 from support import logged, run_cli
 
 runner = CliRunner()
+NOW = datetime.now(UTC)
 
 
 def test_not_set_up_doesnt_start(
@@ -26,8 +34,9 @@ def test_without_parts_doesnt_start(
 ) -> None:
     machines.set_up(paths, "laptop")
     monkeypatch.setenv("HEPHAISTOS_WATCHER_ENABLED", "false")
+    monkeypatch.setenv("HEPHAISTOS_SERVER_ENABLED", "false")
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
-    message = "no Daemon parts are enabled: watcher.enabled is false"
+    message = "no Daemon parts are enabled: watcher.enabled and server.enabled are false"
     assert capsys.readouterr().err == f"error: {message}\n"
 
 
@@ -57,3 +66,69 @@ def test_other_commands_run_on_a_broken_config(
     assert run_cli(monkeypatch, "daemon", "status") == 3  # not running
     problem = "HEPHAISTOS_WATCHER_INTERVAL: must be at least 1, not 0.0"
     assert capsys.readouterr().err == f"warning: {problem}; using the defaults\n"
+
+
+def test_token(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    printed = runner.invoke(app, ["daemon", "token"])
+    assert printed.exit_code == 0
+    assert printed.output == f"{token.token(paths)}\n"
+    monkeypatch.setenv("HEPHAISTOS_SERVER_PORT", "18264")
+    assert run_cli(monkeypatch, "daemon", "token", "--url") == 0
+    assert capsys.readouterr().out == f"http://localhost:18264/?token={token.token(paths)}\n"
+
+    refused = runner.invoke(app, ["daemon", "token", "--renew"])  # no terminal to ask at
+    assert "add --yes to renew it" in str(refused.exception)
+    assert token.token(paths) in printed.output
+    renewed = runner.invoke(app, ["daemon", "token", "--renew", "--yes"]).output
+    assert renewed == f"{token.token(paths)}\n" != printed.output
+
+
+@pytest.mark.parametrize(
+    ("server", "line"),
+    [
+        (ServerStatus("127.0.0.1:8264", listening=False), "starting"),
+        (
+            ServerStatus("127.0.0.1:8264", listening=False, error="port 8264 is in use"),
+            "failed: port 8264 is in use",
+        ),
+        (
+            ServerStatus("127.0.0.1:8264", listening=True),
+            "listening on 127.0.0.1:8264; no requests yet",
+        ),
+        (
+            ServerStatus("127.0.0.1:8264", listening=True, requests=1, last_request_at=NOW),
+            "listening on 127.0.0.1:8264; 1 request since start, last now",
+        ),
+        (
+            ServerStatus(
+                "127.0.0.1:8264", listening=True, requests=12, last_request_at=NOW, refused=3
+            ),
+            "listening on 127.0.0.1:8264; 12 requests since start, last now; 3 refused",
+        ),
+    ],
+)
+def test_status_of_the_server(
+    paths: Paths,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    server: ServerStatus,
+    line: str,
+) -> None:
+    monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl
+    paths.state_dir.mkdir(parents=True)
+    found = Status(os.getpid(), "0.1.0", NOW, parts=("server",), server=server)
+    status.write(paths.state_dir, found)
+    with status.held_lock(paths.state_dir):
+        assert run_cli(monkeypatch, "daemon", "status") == 0
+        assert capsys.readouterr().out.splitlines()[2] == f"Server  {line}"
+        assert run_cli(monkeypatch, "daemon", "status", "--json") == 0
+    shown = json.loads(capsys.readouterr().out)
+    assert shown["unit"] is None
+    assert shown["daemon"]["running"]
+    assert shown["daemon"]["pid"] == os.getpid()
+    assert shown["watcher"] is None
+    assert shown["server"]["listening"] == server.listening
+    assert shown["server"]["requests"] == server.requests

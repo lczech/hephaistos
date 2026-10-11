@@ -8,9 +8,9 @@ import fcntl
 import json
 import os
 import time
-from collections.abc import Generator, Mapping
+from collections.abc import Generator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -25,11 +25,23 @@ STATUS_NAME = "daemon.json"
 
 @dataclass(frozen=True)
 class PassStatus:
-    """How a part's last pass went."""
+    """How the Watcher's last pass went."""
 
     finished_at: datetime
     duration: float  # seconds
     error: str | None = None
+
+
+@dataclass(frozen=True)
+class ServerStatus:
+    """How the Server is doing; its counts are since the Daemon started."""
+
+    address: str  # e.g. `127.0.0.1:8264`
+    listening: bool
+    error: str | None = None  # why it doesn't listen
+    requests: int = 0  # answered, with the token
+    last_request_at: datetime | None = None
+    refused: int = 0  # for a wrong or missing token, or a foreign host
 
 
 @dataclass(frozen=True)
@@ -40,52 +52,87 @@ class Status:
     version: str
     started_at: datetime
     stopped_at: datetime | None = None
-    # The enabled parts' last passes; None before the first.
-    parts: Mapping[str, PassStatus | None] = field(default_factory=dict[str, PassStatus | None])
+    parts: tuple[str, ...] = ()  # those enabled
+    watcher: PassStatus | None = None  # its last pass
+    server: ServerStatus | None = None
+
+    @property
+    def last_seen_at(self) -> datetime:
+        """When it last showed signs of life."""
+        signs = [self.started_at]
+        if self.watcher is not None:
+            signs.append(self.watcher.finished_at)
+        if self.server is not None and self.server.last_request_at is not None:
+            signs.append(self.server.last_request_at)
+        return max(signs)
+
+
+def _at(value: datetime | None) -> str | None:
+    """A time as JSON."""
+    return None if value is None else value.isoformat()
+
+
+def _from_at(value: Any) -> datetime | None:  # noqa: ANN401 - JSON, checked by using it
+    """A time from JSON."""
+    return None if value is None else datetime.fromisoformat(value)
 
 
 def _status_json(status: Status) -> dict[str, object]:
     """A status as JSON values."""
-
-    def at(value: datetime | None) -> str | None:
-        return None if value is None else value.isoformat()
-
+    passed, server = status.watcher, status.server
     return {
         "pid": status.pid,
         "version": status.version,
-        "started_at": at(status.started_at),
-        "stopped_at": at(status.stopped_at),
-        "parts": {
-            name: None
-            if done is None
-            else {
-                "finished_at": at(done.finished_at),
-                "duration": done.duration,
-                "error": done.error,
-            }
-            for name, done in status.parts.items()
+        "started_at": _at(status.started_at),
+        "stopped_at": _at(status.stopped_at),
+        "parts": list(status.parts),
+        "watcher": None
+        if passed is None
+        else {
+            "finished_at": _at(passed.finished_at),
+            "duration": passed.duration,
+            "error": passed.error,
+        },
+        "server": None
+        if server is None
+        else {
+            "address": server.address,
+            "listening": server.listening,
+            "error": server.error,
+            "requests": server.requests,
+            "last_request_at": _at(server.last_request_at),
+            "refused": server.refused,
         },
     }
 
 
 def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked by using it
     """A status from its JSON values; raises if any don't fit."""
-
-    def at(value: Any) -> datetime | None:  # noqa: ANN401
-        return None if value is None else datetime.fromisoformat(value)
-
-    passes = {
-        str(name): None
-        if done is None
+    passed, server = data["watcher"], data["server"]
+    return Status(
+        pid=int(data["pid"]),
+        version=str(data["version"]),
+        started_at=datetime.fromisoformat(data["started_at"]),
+        stopped_at=_from_at(data["stopped_at"]),
+        parts=tuple(str(name) for name in data["parts"]),
+        watcher=None
+        if passed is None
         else PassStatus(
-            datetime.fromisoformat(done["finished_at"]),
-            float(done["duration"]),
-            None if done["error"] is None else str(done["error"]),
-        )
-        for name, done in data["parts"].items()
-    }
-    started = datetime.fromisoformat(data["started_at"])
-    return Status(int(data["pid"]), str(data["version"]), started, at(data["stopped_at"]), passes)
+            datetime.fromisoformat(passed["finished_at"]),
+            float(passed["duration"]),
+            None if passed["error"] is None else str(passed["error"]),
+        ),
+        server=None
+        if server is None
+        else ServerStatus(
+            address=str(server["address"]),
+            listening=bool(server["listening"]),
+            error=None if server["error"] is None else str(server["error"]),
+            requests=int(server["requests"]),
+            last_request_at=_from_at(server["last_request_at"]),
+            refused=int(server["refused"]),
+        ),
+    )
 
 
 def write(directory: Path, status: Status) -> None:

@@ -17,7 +17,7 @@ Code is separated by purpose; the number of processes is a deployment choice.
 | `daemon/` | The Daemon, command `hephaistos daemon run`: reads this Machine's config and runs the enabled parts below. |
 | `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers, in a worker process at low CPU and I/O priority (`nice`, `ionice -c3`), so that git never competes with interactive work and the other parts keep their priority. |
 | `daemon/sync/` | Sync: talks to Peers and decides when; merging is done by the Core (see [001](001-data-ownership.md)). |
-| `daemon/server/` | The Server: HTTP/WebSocket access to the Core for GUIs, and serves the `gui/web/` files to browsers. |
+| `daemon/server/` | The Server: HTTP/WebSocket access to the Core for GUIs, and serves the `gui/web/` files to browsers; see [004](004-server.md). |
 | `plugins/` | Everything tool-specific, grouped by extension point; see below. |
 | `gui/web/` | The GUI itself: one React app, used by both Electron and the phone's browser. |
 | `gui/desktop/` | The Desktop, command `hephaistos-gui`: Electron shell around `gui/web/` (window, tray icon, notifications, keyboard shortcuts). |

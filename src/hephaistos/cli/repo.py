@@ -3,7 +3,7 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import terminal
-from hephaistos.cli.clone import branch_text, clone_json, status_text, worktree_lines
+from hephaistos.cli.clone import branch_text, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -14,11 +14,10 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
-from hephaistos.core.registry.clones import CloneDetails
-from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths
@@ -28,35 +27,14 @@ app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, 
 NameArgument = Annotated[str, typer.Argument(help="Name of the Repository.")]
 
 
-def repo_json(summary: RepositorySummary, its_clones: list[CloneDetails]) -> dict[str, object]:
-    """A Repository with its remotes and Clones, for JSON output."""
-    repository = summary.repository
-    return {
-        "id": str(repository.id),
-        "name": repository.name,
-        "created_at": id_datetime(repository.id).isoformat(),
-        "remotes": list(summary.remotes),
-        "clones": [clone_json(details) for details in its_clones],
-    }
-
-
 @app.command("list")
 def list_(*, as_json: JsonOption = False) -> None:
     """List the Repositories."""
     with read_session(Paths.from_environment()) as session:
+        if as_json:
+            print_json(views.repositories_json(session))
+            return
         summaries = repositories.summaries(session)
-        all_clones = clones.details(session)
-    if as_json:
-        print_json(
-            [
-                repo_json(
-                    summary,
-                    [details for details in all_clones if details.repository == summary.repository],
-                )
-                for summary in summaries
-            ]
-        )
-        return
     print_table(
         ["name", "clones", "remote"],
         [
@@ -73,11 +51,11 @@ def show(
     """Show a Repository with its remotes and Clones."""
     with read_session(Paths.from_environment()) as session:
         repository = repositories.by_name(session, name)
+        if as_json:
+            print_json(views.repositories_json(session, repository.id)[0])
+            return
         [summary] = repositories.summaries(session, repository.id)
         its_clones = clones.details(session, repository_id=repository.id)
-    if as_json:
-        print_json(repo_json(summary, its_clones))
-        return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(
         [

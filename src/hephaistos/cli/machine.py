@@ -11,47 +11,16 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
-from hephaistos.core.registry.filesystems import Filesystem
-from hephaistos.core.registry.machines import LocalSetup, Machine
-from hephaistos.core.registry.mounts import Mount, mounts_of
+from hephaistos.core.registry.machines import LocalSetup
+from hephaistos.core.registry.mounts import mounts_of
 from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths
 
 app = typer.Typer(no_args_is_help=True, help="Machines: computers running hephaistos.")
-
-
-def machine_json(
-    machine: Machine, mounts: list[tuple[Mount, Filesystem]], *, this: bool
-) -> dict[str, object]:
-    """A Machine with its mounts, for JSON output."""
-    return {
-        "id": str(machine.id),
-        "name": machine.name,
-        "hostname": machine.hostname,
-        "os_machine_id": machine.os_machine_id,
-        "created_at": id_datetime(machine.id).isoformat(),
-        "this": this,
-        "mounts": [
-            {"path": str(mount.path), "filesystem": filesystem.name} for mount, filesystem in mounts
-        ],
-    }
-
-
-def _setup_json(setup: LocalSetup) -> dict[str, object]:
-    """This Machine's setup, for JSON output."""
-    paths = setup.paths
-    return {
-        "config_dir": str(paths.config_dir),
-        "data_dir": str(paths.data_dir),
-        "state_dir": str(paths.state_dir),
-        "database": str(paths.database),
-        "journal_mode": setup.journal_mode,
-        "data_fstype": setup.data_fstype,
-        "schema_version": setup.schema_version,
-    }
 
 
 def _setup_fields(setup: LocalSetup) -> list[tuple[str, str]]:
@@ -70,13 +39,11 @@ def _setup_fields(setup: LocalSetup) -> list[tuple[str, str]]:
 def list_(*, as_json: JsonOption = False) -> None:
     """List the Machines; `*` marks this one."""
     with read_session(Paths.from_environment()) as session:
+        if as_json:
+            print_json(views.machines_json(session))
+            return
         found = [(machine, mounts_of(session, machine.id)) for machine in machines.listing(session)]
         this_id = session.machine_id
-    if as_json:
-        print_json(
-            [machine_json(machine, mounts, this=machine.id == this_id) for machine, mounts in found]
-        )
-        return
     print_table(
         ["", "name", "hostname"],
         [
@@ -104,7 +71,7 @@ def show(
         setup = machines.local_setup(session, paths) if this else None
 
     if as_json:
-        print_json(machine_json(machine, mounts, this=this) | (_setup_json(setup) if setup else {}))
+        print_json(views.machine_json(machine, mounts, this=this, setup=setup))
         return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(

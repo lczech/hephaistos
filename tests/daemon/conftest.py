@@ -38,9 +38,10 @@ def _script(path: Path, text: str) -> Path:
 
 
 @pytest.fixture
-def systemd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+def systemd(paths: Paths, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Fake systemctl and loginctl on the PATH, a fresh home for the unit, and a `hephaistos`
-    script to install; yields that script. The fake's state is in $FAKE_SYSTEMD."""
+    script to install; yields that script. The fake's state is in $FAKE_SYSTEMD. Its Daemons run
+    no Server, which `test_main` tries."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for name in ("systemctl", "loginctl"):
@@ -57,6 +58,8 @@ def systemd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(unit, "LINGER_DIR", tmp_path / "linger")
     monkeypatch.setenv("HOME", str(tmp_path / "user"))
     monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "1")
+    paths.config_dir.mkdir(parents=True, exist_ok=True)
+    (paths.config_dir / "config.toml").write_text("[server]\nenabled = false\n")
     yield program
     started = state / "state.json"
     if started.exists() and (pid := json.loads(started.read_text())["pid"]):

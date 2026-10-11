@@ -55,6 +55,8 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "scan.depth": config.DEFAULT,
         "watcher.enabled": config.DEFAULT,
         "watcher.interval": config.DEFAULT,
+        "server.enabled": config.DEFAULT,
+        "server.port": config.DEFAULT,
     }
     assert load(tmp_path, "login1", {}).settings.git.timeout == 90.0
     assert load(tmp_path, "laptop", {}).settings.git.timeout == 60.0
@@ -86,6 +88,7 @@ def test_files_for() -> None:
         ("[scan]\ndepth = true\n", "scan.depth must be an integer, not true"),
         ("[watcher]\nenabled = 1\n", "watcher.enabled must be true or false, not 1"),
         ("[watcher]\ninterval = 0.5\n", "watcher.interval must be at least 1, not 0.5"),
+        ("[server]\nport = 70000\n", "server.port must be at most 65535, not 70000"),
         ('git = "fast"\n', r"git must be a section \[git\]"),
         ("time_format = \n", "cannot read"),
     ],

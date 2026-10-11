@@ -15,12 +15,13 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session, write_session
 from hephaistos.core.observers import clones as observer
-from hephaistos.core.registry import clones, machines, repositories
+from hephaistos.core.registry import clones, repositories
 from hephaistos.core.registry.clones import Candidate, Clone, CloneDetails
-from hephaistos.core.state.checkouts import STATUS_COLUMNS, CheckoutState
+from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime, short_id
@@ -104,37 +105,12 @@ def status_fields(state: CheckoutState) -> list[tuple[str, str]]:
     ]
 
 
-def _checkout_json(state: CheckoutState) -> dict[str, object]:
-    """What Clones and Worktrees share, for JSON output."""
-    return {
-        "observed_at": state.observed_at.datetime.isoformat(),
-        "observed_by": str(state.observed_by),
-        "present": state.present,
-        "head": state.head,
-        "branch": state.branch,
-        **{column: getattr(state, column) for column in STATUS_COLUMNS},
-        "error": state.error,
-    }
-
-
 def worktree_path_text(worktree: WorktreeState, clone: Clone) -> str:
     """A Worktree's path as shown: relative to its Clone if inside it, else in full."""
     for top in (clone.display_path, clone.resolved_path):
         if worktree.path.is_relative_to(top):
             return str(worktree.path.relative_to(top))
     return short_path(worktree.path)
-
-
-def worktree_json(worktree: WorktreeState) -> dict[str, object]:
-    """A Worktree's State, for JSON output."""
-    return {
-        "id": str(worktree.id),
-        "clone_id": str(worktree.clone_id),
-        "name": worktree.name,
-        "path": str(worktree.path),
-        "lock_reason": worktree.lock_reason,
-        **_checkout_json(worktree),
-    }
 
 
 def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
@@ -152,25 +128,6 @@ def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
         )
         for worktree in details.worktrees
     ]
-
-
-def clone_json(details: CloneDetails) -> dict[str, object]:
-    """A Clone with its State and Worktrees, for JSON output."""
-    clone, state = details.clone, details.state
-    return {
-        "id": str(clone.id),
-        "repository": details.repository.name,
-        "filesystem": details.filesystem.name,
-        "path": str(clone.display_path),
-        "resolved_path": str(clone.resolved_path),
-        "created_at": id_datetime(clone.id).isoformat(),
-        "bare": state.bare,
-        **_checkout_json(state),
-        "branches": list(state.branches),
-        "root_commits": list(state.root_commits),
-        "remotes": dict(state.remotes),
-        "worktrees": [worktree_json(worktree) for worktree in details.worktrees],
-    }
 
 
 def _choose_repository(session: ReadSession, candidate: Candidate) -> str:
@@ -231,10 +188,10 @@ def list_(
         observer.observe(paths)
     with read_session(paths) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
+        if as_json:
+            print_json(views.clones_json(session, repository_id=repository_id))
+            return
         found = clones.details(session, repository_id=repository_id)
-    if as_json:
-        print_json([clone_json(details) for details in found])
-        return
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
         ["repository", "branch", "status", "observed", "filesystem", "path"],
@@ -265,9 +222,9 @@ def show(
     observe_checkout(paths, path, refresh=refresh)
     with read_session(paths) as session:
         details = clones.find(session, path)
-        observers = machines.labels(session, [details.state.observed_by])
+        observers = views.observer_names(session, [details])
     if as_json:
-        print_json(clone_json(details))
+        print_json(views.clone_json(details, observers))
         return
     clone, state = details.clone, details.state
     formatted = time_formatter(time_format, TimeFormat.FULL)

@@ -57,7 +57,7 @@ def test_add_with_repo_then_list_and_show(repo: Path) -> None:
 
     result = runner.invoke(app, ["clone", "show", "--json"])
     data = json.loads(result.output)
-    assert data["repository"] == "proj"
+    assert data["repository"]["name"] == "proj"
     assert data["remotes"] == {"origin": "git@host:me/hephaistos.git"}
 
     result = runner.invoke(app, ["repo", "show", "proj"])

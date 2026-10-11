@@ -1,23 +1,27 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from hephaistos.daemon import status
 from hephaistos.daemon.errors import NotStartedError
-from hephaistos.daemon.status import PassStatus, Status
+from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 
 
 def test_written_and_read(tmp_path: Path) -> None:
     started = datetime(2026, 10, 10, 6, 0, tzinfo=UTC)
+    later = started + timedelta(minutes=2)
     written = Status(
         41233,
         "0.1.0",
         started,
-        parts={"watcher": PassStatus(started, 0.4, "the worker died"), "server": None},
+        parts=("watcher", "server"),
+        watcher=PassStatus(started, 0.4, "the worker died"),
+        server=ServerStatus("127.0.0.1:8264", listening=True, requests=3, last_request_at=later),
     )
     status.write(tmp_path, written)
     assert status.read(tmp_path) == written
+    assert written.last_seen_at == later
     assert [path.name for path in tmp_path.iterdir()] == [status.STATUS_NAME]
 
 

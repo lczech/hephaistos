@@ -10,10 +10,14 @@ from typing import Annotated
 
 import typer
 
+from hephaistos.cli import terminal
 from hephaistos.cli.output import (
+    JsonOption,
     TimeFormatOption,
     chosen_time_format,
+    number_text,
     print_fields,
+    print_json,
     short_path,
     time_formatter,
 )
@@ -21,19 +25,19 @@ from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon import report, unit
 from hephaistos.daemon import status as daemon_status
-from hephaistos.daemon import unit
-from hephaistos.daemon.status import Status
-from hephaistos.daemon.unit import ForeignUnitError, UnitState
+from hephaistos.daemon.report import Report
+from hephaistos.daemon.server import token as server_token
+from hephaistos.daemon.status import PassStatus, ServerStatus
 
 NOT_RUNNING = 3  # `status`'s exit code, as systemctl's
-STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
 
 VERSE = "RGVtb25zIHJ1biB3aGVuIGEgZ29vZCBtYW4gZ29lcyB0byB3YXIsCk5pZ2h0IHdpbGwgZmFsbCBhbmQgZHJvd24gdGhlIHN1biwKV2hlbiBhIGdvb2QgbWFuIGdvZXMgdG8gd2FyLgoKRnJpZW5kc2hpcCBkaWVzIGFuZCB0cnVlIGxvdmUgbGllcywKTmlnaHQgd2lsbCBmYWxsLCBhbmQgdGhlIGRhcmsgd2lsbCByaXNlLApXaGVuIGEgZ29vZCBtYW4gZ29lcyB0byB3YXIuCgpEZW1vbnMgcnVuLCBidXQgY291bnQgdGhlIGNvc3Q7ClRoZSBiYXR0bGUncyB3b24sIGJ1dCB0aGUgY2hpbGQgaXMgbG9zdC4="  # noqa: E501 - one encoded verse
 
 app = typer.Typer(
     no_args_is_help=True,
-    help="The Daemon: observes this Machine in the background.",
+    help="The Daemon: observes this Machine and serves its GUIs, in the background.",
 )
 
 
@@ -45,7 +49,8 @@ def run(
     """Run the Daemon in the foreground, until stopped (Ctrl+C or SIGTERM).
 
     It runs the parts its settings enable: the Watcher observes this Machine's Clones every
-    watcher.interval seconds, with git at low priority. One Daemon runs per Machine.
+    watcher.interval seconds, with git at low priority; the Server gives GUIs access, on
+    127.0.0.1 at server.port. One Daemon runs per Machine.
     """
     if doctor_who:
         typer.echo(base64.b64decode(VERSE).decode())
@@ -144,62 +149,85 @@ def restart() -> None:
     typer.echo(f"The Daemon runs again (pid {pid})")
 
 
-def _unit_text(state: UnitState | None, installed: str | None) -> str:
+def _unit_text(found: Report) -> str:
     """The `Unit` line of `status`."""
+    state = found.unit
     if state is None:
         return "systemd not available"
-    if installed is None or not state.installed:
+    if found.installed is None:
         return "not installed"
     active = state.active
     if active == "failed" and state.exit_code:
         active += f" (exit code {state.exit_code})"
     enabled = "enabled" if state.enabled else "disabled"
-    return f"installed, {enabled}, {active}; linger {'on' if unit.has_linger() else 'off'}"
+    return f"installed, {enabled}, {active}; linger {'on' if found.linger else 'off'}"
 
 
-def _daemon_text(
-    found: Status | None, *, running: bool, under_systemd: bool, when: Callable[[datetime], str]
-) -> str:
+def _daemon_text(found: Report, when: Callable[[datetime], str]) -> str:
     """The `Daemon` line of `status`."""
-    if running:
-        how = "running" if under_systemd else "running (not under systemd)"
-        if found is None or found.stopped_at is not None:
+    last = found.status
+    if found.running:
+        how = "running" if found.under_systemd else "running (not under systemd)"
+        current = found.current
+        if current is None:
             return how
-        return f"{how}, pid {found.pid}, started {when(found.started_at)}, version {found.version}"
-    if found is None:
+        started = when(current.started_at)
+        return f"{how}, pid {current.pid}, started {started}, version {current.version}"
+    if last is None:
         return "not running; never ran"
-    if found.stopped_at is not None:
-        return f"not running; stopped {when(found.stopped_at)}"
-    seen = max([found.started_at, *(done.finished_at for done in found.parts.values() if done)])
-    return f"not running; ended without stopping, last seen {when(seen)}"
+    if last.stopped_at is not None:
+        return f"not running; stopped {when(last.stopped_at)}"
+    return f"not running; ended without stopping, last seen {when(last.last_seen_at)}"
 
 
-def _watcher_text(found: Status, now: datetime, when: Callable[[datetime], str]) -> str | None:
-    """The `Watcher` line of `status`; None if the Daemon doesn't run the Watcher."""
-    if "watcher" not in found.parts:
-        return None
-    done = found.parts["watcher"]
+def _watcher_text(done: PassStatus | None, now: datetime, when: Callable[[datetime], str]) -> str:
+    """The `Watcher` line of `status`."""
     if done is None:
         return "first pass running"
-    settings = config.settings()
-    interval = settings.watcher.interval
-    age = (now - done.finished_at).total_seconds()
-    if age > STALLED_PASSES * interval + settings.git.timeout:
+    interval = config.settings().watcher.interval
+    if report.is_stalled(done, now):
         return f"stalled: last pass {when(done.finished_at)}, every {interval:g} s"
     text = f"last pass {when(done.finished_at)} ({done.duration:g} s)"
     if done.error is not None:
         text += f", failed: {done.error}"
-    return f"{text}; next in {max(0, round(interval - age))} s"
+    wait = (report.next_pass_at(done) - now).total_seconds()
+    return f"{text}; next in {max(0, round(wait))} s"
+
+
+def _server_text(server: ServerStatus, when: Callable[[datetime], str]) -> str:
+    """The `Server` line of `status`."""
+    if server.error is not None:
+        return f"failed: {server.error}"
+    if not server.listening:
+        return "starting"
+    text = f"listening on {server.address}; "
+    if server.last_request_at is None:
+        text += "no requests yet"
+    else:
+        requests = number_text(server.requests, "request")
+        text += f"{requests} since start, last {when(server.last_request_at)}"
+    return text + (f"; {server.refused} refused" if server.refused else "")
 
 
 @app.command()
-def status(time_format: TimeFormatOption = None) -> None:
-    """Show whether the Daemon runs, how it is installed, and how its last passes went.
+def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False) -> None:
+    """Show whether the Daemon runs, how it is installed, and how its parts are doing.
 
     Exits with 0 if it runs, 3 if not.
     """
     paths = Paths.from_environment()
     now = datetime.now(UTC)
+    found = report.report(paths, os.environ)
+    if as_json:
+        print_json(report.report_json(found, now))
+    else:
+        _print_status(found, now, time_format)
+    if not found.running:
+        raise typer.Exit(NOT_RUNNING)
+
+
+def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) -> None:
+    """Prints a report as `status` shows it: a line each, warnings on stderr."""
     shown = time_formatter(time_format, TimeFormat.RELATIVE, now)
     relative = chosen_time_format(time_format, TimeFormat.RELATIVE) is TimeFormat.RELATIVE
 
@@ -209,30 +237,42 @@ def status(time_format: TimeFormatOption = None) -> None:
             return f"at {text}"
         return text if text == "now" else f"{text} ago"
 
-    state = unit.unit_state()
-    warnings: list[str] = []
-    try:
-        installed = unit.installed_text()
-    except ForeignUnitError as error:
-        installed = None
-        warnings.append(str(error))
-    running = daemon_status.is_running(paths.state_dir)
-    found = daemon_status.read(paths.state_dir)
-    under_systemd = state is not None and state.active == "active"
-    fields = [
-        ("Unit", _unit_text(state, installed)),
-        ("Daemon", _daemon_text(found, running=running, under_systemd=under_systemd, when=when)),
-    ]
-    current = found if running and found is not None and found.stopped_at is None else None
-    if current is not None and (watcher := _watcher_text(current, now, when)) is not None:
-        fields.append(("Watcher", watcher))
+    fields = [("Unit", _unit_text(found)), ("Daemon", _daemon_text(found, when))]
+    current = found.current
+    if current is not None and "watcher" in current.parts:
+        fields.append(("Watcher", _watcher_text(current.watcher, now, when)))
+    if current is not None and current.server is not None:
+        fields.append(("Server", _server_text(current.server, when)))
     print_fields(fields)
-    if installed is not None:
-        executable = unit.installed_executable(installed)
-        if executable is not None and not executable.exists():
-            warnings.append(f"the unit runs {executable}, which no longer exists")
-        warnings += unit.path_differences(installed, os.environ)
-    for warning in warnings:
+    for warning in found.warnings:
         typer.echo(f"warning: {warning}", err=True)
-    if not running:
-        raise typer.Exit(NOT_RUNNING)
+
+
+@app.command()
+def token(
+    *,
+    url: Annotated[
+        bool, typer.Option("--url", help="Print a URL that logs a browser in, on this Machine.")
+    ] = False,
+    renew: Annotated[
+        bool, typer.Option("--renew", help="Replace it: every client needs the new one.")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Renew without asking.")] = False,
+) -> None:
+    """Print the token that clients send to this Machine's Server.
+
+    A client that can log in as you reads it with `ssh <machine> hephaistos daemon token`.
+    """
+    paths = Paths.from_environment()
+    if renew:
+        if not yes:
+            terminal.confirm(
+                "This logs out every client of this Machine's Server. Renew the token?",
+                default=False,
+                action="renew it",
+            )
+        value = server_token.renew(paths)
+    else:
+        value = server_token.token(paths)
+    port = config.settings().server.port
+    typer.echo(f"http://localhost:{port}/?token={value}" if url else value)

@@ -1,0 +1,1714 @@
+{
+  "api": {
+    "major": 1,
+    "minor": 0
+  },
+  "shapes": {
+    "components": {
+      "schemas": {
+        "ApiVersionJson": {
+          "description": "The API's version: clients need the same `major`, and `minor` for what it added.",
+          "properties": {
+            "major": {
+              "title": "Major",
+              "type": "integer"
+            },
+            "minor": {
+              "title": "Minor",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "major",
+            "minor"
+          ],
+          "title": "ApiVersionJson",
+          "type": "object"
+        },
+        "CloneJson": {
+          "description": "A Clone with its State and Worktrees.",
+          "properties": {
+            "ahead": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ahead"
+            },
+            "bare": {
+              "title": "Bare",
+              "type": "boolean"
+            },
+            "behind": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Behind"
+            },
+            "branch": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch"
+            },
+            "branches": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Branches",
+              "type": "array"
+            },
+            "changed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Changed"
+            },
+            "conflicted": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conflicted"
+            },
+            "created_at": {
+              "title": "Created At",
+              "type": "string"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "filesystem": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Head"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "observed_at": {
+              "title": "Observed At",
+              "type": "string"
+            },
+            "observed_by": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "present": {
+              "title": "Present",
+              "type": "boolean"
+            },
+            "remotes": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "title": "Remotes",
+              "type": "object"
+            },
+            "repository": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "resolved_path": {
+              "title": "Resolved Path",
+              "type": "string"
+            },
+            "root_commits": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Root Commits",
+              "type": "array"
+            },
+            "staged": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staged"
+            },
+            "untracked": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Untracked"
+            },
+            "upstream": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Upstream"
+            },
+            "worktrees": {
+              "items": {
+                "$ref": "#/components/schemas/WorktreeJson"
+              },
+              "title": "Worktrees",
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "repository",
+            "filesystem",
+            "path",
+            "resolved_path",
+            "created_at",
+            "bare",
+            "observed_at",
+            "observed_by",
+            "present",
+            "head",
+            "branch",
+            "upstream",
+            "ahead",
+            "behind",
+            "staged",
+            "changed",
+            "untracked",
+            "conflicted",
+            "error",
+            "branches",
+            "root_commits",
+            "remotes",
+            "worktrees"
+          ],
+          "title": "CloneJson",
+          "type": "object"
+        },
+        "CloneRef": {
+          "description": "A Clone: its ID and path.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "path"
+          ],
+          "title": "CloneRef",
+          "type": "object"
+        },
+        "DaemonJson": {
+          "description": "How the Daemon is doing; its parts only while it runs, and only those enabled.",
+          "properties": {
+            "daemon": {
+              "$ref": "#/components/schemas/ProcessJson"
+            },
+            "server": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ServerJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "unit": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/UnitJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            },
+            "watcher": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/WatcherJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "unit",
+            "daemon",
+            "watcher",
+            "server",
+            "warnings"
+          ],
+          "title": "DaemonJson",
+          "type": "object"
+        },
+        "EventJson": {
+          "description": "An Event.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "key": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key"
+            },
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "occurred_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred At"
+            },
+            "payload": {
+              "additionalProperties": true,
+              "title": "Payload",
+              "type": "object"
+            },
+            "priority": {
+              "title": "Priority",
+              "type": "integer"
+            },
+            "recorded_at": {
+              "title": "Recorded At",
+              "type": "string"
+            },
+            "recorded_by": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "subject": {
+              "$ref": "#/components/schemas/SubjectRef"
+            }
+          },
+          "required": [
+            "id",
+            "recorded_at",
+            "recorded_by",
+            "occurred_at",
+            "priority",
+            "kind",
+            "subject",
+            "payload",
+            "key"
+          ],
+          "title": "EventJson",
+          "type": "object"
+        },
+        "HTTPValidationError": {
+          "properties": {
+            "detail": {
+              "items": {
+                "$ref": "#/components/schemas/ValidationError"
+              },
+              "title": "Detail",
+              "type": "array"
+            }
+          },
+          "title": "HTTPValidationError",
+          "type": "object"
+        },
+        "InfoJson": {
+          "description": "What a client checks first: which hephaistos and API answer, on which Machine.",
+          "properties": {
+            "api": {
+              "$ref": "#/components/schemas/ApiVersionJson"
+            },
+            "machine": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "version": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "api",
+            "machine"
+          ],
+          "title": "InfoJson",
+          "type": "object"
+        },
+        "MachineJson": {
+          "description": "A Machine; `setup` only for this one, where shown.",
+          "properties": {
+            "created_at": {
+              "title": "Created At",
+              "type": "string"
+            },
+            "hostname": {
+              "title": "Hostname",
+              "type": "string"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "mounts": {
+              "items": {
+                "$ref": "#/components/schemas/MountJson"
+              },
+              "title": "Mounts",
+              "type": "array"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "os_machine_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Os Machine Id"
+            },
+            "setup": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SetupJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "this": {
+              "title": "This",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "hostname",
+            "os_machine_id",
+            "created_at",
+            "this",
+            "mounts",
+            "setup"
+          ],
+          "title": "MachineJson",
+          "type": "object"
+        },
+        "MountJson": {
+          "description": "Where a Machine sees a Filesystem.",
+          "properties": {
+            "filesystem": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "filesystem"
+          ],
+          "title": "MountJson",
+          "type": "object"
+        },
+        "PassJson": {
+          "description": "The Watcher's last pass.",
+          "properties": {
+            "duration": {
+              "title": "Duration",
+              "type": "number"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "finished_at": {
+              "title": "Finished At",
+              "type": "string"
+            }
+          },
+          "required": [
+            "finished_at",
+            "duration",
+            "error"
+          ],
+          "title": "PassJson",
+          "type": "object"
+        },
+        "ProcessJson": {
+          "description": "The running Daemon, or else the last one.",
+          "properties": {
+            "ended_without_stopping": {
+              "title": "Ended Without Stopping",
+              "type": "boolean"
+            },
+            "last_seen_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Seen At"
+            },
+            "pid": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pid"
+            },
+            "running": {
+              "title": "Running",
+              "type": "boolean"
+            },
+            "started_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Started At"
+            },
+            "stopped_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stopped At"
+            },
+            "under_systemd": {
+              "title": "Under Systemd",
+              "type": "boolean"
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          },
+          "required": [
+            "running",
+            "under_systemd",
+            "pid",
+            "version",
+            "started_at",
+            "stopped_at",
+            "last_seen_at",
+            "ended_without_stopping"
+          ],
+          "title": "ProcessJson",
+          "type": "object"
+        },
+        "Ref": {
+          "description": "Another entity: its ID, and its name if known (a Machine not yet synced isn't).",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          "required": [
+            "id",
+            "name"
+          ],
+          "title": "Ref",
+          "type": "object"
+        },
+        "RepositoryJson": {
+          "description": "A Repository with its main remotes and Clones.",
+          "properties": {
+            "clones": {
+              "items": {
+                "$ref": "#/components/schemas/CloneJson"
+              },
+              "title": "Clones",
+              "type": "array"
+            },
+            "created_at": {
+              "title": "Created At",
+              "type": "string"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "remotes": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Remotes",
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "created_at",
+            "remotes",
+            "clones"
+          ],
+          "title": "RepositoryJson",
+          "type": "object"
+        },
+        "ServerJson": {
+          "description": "The Server of the running Daemon; counts since the Daemon started.",
+          "properties": {
+            "address": {
+              "title": "Address",
+              "type": "string"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "last_request_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last Request At"
+            },
+            "listening": {
+              "title": "Listening",
+              "type": "boolean"
+            },
+            "refused": {
+              "title": "Refused",
+              "type": "integer"
+            },
+            "requests": {
+              "title": "Requests",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "address",
+            "listening",
+            "error",
+            "requests",
+            "last_request_at",
+            "refused"
+          ],
+          "title": "ServerJson",
+          "type": "object"
+        },
+        "SetupJson": {
+          "description": "How this Machine keeps its files and database.",
+          "properties": {
+            "config_dir": {
+              "title": "Config Dir",
+              "type": "string"
+            },
+            "data_dir": {
+              "title": "Data Dir",
+              "type": "string"
+            },
+            "data_fstype": {
+              "title": "Data Fstype",
+              "type": "string"
+            },
+            "database": {
+              "title": "Database",
+              "type": "string"
+            },
+            "journal_mode": {
+              "title": "Journal Mode",
+              "type": "string"
+            },
+            "schema_version": {
+              "title": "Schema Version",
+              "type": "integer"
+            },
+            "state_dir": {
+              "title": "State Dir",
+              "type": "string"
+            }
+          },
+          "required": [
+            "config_dir",
+            "data_dir",
+            "state_dir",
+            "database",
+            "journal_mode",
+            "data_fstype",
+            "schema_version"
+          ],
+          "title": "SetupJson",
+          "type": "object"
+        },
+        "SubjectRef": {
+          "description": "What an Event is about: its ID, type (`clone`), and name or path if known.",
+          "properties": {
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            },
+            "type": {
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "type",
+            "label"
+          ],
+          "title": "SubjectRef",
+          "type": "object"
+        },
+        "UnitJson": {
+          "description": "The Daemon's systemd unit.",
+          "properties": {
+            "active": {
+              "title": "Active",
+              "type": "string"
+            },
+            "enabled": {
+              "title": "Enabled",
+              "type": "boolean"
+            },
+            "exit_code": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exit Code"
+            },
+            "installed": {
+              "title": "Installed",
+              "type": "boolean"
+            },
+            "linger": {
+              "title": "Linger",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "installed",
+            "enabled",
+            "active",
+            "exit_code",
+            "linger"
+          ],
+          "title": "UnitJson",
+          "type": "object"
+        },
+        "ValidationError": {
+          "properties": {
+            "ctx": {
+              "title": "Context",
+              "type": "object"
+            },
+            "input": {
+              "title": "Input"
+            },
+            "loc": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "title": "Location",
+              "type": "array"
+            },
+            "msg": {
+              "title": "Message",
+              "type": "string"
+            },
+            "type": {
+              "title": "Error Type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "loc",
+            "msg",
+            "type"
+          ],
+          "title": "ValidationError",
+          "type": "object"
+        },
+        "WatcherJson": {
+          "description": "The Watcher of the running Daemon.",
+          "properties": {
+            "interval": {
+              "title": "Interval",
+              "type": "number"
+            },
+            "last_pass": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PassJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "next_pass_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next Pass At"
+            },
+            "stalled": {
+              "title": "Stalled",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "interval",
+            "last_pass",
+            "next_pass_at",
+            "stalled"
+          ],
+          "title": "WatcherJson",
+          "type": "object"
+        },
+        "WorktreeJson": {
+          "description": "A Worktree with its State.",
+          "properties": {
+            "ahead": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ahead"
+            },
+            "behind": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Behind"
+            },
+            "branch": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch"
+            },
+            "changed": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Changed"
+            },
+            "clone": {
+              "$ref": "#/components/schemas/CloneRef"
+            },
+            "conflicted": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conflicted"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Head"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "lock_reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lock Reason"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "observed_at": {
+              "title": "Observed At",
+              "type": "string"
+            },
+            "observed_by": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "present": {
+              "title": "Present",
+              "type": "boolean"
+            },
+            "repository": {
+              "$ref": "#/components/schemas/Ref"
+            },
+            "staged": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staged"
+            },
+            "untracked": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Untracked"
+            },
+            "upstream": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Upstream"
+            }
+          },
+          "required": [
+            "id",
+            "repository",
+            "clone",
+            "name",
+            "path",
+            "lock_reason",
+            "observed_at",
+            "observed_by",
+            "present",
+            "head",
+            "branch",
+            "upstream",
+            "ahead",
+            "behind",
+            "staged",
+            "changed",
+            "untracked",
+            "conflicted",
+            "error"
+          ],
+          "title": "WorktreeJson",
+          "type": "object"
+        }
+      }
+    },
+    "openapi": "3.1.0",
+    "paths": {
+      "/": {
+        "get": {
+          "description": "What answers here; the GUI will.",
+          "operationId": "root__get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "title": "Response Root  Get",
+                    "type": "object"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Root"
+        }
+      },
+      "/api/clones": {
+        "get": {
+          "description": "The Clones, or those of a Repository, as `clone list --json`.",
+          "operationId": "clone_list_api_clones_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "repository",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Repository"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/CloneJson"
+                    },
+                    "title": "Response Clone List Api Clones Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Clone List"
+        }
+      },
+      "/api/clones/{clone_id}": {
+        "get": {
+          "description": "A Clone, as `clone show --json`.",
+          "operationId": "clone_show_api_clones__clone_id__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "clone_id",
+              "required": true,
+              "schema": {
+                "format": "uuid",
+                "title": "Clone Id",
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/CloneJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Clone Show"
+        }
+      },
+      "/api/daemon": {
+        "get": {
+          "description": "How the Daemon is doing, as `daemon status --json`.",
+          "operationId": "daemon_api_daemon_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DaemonJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Daemon"
+        }
+      },
+      "/api/events": {
+        "get": {
+          "description": "Events, newest first, as `event list --json`; `before` an Event pages back from it.\n\n`kind` as in `event list` (repeat for several); `since` a duration (`2h`) or a date;\n`limit` 0 for all.",
+          "operationId": "event_list_api_events_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "kind",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Kind"
+              }
+            },
+            {
+              "in": "query",
+              "name": "priority",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "low",
+                      "normal",
+                      "high",
+                      "urgent"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Priority"
+              }
+            },
+            {
+              "in": "query",
+              "name": "machine",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Machine"
+              }
+            },
+            {
+              "in": "query",
+              "name": "since",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Since"
+              }
+            },
+            {
+              "in": "query",
+              "name": "repository",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Repository"
+              }
+            },
+            {
+              "in": "query",
+              "name": "clone",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Clone"
+              }
+            },
+            {
+              "in": "query",
+              "name": "worktree",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Worktree"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": false,
+              "schema": {
+                "default": 20,
+                "minimum": 0,
+                "title": "Limit",
+                "type": "integer"
+              }
+            },
+            {
+              "in": "query",
+              "name": "before",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Before"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/EventJson"
+                    },
+                    "title": "Response Event List Api Events Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Event List"
+        }
+      },
+      "/api/events/{event_id}": {
+        "get": {
+          "description": "An Event, as `event show --json`.",
+          "operationId": "event_show_api_events__event_id__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "event_id",
+              "required": true,
+              "schema": {
+                "format": "uuid",
+                "title": "Event Id",
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/EventJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Event Show"
+        }
+      },
+      "/api/info": {
+        "get": {
+          "description": "Which hephaistos and API answer, on which Machine.",
+          "operationId": "info_api_info_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/InfoJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Info"
+        }
+      },
+      "/api/machines": {
+        "get": {
+          "description": "The Machines, as `machine list --json`.",
+          "operationId": "machine_list_api_machines_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/MachineJson"
+                    },
+                    "title": "Response Machine List Api Machines Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Machine List"
+        }
+      },
+      "/api/machines/{machine_id}": {
+        "get": {
+          "description": "A Machine, as `machine show --json`; this one with its setup.",
+          "operationId": "machine_show_api_machines__machine_id__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "machine_id",
+              "required": true,
+              "schema": {
+                "format": "uuid",
+                "title": "Machine Id",
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/MachineJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Machine Show"
+        }
+      },
+      "/api/repositories": {
+        "get": {
+          "description": "The Repositories, as `repo list --json`.",
+          "operationId": "repository_list_api_repositories_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/RepositoryJson"
+                    },
+                    "title": "Response Repository List Api Repositories Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Repository List"
+        }
+      },
+      "/api/repositories/{repository_id}": {
+        "get": {
+          "description": "A Repository, as `repo show --json`.",
+          "operationId": "repository_show_api_repositories__repository_id__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "repository_id",
+              "required": true,
+              "schema": {
+                "format": "uuid",
+                "title": "Repository Id",
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RepositoryJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Repository Show"
+        }
+      },
+      "/api/worktrees": {
+        "get": {
+          "description": "The Worktrees, or those of a Repository, as `worktree list --json`.",
+          "operationId": "worktree_list_api_worktrees_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "repository",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Repository"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/WorktreeJson"
+                    },
+                    "title": "Response Worktree List Api Worktrees Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Worktree List"
+        }
+      },
+      "/api/worktrees/{worktree_id}": {
+        "get": {
+          "description": "A Worktree, as `worktree show --json`.",
+          "operationId": "worktree_show_api_worktrees__worktree_id__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "worktree_id",
+              "required": true,
+              "schema": {
+                "format": "uuid",
+                "title": "Worktree Id",
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/WorktreeJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Worktree Show"
+        }
+      }
+    }
+  }
+}

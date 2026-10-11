@@ -166,8 +166,11 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
     repository_id: uuid.UUID | None = None,
     clone_id: uuid.UUID | None = None,
     worktree_id: uuid.UUID | None = None,
+    before: uuid.UUID | None = None,
 ) -> list[Event]:
     """The Events matching all given filters, newest first; `kinds` match if any one does.
+
+    `before` pages back: only Events older than that one, which must exist.
 
     A kind like `clone` matches `clone.added` but not `clones.added`; `*.deleted` is a glob.
     Events about a Repository include those about its Clones, and those about a Clone those
@@ -203,12 +206,26 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
     if worktree_id is not None:
         conditions.append("subject = ?")
         parameters.append(worktree_id)
+    if before is not None:
+        if get(session, before) is None:
+            raise HephaistosError(f"no Event with ID {before}")
+        conditions.append("(recorded_at, id) < (SELECT recorded_at, id FROM events WHERE id = ?)")
+        parameters.append(before)
     where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
     rows = session.conn.execute(
-        f"SELECT {_COLUMNS} FROM events{where} ORDER BY recorded_at DESC LIMIT ?",  # noqa: S608 - our own conditions; values are parameters
+        f"SELECT {_COLUMNS} FROM events{where} ORDER BY recorded_at DESC, id DESC LIMIT ?",  # noqa: S608 - our own conditions; values are parameters
         (*parameters, -1 if limit is None else limit),
     )
     return [Event.from_row(row) for row in rows]
+
+
+def get(session: ReadSession, event_id: uuid.UUID) -> Event | None:
+    """The Event with this ID; None if there is none."""
+    row = session.conn.execute(
+        f"SELECT {_COLUMNS} FROM events WHERE id = ?",  # noqa: S608 - our own constant
+        (event_id,),
+    ).fetchone()
+    return None if row is None else Event.from_row(row)
 
 
 def by_short_id(session: ReadSession, short: str) -> Event:
