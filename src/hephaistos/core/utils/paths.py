@@ -4,12 +4,16 @@ import os
 import re
 import shlex
 import socket
+import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from hephaistos.core.utils.errors import HephaistosError
+
 DATABASE_NAME = "hephaistos.db"
 HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
+PRIVATE_MODE = 0o700  # our data and state directories: only their user may enter them
 
 NETWORK_FILESYSTEMS = frozenset(
     {
@@ -37,6 +41,39 @@ def machine_key() -> str:
     return os_machine_id() or socket.gethostname()
 
 
+class ForeignDirectoryError(HephaistosError):
+    """A directory where we keep our files belongs to another user."""
+
+
+def private_directory(directory: Path) -> Path:
+    """Creates a directory of ours, with its parents, that only the user may enter."""
+    directory.mkdir(mode=PRIVATE_MODE, parents=True, exist_ok=True)
+    return directory
+
+
+def make_private(directory: Path) -> bool:
+    """Lets only the user enter an existing directory of ours; returns whether others could.
+
+    A symlink is followed, e.g. to data kept on a local disk. Raises ForeignDirectoryError if
+    the directory belongs to another user, who could read and change what we put there.
+    """
+    try:
+        info = directory.stat()
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISDIR(info.st_mode):  # creating it, or writing in it, will fail and tell
+        return False
+    if info.st_uid != os.getuid():
+        raise ForeignDirectoryError(
+            f"{directory} belongs to another user (uid {info.st_uid}); hephaistos keeps its"
+            " files only in directories of yours"
+        )
+    if not info.st_mode & 0o077:
+        return False
+    directory.chmod(PRIVATE_MODE)
+    return True
+
+
 @dataclass(frozen=True)
 class Paths:
     """Where this Machine keeps its config, data (the database) and logs."""
@@ -54,6 +91,15 @@ class Paths:
     def database_backup(self) -> Path:
         """Where `setup --reset` keeps the previous database."""
         return self.data_dir / f"{DATABASE_NAME}.old"
+
+    def make_private(self) -> list[Path]:
+        """Lets only the user enter the data and state directories; returns those others could.
+
+        The config directory is the user's to share, e.g. in their dotfiles; it holds no data.
+        """
+        return [
+            directory for directory in (self.data_dir, self.state_dir) if make_private(directory)
+        ]
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str] = os.environ) -> "Paths":

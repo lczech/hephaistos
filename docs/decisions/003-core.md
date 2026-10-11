@@ -45,6 +45,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
   - data: `~/.local/share/hephaistos/<machine>/`
   - logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day (`2026-10-08.jsonl`).
 - `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
+- Only the user may enter the data and log directories (mode 0700): on clusters, home directories are often open to others. Each run makes them so, warning once, and refuses directories that belong to another user. Symlinks are followed, e.g. to data on a local disk. The config directory is left as the user keeps it.
 - SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
 - A Machine set up twice (e.g. after deleting its data) gets a new ID; the same `os_machine_id` suggests merging them.
 

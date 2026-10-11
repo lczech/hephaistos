@@ -1,5 +1,8 @@
 """The Server: serves the app on 127.0.0.1 at `server.port`, in the Daemon's own process.
 
+With port 0 it takes a free port, which `daemon.json` tells; the Server reports where it listens
+only once it does, so nobody is sent to a port that isn't ours.
+
 Its endpoints only read the database, briefly, in uvicorn's threads; git runs in the Watcher's
 worker, so the Server answers at normal priority.
 """
@@ -7,6 +10,7 @@ worker, so the Server answers at normal priority.
 import asyncio
 import errno
 import logging
+import os
 import socket
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -17,7 +21,7 @@ import uvicorn
 from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.errors import PartError
-from hephaistos.daemon.server import token
+from hephaistos.daemon.server import ports, token
 from hephaistos.daemon.server.app import Counts, create_app
 from hephaistos.daemon.status import ServerStatus
 
@@ -41,7 +45,7 @@ def address(port: int) -> str:
     return f"{HOST}:{port}"
 
 
-def _listening(port: int) -> socket.socket:
+def bind(port: int) -> socket.socket:
     """A socket bound to our address; raises PartError if it can't be."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -49,9 +53,16 @@ def _listening(port: int) -> socket.socket:
         sock.bind((HOST, port))
     except OSError as error:
         sock.close()
-        if error.errno == errno.EADDRINUSE:
-            raise PartError(f"port {port} is in use; set server.port for this host") from None
-        raise PartError(f"can't listen on {address(port)}: {error.strerror}") from None
+        if error.errno != errno.EADDRINUSE:
+            raise PartError(f"can't listen on {address(port)}: {error.strerror}") from None
+        held_by = ports.holder(port)
+        if held_by is not None and held_by != os.getuid():
+            raise PartError(
+                f"port {port} is held by another user (uid {held_by}); set server.port for"
+                " this host, and renew the token (`hephaistos daemon token --renew`) if a client"
+                " may have sent it there"
+            ) from None
+        raise PartError(f"port {port} is in use; set server.port for this host") from None
     return sock
 
 
@@ -97,10 +108,11 @@ class Server:
         if token.tighten(self._paths):
             log.warning("others could read %s; now only you can", token.token_file(self._paths))
         try:
-            sock = _listening(port)
+            sock = bind(port)
         except PartError as error:
             self._report(self._status(where, listening=False, error=str(error)))
             raise
+        where = address(sock.getsockname()[1])  # the free one taken, with port 0
         app = create_app(self._paths, self._counts, self._version)
         logging.getLogger("uvicorn").setLevel(logging.WARNING)  # we log what it would say
         server = _Uvicorn(

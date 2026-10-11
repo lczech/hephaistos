@@ -9,7 +9,7 @@ import os
 import secrets
 from pathlib import Path
 
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, private_directory
 
 TOKEN_NAME = "server.token"  # noqa: S105 - the file's name, not a token
 TOKEN_BYTES = 32  # random bytes; 43 characters of URL-safe base64
@@ -40,7 +40,7 @@ def _written(path: Path, value: str, *, exclusive: bool) -> None:
 def renew(paths: Paths) -> str:
     """Replaces the token with a new one, which every client then needs; returns it."""
     path = token_file(paths)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    private_directory(path.parent)
     new = path.with_name(f"{path.name}.new")
     with contextlib.suppress(FileNotFoundError):
         new.unlink()
@@ -57,7 +57,7 @@ def token(paths: Paths) -> str:
         return found
     if path.exists():  # empty: never fully written
         return renew(paths)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    private_directory(path.parent)
     value = secrets.token_urlsafe(TOKEN_BYTES)
     try:
         _written(path, value, exclusive=True)

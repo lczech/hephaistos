@@ -8,10 +8,12 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -25,7 +27,7 @@ from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.server import token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.schedule import Watcher
-from support import create, free_port, git, logged
+from support import create, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
 
@@ -197,14 +199,15 @@ def test_running_version(tmp_path: Path) -> None:
     assert main.running_version(checkout) == f"{__version__} ({short})"
 
 
-def _get(port: int, path: str, value: str) -> object:
-    """What the Server on `port` answers to a GET with the token, over HTTP, without proxies."""
+def _get(port: int, path: str, headers: dict[str, str]) -> tuple[int, Any]:
+    """The status and JSON with which the Server on `port` answers a GET, without proxies."""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    request = urllib.request.Request(
-        f"http://localhost:{port}{path}", headers={"Authorization": f"Bearer {value}"}
-    )
-    with opener.open(request, timeout=WAIT) as response:
-        return json.loads(response.read())
+    request = urllib.request.Request(f"http://127.0.0.1:{port}{path}", headers=headers)
+    try:
+        with opener.open(request, timeout=WAIT) as response:
+            return response.status, json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read())
 
 
 def _server(paths: Paths, daemon: subprocess.Popen[str]) -> ServerStatus | None:
@@ -218,21 +221,35 @@ def _server(paths: Paths, daemon: subprocess.Popen[str]) -> ServerStatus | None:
 
 @pytest.mark.usefixtures("repo")
 def test_serves_until_stopped(paths: Paths) -> None:
-    port = free_port()
-    daemon = _daemon(port=port)
+    daemon = _daemon(port=0)  # a free port, as it reports
     try:
-        assert _until(lambda: _server(paths, daemon)).listening
-        info = _get(port, "/api/info", token.token(paths))
-        assert isinstance(info, dict)
-        assert info["machine"] == {"id": info["machine"]["id"], "name": "laptop"}
-        assert _until(lambda: _server(paths, daemon) if _requests(paths) else None).refused == 0
+        port = _until(lambda: _server(paths, daemon)).port
+        assert port > 0
+        value = token.token(paths)
+        status_code, info = _get(port, "/api/info", {"Authorization": f"Bearer {value}"})
+        assert status_code == 200
+        assert info["machine"]["name"] == "laptop"
+        refusals = [
+            _get(port, "/api/info", {}),
+            _get(port, f"/api/info?token={value}", {"Authorization": "Bearer wrong"}),
+            _get(port, "/api/info", {"Authorization": f"Bearer {value}", "Host": "evil.example"}),
+        ]
+        assert [(code, answer["error"].split(";")[0]) for code, answer in refusals] == [
+            (401, "no token"),
+            (401, "wrong token"),
+            (400, "this Server answers only to localhost, not to evil.example"),
+        ]
+        counted = _until(lambda: _server(paths, daemon) if _requests(paths) else None)
+        assert (counted.requests, counted.refused) == (1, 3)
     finally:
         daemon.send_signal(signal.SIGTERM)
         _, err = daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0, err
     assert err == "Running: watcher, server; Ctrl+C stops the Daemon\n"
-    assert f"listening on 127.0.0.1:{port}" in _messages(paths)
-    assert "GET /api/info 200" not in str(_messages(paths))  # debug, below the default level
+    messages = _messages(paths)
+    assert f"listening on 127.0.0.1:{port}" in messages
+    assert "refused GET /api/info?token=… from 127.0.0.1: wrong token" in str(messages)
+    assert value not in str(logged(paths))
 
 
 def _requests(paths: Paths) -> int:

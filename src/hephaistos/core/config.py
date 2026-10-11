@@ -112,7 +112,7 @@ class Server:
     """The section [server]."""
 
     enabled: bool
-    port: Annotated[int, AtLeast(1024), AtMost(65535)]
+    port: Annotated[int, AtLeast(0), AtMost(65535)]
 
 
 @dataclass(frozen=True)
