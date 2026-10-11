@@ -12,7 +12,6 @@ from hephaistos.cli.clone import (
     observe_checkout,
     status_fields,
     status_text,
-    worktree_json,
     worktree_path_text,
 )
 from hephaistos.cli.output import (
@@ -24,6 +23,7 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.observers import clones as observer
@@ -43,15 +43,6 @@ TargetArgument = Annotated[
         " Default: the current directory."
     ),
 ]
-
-
-def _json(worktree: WorktreeState, details: CloneDetails) -> dict[str, object]:
-    """A Worktree with its Repository and Clone, for JSON output."""
-    return {
-        "repository": details.repository.name,
-        "clone": str(details.clone.display_path),
-        **worktree_json(worktree),
-    }
 
 
 def _lock_text(worktree: WorktreeState) -> str:
@@ -75,14 +66,14 @@ def list_(
         observer.observe(paths)
     with read_session(paths) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
+        if as_json:
+            print_json(views.worktrees_json(session, repository_id=repository_id))
+            return
         found = [
             (worktree, details)
             for details in clones.details(session, repository_id=repository_id)
             for worktree in details.worktrees
         ]
-    if as_json:
-        print_json([_json(worktree, details) for worktree, details in found])
-        return
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
         ["repository", "clone", "branch", "status", "observed", "path"],
@@ -168,7 +159,7 @@ def show(
         worktree, details = find_worktree(session, target)
         observers = machines.labels(session, [worktree.observed_by])
     if as_json:
-        print_json(_json(worktree, details))
+        print_json(views.worktree_json(worktree, details, observers))
         return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(

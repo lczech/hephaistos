@@ -78,8 +78,9 @@ def details(
     *,
     repository_id: uuid.UUID | None = None,
     filesystem_id: uuid.UUID | None = None,
+    clone_id: uuid.UUID | None = None,
 ) -> list[CloneDetails]:
-    """The Clones with their Worktrees, optionally of one Repository or on one Filesystem.
+    """The Clones with their Worktrees, optionally of one Repository, on one Filesystem, or one.
 
     Sorted by Repository and path.
     """
@@ -91,9 +92,9 @@ def details(
         " JOIN registry_filesystems f ON f.id = c.filesystem_id"
         " JOIN state_clones s ON s.clone_id = c.id"
         " WHERE c.deleted = 0 AND coalesce(c.repository_id = ?, 1)"
-        " AND coalesce(c.filesystem_id = ?, 1)"
+        " AND coalesce(c.filesystem_id = ?, 1) AND coalesce(c.id = ?, 1)"
         " ORDER BY r.name, c.display_path",
-        (repository_id, filesystem_id),
+        (repository_id, filesystem_id, clone_id),
     ).fetchall()
     by_clone: dict[uuid.UUID, list[WorktreeState]] = {}
     for worktree in worktrees.of_clones(session, [uuid.UUID(bytes=row["id"]) for row in rows]):

@@ -1,8 +1,9 @@
-"""Helpers for tests: git repositories to work on, and running the CLI as its entry point does."""
+"""Helpers for tests: git repositories, running the CLI as its entry point does, free ports."""
 
 import functools
 import json
 import re
+import socket
 import subprocess
 from pathlib import Path
 
@@ -11,6 +12,13 @@ import pytest
 from hephaistos.cli.main import run
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
+
+
+def free_port() -> int:
+    """A port nothing listens on now, for a Server in a test."""
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 def git(path: Path, *args: str) -> str:

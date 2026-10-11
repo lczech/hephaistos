@@ -9,14 +9,14 @@ from typing import get_args
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli.event import PriorityName, summary_text
+from hephaistos.cli.event import summary_text
 from hephaistos.cli.main import app
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import write_session
 from hephaistos.core.events import events
 from hephaistos.core.events.events import Change, Event, to_json
-from hephaistos.core.events.kinds import EventKind, Priority
+from hephaistos.core.events.kinds import EventKind, Priority, PriorityName
 from hephaistos.core.registry.clones import Clone
 from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.machines import Machine
@@ -147,8 +147,9 @@ def test_show_a_payload_that_isnt_an_object(paths: Paths) -> None:
 def test_json() -> None:
     [event] = json.loads(runner.invoke(app, ["event", "list", "-n", "1", "--json"]).output)
     assert event["kind"] == "repository.changed"
-    assert event["machine"] == "laptop"
-    assert event["subject_label"] == "project"
+    assert event["recorded_by"]["name"] == "laptop"
+    assert event["subject"]["type"] == "repository"
+    assert event["subject"]["label"] == "project"
     assert event["priority"] == 20
     assert event["payload"] == {"name": {"old": "proj", "new": "project"}}
     assert datetime.fromisoformat(event["recorded_at"]) <= datetime.now(UTC)

@@ -1,0 +1,176 @@
+"""The Server's web app: the API, for clients with the token, and logging what it answers.
+
+A client sends the token as `Authorization: Bearer <token>`, or in the cookie a browser gets
+by opening a URL with `?token=<token>` once. Requests must name this Machine as `localhost`,
+so that no other site's name can be pointed at it (DNS rebinding).
+"""
+
+import logging
+import re
+import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, RedirectResponse
+from starlette.exceptions import HTTPException
+
+from hephaistos.core.db.sessions import read_session
+from hephaistos.core.registry import machines
+from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.paths import Paths
+from hephaistos.core.views import API_VERSION
+from hephaistos.daemon.server import api
+from hephaistos.daemon.server.token import TokenFile, matches
+
+COOKIE = "hephaistos"
+COOKIE_AGE = 365 * 24 * 60 * 60  # seconds; renewing the token ends it sooner
+HOSTS = frozenset({"localhost", "127.0.0.1"})
+_TOKEN_IN_QUERY = re.compile(r"(^|&)token=[^&]*")
+
+log = logging.getLogger(__name__)
+
+type CallNext = Callable[[Request], Awaitable[Response]]
+
+
+@dataclass
+class Counts:
+    """The requests the Server answered and refused."""
+
+    requests: int = 0
+    refused: int = 0
+    last_request_at: datetime | None = None
+
+
+def shown_request(request: Request) -> str:
+    """A request's method and path as logged: with its query, but not the token."""
+    query = _TOKEN_IN_QUERY.sub(r"\1token=…", request.url.query)
+    return f"{request.method} {request.url.path}{f'?{query}' if query else ''}"
+
+
+def _hostname(request: Request) -> str:
+    """The host the request names, without the port."""
+    host = request.headers.get("host", "")
+    return host.rpartition(":")[0] if ":" in host else host
+
+
+def _given_token(request: Request) -> str | None:
+    """The token a request carries: in its query, its Authorization header, or its cookie."""
+    if (query := request.query_params.get("token")) is not None:
+        return query
+    scheme, _, credentials = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() == "bearer" and credentials:
+        return credentials.strip()
+    return request.cookies.get(COOKIE)
+
+
+def _refused(reason: str, status: int) -> Response:
+    """The answer to a refused request."""
+    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None  # noqa: PLR2004 - HTTP's
+    return JSONResponse({"error": reason}, status_code=status, headers=headers)
+
+
+def _logged_in(request: Request, token: str) -> Response:
+    """Sends a browser that brought the token in its URL to the same URL without it."""
+    query = "&".join(part for part in request.url.query.split("&") if not part.startswith("token="))
+    response = RedirectResponse(f"{request.url.path}{f'?{query}' if query else ''}", 303)
+    response.set_cookie(
+        COOKIE, token, max_age=COOKIE_AGE, path="/", httponly=True, samesite="strict"
+    )
+    return response
+
+
+class Guard:
+    """Lets requests through with the token, counting and logging what the app answers."""
+
+    def __init__(self, paths: Paths, counts: Counts) -> None:
+        """Checks requests against the token in `paths`, counting them in `counts`."""
+        self._tokens = TokenFile(paths)
+        self._counts = counts
+        with read_session(paths) as session:
+            self._machine = machines.this(session).name
+
+    def _refusal(self, request: Request, token: str) -> tuple[str, int] | None:
+        """Why a request is refused, and with which status; None if it isn't."""
+        if (host := _hostname(request)) not in HOSTS:
+            return f"this Server answers only to localhost, not to {host}", 400
+        if (given := _given_token(request)) is None:
+            return "no token; see `hephaistos daemon token`", 401
+        if not matches(given, token):
+            return "wrong token; see `hephaistos daemon token`", 401
+        return None
+
+    async def __call__(self, request: Request, call_next: CallNext) -> Response:
+        """Answers a request: refused, logged in, or by the app."""
+        started = time.monotonic()
+        shown = shown_request(request)
+        token = self._tokens.current()
+        if (refusal := self._refusal(request, token)) is not None:
+            reason, status = refusal
+            self._counts.refused += 1
+            client = request.client.host if request.client else "?"
+            log.warning("refused %s from %s: %s", shown, client, reason)
+            return _refused(reason, status)
+        if "token" in request.query_params:
+            response = _logged_in(request, token)
+        else:
+            try:
+                response = await call_next(request)
+            except Exception:
+                log.exception("failed: %s", shown)
+                error = f"internal error; see the log on {self._machine}"
+                response = JSONResponse({"error": error}, status_code=500)
+        self._counts.requests += 1
+        self._counts.last_request_at = datetime.now(UTC)
+        milliseconds = round((time.monotonic() - started) * 1000)
+        log.debug("%s %d %d ms", shown, response.status_code, milliseconds)
+        return response
+
+
+async def _http_error(_: Request, error: Exception) -> Response:
+    """An error the app or its routing raised on purpose, e.g. 404."""
+    if not isinstance(error, HTTPException):
+        raise error
+    return JSONResponse({"error": error.detail}, status_code=error.status_code)
+
+
+async def _invalid_request(_: Request, error: Exception) -> Response:
+    """Parameters that don't fit, e.g. an ID that isn't one."""
+    if not isinstance(error, RequestValidationError):
+        raise error
+    problems = [
+        f"{' '.join(str(part) for part in problem['loc'])}: {problem['msg']}"
+        for problem in error.errors()
+    ]
+    return JSONResponse({"error": "; ".join(problems)}, status_code=400)
+
+
+async def _refused_by_core(_: Request, error: Exception) -> Response:
+    """What the Core refuses, with the message the CLI would print."""
+    return JSONResponse({"error": str(error)}, status_code=400)
+
+
+def create_app(paths: Paths, counts: Counts, version: str) -> FastAPI:
+    """The Server's app for this Machine, counting its requests in `counts`."""
+    app = FastAPI(
+        title="hephaistos",
+        version=f"{API_VERSION.major}.{API_VERSION.minor}",
+        summary="This Machine's Server: what the CLI's `--json` shows, for GUIs.",
+        redoc_url=None,
+    )
+    app.state.paths = paths
+    app.state.version = version
+    app.middleware("http")(Guard(paths, counts))
+    app.add_exception_handler(HTTPException, _http_error)
+    app.add_exception_handler(RequestValidationError, _invalid_request)
+    app.add_exception_handler(HephaistosError, _refused_by_core)
+    app.include_router(api.router)
+
+    @app.get("/")
+    def root() -> dict[str, str]:
+        """What answers here; the GUI will."""
+        return {"hephaistos": version, "gui": "not yet"}
+
+    return app

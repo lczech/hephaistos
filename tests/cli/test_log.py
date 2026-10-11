@@ -44,7 +44,8 @@ def test_show(paths: Paths) -> None:
 
     brief = runner.invoke(app, ["log", "show", "--brief", "-n", "2", "--level", "error"])
     assert brief.stdout.splitlines()[1:] == ["    ↳ KeyError: 'branch'"]
-    since = runner.invoke(app, ["log", "show", "--since", "90s", "--json"])
+    ninety_seconds_before = (NOW - timedelta(seconds=90)).isoformat()
+    since = runner.invoke(app, ["log", "show", "--since", ninety_seconds_before, "--json"])
     [record] = [json.loads(line) for line in since.stdout.splitlines()]
     assert record["event"] == "e1"
 

@@ -44,8 +44,9 @@ def test_machine_show_json(paths: Paths) -> None:
     result = runner.invoke(app, ["machine", "show", "--json"])
     data = json.loads(result.output)
     assert data["name"] == "laptop"
-    assert data["database"] == str(paths.database)
-    assert data["mounts"] == [{"path": "/", "filesystem": "laptop-local"}]
+    assert data["setup"]["database"] == str(paths.database)
+    [mount] = data["mounts"]
+    assert (mount["path"], mount["filesystem"]["name"]) == ("/", "laptop-local")
 
 
 def test_errors_are_messages_not_tracebacks(
@@ -176,8 +177,8 @@ def test_machine_show_by_name_matches_list() -> None:
     runner.invoke(app, ["setup", "--name", "laptop"])
     [listed] = json.loads(runner.invoke(app, ["machine", "list", "--json"]).output)
     shown = json.loads(runner.invoke(app, ["machine", "show", "laptop", "--json"]).output)
-    assert shown.items() >= listed.items()
-    assert "journal_mode" in shown
+    assert shown == listed | {"setup": shown["setup"]}
+    assert "journal_mode" in shown["setup"]
 
     result = runner.invoke(app, ["machine", "show", "desktop"])
     assert isinstance(result.exception, HephaistosError)

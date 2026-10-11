@@ -48,6 +48,7 @@ Vocabulary used consistently, but not stored as entities.
 - **Working directory**: the directory a process (Terminal, Agent) runs in. It may lie inside a Checkout.
 - **View**: a page or component of the GUI showing entities, e.g. the Repository table.
 - **Panel**: a dockable area of the GUI that shows a view or a Terminal.
+- **Token**: the secret a client sends to a Machine's Server; `hephaistos daemon token` shows it.
 
 ## Later
 

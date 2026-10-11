@@ -250,7 +250,8 @@ def test_status_of_the_watcher(  # noqa: PLR0913 - fixtures, then the case
     now = datetime.now(UTC)
     done = status.PassStatus(now - timedelta(seconds=ago), 0.4, error)
     paths.state_dir.mkdir(parents=True)
-    status.write(paths.state_dir, status.Status(os.getpid(), "0.1.0", now, parts={"watcher": done}))
+    found = status.Status(os.getpid(), "0.1.0", now, parts=("watcher",), watcher=done)
+    status.write(paths.state_dir, found)
     with status.held_lock(paths.state_dir):
         assert run_cli(monkeypatch, "daemon", "status") == 0
     assert capsys.readouterr().out.splitlines()[2] == line

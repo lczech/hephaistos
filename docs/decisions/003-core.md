@@ -14,6 +14,7 @@ One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, s
 src/hephaistos/
   core/
     config.py     settings: shipped defaults.toml, config files, environment
+    views.py      entities as JSON, for `--json` and the Server's API
     db/           connection, read and write sessions, schema, raw views
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
@@ -24,6 +25,7 @@ src/hephaistos/
       ids.py      UUIDv7, hybrid logical clock
       paths.py    XDG directories, per-Machine subdirectory, filesystem type detection
       logs.py     log files: JSON Lines, one per UTC day; records as text
+      times.py    points in time as given: `2h` ago, or a date
       git.py      reads facts by running git's commands for scripts; knows nothing about our records
   cli/            one module per subcommand, named like it (clone.py for `hephaistos clone`)
   daemon/{watcher,sync,server}/
@@ -126,16 +128,17 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## Daemon
 
-- `hephaistos daemon run` runs the parts this Machine enables (`watcher.enabled`; later the Server and Sync) in the foreground, until SIGINT or SIGTERM; systemd runs it like this. One runs per Machine: it holds an exclusive `flock` on `daemon.lock` in the state directory, which the kernel releases however it ends.
+- `hephaistos daemon run` runs the parts this Machine enables (`watcher.enabled`, `server.enabled`; later Sync) in the foreground, until SIGINT or SIGTERM; systemd runs it like this. One runs per Machine: it holds an exclusive `flock` on `daemon.lock` in the state directory, which the kernel releases however it ends.
 - The Watcher passes at start, then `watcher.interval` seconds (60) after each pass ends. Passes run in a worker process that lowers its own CPU and I/O priority once (nice 19, `ionice -c3`), before starting threads, so they and git inherit it. The worker leads its own process group: Ctrl+C in a terminal doesn't reach it, and the Daemon stops it with its git in one signal.
 - A failed pass is logged, and the next one runs on schedule; a busy database is retried 3 times (after 1, 2, 4 s). A dead worker is replaced. A crashed part restarts after 1 s, doubling up to 60 s, and back to 1 s once it ran 10 minutes.
 - A Daemon that can't start (broken config, no parts enabled, not set up, no git, already running) exits with 78 (`EX_CONFIG`), which its systemd unit doesn't restart.
 - Stopping is immediate: a pass cut short loses nothing, as git only reads and SQLite rolls back. A second signal exits at once.
-- `daemon.json` in the state directory tells how it runs: pid, version (from a checkout with its commit, `0.1.0 (bfc66f6-dirty)`), start and stop, and each part's last pass (when, how long, any error). Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
+- `daemon.json` in the state directory tells how it runs: pid, version (from a checkout with its commit, `0.1.0 (bfc66f6-dirty)`), start and stop, the Watcher's last pass (when, how long, any error), and the Server's address and counts of requests, written at most every 2 s. Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
 - Log: INFO for start (parts, interval, git and its version), stop, and passes recording Events; DEBUG for passes without; ERROR for failed passes and crashes.
 - `daemon install` writes a systemd user unit, `~/.config/systemd/user/hephaistos.service`, then enables and starts it. The unit runs the hephaistos that installed it, by the path it was run as (a link such as `~/.local/bin/hephaistos` survives reinstalling the tool), with the shell's `HEPHAISTOS_HOME` and XDG directories; settings variables don't reach it, and `install` says so. Run again, it rewrites a changed unit and restarts the Daemon; it leaves a unit alone that it didn't write. `--linger` runs `loginctl enable-linger`, so the Daemon starts at boot and survives logout; `uninstall` leaves linger as it is.
 - `start`, `stop` and `restart` go through systemd. `stop` also ends a Daemon run by hand (SIGTERM to the lock's holder); `start` refuses while one runs. Without systemd user services, `daemon run` in tmux takes their place.
-- `status` shows the unit, the Daemon (from the lock and `daemon.json`) and the Watcher's last pass, `stalled` if it is more than 3 intervals plus `git.timeout` ago; it warns if the unit's program is gone or its paths differ from the shell's. It exits with 0 if the Daemon runs, 3 if not.
+- `status` shows the unit, the Daemon (from the lock and `daemon.json`), the Watcher's last pass, `stalled` if it is more than 3 intervals plus `git.timeout` ago, and the Server; it warns if the unit's program is gone or its paths differ from the shell's. It exits with 0 if the Daemon runs, 3 if not. `--json` gives what the Server's `/api/daemon` gives.
+- The Server and its token: [004](004-server.md).
 
 ## CLI for the first slice
 
@@ -159,7 +162,8 @@ hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process
                     [--pid <pid>] [-n <count>] [--follow] [--brief] [--json] [--no-pager]
                | prune [--keep <days>d] [--yes]
 hephaistos config show [<key>|<section>] | defaults
-hephaistos daemon run | status | install [--linger] | uninstall | start | stop | restart
+hephaistos daemon run | status [--json] | token [--url] [--renew] [--yes]
+                  | install [--linger] | uninstall | start | stop | restart
 hephaistos [--debug] …
 ```
 
@@ -169,13 +173,13 @@ hephaistos [--debug] …
 - Asking happens between a read and a write session, so no write transaction waits for input.
 - `scan` adds the clones under a directory (`scan.depth` levels, 3 by default) in one transaction, after showing the plan and asking once: each joins the Repository it matches, else a Repository without Clones by name, else a new one; clones found together match each other too. A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone add` suggests. A Worktree brings its Clone, wherever that is, and one not observed yet has its Clone observed. It stops at clones without searching inside them, skips hidden directories, follows symlinks (preferring real paths), and refuses to start inside a Clone or at a submodule. A clone that may be a missing Clone, moved, is skipped with the commands for either. Nothing is guessed: a clone matching several Repositories, or whose new Repository's name is taken, is skipped with the commands to add it by hand.
 - `event list` shows the newest 20 (`--limit`), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.deleted'`), and repeats; `--since` takes a duration (`2h`) or a date.
-- Output: plain aligned text; `--json` on `list` and `show`. Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format auto|relative|short|full` and the setting `time_format` override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
+- Output: plain aligned text; `--json` on `list` and `show`, the same JSON as the Server's API ([004](004-server.md)). Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format auto|relative|short|full` and the setting `time_format` override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
 - `log show` shows the newest 50 records, oldest first, local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints them as stored, `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default `log.retention_days`), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
 - `config show` shows each setting, its value and where that comes from (`default`, a file, a variable), then each source in the order it applies, files by full path, as read, broken or not found; also other hosts' files (unused here) and unknown `HEPHAISTOS_*` variables, naming the closest setting's. A section shows its settings, one setting just its value. A broken file or variable is left out and its error shown, and the command fails. `config defaults` prints the shipped `defaults.toml`. Settings aren't entities either, so there is no `--json`; scripts take one value.
 - `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row.
 
-Next: the Server and GUI pages showing these tables, plus a Repository overview.
+Next: GUI pages showing these tables, plus a Repository overview.
 
 ## Rejected
 

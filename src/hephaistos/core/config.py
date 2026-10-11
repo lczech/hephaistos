@@ -57,6 +57,13 @@ class AtLeast:
 
 
 @dataclass(frozen=True)
+class AtMost:
+    """A setting's limit: at most this."""
+
+    value: float
+
+
+@dataclass(frozen=True)
 class Above:
     """A setting's limit: more than this."""
 
@@ -101,6 +108,14 @@ class Watcher:
 
 
 @dataclass(frozen=True)
+class Server:
+    """The section [server]."""
+
+    enabled: bool
+    port: Annotated[int, AtLeast(1024), AtMost(65535)]
+
+
+@dataclass(frozen=True)
 class Settings:
     """All settings, by section; `defaults.toml` documents them and holds their defaults."""
 
@@ -110,6 +125,7 @@ class Settings:
     observe: Observe
     scan: Scan
     watcher: Watcher
+    server: Server
 
 
 class ConfigError(HephaistosError):
@@ -202,12 +218,19 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
     elif kind is not int or not isinstance(value, int) or isinstance(value, bool):
         expected = "a number" if kind is float else "an integer"
         raise ConfigError(f"{where} must be {expected}, not {_value_text(value)}")
+    _check_limits(leaf, value, where)
+    return value
+
+
+def _check_limits(leaf: _Leaf, value: float, where: str) -> None:
+    """Raises ConfigError if a number is outside the setting's limits."""
     for limit in leaf.limits:
         if isinstance(limit, AtLeast) and not value >= limit.value:
             raise ConfigError(f"{where} must be at least {limit.value:g}, not {value}")
+        if isinstance(limit, AtMost) and not value <= limit.value:
+            raise ConfigError(f"{where} must be at most {limit.value:g}, not {value}")
         if isinstance(limit, Above) and not value > limit.value:
             raise ConfigError(f"{where} must be more than {limit.value:g}, not {value}")
-    return value
 
 
 def _table(data: Mapping[str, object], source: str, prefix: str = "") -> dict[str, object]:

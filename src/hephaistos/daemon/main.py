@@ -22,8 +22,9 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status
-from hephaistos.daemon.errors import NotStartedError
-from hephaistos.daemon.status import PassStatus, Status
+from hephaistos.daemon.errors import NotStartedError, PartError
+from hephaistos.daemon.server.serve import Server, address
+from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.schedule import Watcher
 
 FIRST_RESTART_DELAY = 1.0  # seconds before restarting a crashed part; doubles with each crash
@@ -59,14 +60,17 @@ def running_version(source: Path = SOURCE) -> str:
 
 def _enabled(settings: config.Settings) -> list[str]:
     """The names of the parts that the settings enable."""
-    return [name for name, enabled in ((Watcher.name, settings.watcher.enabled),) if enabled]
+    parts = ((Watcher.name, settings.watcher.enabled), (Server.name, settings.server.enabled))
+    return [name for name, enabled in parts if enabled]
 
 
 def _checked(paths: Paths) -> tuple[list[str], git.Installation]:
     """The parts to run and the git to run; raises NotStartedError if the Daemon can't start."""
     names = _enabled(config.settings())
     if not names:
-        raise NotStartedError("no Daemon parts are enabled: watcher.enabled is false")
+        raise NotStartedError(
+            "no Daemon parts are enabled: watcher.enabled and server.enabled are false"
+        )
     try:
         found = git.installation()
         with read_session(paths):
@@ -84,6 +88,8 @@ async def keep_running(part: Part) -> None:
         try:
             await part.run()
             log.error("%s ended unexpectedly", part.name)
+        except PartError as error:
+            log.error("%s failed: %s", part.name, error)  # noqa: TRY400 - its message says it all
         except Exception:
             log.exception("%s crashed", part.name)
         if time.monotonic() - started >= STEADY_TIME:
@@ -99,22 +105,29 @@ class Daemon:
     def __init__(self, paths: Paths, names: list[str], version: str) -> None:
         """Prepares the parts named; `run` starts them."""
         self._paths = paths
-        self._status = Status(os.getpid(), version, datetime.now(UTC), parts=dict.fromkeys(names))
+        port = config.settings().server.port
+        self._status = Status(
+            os.getpid(),
+            version,
+            datetime.now(UTC),
+            parts=tuple(names),
+            server=ServerStatus(address(port), listening=False) if Server.name in names else None,
+        )
         builders: dict[str, Callable[[], Part]] = {
-            Watcher.name: lambda: Watcher(paths, self._reporter(Watcher.name)),
+            Watcher.name: lambda: Watcher(paths, self._on_pass),
+            Server.name: lambda: Server(paths, version, self._on_server),
         }
         self._parts = [builders[name]() for name in names]
         self._stopping = asyncio.Event()
         self._reason = ""
 
-    def _reporter(self, name: str) -> Callable[[PassStatus], None]:
-        """Records a part's passes in the status file."""
+    def _on_pass(self, done: PassStatus) -> None:
+        """Records the Watcher's pass in the status file."""
+        self._save(dataclasses.replace(self._status, watcher=done))
 
-        def report(done: PassStatus) -> None:
-            parts = {**self._status.parts, name: done}
-            self._save(dataclasses.replace(self._status, parts=parts))
-
-        return report
+    def _on_server(self, now: ServerStatus) -> None:
+        """Records how the Server is doing in the status file."""
+        self._save(dataclasses.replace(self._status, server=now))
 
     def _save(self, new: Status) -> None:
         """Keeps the status, and writes it to the status file."""
@@ -177,6 +190,7 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
             extra={
                 "version": version,
                 "interval": config.settings().watcher.interval,
+                "port": config.settings().server.port,
                 "git": found.executable,
                 "git_version": found.version,
             },

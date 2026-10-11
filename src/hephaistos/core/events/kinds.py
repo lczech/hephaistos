@@ -1,4 +1,5 @@
 from enum import IntEnum, StrEnum
+from typing import Literal
 
 
 class Priority(IntEnum):
@@ -8,6 +9,10 @@ class Priority(IntEnum):
     NORMAL = 20
     HIGH = 30
     URGENT = 40
+
+
+#: Priorities by name, lowercase, as filters take them.
+PriorityName = Literal["low", "normal", "high", "urgent"]
 
 
 class EventKind(StrEnum):

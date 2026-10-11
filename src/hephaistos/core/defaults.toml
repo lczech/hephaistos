@@ -34,3 +34,9 @@ depth = 3
 enabled = true
 # Seconds from the end of one pass to the start of the next.
 interval = 60.0
+
+[server]
+# Gives GUIs access to this Machine, on 127.0.0.1 only; they need its token
+# (`hephaistos daemon token`).
+enabled = true
+port = 8264

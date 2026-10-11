@@ -1,9 +1,8 @@
 """Plain text and JSON output."""
 
 import json
-import re
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -11,6 +10,7 @@ import typer
 
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
+from hephaistos.core.utils import times
 
 JsonOption = Annotated[bool, typer.Option("--json", help="Output as JSON.")]
 TimeFormatOption = Annotated[
@@ -21,22 +21,13 @@ LimitOption = Annotated[
     int, typer.Option("--limit", "-n", min=0, help="Show at most this many; 0 for all.")
 ]
 
-_UNIT_SECONDS = {"s": 1, "m": 60, "h": 60 * 60, "d": 24 * 60 * 60}
-_DURATION = re.compile(r"(\d+)([smhd])")
-
 
 def parse_time(value: str, now: datetime, option: str = "--since") -> datetime:
     """A duration before `now` (`2h`), or a date or time in ISO form, local unless it says."""
-    if match := _DURATION.fullmatch(value):
-        return now - timedelta(seconds=int(match[1]) * _UNIT_SECONDS[match[2]])
     try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        raise typer.BadParameter(
-            f"{value!r} is neither a duration like 2h nor a date like 2026-10-05",
-            param_hint=option,
-        ) from None
-    return parsed if parsed.tzinfo else parsed.astimezone()
+        return times.parse_time(value, now)
+    except ValueError as error:
+        raise typer.BadParameter(str(error), param_hint=option) from None
 
 
 def number_text(count: int, noun: str, plural: str | None = None) -> str:

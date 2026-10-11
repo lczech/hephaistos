@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Literal, cast
+from typing import Annotated, cast
 
 import typer
 
@@ -20,19 +20,18 @@ from hephaistos.cli.output import (
     time_formatter,
 )
 from hephaistos.cli.worktree import find_worktree
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.events import events, subjects
 from hephaistos.core.events.events import Event
-from hephaistos.core.events.kinds import EventKind, Priority
+from hephaistos.core.events.kinds import EventKind, Priority, PriorityName
 from hephaistos.core.events.subjects import Label
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.utils.ids import short_id
 from hephaistos.core.utils.paths import Paths
 
 app = typer.Typer(no_args_is_help=True, help="Events: what happened, on any Machine.")
-
-PriorityName = Literal["low", "normal", "high", "urgent"]
 
 KindOption = Annotated[
     list[str] | None,
@@ -94,26 +93,6 @@ def _machine_text(event: Event, names: Mapping[uuid.UUID, str]) -> str:
     return names.get(event.recorded_by) or short_id(event.recorded_by)
 
 
-def _event_json(
-    event: Event, labels: Mapping[uuid.UUID, Label], names: Mapping[uuid.UUID, str]
-) -> dict[str, object]:
-    """An Event for JSON output, with the names of its subject and Machine where known."""
-    label = labels.get(event.subject)
-    return {
-        "id": str(event.id),
-        "recorded_at": event.recorded_at.datetime.isoformat(),
-        "recorded_by": str(event.recorded_by),
-        "occurred_at": None if event.occurred_at is None else event.occurred_at.isoformat(),
-        "machine": names.get(event.recorded_by),
-        "priority": event.priority,
-        "kind": event.kind,
-        "subject": str(event.subject),
-        "subject_label": None if label is None else str(label),
-        "payload": event.payload,
-        "key": None if event.key is None else event.key.hex(),
-    }
-
-
 @app.command("list")
 def list_(  # noqa: PLR0913 - one option per filter
     *,
@@ -153,11 +132,11 @@ def print_events(
     as_json: bool = False,
 ) -> None:
     """Prints Events as `event list` does, naming their subjects and Machines."""
+    if as_json:
+        print_json(views.events_json(session, listed))
+        return
     labels = subjects.labels(session, listed)
     names = machines.labels(session, {event.recorded_by for event in listed})
-    if as_json:
-        print_json([_event_json(event, labels, names) for event in listed])
-        return
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
         ["id", "recorded", "machine", "priority", "kind", "subject", "summary"],
@@ -339,11 +318,11 @@ def show(
     """Show an Event with its payload."""
     with read_session(Paths.from_environment()) as session:
         event = events.by_short_id(session, event_id)
+        if as_json:
+            print_json(views.events_json(session, [event])[0])
+            return
         labels = subjects.labels(session, [event])
         names = machines.labels(session, [event.recorded_by])
-    if as_json:
-        print_json(_event_json(event, labels, names))
-        return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     fields = _fields(event.payload)
     print_fields(

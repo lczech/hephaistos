@@ -1,11 +1,14 @@
 import asyncio
 import dataclasses
+import json
 import logging
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
+import urllib.request
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,9 +22,10 @@ from hephaistos.core.events import events
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import main, status
 from hephaistos.daemon.errors import EX_CONFIG
-from hephaistos.daemon.status import PassStatus, Status
+from hephaistos.daemon.server import token
+from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.schedule import Watcher
-from support import create, git, logged
+from support import create, free_port, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
 
@@ -102,8 +106,14 @@ def test_watcher_replaces_a_dead_worker(paths: Paths) -> None:
     ]
 
 
-def _daemon(*args: str) -> subprocess.Popen[str]:
-    """`hephaistos daemon run` in a new process, passing a pass a second."""
+def _daemon(*args: str, port: int | None = None) -> subprocess.Popen[str]:
+    """`hephaistos daemon run` in a new process, passing a pass a second; with a Server on
+    `port`, else none."""
+    server = (
+        {"HEPHAISTOS_SERVER_ENABLED": "false"}
+        if port is None
+        else {"HEPHAISTOS_SERVER_PORT": str(port)}
+    )
     return subprocess.Popen(
         [
             sys.executable,
@@ -113,7 +123,7 @@ def _daemon(*args: str) -> subprocess.Popen[str]:
             "run",
             *args,
         ],
-        env=os.environ | {"HEPHAISTOS_WATCHER_INTERVAL": "1"},
+        env=os.environ | {"HEPHAISTOS_WATCHER_INTERVAL": "1"} | server,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -123,7 +133,7 @@ def _daemon(*args: str) -> subprocess.Popen[str]:
 def _running(paths: Paths, daemon: subprocess.Popen[str]) -> Status | None:
     """The Daemon's status, once its Watcher has reported its first pass."""
     found = status.read(paths.state_dir)
-    if found is None or found.pid != daemon.pid or found.parts.get("watcher") is None:
+    if found is None or found.pid != daemon.pid or found.watcher is None:
         return None
     return found
 
@@ -185,3 +195,64 @@ def test_running_version(tmp_path: Path) -> None:
     (checkout / "src" / "hephaistos").mkdir(parents=True)
     short = git(checkout, "rev-parse", "--short", "HEAD")
     assert main.running_version(checkout) == f"{__version__} ({short})"
+
+
+def _get(port: int, path: str, value: str) -> object:
+    """What the Server on `port` answers to a GET with the token, over HTTP, without proxies."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    request = urllib.request.Request(
+        f"http://localhost:{port}{path}", headers={"Authorization": f"Bearer {value}"}
+    )
+    with opener.open(request, timeout=WAIT) as response:
+        return json.loads(response.read())
+
+
+def _server(paths: Paths, daemon: subprocess.Popen[str]) -> ServerStatus | None:
+    """How the Daemon's Server is doing, once it listens or failed."""
+    found = status.read(paths.state_dir)
+    if found is None or found.pid != daemon.pid or found.server is None:
+        return None
+    done = found.server
+    return done if done.listening or done.error else None
+
+
+@pytest.mark.usefixtures("repo")
+def test_serves_until_stopped(paths: Paths) -> None:
+    port = free_port()
+    daemon = _daemon(port=port)
+    try:
+        assert _until(lambda: _server(paths, daemon)).listening
+        info = _get(port, "/api/info", token.token(paths))
+        assert isinstance(info, dict)
+        assert info["machine"] == {"id": info["machine"]["id"], "name": "laptop"}
+        assert _until(lambda: _server(paths, daemon) if _requests(paths) else None).refused == 0
+    finally:
+        daemon.send_signal(signal.SIGTERM)
+        _, err = daemon.communicate(timeout=WAIT)
+    assert daemon.returncode == 0, err
+    assert err == "Running: watcher, server; Ctrl+C stops the Daemon\n"
+    assert f"listening on 127.0.0.1:{port}" in _messages(paths)
+    assert "GET /api/info 200" not in str(_messages(paths))  # debug, below the default level
+
+
+def _requests(paths: Paths) -> int:
+    found = status.read(paths.state_dir)
+    return 0 if found is None or found.server is None else found.server.requests
+
+
+@pytest.mark.usefixtures("repo")
+def test_a_taken_port_fails_only_the_server(paths: Paths) -> None:
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        port = taken.getsockname()[1]
+        daemon = _daemon(port=port)
+        try:
+            failed = _until(lambda: _server(paths, daemon))
+            _until(lambda: _running(paths, daemon))
+        finally:
+            daemon.send_signal(signal.SIGTERM)
+            daemon.communicate(timeout=WAIT)
+    message = f"port {port} is in use; set server.port for this host"
+    assert (failed.listening, failed.error) == (False, message)
+    assert f"server failed: {message}" in _messages(paths)
