@@ -21,6 +21,7 @@ from types import TracebackType
 from typing import override
 
 from hephaistos.core import config
+from hephaistos.core.utils.paths import private_directory
 
 FOLLOW_INTERVAL = 0.5  # seconds between looking for new records
 
@@ -130,7 +131,7 @@ class DayFileHandler(logging.Handler):
             path = day_file(self.directory, day)
             new_day = day != self._day and not path.exists()
             if day != self._day:
-                self.directory.mkdir(parents=True, exist_ok=True)
+                private_directory(self.directory)
                 self._day = day
             descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
             try:

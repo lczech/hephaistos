@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 from datetime import UTC, datetime
 
 import pytest
@@ -68,21 +69,32 @@ def test_other_commands_run_on_a_broken_config(
     assert capsys.readouterr().err == f"warning: {problem}; using the defaults\n"
 
 
-def test_token(
-    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_token(paths: Paths) -> None:
     printed = runner.invoke(app, ["daemon", "token"])
     assert printed.exit_code == 0
     assert printed.output == f"{token.token(paths)}\n"
-    monkeypatch.setenv("HEPHAISTOS_SERVER_PORT", "18264")
-    assert run_cli(monkeypatch, "daemon", "token", "--url") == 0
-    assert capsys.readouterr().out == f"http://localhost:18264/?token={token.token(paths)}\n"
-
     refused = runner.invoke(app, ["daemon", "token", "--renew"])  # no terminal to ask at
     assert "add --yes to renew it" in str(refused.exception)
     assert token.token(paths) in printed.output
     renewed = runner.invoke(app, ["daemon", "token", "--renew", "--yes"]).output
     assert renewed == f"{token.token(paths)}\n" != printed.output
+
+
+def test_token_url_only_for_our_own_server(paths: Paths) -> None:
+    def url() -> str:
+        result = runner.invoke(app, ["daemon", "token", "--url"])
+        return result.output if result.exit_code == 0 else str(result.exception)
+
+    assert url() == "the Server isn't running; see `hephaistos daemon status`"
+    paths.state_dir.mkdir(parents=True)
+    with socket.socket() as ours, status.held_lock(paths.state_dir):
+        ours.bind(("127.0.0.1", 0))
+        port = ours.getsockname()[1]
+        listening = ServerStatus(f"127.0.0.1:{port}", listening=True)
+        status.write(paths.state_dir, Status(os.getpid(), "0.1.0", NOW, server=listening))
+        assert url() == f"port {port} isn't your Server's; not giving out the token"
+        ours.listen()
+        assert url() == f"http://127.0.0.1:{port}/#token={token.token(paths)}\n"
 
 
 @pytest.mark.parametrize(

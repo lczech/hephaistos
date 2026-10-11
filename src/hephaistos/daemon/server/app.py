@@ -1,20 +1,21 @@
 """The Server's web app: the API, for clients with the token, and logging what it answers.
 
-A client sends the token as `Authorization: Bearer <token>`, or in the cookie a browser gets
-by opening a URL with `?token=<token>` once. Requests must name this Machine as `localhost`,
-so that no other site's name can be pointed at it (DNS rebinding).
+A client sends the token as `Authorization: Bearer <token>`, and only so: a cookie would also
+go to every other port on localhost, and a URL ends up in logs. Requests must name this
+Machine as `localhost` or `127.0.0.1`, so that no other site's name can be pointed at it (DNS
+rebinding).
 """
 
 import logging
-import re
 import time
+import urllib.parse
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from hephaistos.core.db.sessions import read_session
@@ -25,10 +26,8 @@ from hephaistos.core.views import API_VERSION
 from hephaistos.daemon.server import api
 from hephaistos.daemon.server.token import TokenFile, matches
 
-COOKIE = "hephaistos"
-COOKIE_AGE = 365 * 24 * 60 * 60  # seconds; renewing the token ends it sooner
 HOSTS = frozenset({"localhost", "127.0.0.1"})
-_TOKEN_IN_QUERY = re.compile(r"(^|&)token=[^&]*")
+HIDDEN = frozenset({"token"})  # query parameters never logged, however spelt
 
 log = logging.getLogger(__name__)
 
@@ -45,8 +44,11 @@ class Counts:
 
 
 def shown_request(request: Request) -> str:
-    """A request's method and path as logged: with its query, but not the token."""
-    query = _TOKEN_IN_QUERY.sub(r"\1token=…", request.url.query)
+    """A request's method and path as logged: with its query decoded, but never a token."""
+    pairs = urllib.parse.parse_qsl(request.url.query, keep_blank_values=True)
+    query = "&".join(
+        f"{name}={'…' if name.strip().lower() in HIDDEN else value}" for name, value in pairs
+    )
     return f"{request.method} {request.url.path}{f'?{query}' if query else ''}"
 
 
@@ -57,29 +59,17 @@ def _hostname(request: Request) -> str:
 
 
 def _given_token(request: Request) -> str | None:
-    """The token a request carries: in its query, its Authorization header, or its cookie."""
-    if (query := request.query_params.get("token")) is not None:
-        return query
+    """The token in a request's Authorization header."""
     scheme, _, credentials = request.headers.get("authorization", "").partition(" ")
-    if scheme.lower() == "bearer" and credentials:
+    if scheme.lower() == "bearer" and credentials.strip():
         return credentials.strip()
-    return request.cookies.get(COOKIE)
+    return None
 
 
 def _refused(reason: str, status: int) -> Response:
     """The answer to a refused request."""
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None  # noqa: PLR2004 - HTTP's
     return JSONResponse({"error": reason}, status_code=status, headers=headers)
-
-
-def _logged_in(request: Request, token: str) -> Response:
-    """Sends a browser that brought the token in its URL to the same URL without it."""
-    query = "&".join(part for part in request.url.query.split("&") if not part.startswith("token="))
-    response = RedirectResponse(f"{request.url.path}{f'?{query}' if query else ''}", 303)
-    response.set_cookie(
-        COOKIE, token, max_age=COOKIE_AGE, path="/", httponly=True, samesite="strict"
-    )
-    return response
 
 
 class Guard:
@@ -103,7 +93,7 @@ class Guard:
         return None
 
     async def __call__(self, request: Request, call_next: CallNext) -> Response:
-        """Answers a request: refused, logged in, or by the app."""
+        """Answers a request: refused, or by the app."""
         started = time.monotonic()
         shown = shown_request(request)
         token = self._tokens.current()
@@ -113,15 +103,12 @@ class Guard:
             client = request.client.host if request.client else "?"
             log.warning("refused %s from %s: %s", shown, client, reason)
             return _refused(reason, status)
-        if "token" in request.query_params:
-            response = _logged_in(request, token)
-        else:
-            try:
-                response = await call_next(request)
-            except Exception:
-                log.exception("failed: %s", shown)
-                error = f"internal error; see the log on {self._machine}"
-                response = JSONResponse({"error": error}, status_code=500)
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.exception("failed: %s", shown)
+            error = f"internal error; see the log on {self._machine}"
+            response = JSONResponse({"error": error}, status_code=500)
         self._counts.requests += 1
         self._counts.last_request_at = datetime.now(UTC)
         milliseconds = round((time.monotonic() - started) * 1000)
@@ -158,6 +145,7 @@ def create_app(paths: Paths, counts: Counts, version: str) -> FastAPI:
         title="hephaistos",
         version=f"{API_VERSION.major}.{API_VERSION.minor}",
         summary="This Machine's Server: what the CLI's `--json` shows, for GUIs.",
+        docs_url=None,  # its pages run scripts from a CDN, which would see the token
         redoc_url=None,
     )
     app.state.paths = paths

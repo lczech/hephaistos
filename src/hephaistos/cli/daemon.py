@@ -28,6 +28,7 @@ from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report, unit
 from hephaistos.daemon import status as daemon_status
 from hephaistos.daemon.report import Report
+from hephaistos.daemon.server import ports
 from hephaistos.daemon.server import token as server_token
 from hephaistos.daemon.status import PassStatus, ServerStatus
 
@@ -252,7 +253,10 @@ def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) 
 def token(
     *,
     url: Annotated[
-        bool, typer.Option("--url", help="Print a URL that logs a browser in, on this Machine.")
+        bool,
+        typer.Option(
+            "--url", help="Print a link that gives a browser the token, for the GUI to come."
+        ),
     ] = False,
     renew: Annotated[
         bool, typer.Option("--renew", help="Replace it: every client needs the new one.")
@@ -264,6 +268,7 @@ def token(
     A client that can log in as you reads it with `ssh <machine> hephaistos daemon token`.
     """
     paths = Paths.from_environment()
+    port = _own_server_port(paths) if url else None
     if renew:
         if not yes:
             terminal.confirm(
@@ -274,5 +279,18 @@ def token(
         value = server_token.renew(paths)
     else:
         value = server_token.token(paths)
-    port = config.settings().server.port
-    typer.echo(f"http://localhost:{port}/?token={value}" if url else value)
+    # In the fragment, after `#`, the token never reaches a server; the GUI's page reads it.
+    typer.echo(value if port is None else f"http://127.0.0.1:{port}/#token={value}")
+
+
+def _own_server_port(paths: Paths) -> int:
+    """The port our Server listens on; raises unless it runs and the port is the user's."""
+    found = (
+        daemon_status.read(paths.state_dir) if daemon_status.is_running(paths.state_dir) else None
+    )
+    server = found.server if found is not None and found.stopped_at is None else None
+    if server is None or not server.listening:
+        raise HephaistosError("the Server isn't running; see `hephaistos daemon status`")
+    if ports.holder(server.port) != os.getuid():
+        raise HephaistosError(f"port {server.port} isn't your Server's; not giving out the token")
+    return server.port

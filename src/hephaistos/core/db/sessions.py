@@ -24,7 +24,7 @@ from hephaistos.core.utils.errors import (
     SchemaOutdatedError,
 )
 from hephaistos.core.utils.ids import Clock, Timestamp
-from hephaistos.core.utils.paths import Paths, mount_of
+from hephaistos.core.utils.paths import Paths, mount_of, private_directory
 
 MIN_SQLITE = (3, 37, 0)  # STRICT tables
 SCHEMA_VERSION = 1
@@ -227,8 +227,8 @@ def create_database(
     """
     if paths.database.exists() and not replace:
         raise AlreadySetUpError(paths.database)
-    paths.data_dir.mkdir(parents=True, exist_ok=True)
-    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    private_directory(paths.data_dir)
+    private_directory(paths.state_dir)
     building = paths.database.with_name(paths.database.name + ".new")
     for leftover in (building, *_sidecars(building)):
         leftover.unlink(missing_ok=True)

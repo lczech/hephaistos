@@ -29,7 +29,7 @@ from hephaistos.core.config import ConfigError
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import ForeignDirectoryError, Paths
 from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 
 DEBUG_OPTION = "--debug"
@@ -120,6 +120,11 @@ def run() -> None:
     """
     args, debug = without_debug(sys.argv[1:])
     paths = Paths.from_environment()
+    try:
+        opened = paths.make_private()
+    except ForeignDirectoryError as error:  # before logging, which would write there
+        typer.echo(f"error: {error}", err=True)
+        sys.exit(1)
     problem = None
     try:
         settings = config.load(paths.config_dir).settings
@@ -134,6 +139,12 @@ def run() -> None:
     quiet = args[:1] == ["log"]
     if not quiet:
         logger.info("start: %s", command, extra={"version": __version__, "cwd": Path.cwd()})
+    for directory in opened:
+        logger.warning("others could enter %s; now only you can", directory)
+        if not debug:  # shown already
+            typer.echo(
+                f"warning: others could enter {short_path(directory)}; now only you can", err=True
+            )
     try:
         code, outcome = _invoke(args, logged, problem)
         duration = round(time.monotonic() - started, 3)

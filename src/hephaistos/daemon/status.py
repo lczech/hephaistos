@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from hephaistos.core.utils.paths import private_directory
 from hephaistos.daemon.errors import NotStartedError
 
 LOCK_NAME = "daemon.lock"
@@ -42,6 +43,11 @@ class ServerStatus:
     requests: int = 0  # answered, with the token
     last_request_at: datetime | None = None
     refused: int = 0  # for a wrong or missing token, or a foreign host
+
+    @property
+    def port(self) -> int:
+        """The port it listens on, or tries to."""
+        return int(self.address.rpartition(":")[2])
 
 
 @dataclass(frozen=True)
@@ -168,7 +174,7 @@ def _locked(descriptor: int, operation: int) -> bool:
 @contextmanager
 def held_lock(directory: Path) -> Generator[None]:
     """Holds the Daemon's lock in `directory`; raises NotStartedError if another Daemon has it."""
-    directory.mkdir(parents=True, exist_ok=True)
+    private_directory(directory)
     descriptor = os.open(directory / LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o644)
     try:
         if not _locked(descriptor, fcntl.LOCK_EX):

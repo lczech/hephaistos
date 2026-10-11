@@ -13,7 +13,7 @@ from hephaistos.cli.main import app as cli
 from hephaistos.core import views
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
-from hephaistos.daemon.server.app import COOKIE, Counts, create_app
+from hephaistos.daemon.server.app import Counts, create_app
 from support import git
 
 VERSION = "0.1.0 (test)"
@@ -59,7 +59,7 @@ def test_needs_the_token(
         {"error": "no token; see `hephaistos daemon token`"},
     )
     assert missing.headers["www-authenticate"] == "Bearer"
-    wrong = client.get("/api/info?x=1&token=nope")
+    wrong = client.get("/api/info?x=1", headers={"Authorization": "Bearer nope"})
     assert (wrong.status_code, wrong.json()["error"]) == (
         401,
         "wrong token; see `hephaistos daemon token`",
@@ -75,10 +75,7 @@ def test_needs_the_token(
     messages = [record.getMessage() for record in caplog.records]
     assert messages[:3] == [
         "refused GET /api/info from testclient: no token; see `hephaistos daemon token`",
-        (
-            "refused GET /api/info?x=1&token=… from testclient:"
-            " wrong token; see `hephaistos daemon token`"
-        ),
+        ("refused GET /api/info?x=1 from testclient: wrong token; see `hephaistos daemon token`"),
         (
             "refused GET /api/info from testclient:"
             " this Server answers only to localhost, not to evil.example"
@@ -87,19 +84,19 @@ def test_needs_the_token(
     assert re.fullmatch(r"GET /api/info 200 \d+ ms", messages[3])
 
 
-def test_a_url_with_the_token_logs_a_browser_in(paths: Paths, client: TestClient) -> None:
-    browser = TestClient(client.app, base_url="http://localhost:8264")
-    assert browser.get("/").status_code == 401
+def test_the_token_counts_only_in_the_header(
+    paths: Paths, client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG, "hephaistos.daemon.server")
     value = token.token(paths)
-    login = browser.get(f"/?token={value}&tab=events", follow_redirects=False)
-    assert (login.status_code, login.headers["location"]) == (303, "/?tab=events")
-    cookie = login.headers["set-cookie"]
-    assert cookie.startswith(f"{COOKIE}={value};")
-    for attribute in ("HttpOnly", "Max-Age=31536000", "Path=/", "SameSite=strict"):
-        assert attribute in cookie
-    assert browser.get("/").json() == {"hephaistos": VERSION, "gui": "not yet"}
-    token.renew(paths)
-    assert browser.get("/").status_code == 401
+    browser = TestClient(client.app, base_url="http://localhost:8264")
+    assert browser.get(f"/?tab=x&%74oken={value}").status_code == 401
+    assert browser.get("/", headers={"Cookie": f"hephaistos={value}"}).status_code == 401
+    assert client.get(f"/?Token={value}").json() == {"hephaistos": VERSION, "gui": "not yet"}
+    logged = " ".join(record.getMessage() for record in caplog.records)
+    assert "GET /?tab=x&token=… from testclient" in logged
+    assert "GET /?Token=… 200" in logged
+    assert value not in logged
 
 
 def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
@@ -185,6 +182,7 @@ def test_daemon_is_what_status_prints(client: TestClient, monkeypatch: pytest.Mo
     assert client.get("/api/daemon").json() == json.loads(result.output)
 
 
-def test_docs_need_the_token(client: TestClient) -> None:
-    assert client.get("/docs").status_code == 200
+def test_no_docs_but_the_schema_with_the_token(client: TestClient) -> None:
+    assert client.get("/docs").status_code == 404
+    assert client.get("/openapi.json").status_code == 200
     assert client.get("/openapi.json", headers={"Authorization": ""}).status_code == 401

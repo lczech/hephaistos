@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from typer.testing import CliRunner
 from hephaistos import __version__
 from hephaistos.cli import terminal
 from hephaistos.cli.main import app, without_debug
+from hephaistos.cli.output import short_path
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
@@ -264,3 +266,30 @@ def test_a_broken_config_stops_commands_but_log(
     capsys.readouterr()
     assert run_cli(monkeypatch, "config", "show", "git.timeout") == 1
     assert capsys.readouterr() == ("30.0\n", f"error: {problem}\n")  # no warning first
+
+
+def test_our_directories_are_made_private(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert run_cli(monkeypatch, "setup", "--name", "laptop") == 0
+    paths.state_dir.chmod(0o755)
+    capsys.readouterr()
+    assert run_cli(monkeypatch, "machine", "show") == 0
+    shown = short_path(paths.state_dir)
+    assert capsys.readouterr().err == f"warning: others could enter {shown}; now only you can\n"
+    assert run_cli(monkeypatch, "machine", "show") == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_another_users_directory_is_refused(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert run_cli(monkeypatch, "setup", "--name", "laptop") == 0
+    owner = os.getuid()
+    monkeypatch.setattr(os, "getuid", lambda: owner + 1)
+    capsys.readouterr()
+    assert run_cli(monkeypatch, "machine", "show") == 1
+    assert capsys.readouterr().err == (
+        f"error: {paths.data_dir} belongs to another user (uid {owner}); hephaistos keeps its"
+        " files only in directories of yours\n"
+    )
