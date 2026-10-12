@@ -27,6 +27,7 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report, unit
 from hephaistos.daemon import status as daemon_status
+from hephaistos.daemon.errors import NotStartedError
 from hephaistos.daemon.report import Report
 from hephaistos.daemon.server import ports
 from hephaistos.daemon.server import token as server_token
@@ -56,9 +57,24 @@ def run(
     if doctor_who:
         typer.echo(base64.b64decode(VERSE).decode())
         return
-    from hephaistos.daemon import main as daemon  # noqa: PLC0415 - only this command needs it
-
+    try:
+        from hephaistos.daemon import main as daemon  # noqa: PLC0415 - only this command needs it
+    except ModuleNotFoundError as error:
+        if error.name is None or error.name.partition(".")[0] == "hephaistos":
+            raise
+        raise NotStartedError(
+            f"hephaistos is missing the package {error.name}; reinstall it with its dependencies,"
+            f" e.g. `{_reinstall_text()}`"
+        ) from None
     daemon.run(Paths.from_environment(), lambda text: typer.echo(text, err=True))
+
+
+def _reinstall_text() -> str:
+    """How to reinstall hephaistos: from its checkout, if it runs from one."""
+    source = Path(__file__).parents[3]  # the checkout, when running from one: `src/hephaistos/…`
+    if (source / ".git").exists() and (source / "src" / "hephaistos").is_dir():
+        return f"uv tool install --reinstall --editable {short_path(source)}"
+    return "uv tool install --reinstall hephaistos"
 
 
 def _executable() -> Path:

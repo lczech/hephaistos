@@ -33,6 +33,8 @@ uv run ruff check . && uv run ruff format .
 uv run pyright
 ```
 
+The tool installed with `--editable` runs the current code, but keeps the dependencies it was installed with: after they change, `uv tool install --reinstall --editable .`. The Daemon keeps the code it started with: `hephaistos daemon restart` after changes (`daemon status` shows its version and commit).
+
 `scripts/test_git_versions.sh [version...]` runs the tests with these git versions (default: those on our Machines, 2.43.7, 2.47.3 and 2.53.0), each built once from source into `~/.cache/hephaistos/git`.
 
 `uv run scripts/bench_observe.py ~/Repos --synthetic 6` times observing the repositories found there, plus synthetic ones with Worktrees, in a temporary home.

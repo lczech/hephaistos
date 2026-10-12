@@ -11,8 +11,9 @@ from hephaistos.core.utils.paths import Paths
 def never_real_files(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Even tests without `paths` keep away from the real config, data and logs."""
+    """Even tests without `paths` keep away from the real config, data, logs and systemd unit."""
     monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path_factory.mktemp("home")))
+    monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("user")))
     for key in config.KEYS:
         monkeypatch.delenv(config.variable(key), raising=False)
 
