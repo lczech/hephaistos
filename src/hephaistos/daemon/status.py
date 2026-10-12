@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from hephaistos.core.utils.paths import private_directory
 from hephaistos.daemon.errors import NotStartedError
@@ -23,6 +23,8 @@ LOCK_WAIT = 1.0  # seconds a starting Daemon waits for the lock, which `is_runni
 LOCK_RETRY = 0.05  # seconds between attempts
 STATUS_NAME = "daemon.json"
 
+Trigger = Literal["watcher", "api"]  # what asked for a pass: the timer, or a request
+
 
 @dataclass(frozen=True)
 class PassStatus:
@@ -31,6 +33,7 @@ class PassStatus:
     finished_at: datetime
     duration: float  # seconds
     error: str | None = None
+    trigger: Trigger = "watcher"
 
 
 @dataclass(frozen=True)
@@ -58,7 +61,7 @@ class Status:
     version: str
     started_at: datetime
     stopped_at: datetime | None = None
-    parts: tuple[str, ...] = ()  # those enabled
+    parts: tuple[str, ...] = ()  # those running
     watcher: PassStatus | None = None  # its last pass
     server: ServerStatus | None = None
 
@@ -98,6 +101,7 @@ def _status_json(status: Status) -> dict[str, object]:
             "finished_at": _at(passed.finished_at),
             "duration": passed.duration,
             "error": passed.error,
+            "trigger": passed.trigger,
         },
         "server": None
         if server is None
@@ -127,6 +131,7 @@ def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked by using 
             datetime.fromisoformat(passed["finished_at"]),
             float(passed["duration"]),
             None if passed["error"] is None else str(passed["error"]),
+            "api" if passed["trigger"] == "api" else "watcher",
         ),
         server=None
         if server is None

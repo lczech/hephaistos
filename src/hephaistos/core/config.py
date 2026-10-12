@@ -51,9 +51,10 @@ class LogLevel(StrEnum):
 
 @dataclass(frozen=True)
 class AtLeast:
-    """A setting's limit: at least this."""
+    """A setting's limit: at least this, or else 0 if `or_zero`, which turns something off."""
 
     value: float
+    or_zero: bool = False
 
 
 @dataclass(frozen=True)
@@ -103,8 +104,7 @@ class Scan:
 class Watcher:
     """The section [watcher]."""
 
-    enabled: bool
-    interval: Annotated[float, AtLeast(1)]
+    interval: Annotated[float, AtLeast(1, or_zero=True)]
 
 
 @dataclass(frozen=True)
@@ -225,8 +225,13 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
 def _check_limits(leaf: _Leaf, value: float, where: str) -> None:
     """Raises ConfigError if a number is outside the setting's limits."""
     for limit in leaf.limits:
-        if isinstance(limit, AtLeast) and not value >= limit.value:
-            raise ConfigError(f"{where} must be at least {limit.value:g}, not {value}")
+        if (
+            isinstance(limit, AtLeast)
+            and not value >= limit.value
+            and not (limit.or_zero and value == 0)
+        ):
+            zero = "0 or " if limit.or_zero else ""
+            raise ConfigError(f"{where} must be {zero}at least {limit.value:g}, not {value}")
         if isinstance(limit, AtMost) and not value <= limit.value:
             raise ConfigError(f"{where} must be at most {limit.value:g}, not {value}")
         if isinstance(limit, Above) and not value > limit.value:

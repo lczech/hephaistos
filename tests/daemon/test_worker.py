@@ -37,7 +37,7 @@ def test_passes_run_at_low_priority_in_its_own_group(paths: Paths, repo: Path) -
                 shown = subprocess.run(  # noqa: ASYNC221 - a test may wait
                     ["ionice", "-p", str(pid)], check=True, capture_output=True, text=True
                 )
-                assert shown.stdout.strip() == "idle"
+                assert shown.stdout.strip() == "best-effort: prio 7"
             first = await started.run_pass()
             git(repo, "commit", "--quiet", "--allow-empty", "--message", "two")
             return pid, [first, await started.run_pass()]

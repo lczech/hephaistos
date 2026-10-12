@@ -23,9 +23,9 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status
 from hephaistos.daemon.errors import NotStartedError, PartError
-from hephaistos.daemon.server.serve import Server, address
+from hephaistos.daemon.server.server import Server, address
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
-from hephaistos.daemon.watcher.schedule import Watcher
+from hephaistos.daemon.watcher.watcher import Watcher
 
 FIRST_RESTART_DELAY = 1.0  # seconds before restarting a crashed part; doubles with each crash
 LAST_RESTART_DELAY = 60.0
@@ -59,8 +59,8 @@ def running_version(source: Path = SOURCE) -> str:
 
 
 def _enabled(settings: config.Settings) -> list[str]:
-    """The names of the parts that the settings enable."""
-    parts = ((Watcher.name, settings.watcher.enabled), (Server.name, settings.server.enabled))
+    """The names of the parts that the settings enable: the Watcher's timer, the Server."""
+    parts = ((Watcher.name, settings.watcher.interval > 0), (Server.name, settings.server.enabled))
     return [name for name, enabled in parts if enabled]
 
 
@@ -68,9 +68,7 @@ def _checked(paths: Paths) -> tuple[list[str], git.Installation]:
     """The parts to run and the git to run; raises NotStartedError if the Daemon can't start."""
     names = _enabled(config.settings())
     if not names:
-        raise NotStartedError(
-            "no Daemon parts are enabled: watcher.enabled and server.enabled are false"
-        )
+        raise NotStartedError("nothing to do: watcher.interval is 0 and server.enabled is false")
     try:
         found = git.installation()
         with read_session(paths):
@@ -100,11 +98,15 @@ async def keep_running(part: Part) -> None:
 
 
 class Daemon:
-    """The running Daemon: its parts, and the status file they report to."""
+    """The running Daemon: its parts, and the status file they report to.
+
+    The Watcher observes on request even while its timer, the part, doesn't run.
+    """
 
     def __init__(self, paths: Paths, names: list[str], version: str) -> None:
         """Prepares the parts named; `run` starts them."""
         self._paths = paths
+        self._watcher = Watcher(paths, self._on_pass)
         port = config.settings().server.port
         self._status = Status(
             os.getpid(),
@@ -114,8 +116,8 @@ class Daemon:
             server=ServerStatus(address(port), listening=False) if Server.name in names else None,
         )
         builders: dict[str, Callable[[], Part]] = {
-            Watcher.name: lambda: Watcher(paths, self._on_pass),
-            Server.name: lambda: Server(paths, version, self._on_server),
+            Watcher.name: lambda: self._watcher,
+            Server.name: lambda: Server(paths, version, self._on_server, self._watcher.observe),
         }
         self._parts = [builders[name]() for name in names]
         self._stopping = asyncio.Event()
@@ -141,6 +143,7 @@ class Daemon:
         """Stops at the first signal; exits at once at the second."""
         if self._stopping.is_set():
             log.warning("%s while stopping: exiting at once", number.name)
+            self._watcher.kill()
             for part in self._parts:
                 part.kill()
             os._exit(128 + number)
@@ -159,6 +162,7 @@ class Daemon:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            await self._watcher.stop()
             for number in STOP_SIGNALS:
                 loop.remove_signal_handler(number)
 

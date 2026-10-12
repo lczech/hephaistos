@@ -68,8 +68,8 @@ def test_install_start_stop_uninstall(
     assert run("status") == 0
     out, err = capsys.readouterr()
     assert out.splitlines()[:2] == [
-        "Unit     installed, enabled, active; linger off",
-        f"Daemon   running, pid {first}, started now, version {running_version()}",
+        "Unit       installed, enabled, active; linger off",
+        f"Daemon     running, pid {first}, started now, version {running_version()}",
     ]
     assert err == ""
 
@@ -181,7 +181,7 @@ def test_a_daemon_run_by_hand(
             )
             assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 0
             assert (
-                f"Daemon   running (not under systemd), pid {by_hand.pid}"
+                f"Daemon     running (not under systemd), pid {by_hand.pid}"
                 in capsys.readouterr().out
             )
             assert run_cli(monkeypatch, "daemon", "stop", program=str(systemd)) == 0
@@ -226,15 +226,32 @@ def test_status_shows_a_daemon_that_ended_without_stopping(
 
 
 @pytest.mark.parametrize(
-    ("ago", "error", "line"),
+    ("ago", "error", "trigger", "lines"),
     [
-        (5, None, "Watcher  last pass now (0.4 s); next in 55 s"),
+        (
+            5,
+            None,
+            "watcher",
+            ["Last pass  now (0.4 s), by the Watcher", "Watcher    every 60 s; next pass in 55 s"],
+        ),
         (
             5,
             "the worker died",
-            "Watcher  last pass now (0.4 s), failed: the worker died; next in 55 s",
+            "api",
+            [
+                "Last pass  now (0.4 s), by API request; failed: the worker died",
+                "Watcher    every 60 s; next pass in 55 s",
+            ],
         ),
-        (600, None, "Watcher  stalled: last pass 10m ago, every 60 s"),
+        (
+            600,
+            None,
+            "api",
+            [
+                "Last pass  10m ago (0.4 s), by API request",
+                "Watcher    every 60 s; stalled: last pass 10m ago",
+            ],
+        ),
     ],
 )
 def test_status_of_the_watcher(  # noqa: PLR0913 - fixtures, then the case
@@ -244,14 +261,15 @@ def test_status_of_the_watcher(  # noqa: PLR0913 - fixtures, then the case
     *,
     ago: int,
     error: str | None,
-    line: str,
+    trigger: status.Trigger,
+    lines: list[str],
 ) -> None:
     monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl at all
     now = datetime.now(UTC)
-    done = status.PassStatus(now - timedelta(seconds=ago), 0.4, error)
+    done = status.PassStatus(now - timedelta(seconds=ago), 0.4, error, trigger)
     paths.state_dir.mkdir(parents=True)
     found = status.Status(os.getpid(), "0.1.0", now, parts=("watcher",), watcher=done)
     status.write(paths.state_dir, found)
     with status.held_lock(paths.state_dir):
         assert run_cli(monkeypatch, "daemon", "status") == 0
-    assert capsys.readouterr().out.splitlines()[2] == line
+    assert capsys.readouterr().out.splitlines()[2:] == lines

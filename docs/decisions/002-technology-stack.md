@@ -15,7 +15,7 @@ Code is separated by purpose; the number of processes is a deployment choice.
 | `core/` | The Core library: domain model, operations, storage, git, and the interfaces that plugins implement. All logic lives here, including observing a Machine (taking State snapshots, comparing them into Events, reading the hook inbox) and the sync merge rules. |
 | `cli/` | The CLI, command `hephaistos`. Works directly on the local database via the Core; needs no running Daemon. |
 | `daemon/` | The Daemon, command `hephaistos daemon run`: reads this Machine's config and runs the enabled parts below. |
-| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine, periodically and on triggers, in a worker process at low CPU and I/O priority (`nice`, `ionice -c3`), so that git never competes with interactive work and the other parts keep their priority. |
+| `daemon/watcher/` | The Watcher: runs the Core's observation of this Machine in passes, on its timer and when a GUI asks, one at a time, in a worker process at low CPU and I/O priority (`nice`, `ionice -c2 -n7`), so that git never competes with interactive work and the other parts keep their priority. |
 | `daemon/sync/` | Sync: talks to Peers and decides when; merging is done by the Core (see [001](001-data-ownership.md)). |
 | `daemon/server/` | The Server: HTTP/WebSocket access to the Core for GUIs, and serves the `gui/web/` files to browsers; see [004](004-server.md). |
 | `plugins/` | Everything tool-specific, grouped by extension point; see below. |
@@ -66,7 +66,8 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **Desktop shell:** Electron, so the app receives all keyboard shortcuts (e.g. Ctrl+W in a Terminal) instead of the browser taking them.
 - **Transport:** HTTP/JSON and WebSocket, always authenticated. Machines reach each other through SSH. Connectivity (Tailscale, VPN, jump hosts) is set up in SSH and the network, not in our code; Peers only need SSH in one direction.
 - **Terminals:** tmux on its own socket (`tmux -L hephaistos`) with our own config (e.g. no status bar), kept separate from the user's tmux. The backend stays swappable (e.g. for shpool).
-- **Polling:** in the background at a configurable interval (default 60 s), plus immediately when the GUI gains focus. Agent Events are pushed by Provider hooks instead of being polled.
+- **Polling:** in the background at a configurable interval (default 60 s), plus immediately when the GUI gains focus, through each connected Machine's Server. A GUI reads what it shows from the API's views, never from the answer to its request, so that it also sees what other passes, the CLI and Sync changed. Agent Events are pushed by Provider hooks instead of being polled.
+- Later, for polling: a pass narrowed to some Clones (e.g. a refresh button on one), and inotify on Clones' `.git` (HEAD, index, refs, logs) to observe a changed Clone within a second, on local Filesystems; edits in a working tree and network Filesystems still need polling.
 - **Testing:** pytest for the Core, with fake plugins standing in for real tools.
 - **Settings:** Machine-specific settings live in a local TOML file, with sections per Machine where a home directory is shared. Cross-Machine settings live in the Registry. Edited via CLI or file first, in the GUI later.
 

@@ -53,7 +53,6 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "git.timeout": str(tmp_path / "config.login1.hpc.example.org.toml"),
         "observe.workers": config.DEFAULT,
         "scan.depth": config.DEFAULT,
-        "watcher.enabled": config.DEFAULT,
         "watcher.interval": config.DEFAULT,
         "server.enabled": config.DEFAULT,
         "server.port": config.DEFAULT,
@@ -86,8 +85,9 @@ def test_files_for() -> None:
         ("[observe]\nworkers = 0\n", "observe.workers must be at least 1, not 0"),
         ("[observe]\nworkers = 2.5\n", "observe.workers must be an integer, not 2.5"),
         ("[scan]\ndepth = true\n", "scan.depth must be an integer, not true"),
-        ("[watcher]\nenabled = 1\n", "watcher.enabled must be true or false, not 1"),
-        ("[watcher]\ninterval = 0.5\n", "watcher.interval must be at least 1, not 0.5"),
+        ("[server]\nenabled = 1\n", "server.enabled must be true or false, not 1"),
+        ("[watcher]\ninterval = 0.5\n", "watcher.interval must be 0 or at least 1, not 0.5"),
+        ("[watcher]\ninterval = -1\n", "watcher.interval must be 0 or at least 1, not -1"),
         ("[server]\nport = 70000\n", "server.port must be at most 65535, not 70000"),
         ('git = "fast"\n', r"git must be a section \[git\]"),
         ("time_format = \n", "cannot read"),
@@ -108,9 +108,9 @@ def test_invalid_files(tmp_path: Path, text: str, message: str) -> None:
         ("HEPHAISTOS_SCAN_DEPTH", "-1", "HEPHAISTOS_SCAN_DEPTH: must be at least 0, not -1"),
         ("HEPHAISTOS_LOG_LEVEL", "loud", "HEPHAISTOS_LOG_LEVEL: must be one of debug, info"),
         (
-            "HEPHAISTOS_WATCHER_ENABLED",
+            "HEPHAISTOS_SERVER_ENABLED",
             "no",
-            'HEPHAISTOS_WATCHER_ENABLED: must be true or false, not "no"',
+            'HEPHAISTOS_SERVER_ENABLED: must be true or false, not "no"',
         ),
     ],
 )
@@ -130,15 +130,20 @@ def test_variables_are_converted(tmp_path: Path) -> None:
     ("text", "value"), [("true", True), ("1", True), ("FALSE", False), ("0", False)]
 )
 def test_boolean_variables(tmp_path: Path, text: str, value: bool) -> None:  # noqa: FBT001
-    settings = load(tmp_path, "laptop", {"HEPHAISTOS_WATCHER_ENABLED": text}).settings
-    assert settings.watcher.enabled is value
+    settings = load(tmp_path, "laptop", {"HEPHAISTOS_SERVER_ENABLED": text}).settings
+    assert settings.server.enabled is value
 
 
 def test_boolean_in_file(tmp_path: Path) -> None:
-    (tmp_path / "config.toml").write_text("[watcher]\nenabled = false\n")
+    (tmp_path / "config.toml").write_text("[server]\nenabled = false\n")
     loaded = load(tmp_path, "laptop", {})
-    assert loaded.settings.watcher.enabled is False
-    assert config.setting_text(loaded.values["watcher.enabled"]) == "false"
+    assert loaded.settings.server.enabled is False
+    assert config.setting_text(loaded.values["server.enabled"]) == "false"
+
+
+def test_zero_turns_off(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text("[watcher]\ninterval = 0\n")
+    assert load(tmp_path, "laptop", {}).settings.watcher.interval == 0
 
 
 def test_activate() -> None:

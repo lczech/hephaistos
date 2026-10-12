@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 1,
-    "minor": 1
+    "minor": 2
   },
   "shapes": {
     "components": {
@@ -299,7 +299,7 @@
           "type": "object"
         },
         "DaemonJson": {
-          "description": "How the Daemon is doing; its parts only while it runs, and only those enabled.",
+          "description": "How the Daemon is doing; its parts only while it runs, the Server only if enabled.",
           "properties": {
             "daemon": {
               "$ref": "#/components/schemas/ProcessJson"
@@ -581,12 +581,21 @@
             "finished_at": {
               "title": "Finished At",
               "type": "string"
+            },
+            "trigger": {
+              "enum": [
+                "watcher",
+                "api"
+              ],
+              "title": "Trigger",
+              "type": "string"
             }
           },
           "required": [
             "finished_at",
             "duration",
-            "error"
+            "error",
+            "trigger"
           ],
           "title": "PassJson",
           "type": "object"
@@ -2102,6 +2111,18 @@
             }
           },
           "summary": "Machine Show"
+        }
+      },
+      "/api/observe": {
+        "post": {
+          "description": "Observes this Machine in a pass that starts after this request; answers once it ended.\n\nWhat changed, the other endpoints show, with what other passes changed.",
+          "operationId": "observe_api_observe_post",
+          "responses": {
+            "204": {
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Observe"
         }
       },
       "/api/repositories": {

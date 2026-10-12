@@ -16,7 +16,8 @@ from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
 from hephaistos.daemon.server.app import Counts, create_app
-from support import git
+from hephaistos.daemon.watcher.worker import PassFailed
+from support import FakeWatcher, git
 
 VERSION = "0.1.0 (test)"
 
@@ -29,11 +30,16 @@ def counts() -> Counts:
 
 
 @pytest.fixture
-def client(paths: Paths, repo: Path, counts: Counts) -> TestClient:
+def watcher() -> FakeWatcher:
+    return FakeWatcher()
+
+
+@pytest.fixture
+def client(paths: Paths, repo: Path, counts: Counts, watcher: FakeWatcher) -> TestClient:
     """A client of the Server for the Machine with Clone `repo`, with a Worktree `side`."""
     git(repo, "worktree", "add", "--quiet", "-b", "side", str(repo.parent / "side"))
     assert runner.invoke(cli, ["observe"]).exit_code == 0
-    app = create_app(paths, counts, VERSION)
+    app = create_app(paths, counts, VERSION, watcher.observe)
     headers = {"Authorization": f"Bearer {token.token(paths)}"}
     return TestClient(app, base_url="http://localhost:8264", headers=headers)
 
@@ -230,6 +236,19 @@ def test_an_unexpected_error_is_logged_not_shown(
     [record] = [record for record in caplog.records if record.levelno == logging.ERROR]
     assert record.getMessage() == "failed: GET /api/machines"
     assert record.exc_info is not None
+
+
+def test_observe_has_the_watcher_pass(client: TestClient, watcher: FakeWatcher) -> None:
+    observed = client.post("/api/observe")
+    assert (observed.status_code, observed.content) == (204, b"")
+    watcher.outcome = PassFailed("the database is busy")
+    failed = client.post("/api/observe")
+    assert (failed.status_code, failed.json()) == (
+        503,
+        {"error": "the pass failed: the database is busy"},
+    )
+    assert watcher.triggers == ["api", "api"]
+    assert client.get("/api/observe").status_code == 405
 
 
 def test_daemon_is_what_status_prints(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

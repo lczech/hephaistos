@@ -4,7 +4,7 @@ With port 0 it takes a free port, which `daemon.json` tells; the Server reports 
 only once it does, so nobody is sent to a port that isn't ours.
 
 Its endpoints only read the database, briefly, in uvicorn's threads; git runs in the Watcher's
-worker, so the Server answers at normal priority.
+worker, so the Server answers at normal priority. Asked to observe, it awaits the Watcher's pass.
 """
 
 import asyncio
@@ -22,6 +22,7 @@ from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.errors import PartError
 from hephaistos.daemon.server import ports, token
+from hephaistos.daemon.server.api import Observe
 from hephaistos.daemon.server.app import Counts, create_app
 from hephaistos.daemon.status import ServerStatus
 
@@ -71,11 +72,21 @@ class Server:
 
     name = "server"
 
-    def __init__(self, paths: Paths, version: str, report: Callable[[ServerStatus], None]) -> None:
-        """Serves the data in `paths`, as hephaistos `version`, reporting to `report`."""
+    def __init__(
+        self,
+        paths: Paths,
+        version: str,
+        report: Callable[[ServerStatus], None],
+        observe: Observe,
+    ) -> None:
+        """Serves the data in `paths`, as hephaistos `version`, reporting to `report`.
+
+        `observe` has the Watcher run a pass.
+        """
         self._paths = paths
         self._version = version
         self._report = report
+        self._observe = observe
         self._counts = Counts()
 
     def _status(self, where: str, *, listening: bool, error: str | None = None) -> ServerStatus:
@@ -113,7 +124,7 @@ class Server:
             self._report(self._status(where, listening=False, error=str(error)))
             raise
         where = address(sock.getsockname()[1])  # the free one taken, with port 0
-        app = create_app(self._paths, self._counts, self._version)
+        app = create_app(self._paths, self._counts, self._version, self._observe)
         logging.getLogger("uvicorn").setLevel(logging.WARNING)  # we log what it would say
         server = _Uvicorn(
             uvicorn.Config(
