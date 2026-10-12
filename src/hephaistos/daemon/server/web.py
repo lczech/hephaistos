@@ -15,7 +15,6 @@ from hephaistos.core.utils.paths import own_checkout, shell_path
 SOURCE = Path("gui", "web")  # in the checkout
 BUILD = SOURCE / "dist"
 ASSETS = "assets"  # files named by their content, so browsers may keep them for good
-ROOT_FILES = frozenset({"favicon.svg"})
 
 POLICY = (  # what the page may load and where it may connect: only this Server
     "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
@@ -40,7 +39,7 @@ def build() -> Path | None:
 
 def is_open(path: str) -> bool:
     """Whether a request's path is one of the GUI's files, which need no token."""
-    return path == "/" or path.startswith(f"/{ASSETS}/") or path.removeprefix("/") in ROOT_FILES
+    return path == "/" or path.startswith(f"/{ASSETS}/")
 
 
 def _build(request: Request) -> Path | None:
@@ -62,10 +61,11 @@ def _not_built(built: Path | None) -> HTMLResponse:
     if built is None:
         text = "This hephaistos doesn't run from a checkout, so it has no GUI yet."
     else:
-        source = html.escape(shell_path(built.parent))
+        checkout = html.escape(shell_path(built.parents[len(BUILD.parts) - 1]))
+        npm = f"uv run npm --prefix {SOURCE}"  # uv finds our Node only in the checkout
         text = (
-            f"The GUI isn't built yet: <code>uv run npm --prefix {source} install</code> once,"
-            f" then <code>uv run npm --prefix {source} run build</code>."
+            f"The GUI isn't built yet: <code>cd {checkout} &amp;&amp; {npm} ci &amp;&amp;"
+            f" {npm} run build</code>, then reload."
         )
     page = f"<!doctype html><title>hephaistos</title><p>{text}</p>\n"
     return HTMLResponse(page, status_code=503, headers={"Cache-Control": CHECKED})
@@ -84,11 +84,3 @@ def index(request: Request) -> Response:
 def asset(request: Request, name: str) -> FileResponse:
     """A script, style or image the page loads."""
     return _file(request, f"{ASSETS}/{name}", KEPT)
-
-
-@router.get("/{name}")
-def root_file(request: Request, name: str) -> FileResponse:
-    """A file next to the page, e.g. its icon."""
-    if name not in ROOT_FILES:
-        raise HTTPException(404, f"no file {name}")
-    return _file(request, name, CHECKED)

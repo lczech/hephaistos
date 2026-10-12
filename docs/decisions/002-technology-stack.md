@@ -21,6 +21,7 @@ Code is separated by purpose; the number of processes is a deployment choice.
 | `plugins/` | Everything tool-specific, grouped by extension point; see below. |
 | `gui/web/` | The GUI itself: one React app, used by both Electron and the phone's browser. |
 | `gui/desktop/` | The Desktop, command `hephaistos-gui`: Electron shell around `gui/web/` (window, tray icon, notifications, keyboard shortcuts). |
+| `assets/` | The icon (`icon.svg`) and the logo with the name, used by the README, the GUI and the Desktop. |
 
 Dependencies only point towards the Core. The Core knows none of the other parts; `gui/` never imports Python and only speaks HTTP to the Server.
 

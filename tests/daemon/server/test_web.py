@@ -32,7 +32,7 @@ def built(tmp_path: Path) -> Path:
     (gui / "index.html").write_text(PAGE)
     (gui / "assets" / "index-3f9a.js").write_text("console.log('hi')")
     (gui / "assets" / "outside.txt").symlink_to(tmp_path / "secret.txt")
-    (gui / "favicon.svg").write_text("<svg/>")
+    (gui / "assets" / "icon-77c1.svg").write_text("<svg/>")
     return gui
 
 
@@ -48,13 +48,20 @@ def test_serves_the_gui_without_the_token(paths: Paths, built: Path) -> None:
     assert (script.status_code, script.text) == (200, "console.log('hi')")
     assert script.headers["content-type"].startswith("text/javascript")
     assert script.headers["cache-control"] == "public, max-age=31536000, immutable"
-    icon = browser.get("/favicon.svg")
+    icon = browser.get("/assets/icon-77c1.svg")
     assert (icon.status_code, icon.headers["content-type"]) == (200, "image/svg+xml")
 
 
 def test_the_api_still_needs_the_token(paths: Paths, built: Path) -> None:
     browser = _browser(paths, built)
-    for path in ("/api/info", "/api", "/openapi.json", "/index.html", "/secret.txt"):
+    for path in (
+        "/api/info",
+        "/api",
+        "/openapi.json",
+        "/index.html",
+        "/favicon.svg",
+        "/secret.txt",
+    ):
         refused = browser.get(path)
         assert refused.status_code == 401, path
         assert refused.headers["content-security-policy"] == web.POLICY
@@ -81,7 +88,10 @@ def test_says_how_to_build_it(paths: Paths, tmp_path: Path) -> None:
     gui = tmp_path / "gui" / "web" / "dist"
     page = _browser(paths, gui).get("/")
     assert page.status_code == 503
-    assert f"uv run npm --prefix {tmp_path}/gui/web run build" in page.text
+    assert (
+        f"<code>cd {tmp_path} &amp;&amp; uv run npm --prefix gui/web ci &amp;&amp;"
+        " uv run npm --prefix gui/web run build</code>"
+    ) in page.text
     assert page.headers["content-security-policy"] == web.POLICY
     outside = _browser(paths, None).get("/")
     assert outside.status_code == 503

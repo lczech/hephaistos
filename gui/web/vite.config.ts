@@ -1,0 +1,21 @@
+import { readFileSync } from "node:fs";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
+
+// The API version this GUI is built for, from the schema its types come from.
+const schema = JSON.parse(readFileSync(new URL("openapi.json", import.meta.url), "utf8"));
+
+export default defineConfig({
+  plugins: [react()],
+  define: { __API_VERSION__: JSON.stringify(schema.info.version) },
+  server: {
+    host: "127.0.0.1",
+    port: 5173,
+    strictPort: true,
+    proxy: { "/api": "http://127.0.0.1:8264" }, // the Daemon's Server
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["src/test/setup.ts"],
+  },
+});

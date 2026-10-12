@@ -1,0 +1,18 @@
+.hint {
+  max-width: 36rem;
+  margin: 15vh auto 0;
+  padding: 0 var(--space-4);
+}
+
+.title {
+  font-size: var(--text-large);
+  font-weight: 600;
+}
+
+.command {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+}

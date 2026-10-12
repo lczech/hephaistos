@@ -1,0 +1,15 @@
+.failed {
+  max-width: 48rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+}
+
+.failed p {
+  margin: 0;
+}
+
+.failed p + p {
+  margin-top: var(--space-2);
+}
