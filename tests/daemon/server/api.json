@@ -1,7 +1,7 @@
 {
   "api": {
-    "major": 1,
-    "minor": 2
+    "major": 0,
+    "minor": 1
   },
   "shapes": {
     "components": {
@@ -1398,29 +1398,6 @@
     },
     "openapi": "3.1.0",
     "paths": {
-      "/": {
-        "get": {
-          "description": "What answers here; the GUI will.",
-          "operationId": "root__get",
-          "responses": {
-            "200": {
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "additionalProperties": {
-                      "type": "string"
-                    },
-                    "title": "Response Root  Get",
-                    "type": "object"
-                  }
-                }
-              },
-              "description": "Successful Response"
-            }
-          },
-          "summary": "Root"
-        }
-      },
       "/api/clones": {
         "get": {
           "description": "The Clones, or those of a Repository, as `clone list --json`.",

@@ -20,7 +20,7 @@ from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import SOURCE, Paths, own_checkout
 from hephaistos.daemon import status
 from hephaistos.daemon.errors import NotStartedError, PartError
 from hephaistos.daemon.server.server import Server, address
@@ -31,7 +31,6 @@ FIRST_RESTART_DELAY = 1.0  # seconds before restarting a crashed part; doubles w
 LAST_RESTART_DELAY = 60.0
 STEADY_TIME = 600.0  # seconds a part runs without crashing to count as recovered
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
-SOURCE = Path(__file__).parents[3]  # the checkout, when running from one: `src/hephaistos/…`
 
 log = logging.getLogger(__name__)
 
@@ -52,9 +51,9 @@ class Part(Protocol):
 
 def running_version(source: Path = SOURCE) -> str:
     """Our version, with the commit it runs from a checkout, e.g. `0.1.0 (bfc66f6-dirty)`."""
-    if not (source / ".git").exists() or not (source / "src" / "hephaistos").is_dir():
+    if (checkout := own_checkout(source)) is None:
         return __version__
-    described = git.describe(source)
+    described = git.describe(checkout)
     return __version__ if described is None else f"{__version__} ({described})"
 
 

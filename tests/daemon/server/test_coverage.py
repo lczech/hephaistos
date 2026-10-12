@@ -11,8 +11,7 @@ import typer.main
 from hephaistos.cli.main import app as cli
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
-from hephaistos.daemon.server.app import Counts, create_app
-from support import FakeWatcher
+from support import openapi
 
 ROUTES = {
     "machine list": "/api/machines",
@@ -48,5 +47,5 @@ def test_every_json_command_has_an_endpoint(paths: Paths) -> None:
     assert commands, "no commands found: has Typer's command tree changed?"
     assert sorted(commands - ROUTES.keys()) == [], "add an endpoint for each, and it to ROUTES"
     assert sorted(ROUTES.keys() - commands) == [], "no such commands"
-    routes = set(create_app(paths, Counts(), "0.1.0", FakeWatcher().observe).openapi()["paths"])
+    routes = set(openapi(paths)["paths"])
     assert sorted(set(ROUTES.values()) - routes) == []

@@ -21,7 +21,7 @@ import uvicorn
 from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.errors import PartError
-from hephaistos.daemon.server import ports, token
+from hephaistos.daemon.server import ports, token, web
 from hephaistos.daemon.server.api import Observe
 from hephaistos.daemon.server.app import Counts, create_app
 from hephaistos.daemon.status import ServerStatus
@@ -124,7 +124,7 @@ class Server:
             self._report(self._status(where, listening=False, error=str(error)))
             raise
         where = address(sock.getsockname()[1])  # the free one taken, with port 0
-        app = create_app(self._paths, self._counts, self._version, self._observe)
+        app = create_app(self._paths, self._counts, self._version, self._observe, web.build())
         logging.getLogger("uvicorn").setLevel(logging.WARNING)  # we log what it would say
         server = _Uvicorn(
             uvicorn.Config(

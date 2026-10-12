@@ -39,7 +39,7 @@ def client(paths: Paths, repo: Path, counts: Counts, watcher: FakeWatcher) -> Te
     """A client of the Server for the Machine with Clone `repo`, with a Worktree `side`."""
     git(repo, "worktree", "add", "--quiet", "-b", "side", str(repo.parent / "side"))
     assert runner.invoke(cli, ["observe"]).exit_code == 0
-    app = create_app(paths, counts, VERSION, watcher.observe)
+    app = create_app(paths, counts, VERSION, watcher.observe, None)
     headers = {"Authorization": f"Bearer {token.token(paths)}"}
     return TestClient(app, base_url="http://localhost:8264", headers=headers)
 
@@ -98,12 +98,12 @@ def test_the_token_counts_only_in_the_header(
     caplog.set_level(logging.DEBUG, "hephaistos.daemon.server")
     value = token.token(paths)
     browser = TestClient(client.app, base_url="http://localhost:8264")
-    assert browser.get(f"/?tab=x&%74oken={value}").status_code == 401
-    assert browser.get("/", headers={"Cookie": f"hephaistos={value}"}).status_code == 401
-    assert client.get(f"/?Token={value}").json() == {"hephaistos": VERSION, "gui": "not yet"}
+    assert browser.get(f"/api/info?tab=x&%74oken={value}").status_code == 401
+    assert browser.get("/api/info", headers={"Cookie": f"hephaistos={value}"}).status_code == 401
+    assert client.get(f"/api/info?Token={value}").status_code == 200
     logged = " ".join(record.getMessage() for record in caplog.records)
-    assert "GET /?tab=x&token=… from testclient" in logged
-    assert "GET /?Token=… 200" in logged
+    assert "GET /api/info?tab=x&token=… from testclient" in logged
+    assert "GET /api/info?Token=… 200" in logged
     assert value not in logged
 
 

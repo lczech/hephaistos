@@ -63,12 +63,13 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 
 - **Python** for everything except `gui/`, packaged with a standard `pyproject.toml` (installs with pip, pipx, conda or uv; uv is recommended). FastAPI for HTTP and WebSocket; SQLite via the standard library, with plain SQL.
 - **GUI:** TypeScript, Vite and React; dockview for panels, xterm.js as embedded Terminal emulator, Monaco for quick edits. VS Code is launched as a separate app, not embedded.
+- **GUI tooling:** Node comes as a development dependency of the Python project (`nodejs-wheel`), so nothing is installed outside it; npm, TypeScript strict, Biome for linting and formatting, Vitest for tests. TanStack Query fetches and refreshes data, through openapi-fetch with types generated from the API's schema (`gui/web/openapi.json`, recorded by the API's schema test). Styles are CSS modules plus one theme file of named values, without a component library so far. Vite builds into `gui/web/dist/` (not in git), which the Server serves; the wheel will carry it once Machines install from one.
 - **Desktop shell:** Electron, so the app receives all keyboard shortcuts (e.g. Ctrl+W in a Terminal) instead of the browser taking them.
 - **Transport:** HTTP/JSON and WebSocket, always authenticated. Machines reach each other through SSH. Connectivity (Tailscale, VPN, jump hosts) is set up in SSH and the network, not in our code; Peers only need SSH in one direction.
 - **Terminals:** tmux on its own socket (`tmux -L hephaistos`) with our own config (e.g. no status bar), kept separate from the user's tmux. The backend stays swappable (e.g. for shpool).
 - **Polling:** in the background at a configurable interval (default 60 s), plus immediately when the GUI gains focus, through each connected Machine's Server. A GUI reads what it shows from the API's views, never from the answer to its request, so that it also sees what other passes, the CLI and Sync changed. Agent Events are pushed by Provider hooks instead of being polled.
 - Later, for polling: a pass narrowed to some Clones (e.g. a refresh button on one), and inotify on Clones' `.git` (HEAD, index, refs, logs) to observe a changed Clone within a second, on local Filesystems; edits in a working tree and network Filesystems still need polling.
-- **Testing:** pytest for the Core, with fake plugins standing in for real tools.
+- **Testing:** pytest for the Core, with fake plugins standing in for real tools; Vitest and Testing Library for the GUI.
 - **Settings:** Machine-specific settings live in a local TOML file, with sections per Machine where a home directory is shared. Cross-Machine settings live in the Registry. Edited via CLI or file first, in the GUI later.
 
 ## Rejected
