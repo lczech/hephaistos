@@ -1,0 +1,57 @@
+.card {
+  max-width: 48rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: opacity 0.2s;
+}
+
+.card[data-stale] {
+  opacity: 0.6;
+}
+
+.title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-large);
+  font-weight: 600;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.field {
+  display: contents;
+}
+
+.field dt {
+  color: var(--text-muted);
+}
+
+.field dd {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.quiet {
+  color: var(--text-muted);
+}
+
+.warning {
+  color: var(--warning);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}

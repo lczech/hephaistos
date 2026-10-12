@@ -22,15 +22,20 @@ hephaistos db tables                # the database as stored; `db dump <table>` 
 hephaistos daemon install          # observes in the background, from login on; `--linger`: from boot
 hephaistos daemon status
 curl -H "Authorization: Bearer $(hephaistos daemon token)" 127.0.0.1:8264/api/repositories
+uv run npm --prefix gui/web ci          # in the checkout: the GUI's packages, again when they change
+uv run npm --prefix gui/web run build   # the GUI, served by the Daemon
+hephaistos daemon token --url           # open this link in a browser
 ```
 
 ## Development
 
 ```sh
-git config core.hooksPath .githooks   # once: ruff before each commit; pyright, pytest before each push
+git config core.hooksPath .githooks   # once: linters before each commit, type checks and tests before each push
 uv run pytest
 uv run ruff check . && uv run ruff format .
 uv run pyright
+uv run npm --prefix gui/web run check   # the GUI's types and tests; `run lint`, `run format`: Biome
+uv run npm --prefix gui/web run dev     # the GUI at http://127.0.0.1:5173/#token=…, reloading on changes
 ```
 
 The tool installed with `--editable` runs the current code, but keeps the dependencies it was installed with: after they change, `uv tool install --reinstall --editable .`. The Daemon keeps the code it started with: `hephaistos daemon restart` after changes (`daemon status` shows its version and commit).

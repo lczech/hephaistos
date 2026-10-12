@@ -1,0 +1,78 @@
+/* The look in one place: every component's styles use these names. */
+
+:root {
+  --font: system-ui, sans-serif;
+  --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
+  --text-small: 0.8125rem;
+  --text-normal: 0.9375rem;
+  --text-large: 1.125rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --radius: 6px;
+
+  --background: #f6f6f4;
+  --surface: #ffffff;
+  --bar: #ecebe8;
+  --border: #d9d7d2;
+  --text: #1f1d1a;
+  --text-muted: #6b6760;
+  --accent: #d85d3a; /* the icon's orange */
+  --accent-fill: #b8452a; /* filled buttons, readable with --on-accent */
+  --on-accent: #ffffff;
+  --success: #15803d;
+  --warning: #a16207;
+  --danger: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1f2226;
+    --surface: #2a2e33; /* the icon's slate */
+    --bar: #17191c;
+    --border: #3d434a;
+    --text: #e6e8ea;
+    --text-muted: #9aa1a8;
+    --accent: #e8774f;
+    --accent-fill: #e8774f;
+    --on-accent: #1b1d20;
+    --success: #4ade80;
+    --warning: #facc15;
+    --danger: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-normal);
+  line-height: 1.45;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+button {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--accent-fill);
+  border-radius: var(--radius);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

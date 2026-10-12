@@ -1,7 +1,12 @@
 #!/bin/sh
-# Fast checks before each commit; pyright and pytest run before each push (pre-push).
+# Fast checks before each commit; type checks and tests run before each push (pre-push).
 # Enable once per clone: git config core.hooksPath .githooks
 # Skip in an emergency with `git commit --no-verify`.
 set -e
 uv run --frozen ruff check --quiet .
 uv run --frozen ruff format --check --quiet .
+if [ ! -d gui/web/node_modules ]; then
+    echo "gui/web has no packages yet: uv run npm --prefix gui/web ci" >&2
+    exit 1
+fi
+uv run --frozen npm --prefix gui/web run --silent lint

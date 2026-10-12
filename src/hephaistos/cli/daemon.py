@@ -281,7 +281,7 @@ def token(
     url: Annotated[
         bool,
         typer.Option(
-            "--url", help="Print a link that gives a browser the token, for the GUI to come."
+            "--url", help="Print a link that opens the GUI in a browser, giving it the token."
         ),
     ] = False,
     renew: Annotated[
