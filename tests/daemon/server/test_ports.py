@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from hephaistos.daemon.errors import PartError
-from hephaistos.daemon.server import ports, serve
+from hephaistos.daemon.server import ports, server
 
 TABLE = """\
   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -43,10 +43,10 @@ def test_a_squatter_is_named(monkeypatch: pytest.MonkeyPatch) -> None:
         taken.listen()
         port = taken.getsockname()[1]
         with pytest.raises(PartError, match=f"port {port} is in use; set server.port"):
-            serve.bind(port)
+            server.bind(port)
         monkeypatch.setattr(ports, "holder", _another_user)
         with pytest.raises(PartError) as raised:
-            serve.bind(port)
+            server.bind(port)
     assert str(raised.value) == (
         f"port {port} is held by another user (uid {os.getuid() + 1}); set server.port for this"
         " host, and renew the token (`hephaistos daemon token --renew`) if a client may have"
@@ -55,5 +55,5 @@ def test_a_squatter_is_named(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_port_0_takes_a_free_one() -> None:
-    with serve.bind(0) as bound:
+    with server.bind(0) as bound:
         assert bound.getsockname()[1] > 0

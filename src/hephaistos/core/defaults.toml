@@ -30,9 +30,9 @@ depth = 3
 # Daemon parts: `hephaistos daemon run` runs those enabled.
 
 [watcher]
-# Observes this Machine's Clones and their Worktrees, at low priority.
-enabled = true
-# Seconds from the end of one pass to the start of the next.
+# Observes this Machine's Clones and their Worktrees in passes, at low priority:
+# on a timer, and when a GUI asks.
+# Seconds from the end of one pass to the timer's next. 0: only when asked.
 interval = 60.0
 
 [server]

@@ -8,7 +8,7 @@ from typing import TypedDict
 from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
-from hephaistos.daemon.status import PassStatus, ServerStatus, Status
+from hephaistos.daemon.status import PassStatus, ServerStatus, Status, Trigger
 from hephaistos.daemon.unit import ForeignUnitError, UnitState
 
 STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
@@ -62,15 +62,18 @@ def report(paths: Paths, env: Mapping[str, str]) -> Report:
 
 
 def is_stalled(done: PassStatus, now: datetime) -> bool:
-    """Whether the Watcher's next pass is overdue, so it seems stuck."""
+    """Whether the Watcher's timer is overdue with its next pass, so it seems stuck."""
     settings = config.settings()
+    if not settings.watcher.interval:
+        return False
     overdue = STALLED_PASSES * settings.watcher.interval + settings.git.timeout
     return (now - done.finished_at).total_seconds() > overdue
 
 
-def next_pass_at(done: PassStatus) -> datetime:
-    """When the Watcher's next pass starts."""
-    return done.finished_at + timedelta(seconds=config.settings().watcher.interval)
+def next_pass_at(done: PassStatus) -> datetime | None:
+    """When the Watcher's timer starts the next pass; None if it is off."""
+    interval = config.settings().watcher.interval
+    return done.finished_at + timedelta(seconds=interval) if interval else None
 
 
 class UnitJson(TypedDict):
@@ -102,12 +105,13 @@ class PassJson(TypedDict):
     finished_at: str
     duration: float  # seconds
     error: str | None
+    trigger: Trigger
 
 
 class WatcherJson(TypedDict):
     """The Watcher of the running Daemon."""
 
-    interval: float  # seconds
+    interval: float  # seconds; 0: passes only on request
     last_pass: PassJson | None
     next_pass_at: str | None
     stalled: bool
@@ -125,7 +129,7 @@ class ServerJson(TypedDict):
 
 
 class DaemonJson(TypedDict):
-    """How the Daemon is doing; its parts only while it runs, and only those enabled."""
+    """How the Daemon is doing; its parts only while it runs, the Server only if enabled."""
 
     unit: UnitJson | None  # None if systemd isn't available
     daemon: ProcessJson
@@ -139,22 +143,27 @@ def _at(value: datetime | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
-def _watcher_json(done: PassStatus | None, now: datetime) -> WatcherJson:
-    """The Watcher, from its last pass."""
-    if done is None:
-        return WatcherJson(
-            interval=config.settings().watcher.interval,
-            last_pass=None,
-            next_pass_at=None,
-            stalled=False,
+def _watcher_json(current: Status, now: datetime) -> WatcherJson:
+    """The running Daemon's Watcher, from its last pass."""
+    done = current.watcher
+    timer = "watcher" in current.parts
+    interval = config.settings().watcher.interval if timer else 0.0
+    last_pass = (
+        None
+        if done is None
+        else PassJson(
+            finished_at=done.finished_at.isoformat(),
+            duration=done.duration,
+            error=done.error,
+            trigger=done.trigger,
         )
-    stalled = is_stalled(done, now)
+    )
+    stalled = timer and done is not None and is_stalled(done, now)
+    next_at = None if not timer or done is None or stalled else next_pass_at(done)
     return WatcherJson(
-        interval=config.settings().watcher.interval,
-        last_pass=PassJson(
-            finished_at=done.finished_at.isoformat(), duration=done.duration, error=done.error
-        ),
-        next_pass_at=None if stalled else next_pass_at(done).isoformat(),
+        interval=interval,
+        last_pass=last_pass,
+        next_pass_at=None if next_at is None else next_at.isoformat(),
         stalled=stalled,
     )
 
@@ -196,9 +205,7 @@ def report_json(found: Report, now: datetime) -> DaemonJson:
             and last is not None
             and last.stopped_at is None,
         ),
-        watcher=_watcher_json(current.watcher, now)
-        if current is not None and "watcher" in current.parts
-        else None,
+        watcher=None if current is None else _watcher_json(current, now),
         server=None if current is None or current.server is None else _server_json(current.server),
         warnings=list(found.warnings),
     )

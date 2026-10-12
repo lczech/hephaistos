@@ -30,7 +30,7 @@ from hephaistos.daemon import status as daemon_status
 from hephaistos.daemon.report import Report
 from hephaistos.daemon.server import ports
 from hephaistos.daemon.server import token as server_token
-from hephaistos.daemon.status import PassStatus, ServerStatus
+from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 
 NOT_RUNNING = 3  # `status`'s exit code, as systemctl's
 
@@ -50,8 +50,8 @@ def run(
     """Run the Daemon in the foreground, until stopped (Ctrl+C or SIGTERM).
 
     It runs the parts its settings enable: the Watcher observes this Machine's Clones every
-    watcher.interval seconds, with git at low priority; the Server gives GUIs access, on
-    127.0.0.1 at server.port. One Daemon runs per Machine.
+    watcher.interval seconds and when a GUI asks, with git at low priority; the Server gives
+    GUIs access, on 127.0.0.1 at server.port. One Daemon runs per Machine.
     """
     if doctor_who:
         typer.echo(base64.b64decode(VERSE).decode())
@@ -181,18 +181,28 @@ def _daemon_text(found: Report, when: Callable[[datetime], str]) -> str:
     return f"not running; ended without stopping, last seen {when(last.last_seen_at)}"
 
 
-def _watcher_text(done: PassStatus | None, now: datetime, when: Callable[[datetime], str]) -> str:
-    """The `Watcher` line of `status`."""
+def _last_pass_text(done: PassStatus | None, when: Callable[[datetime], str]) -> str:
+    """The `Last pass` line of `status`."""
     if done is None:
-        return "first pass running"
-    interval = config.settings().watcher.interval
+        return "none yet"
+    by = "the Watcher" if done.trigger == "watcher" else "API request"
+    text = f"{when(done.finished_at)} ({done.duration:g} s), by {by}"
+    return text if done.error is None else f"{text}; failed: {done.error}"
+
+
+def _watcher_text(current: Status, now: datetime, when: Callable[[datetime], str]) -> str:
+    """The `Watcher` line of `status`: its timer."""
+    if "watcher" not in current.parts:
+        return "passes only on request (watcher.interval is 0)"
+    done = current.watcher
+    text = f"every {config.settings().watcher.interval:g} s"
+    if done is None:
+        return f"{text}; first pass running"
     if report.is_stalled(done, now):
-        return f"stalled: last pass {when(done.finished_at)}, every {interval:g} s"
-    text = f"last pass {when(done.finished_at)} ({done.duration:g} s)"
-    if done.error is not None:
-        text += f", failed: {done.error}"
-    wait = (report.next_pass_at(done) - now).total_seconds()
-    return f"{text}; next in {max(0, round(wait))} s"
+        return f"{text}; stalled: last pass {when(done.finished_at)}"
+    next_at = report.next_pass_at(done)
+    wait = 0 if next_at is None else (next_at - now).total_seconds()
+    return f"{text}; next pass in {max(0, round(wait))} s"
 
 
 def _server_text(server: ServerStatus, when: Callable[[datetime], str]) -> str:
@@ -240,8 +250,9 @@ def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) 
 
     fields = [("Unit", _unit_text(found)), ("Daemon", _daemon_text(found, when))]
     current = found.current
-    if current is not None and "watcher" in current.parts:
-        fields.append(("Watcher", _watcher_text(current.watcher, now, when)))
+    if current is not None:
+        fields.append(("Last pass", _last_pass_text(current.watcher, when)))
+        fields.append(("Watcher", _watcher_text(current, now, when)))
     if current is not None and current.server is not None:
         fields.append(("Server", _server_text(current.server, when)))
     print_fields(fields)

@@ -34,10 +34,10 @@ def test_without_parts_doesnt_start(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     machines.set_up(paths, "laptop")
-    monkeypatch.setenv("HEPHAISTOS_WATCHER_ENABLED", "false")
+    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0")
     monkeypatch.setenv("HEPHAISTOS_SERVER_ENABLED", "false")
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
-    message = "no Daemon parts are enabled: watcher.enabled and server.enabled are false"
+    message = "nothing to do: watcher.interval is 0 and server.enabled is false"
     assert capsys.readouterr().err == f"error: {message}\n"
 
 
@@ -45,9 +45,9 @@ def test_a_broken_config_doesnt_start_it(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     machines.set_up(paths, "laptop")
-    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0")
+    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0.5")
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
-    problem = "HEPHAISTOS_WATCHER_INTERVAL: must be at least 1, not 0.0"
+    problem = "HEPHAISTOS_WATCHER_INTERVAL: must be 0 or at least 1, not 0.5"
     assert capsys.readouterr().err == f"error: {problem}\n"
 
 
@@ -62,10 +62,10 @@ def test_doctor_who() -> None:
 def test_other_commands_run_on_a_broken_config(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0")
+    monkeypatch.setenv("HEPHAISTOS_WATCHER_INTERVAL", "0.5")
     monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl
     assert run_cli(monkeypatch, "daemon", "status") == 3  # not running
-    problem = "HEPHAISTOS_WATCHER_INTERVAL: must be at least 1, not 0.0"
+    problem = "HEPHAISTOS_WATCHER_INTERVAL: must be 0 or at least 1, not 0.5"
     assert capsys.readouterr().err == f"warning: {problem}; using the defaults\n"
 
 
@@ -135,12 +135,21 @@ def test_status_of_the_server(
     status.write(paths.state_dir, found)
     with status.held_lock(paths.state_dir):
         assert run_cli(monkeypatch, "daemon", "status") == 0
-        assert capsys.readouterr().out.splitlines()[2] == f"Server  {line}"
+        assert capsys.readouterr().out.splitlines()[2:] == [
+            "Last pass  none yet",
+            "Watcher    passes only on request (watcher.interval is 0)",
+            f"Server     {line}",
+        ]
         assert run_cli(monkeypatch, "daemon", "status", "--json") == 0
     shown = json.loads(capsys.readouterr().out)
     assert shown["unit"] is None
     assert shown["daemon"]["running"]
     assert shown["daemon"]["pid"] == os.getpid()
-    assert shown["watcher"] is None
+    assert shown["watcher"] == {
+        "interval": 0.0,
+        "last_pass": None,
+        "next_pass_at": None,
+        "stalled": False,
+    }
     assert shown["server"]["listening"] == server.listening
     assert shown["server"]["requests"] == server.requests

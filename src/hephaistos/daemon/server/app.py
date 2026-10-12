@@ -24,6 +24,7 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.views import API_VERSION
 from hephaistos.daemon.server import api
+from hephaistos.daemon.server.api import Observe
 from hephaistos.daemon.server.token import TokenFile, matches
 
 HOSTS = frozenset({"localhost", "127.0.0.1"})
@@ -139,8 +140,11 @@ async def _refused_by_core(_: Request, error: Exception) -> Response:
     return JSONResponse({"error": str(error)}, status_code=400)
 
 
-def create_app(paths: Paths, counts: Counts, version: str) -> FastAPI:
-    """The Server's app for this Machine, counting its requests in `counts`."""
+def create_app(paths: Paths, counts: Counts, version: str, observe: Observe) -> FastAPI:
+    """The Server's app for this Machine, counting its requests in `counts`.
+
+    `observe` has the Watcher run a pass.
+    """
     app = FastAPI(
         title="hephaistos",
         version=f"{API_VERSION.major}.{API_VERSION.minor}",
@@ -150,6 +154,7 @@ def create_app(paths: Paths, counts: Counts, version: str) -> FastAPI:
     )
     app.state.paths = paths
     app.state.version = version
+    app.state.observe = observe
     app.middleware("http")(Guard(paths, counts))
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)

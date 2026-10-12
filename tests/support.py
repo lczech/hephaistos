@@ -1,4 +1,5 @@
-"""Helpers for tests: git repositories, running the CLI as its entry point does, free ports."""
+"""Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
+stand-in for the Watcher."""
 
 import functools
 import json
@@ -12,6 +13,8 @@ import pytest
 from hephaistos.cli.main import run
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon.status import Trigger
+from hephaistos.daemon.watcher.worker import Done, PassFailed
 
 
 def free_port() -> int:
@@ -19,6 +22,21 @@ def free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+class FakeWatcher:
+    """Stands in for the Watcher behind a Server: its passes end at once, as `outcome`."""
+
+    def __init__(self) -> None:
+        self.outcome: Done | PassFailed = Done(
+            events=0, observed=1, worktrees=0, updated=0, skipped=0
+        )
+        self.triggers: list[Trigger] = []  # of the passes so far
+
+    async def observe(self, trigger: Trigger) -> Done | PassFailed:
+        """A pass's outcome."""
+        self.triggers.append(trigger)
+        return self.outcome
 
 
 def git(path: Path, *args: str) -> str:

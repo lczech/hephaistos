@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 import typer
 
 from hephaistos.cli.event import print_events
-from hephaistos.cli.output import JsonOption, TimeFormatOption, number_text
+from hephaistos.cli.output import TimeFormatOption, number_text
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones
@@ -25,7 +25,6 @@ def observe(
         ),
     ] = None,
     time_format: TimeFormatOption = None,
-    as_json: JsonOption = False,
 ) -> None:
     """Observe this Machine's Clones and their Worktrees now, and show the Events this records."""
     del target  # Clones are all there is to observe so far.
@@ -35,12 +34,10 @@ def observe(
         with read_session(paths) as session:
             clone_ids = {clones.find_unobserved(session, path).clone.id for path in clone}
     result = observer.observe(paths, clone_ids)
-    with read_session(paths) as session:
-        if as_json or result.events:
-            print_events(session, result.events, time_format=time_format, as_json=as_json)
-    if as_json:
-        return
-    if not result.events:
+    if result.events:
+        with read_session(paths) as session:
+            print_events(session, result.events, time_format=time_format)
+    else:
         observed = number_text(result.observed, "Clone")
         if result.worktrees:
             observed += f" and {number_text(result.worktrees, 'Worktree')}"

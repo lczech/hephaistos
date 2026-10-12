@@ -59,9 +59,10 @@ class WorkerDiedError(Exception):
 def _lower_priority() -> None:
     """Lowers this process's CPU and I/O priority, for the threads and processes it starts."""
     os.setpriority(os.PRIO_PROCESS, 0, NICENESS)
+    # The lowest best-effort I/O priority: the idle class could starve a pass a GUI waits for.
     try:
         subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-            ["ionice", "-c3", "-p", str(os.getpid())],  # noqa: S607 - from the PATH, like git
+            ["ionice", "-c2", "-n7", "-p", str(os.getpid())],  # noqa: S607 - from the PATH, like git
             check=True,
             capture_output=True,
             timeout=config.settings().git.timeout,

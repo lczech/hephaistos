@@ -1,4 +1,4 @@
-"""The API: what the CLI's commands print with `--json`, as the same JSON.
+"""The API: what the CLI's commands print with `--json`, as the same JSON, and actions.
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
@@ -9,6 +9,7 @@ import logging
 import os
 import socket
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Annotated, TypedDict, cast
 
@@ -39,12 +40,16 @@ from hephaistos.core.views import (
 )
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
+from hephaistos.daemon.status import Trigger
+from hephaistos.daemon.watcher.worker import Done, PassFailed
 
 DEFAULT_LIMIT = 20  # Events, as `event list` shows
 DEFAULT_ROWS = 20  # as `db dump` shows
 DEFAULT_RECORDS = 50  # as `log show` shows
 
 router = APIRouter(prefix="/api")
+
+type Observe = Callable[[Trigger], Awaitable[Done | PassFailed]]  # the Watcher's pass
 
 
 class ApiVersionJson(TypedDict):
@@ -213,6 +218,17 @@ def event_show(paths: PathsOf, event_id: uuid.UUID) -> EventJson:
 def daemon(paths: PathsOf) -> DaemonJson:
     """How the Daemon is doing, as `daemon status --json`."""
     return report.report_json(report.report(paths, os.environ), datetime.now(UTC))
+
+
+@router.post("/observe", status_code=204)
+async def observe(request: Request) -> None:
+    """Observes this Machine in a pass that starts after this request; answers once it ended.
+
+    What changed, the other endpoints show, with what other passes changed.
+    """
+    outcome = await cast("Observe", request.app.state.observe)("api")
+    if isinstance(outcome, PassFailed):
+        raise HTTPException(503, f"the pass failed: {outcome.message}")
 
 
 @router.get("/config")

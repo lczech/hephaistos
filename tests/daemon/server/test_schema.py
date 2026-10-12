@@ -1,7 +1,7 @@
 """The API's shapes, held to a recorded snapshot, so that changing them bumps API_VERSION.
 
-Additions only bump minor; anything else major. Once API_VERSION says so, record the new
-snapshot: `HEPHAISTOS_RECORD_API=1 pytest tests/daemon/server/test_schema.py`.
+Additions only bump minor; anything else major, except descriptions. Once API_VERSION says so,
+record the new snapshot: `HEPHAISTOS_RECORD_API=1 pytest tests/daemon/server/test_schema.py`.
 """
 
 import json
@@ -15,6 +15,7 @@ from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.views import API_VERSION, ApiVersion
 from hephaistos.daemon.server.app import Counts, create_app
+from support import FakeWatcher
 
 SNAPSHOT = Path(__file__).with_name("api.json")
 
@@ -35,8 +36,22 @@ def _contains(old: object, new: object) -> bool:
     return old == new
 
 
+def _shape(value: object) -> object:
+    """A schema without its descriptions, which don't change what clients get."""
+    if isinstance(value, dict):
+        return {
+            key: _shape(item)
+            for key, item in cast("dict[str, object]", value).items()
+            if not (key == "description" and isinstance(item, str))
+        }
+    if isinstance(value, list):
+        return [_shape(item) for item in cast("list[object]", value)]
+    return value
+
+
 def required_version(was: ApiVersion, old: object, new: object) -> ApiVersion:
     """The version the API needs, after shapes `old` at version `was` became `new`."""
+    old, new = _shape(old), _shape(new)
     if new == old:
         return was
     if _contains(old, new):
@@ -46,7 +61,7 @@ def required_version(was: ApiVersion, old: object, new: object) -> ApiVersion:
 
 def test_api_version_follows_its_shapes(paths: Paths) -> None:
     machines.set_up(paths, "laptop")
-    schema: dict[str, Any] = create_app(paths, Counts(), "0.1.0").openapi()
+    schema: dict[str, Any] = create_app(paths, Counts(), "0.1.0", FakeWatcher().observe).openapi()
     shapes = {key: value for key, value in schema.items() if key != "info"}
     recorded = json.loads(SNAPSHOT.read_text())
     was = ApiVersion(**recorded["api"])
@@ -73,6 +88,8 @@ def test_api_version_follows_its_shapes(paths: Paths) -> None:
         ({"a": [1, 2]}, {"a": [1, 2, 3]}, (1, 3)),
         ({"a": 1, "b": 2}, {"a": 1}, (2, 0)),
         ({"a": 1}, {"a": 2}, (2, 0)),
+        ({"a": {"description": "old"}}, {"a": {"description": "new"}}, (1, 2)),
+        ({"properties": {"description": {}}}, {"properties": {}}, (2, 0)),  # a field
     ],
 )
 def test_required_version(old: object, new: object, needed: tuple[int, int]) -> None:

@@ -34,7 +34,7 @@ def test_no_changes() -> None:
     result = runner.invoke(app, ["observe"])
     assert result.exit_code == 0, result.output
     assert result.output == "No changes (1 Clone observed)\n"
-    assert runner.invoke(app, ["observe", "clones", "--json"]).output.strip() == "[]"
+    assert runner.invoke(app, ["observe", "clones"]).output == "No changes (1 Clone observed)\n"
 
 
 def test_events_are_listed(repo: Path) -> None:

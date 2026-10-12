@@ -10,7 +10,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,7 +26,8 @@ from hephaistos.daemon import main, status
 from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.server import token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
-from hephaistos.daemon.watcher.schedule import Watcher
+from hephaistos.daemon.watcher.watcher import Watcher
+from hephaistos.daemon.watcher.worker import Done, PassFailed
 from support import create, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
@@ -86,9 +87,7 @@ def test_crashed_parts_restart_ever_later(
 
 @pytest.mark.usefixtures("repo")
 def test_watcher_replaces_a_dead_worker(paths: Paths) -> None:
-    config.activate(
-        dataclasses.replace(config.DEFAULTS, watcher=config.Watcher(enabled=True, interval=1.0))
-    )
+    config.activate(dataclasses.replace(config.DEFAULTS, watcher=config.Watcher(interval=1.0)))
     reported: list[PassStatus] = []
 
     async def watched() -> None:
@@ -99,6 +98,7 @@ def test_watcher_replaces_a_dead_worker(paths: Paths) -> None:
                 watcher.kill()
             await asyncio.sleep(0.05)
         task.cancel()
+        await watcher.stop()
 
     asyncio.run(asyncio.wait_for(watched(), WAIT))
     assert [done.error for done in reported[:3]] == [
@@ -108,9 +108,101 @@ def test_watcher_replaces_a_dead_worker(paths: Paths) -> None:
     ]
 
 
-def _daemon(*args: str, port: int | None = None) -> subprocess.Popen[str]:
-    """`hephaistos daemon run` in a new process, passing a pass a second; with a Server on
-    `port`, else none."""
+DONE = Done(events=0, observed=1, worktrees=0, updated=0, skipped=0)
+
+
+class Passes:
+    """Stands in for the worker: each pass waits until released, and is counted."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.started = 0
+        self.release = asyncio.Event()
+        monkeypatch.setattr(Watcher, "_worker_pass", self._method())
+
+    def _method(self) -> Callable[[Watcher], Awaitable[Done | PassFailed]]:
+        """`_pass` as a method of the Watcher."""
+
+        def method(_: Watcher) -> Awaitable[Done | PassFailed]:
+            return self._pass()
+
+        return method
+
+    async def _pass(self) -> Done | PassFailed:
+        self.started += 1
+        await self.release.wait()
+        return DONE
+
+
+def test_requests_share_the_pass_after_the_running_one(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG, "hephaistos.daemon.watcher")
+    passes = Passes(monkeypatch)
+    reported: list[PassStatus] = []
+
+    async def requested() -> None:
+        watcher = Watcher(paths, reported.append)
+        first = asyncio.create_task(watcher.observe("api"))
+        await asyncio.sleep(0.01)
+        assert passes.started == 1
+        later = [asyncio.create_task(watcher.observe("api")) for _ in range(3)]
+        await asyncio.sleep(0.01)
+        assert passes.started == 1  # they wait for the running pass to end
+        passes.release.set()
+        assert await first is DONE
+        assert [await task for task in later] == [DONE] * 3
+        assert passes.started == 2  # one more, for all three
+        await watcher.stop()
+
+    asyncio.run(asyncio.wait_for(requested(), WAIT))
+    assert [done.trigger for done in reported] == ["api", "api"]
+    assert [getattr(record, "trigger", None) for record in caplog.records] == ["api", "api"]
+
+
+def test_the_timer_counts_from_any_pass(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    config.activate(dataclasses.replace(config.DEFAULTS, watcher=config.Watcher(interval=1.0)))
+    passes = Passes(monkeypatch)
+    passes.release.set()
+    ended: list[tuple[float, str]] = []
+    third = asyncio.Event()
+
+    def report(done: PassStatus) -> None:
+        ended.append((time.monotonic(), done.trigger))
+        if len(ended) == 3:
+            third.set()
+
+    async def watched() -> None:
+        watcher = Watcher(paths, report)
+        timer = asyncio.create_task(watcher.run())
+        await asyncio.sleep(0.5)
+        await watcher.observe("api")
+        await third.wait()
+        timer.cancel()
+        await watcher.stop()
+
+    asyncio.run(asyncio.wait_for(watched(), WAIT))
+    assert [trigger for _, trigger in ended[:3]] == ["watcher", "api", "watcher"]
+    assert ended[2][0] - ended[1][0] >= 1.0  # not 0.5 s, as from the timer's own pass
+
+
+def test_a_pass_cut_short_by_stopping(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    passes = Passes(monkeypatch)
+
+    async def stopped() -> None:
+        watcher = Watcher(paths, lambda _: None)
+        request = asyncio.create_task(watcher.observe("api"))
+        await asyncio.sleep(0.01)
+        await watcher.stop()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+
+    asyncio.run(asyncio.wait_for(stopped(), WAIT))
+    assert passes.started == 1
+
+
+def _daemon(*args: str, port: int | None = None, interval: int = 1) -> subprocess.Popen[str]:
+    """`hephaistos daemon run` in a new process, passing every `interval` seconds; with a
+    Server on `port`, else none."""
     server = (
         {"HEPHAISTOS_SERVER_ENABLED": "false"}
         if port is None
@@ -125,7 +217,7 @@ def _daemon(*args: str, port: int | None = None) -> subprocess.Popen[str]:
             "run",
             *args,
         ],
-        env=os.environ | {"HEPHAISTOS_WATCHER_INTERVAL": "1"} | server,
+        env=os.environ | {"HEPHAISTOS_WATCHER_INTERVAL": str(interval)} | server,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -199,13 +291,15 @@ def test_running_version(tmp_path: Path) -> None:
     assert main.running_version(checkout) == f"{__version__} ({short})"
 
 
-def _get(port: int, path: str, headers: dict[str, str]) -> tuple[int, Any]:
-    """The status and JSON with which the Server on `port` answers a GET, without proxies."""
+def _get(port: int, path: str, headers: dict[str, str], method: str = "GET") -> tuple[int, Any]:
+    """The status and JSON, if any, with which the Server on `port` answers, without proxies."""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    request = urllib.request.Request(f"http://127.0.0.1:{port}{path}", headers=headers)
+    url = f"http://127.0.0.1:{port}{path}"
+    request = urllib.request.Request(url, headers=headers, method=method)
     try:
         with opener.open(request, timeout=WAIT) as response:
-            return response.status, json.loads(response.read())
+            body = response.read()
+            return response.status, json.loads(body) if body else None
     except urllib.error.HTTPError as error:
         return error.code, json.loads(error.read())
 
@@ -273,3 +367,22 @@ def test_a_taken_port_fails_only_the_server(paths: Paths) -> None:
     message = f"port {port} is in use; set server.port for this host"
     assert (failed.listening, failed.error) == (False, message)
     assert f"server failed: {message}" in _messages(paths)
+
+
+@pytest.mark.usefixtures("repo")
+def test_observes_on_request_only(paths: Paths) -> None:
+    daemon = _daemon(port=0, interval=0)
+    try:
+        port = _until(lambda: _server(paths, daemon)).port
+        headers = {"Authorization": f"Bearer {token.token(paths)}"}
+        assert _get(port, "/api/observe", headers, method="POST") == (204, None)
+        found = status.read(paths.state_dir)
+        assert found is not None
+        assert found.parts == ("server",)
+        assert found.watcher is not None
+        assert found.watcher.trigger == "api"
+    finally:
+        daemon.send_signal(signal.SIGTERM)
+        _, err = daemon.communicate(timeout=WAIT)
+    assert daemon.returncode == 0, err
+    assert err == "Running: server; Ctrl+C stops the Daemon\n"
