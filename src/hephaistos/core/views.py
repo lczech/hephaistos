@@ -1,13 +1,21 @@
-"""Entities as JSON: what `--json` prints and the Server's API returns, built in one place.
+"""What `--json` prints and the Server's API returns, built in one place.
+
+Entities, and the settings, database and log behind them.
 
 These shapes are the API's contract with its clients: API_VERSION counts how they changed.
 Other entities are referred to by ID, with a name for showing them.
 """
 
+import os
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from typing import Any, NamedTuple, TypedDict
+from datetime import datetime
+from enum import StrEnum
+from pathlib import Path
+from typing import Any, Literal, NamedTuple, TypedDict, cast
 
+from hephaistos.core import config
+from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.events import subjects
 from hephaistos.core.events.events import Event
@@ -20,7 +28,8 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils.ids import id_datetime
+from hephaistos.core.utils import logs
+from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
 class ApiVersion(NamedTuple):
@@ -30,7 +39,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(1, 0)
+API_VERSION = ApiVersion(1, 1)
 
 
 class Ref(TypedDict):
@@ -376,3 +385,183 @@ def events_json(session: ReadSession, listed: Sequence[Event]) -> list[EventJson
     labels = subjects.labels(session, listed)
     names = machines.labels(session, {event.recorded_by for event in listed})
     return [event_json(event, labels, names) for event in listed]
+
+
+type SettingValue = bool | int | float | str
+
+
+class SettingJson(TypedDict):
+    """A setting: its value now and where that comes from, and the value this process uses."""
+
+    key: str
+    value: SettingValue
+    source: str  # a file's path, a variable's name, or `default`
+    applied: SettingValue  # differs after an edit, until the process starts again
+
+
+class SourceJson(TypedDict):
+    """A config file or variable, in the order they apply."""
+
+    source: str
+    kind: Literal["file", "variable"]
+    state: Literal["read", "not found", "broken"]
+    error: str | None
+
+
+class UnknownVariableJson(TypedDict):
+    """A `HEPHAISTOS_*` variable that isn't a setting's, with the closest one that is."""
+
+    name: str
+    closest: str | None
+
+
+class ConfigJson(TypedDict):
+    """The settings as this process finds them, and where they come from."""
+
+    host: str
+    settings: list[SettingJson]
+    sources: list[SourceJson]
+    other_hosts: list[str]  # config files for other hosts, unused here
+    unknown_variables: list[UnknownVariableJson]
+
+
+def _setting_value(value: object) -> SettingValue:
+    """A setting's value as JSON gives it: an enumeration as its text."""
+    if isinstance(value, StrEnum):
+        return value.value
+    return cast("SettingValue", value)
+
+
+def config_json(directory: Path, hostname: str, env: Mapping[str, str] = os.environ) -> ConfigJson:
+    """The settings as the files in `directory` for `hostname` and `env` say now.
+
+    Each also with the value this process applies, which it loaded when it started.
+    """
+    found = config.layers(directory, hostname, env)
+    loaded = config.merged(found)
+    applied = config.settings()
+    return ConfigJson(
+        host=hostname,
+        settings=[
+            SettingJson(
+                key=key,
+                value=_setting_value(loaded.values[key]),
+                source=loaded.sources[key],
+                applied=_setting_value(config.value_of(applied, key)),
+            )
+            for key in config.KEYS
+        ],
+        sources=[
+            SourceJson(
+                source=layer.source,
+                kind="variable" if layer.path is None else "file",
+                state=cast("Literal['read', 'not found', 'broken']", layer.state),
+                error=None if layer.error is None else str(layer.error),
+            )
+            for layer in found
+        ],
+        other_hosts=[str(path) for path in config.other_hosts_files(directory, hostname)],
+        unknown_variables=[
+            UnknownVariableJson(name=name, closest=closest)
+            for name, closest in config.unknown_variables(env).items()
+        ],
+    )
+
+
+def stored_value_json(value: object) -> object:
+    """A value decoded from the database, for JSON: clock values with their counter."""
+    match value:
+        case uuid.UUID():
+            return str(value)
+        case Timestamp():
+            return f"{value.datetime.isoformat(timespec='milliseconds')} #{value.counter}"
+        case datetime():
+            return value.isoformat(timespec="milliseconds")
+        case _:
+            return value
+
+
+class TableJson(TypedDict):
+    """A table of the database: its category, rows and latest change."""
+
+    table: str
+    category: str | None  # None for a table this version doesn't know
+    rows: int | None  # None if this version's table is missing
+    latest: Any
+
+
+class TablesJson(TypedDict):
+    """The database's tables, and what's unusual about them."""
+
+    tables: list[TableJson]
+    warnings: list[str]
+
+
+class RowsJson(TypedDict):
+    """A table's rows, decoded, newest first."""
+
+    columns: list[str]
+    rows: list[dict[str, Any]]
+    warnings: list[str]
+
+
+def db_warnings(session: ReadSession, found: Sequence[raw.TableSummary] = ()) -> list[str]:
+    """What's unusual about the database: an outdated schema, unknown tables among `found`."""
+    warnings: list[str] = []
+    if not session.has_current_schema:
+        warnings.append(
+            "the database's schema is outdated (setup --reset replaces it); showing it as stored"
+        )
+    if unknown := [table.name for table in found if table.category is None]:
+        tables = "1 table" if len(unknown) == 1 else f"{len(unknown)} tables"
+        warnings.append(f"{tables} not in this version's schema: {', '.join(unknown)}")
+    return warnings
+
+
+def tables_json(session: ReadSession) -> TablesJson:
+    """The database's tables: this version's in schema order, then any others."""
+    found = raw.tables(session)
+    return TablesJson(
+        tables=[
+            TableJson(
+                table=table.name,
+                category=table.category,
+                rows=table.rows,
+                latest=stored_value_json(table.latest),
+            )
+            for table in found
+        ],
+        warnings=db_warnings(session, found),
+    )
+
+
+def rows_json(
+    session: ReadSession,
+    table: str,
+    columns: Sequence[str] = (),
+    limit: int | None = None,
+    offset: int = 0,
+) -> RowsJson:
+    """A table's rows, newest first: only `columns` if given; `offset` skips that many."""
+    found = raw.rows(session, table, columns, limit, offset)
+    return RowsJson(
+        columns=list(found.columns),
+        rows=[
+            {name: stored_value_json(value) for name, value in zip(found.columns, row, strict=True)}
+            for row in found.values
+        ],
+        warnings=db_warnings(session),
+    )
+
+
+class LogJson(TypedDict):
+    """Log records as written, oldest first, and how many lines weren't records."""
+
+    records: list[dict[str, Any]]
+    skipped: int
+
+
+def log_json(directory: Path, selection: logs.Selection, limit: int = 0) -> LogJson:
+    """The newest `limit` selected records of the log in `directory` (0: all)."""
+    reading = logs.read(directory, selection, limit)
+    return LogJson(records=reading.records, skipped=reading.skipped)

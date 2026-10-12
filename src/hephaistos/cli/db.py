@@ -12,15 +12,15 @@ from hephaistos.cli.output import (
     TimeFormatOption,
     chosen_time_format,
     full_time,
-    number_text,
     print_fields,
     print_json,
     print_table,
     time_formatter,
 )
+from hephaistos.core import views
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db import raw
-from hephaistos.core.db.sessions import ReadSession, read_session
+from hephaistos.core.db.sessions import read_session
 from hephaistos.core.db.tables import Table
 from hephaistos.core.utils.ids import Timestamp, short_id
 from hephaistos.core.utils.paths import Paths
@@ -30,14 +30,10 @@ app = typer.Typer(no_args_is_help=True, help="This Machine's database, as stored
 type ValueText = Callable[[object], str]
 
 
-def _warn_if_outdated(session: ReadSession) -> None:
-    """Says on stderr that the database's schema is outdated, if it is."""
-    if not session.has_current_schema:
-        typer.echo(
-            "warning: the database's schema is outdated (setup --reset replaces it);"
-            " showing it as stored",
-            err=True,
-        )
+def _warn(warnings: Sequence[str]) -> None:
+    """Prints what's unusual about the database on stderr."""
+    for warning in warnings:
+        typer.echo(f"warning: {warning}", err=True)
 
 
 def value_text(time_format: TimeFormat | None, *, short_ids: bool = False) -> ValueText:
@@ -71,45 +67,15 @@ def value_text(time_format: TimeFormat | None, *, short_ids: bool = False) -> Va
     return text
 
 
-def value_json(value: object) -> object:
-    """A decoded value for JSON output; clock values with their counter."""
-    match value:
-        case uuid.UUID():
-            return str(value)
-        case Timestamp():
-            return f"{value.datetime.isoformat(timespec='milliseconds')} #{value.counter}"
-        case datetime():
-            return value.isoformat(timespec="milliseconds")
-        case _:
-            return value
-
-
 @app.command()
 def tables(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
     """List the database's tables, with their row counts and latest changes."""
     with read_session(Paths.from_environment(), check_schema=False) as session:
-        _warn_if_outdated(session)
+        if as_json:
+            print_json(views.tables_json(session))
+            return
         found = raw.tables(session)
-    unknown = [table.name for table in found if table.category is None]
-    if unknown:
-        typer.echo(
-            f"warning: {number_text(len(unknown), 'table')} not in this version's schema:"
-            f" {', '.join(unknown)}",
-            err=True,
-        )
-    if as_json:
-        print_json(
-            [
-                {
-                    "table": table.name,
-                    "category": table.category,
-                    "rows": table.rows,
-                    "latest": value_json(table.latest),
-                }
-                for table in found
-            ]
-        )
-        return
+        _warn(views.db_warnings(session, found))
     text = value_text(time_format)
     print_table(
         ["table", "category", "rows", "latest"],
@@ -161,21 +127,19 @@ def dump(  # noqa: PLR0913 - one option per choice
         bool, typer.Option("--short-ids", help="Show IDs by their end, as lists do.")
     ] = False,
     limit: LimitOption = 20,
+    offset: Annotated[
+        int, typer.Option("--offset", min=0, help="Skip this many first, for the next page.")
+    ] = 0,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
     """Show a table's rows, newest first, with IDs, times and JSON decoded."""
     with read_session(Paths.from_environment(), check_schema=False) as session:
-        _warn_if_outdated(session)
-        found = raw.rows(session, table, column or (), limit or None)
-    if as_json:
-        print_json(
-            [
-                {name: value_json(value) for name, value in zip(found.columns, row, strict=True)}
-                for row in found.values
-            ]
-        )
-        return
+        if as_json:
+            print_json(views.rows_json(session, table, column or (), limit or None, offset))
+            return
+        found = raw.rows(session, table, column or (), limit or None, offset)
+        _warn(views.db_warnings(session))
     text = value_text(time_format, short_ids=short_ids)
     rows = [[text(value) for value in row] for row in found.values]
     if not rows:

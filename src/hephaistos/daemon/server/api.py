@@ -1,10 +1,13 @@
-"""The API: what the CLI's `list`, `show` and `status` print with `--json`, as the same JSON.
+"""The API: what the CLI's commands print with `--json`, as the same JSON.
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
-back with `before`, newest first.
+back with `before`, newest first; the log, back with `before` too; and tables' rows, with
+`offset`.
 """
 
+import logging
 import os
+import socket
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated, TypedDict, cast
@@ -12,26 +15,34 @@ from typing import Annotated, TypedDict, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from hephaistos.core import views
+from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import Priority, PriorityName
 from hephaistos.core.registry import machines
 from hephaistos.core.registry.mounts import mounts_of
-from hephaistos.core.utils import times
+from hephaistos.core.utils import logs, times
+from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.views import (
     API_VERSION,
     CloneJson,
+    ConfigJson,
     EventJson,
+    LogJson,
     MachineJson,
     Ref,
     RepositoryJson,
+    RowsJson,
+    TablesJson,
     WorktreeJson,
 )
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
 
 DEFAULT_LIMIT = 20  # Events, as `event list` shows
+DEFAULT_ROWS = 20  # as `db dump` shows
+DEFAULT_RECORDS = 50  # as `log show` shows
 
 router = APIRouter(prefix="/api")
 
@@ -171,10 +182,7 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
     `kind` as in `event list` (repeat for several); `since` a duration (`2h`) or a date;
     `limit` 0 for all.
     """
-    try:
-        since_time = None if since is None else times.parse_time(since, datetime.now(UTC))
-    except ValueError as error:
-        raise HTTPException(400, f"since: {error}") from None
+    since_time = _time("since", since, datetime.now(UTC))
     with read_session(paths) as session:
         found = events.recent(
             session,
@@ -205,3 +213,71 @@ def event_show(paths: PathsOf, event_id: uuid.UUID) -> EventJson:
 def daemon(paths: PathsOf) -> DaemonJson:
     """How the Daemon is doing, as `daemon status --json`."""
     return report.report_json(report.report(paths, os.environ), datetime.now(UTC))
+
+
+@router.get("/config")
+def config_show(paths: PathsOf) -> ConfigJson:
+    """The settings, as `config show --json` in the Daemon: also what it applies."""
+    return views.config_json(paths.config_dir, socket.gethostname())
+
+
+@router.get("/db/tables")
+def db_tables(paths: PathsOf) -> TablesJson:
+    """The database's tables, as `db tables --json`."""
+    with read_session(paths, check_schema=False) as session:
+        return views.tables_json(session)
+
+
+@router.get("/db/tables/{table}")
+def db_dump(
+    paths: PathsOf,
+    table: str,
+    *,
+    column: Annotated[list[str] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=0)] = DEFAULT_ROWS,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> RowsJson:
+    """A table's rows, newest first, as `db dump --json`; `offset` skips that many."""
+    with read_session(paths, check_schema=False) as session:
+        if table not in raw.stored_tables(session):
+            raise HTTPException(404, f"no table {table}; `hephaistos db tables` lists them")
+        return views.rows_json(session, table, column or (), limit or None, offset)
+
+
+@router.get("/log")
+def log_show(  # noqa: PLR0913 - one parameter per filter
+    paths: PathsOf,
+    *,
+    since: str | None = None,
+    until: str | None = None,
+    before: str | None = None,
+    level: LevelName | None = None,
+    process: ProcessName | None = None,
+    pid: int | None = None,
+    limit: Annotated[int, Query(ge=0)] = DEFAULT_RECORDS,
+) -> LogJson:
+    """The newest records of the log, oldest first, as `log show --json`.
+
+    `since`, `until` and `before` take a duration (`2h`) or a date; `before` excludes that
+    time, to page back from the oldest record shown. `limit` 0 for all.
+    """
+    now = datetime.now(UTC)
+    selection = logs.Selection(
+        since=_time("since", since, now),
+        until=_time("until", until, now),
+        before=_time("before", before, now),
+        level=logging.getLevelNamesMapping()[level.upper()] if level else logging.NOTSET,
+        process=process,
+        pid=pid,
+    )
+    return views.log_json(paths.state_dir, selection, limit)
+
+
+def _time(name: str, value: str | None, now: datetime) -> datetime | None:
+    """A time parameter, as `--since` takes it; raises HTTPException if it isn't one."""
+    if value is None:
+        return None
+    try:
+        return times.parse_time(value, now)
+    except ValueError as error:
+        raise HTTPException(400, f"{name}: {error}") from None

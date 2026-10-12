@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import TracebackType
-from typing import override
+from typing import Literal, override
 
 from hephaistos.core import config
 from hephaistos.core.utils.paths import private_directory
@@ -26,6 +26,8 @@ from hephaistos.core.utils.paths import private_directory
 FOLLOW_INTERVAL = 0.5  # seconds between looking for new records
 
 type Record = dict[str, object]  # as written: `at`, `level`, `message`, …
+LevelName = Literal["debug", "info", "warning", "error", "critical"]
+ProcessName = Literal["cli", "daemon"]
 
 # Fields every record has, shown in fixed places as text; the rest follow as `key=value`.
 _FIXED = frozenset({"at", "level", "process", "pid", "logger", "message", "error", "stack"})
@@ -295,14 +297,17 @@ class Selection:
 
     since: datetime | None = None
     until: datetime | None = None
+    before: datetime | None = None  # as `until`, but not at that time: to page back
     level: int = logging.NOTSET  # and above
     process: str | None = None
     pid: int | None = None
 
     def covers(self, day: date) -> bool:
         """Whether a UTC day's file may hold selected records."""
-        return (self.since is None or day >= self.since.astimezone(UTC).date()) and (
-            self.until is None or day <= self.until.astimezone(UTC).date()
+        return (
+            (self.since is None or day >= self.since.astimezone(UTC).date())
+            and (self.until is None or day <= self.until.astimezone(UTC).date())
+            and (self.before is None or day <= self.before.astimezone(UTC).date())
         )
 
     def matches(self, record: Record) -> bool:
@@ -312,6 +317,7 @@ class Selection:
         return (
             (self.since is None or at >= self.since)
             and (self.until is None or at <= self.until)
+            and (self.before is None or at < self.before)
             and level >= self.level
             and (self.process is None or record.get("process") == self.process)
             and (self.pid is None or record.get("pid") == self.pid)

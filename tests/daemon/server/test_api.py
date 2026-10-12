@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from typer.testing import CliRunner
 
 from hephaistos.cli.main import app as cli
 from hephaistos.core import views
+from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
 from hephaistos.daemon.server.app import Counts, create_app
@@ -123,6 +125,58 @@ def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
     assert api("/api/events?limit=0") == listed
     first = listed[0]
     assert api(f"/api/events/{first['id']}") == _cli("event", "show", first["id"])
+    assert api("/api/config") == _cli("config", "show")
+    assert api("/api/db/tables") == _cli("db", "tables")
+    rows = "/api/db/tables/events?column=kind&column=id&limit=2&offset=1"
+    assert api(rows) == _cli(
+        "db", "dump", "events", "-c", "kind", "-c", "id", "-n", "2", "--offset", "1"
+    )
+
+
+def test_log_as_log_show_prints_it(paths: Paths, client: TestClient) -> None:
+    start = datetime.now(UTC) - timedelta(minutes=10)
+    for minute in range(5):
+        _write_record(paths, start + timedelta(minutes=minute), f"record {minute}")
+    lines = runner.invoke(cli, ["log", "show", "--json", "--no-pager"]).output.splitlines()
+    shown = client.get("/api/log").json()
+    assert shown == {"records": [json.loads(line) for line in lines], "skipped": 0}
+    pages = client.get("/api/log", params={"limit": 2}).json()["records"]
+    while len(pages) < 5:
+        older = client.get("/api/log", params={"limit": 2, "before": pages[0]["at"]}).json()
+        pages = older["records"] + pages
+    assert [record["message"] for record in pages] == [f"record {minute}" for minute in range(5)]
+    errors = client.get("/api/log", params={"level": "error", "process": "daemon"}).json()
+    assert errors["records"] == []
+
+
+def _write_record(paths: Paths, at: datetime, message: str) -> None:
+    record: logs.Record = {
+        "at": at.isoformat(),
+        "level": "INFO",
+        "process": "cli",
+        "pid": 7,
+        "message": message,
+    }
+    with logs.day_file(paths.state_dir, at.date()).open("a") as file:
+        file.write(logs.json_text(record) + "\n")
+
+
+def test_config_says_what_it_applies(paths: Paths, client: TestClient) -> None:
+    (paths.config_dir / "config.toml").write_text("[git]\ntimeout = 90\n")
+    shown = client.get("/api/config").json()
+    [timeout] = [setting for setting in shown["settings"] if setting["key"] == "git.timeout"]
+    assert timeout == {
+        "key": "git.timeout",
+        "value": 90.0,
+        "source": str(paths.config_dir / "config.toml"),
+        "applied": 30.0,  # loaded before the edit
+    }
+    assert shown["sources"][0] == {
+        "source": str(paths.config_dir / "config.toml"),
+        "kind": "file",
+        "state": "read",
+        "error": None,
+    }
 
 
 def test_events_filter_and_page_back(client: TestClient) -> None:
@@ -149,6 +203,9 @@ def test_events_filter_and_page_back(client: TestClient) -> None:
         ("/api/events?since=soon", 400, "since: 'soon' is neither a duration like 2h"),
         ("/api/clones/xyz", 400, "path clone_id: Input should be a valid UUID"),
         ("/api/events?priority=top", 400, "query priority: Input should be 'low'"),
+        ("/api/db/tables/nope", 404, "no table nope; `hephaistos db tables` lists them"),
+        ("/api/db/tables/events?column=nope", 400, "events has no column nope"),
+        ("/api/log?until=soon", 400, "until: 'soon' is neither a duration like 2h"),
     ],
 )
 def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
