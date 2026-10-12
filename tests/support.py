@@ -1,5 +1,5 @@
 """Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
-stand-in for the Watcher."""
+stand-in for the Watcher, the API's schema."""
 
 import functools
 import json
@@ -7,12 +7,14 @@ import re
 import socket
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from hephaistos.cli.main import run
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon.server.app import Counts, create_app
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 
@@ -37,6 +39,11 @@ class FakeWatcher:
         """A pass's outcome."""
         self.triggers.append(trigger)
         return self.outcome
+
+
+def openapi(paths: Paths) -> dict[str, Any]:
+    """The API's OpenAPI schema, as the Server for `paths` describes it."""
+    return create_app(paths, Counts(), "0.1.0", FakeWatcher().observe, None).openapi()
 
 
 def git(path: Path, *args: str) -> str:

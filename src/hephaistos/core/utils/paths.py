@@ -14,6 +14,7 @@ from hephaistos.core.utils.errors import HephaistosError
 DATABASE_NAME = "hephaistos.db"
 HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
 PRIVATE_MODE = 0o700  # our data and state directories: only their user may enter them
+SOURCE = Path(__file__).parents[4]  # the checkout, when running from one: `src/hephaistos/…`
 
 NETWORK_FILESYSTEMS = frozenset(
     {
@@ -22,6 +23,13 @@ NETWORK_FILESYSTEMS = frozenset(
         "wekafs",
     }
 )  # fmt: skip
+
+
+def own_checkout(source: Path = SOURCE) -> Path | None:
+    """The git checkout hephaistos runs from, if it runs from one."""
+    if (source / ".git").exists() and (source / "src" / "hephaistos").is_dir():
+        return source
+    return None
 
 
 def os_machine_id() -> str | None:

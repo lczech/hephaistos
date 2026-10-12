@@ -33,13 +33,16 @@ from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
 class ApiVersion(NamedTuple):
-    """The API's version: `major` counts changes that break clients, `minor` additions since."""
+    """The API's version: `major` counts changes that break clients, `minor` additions since.
+
+    While `major` is 0, the API may still change in any way, and `minor` counts every change.
+    """
 
     major: int
     minor: int
 
 
-API_VERSION = ApiVersion(1, 2)
+API_VERSION = ApiVersion(0, 1)
 
 
 class Ref(TypedDict):

@@ -1,9 +1,9 @@
-"""The Server's web app: the API, for clients with the token, and logging what it answers.
+"""The Server's web app: the API, for clients with the token, and the GUI's files.
 
 A client sends the token as `Authorization: Bearer <token>`, and only so: a cookie would also
 go to every other port on localhost, and a URL ends up in logs. Requests must name this
 Machine as `localhost` or `127.0.0.1`, so that no other site's name can be pointed at it (DNS
-rebinding).
+rebinding). The app logs what it answers.
 """
 
 import logging
@@ -12,6 +12,7 @@ import urllib.parse
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -23,7 +24,7 @@ from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.views import API_VERSION
-from hephaistos.daemon.server import api
+from hephaistos.daemon.server import api, web
 from hephaistos.daemon.server.api import Observe
 from hephaistos.daemon.server.token import TokenFile, matches
 
@@ -73,6 +74,12 @@ def _refused(reason: str, status: int) -> Response:
     return JSONResponse({"error": reason}, status_code=status, headers=headers)
 
 
+def _secured(response: Response) -> Response:
+    """A response with the headers that keep the GUI's page to itself."""
+    response.headers.update(web.HEADERS)
+    return response
+
+
 class Guard:
     """Lets requests through with the token, counting and logging what the app answers."""
 
@@ -87,6 +94,8 @@ class Guard:
         """Why a request is refused, and with which status; None if it isn't."""
         if (host := _hostname(request)) not in HOSTS:
             return f"this Server answers only to localhost, not to {host}", 400
+        if web.is_open(request.url.path):
+            return None
         if (given := _given_token(request)) is None:
             return "no token; see `hephaistos daemon token`", 401
         if not matches(given, token):
@@ -103,7 +112,7 @@ class Guard:
             self._counts.refused += 1
             client = request.client.host if request.client else "?"
             log.warning("refused %s from %s: %s", shown, client, reason)
-            return _refused(reason, status)
+            return _secured(_refused(reason, status))
         try:
             response = await call_next(request)
         except Exception:
@@ -114,7 +123,7 @@ class Guard:
         self._counts.last_request_at = datetime.now(UTC)
         milliseconds = round((time.monotonic() - started) * 1000)
         log.debug("%s %d %d ms", shown, response.status_code, milliseconds)
-        return response
+        return _secured(response)
 
 
 async def _http_error(_: Request, error: Exception) -> Response:
@@ -140,10 +149,12 @@ async def _refused_by_core(_: Request, error: Exception) -> Response:
     return JSONResponse({"error": str(error)}, status_code=400)
 
 
-def create_app(paths: Paths, counts: Counts, version: str, observe: Observe) -> FastAPI:
+def create_app(
+    paths: Paths, counts: Counts, version: str, observe: Observe, gui: Path | None
+) -> FastAPI:
     """The Server's app for this Machine, counting its requests in `counts`.
 
-    `observe` has the Watcher run a pass.
+    `observe` has the Watcher run a pass; `gui` holds the GUI's built files, if there are any.
     """
     app = FastAPI(
         title="hephaistos",
@@ -155,15 +166,11 @@ def create_app(paths: Paths, counts: Counts, version: str, observe: Observe) -> 
     app.state.paths = paths
     app.state.version = version
     app.state.observe = observe
+    app.state.gui = gui
     app.middleware("http")(Guard(paths, counts))
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(RequestValidationError, _invalid_request)
     app.add_exception_handler(HephaistosError, _refused_by_core)
     app.include_router(api.router)
-
-    @app.get("/")
-    def root() -> dict[str, str]:
-        """What answers here; the GUI will."""
-        return {"hephaistos": version, "gui": "not yet"}
-
+    app.include_router(web.router)
     return app

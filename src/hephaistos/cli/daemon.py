@@ -24,7 +24,7 @@ from hephaistos.cli.output import (
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, own_checkout
 from hephaistos.daemon import report, unit
 from hephaistos.daemon import status as daemon_status
 from hephaistos.daemon.errors import NotStartedError
@@ -71,9 +71,8 @@ def run(
 
 def _reinstall_text() -> str:
     """How to reinstall hephaistos: from its checkout, if it runs from one."""
-    source = Path(__file__).parents[3]  # the checkout, when running from one: `src/hephaistos/…`
-    if (source / ".git").exists() and (source / "src" / "hephaistos").is_dir():
-        return f"uv tool install --reinstall --editable {short_path(source)}"
+    if (checkout := own_checkout()) is not None:
+        return f"uv tool install --reinstall --editable {short_path(checkout)}"
     return "uv tool install --reinstall hephaistos"
 
 
