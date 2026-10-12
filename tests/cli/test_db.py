@@ -41,7 +41,9 @@ def test_tables() -> None:
 
 
 def test_tables_as_json() -> None:
-    found = json.loads(_stdout("tables", "--json"))
+    shown = json.loads(_stdout("tables", "--json"))
+    assert shown["warnings"] == []
+    found = shown["tables"]
     assert found[0] == {"table": "meta", "category": "local", "rows": 3, "latest": None}
     assert re.fullmatch(r"\S+T\S+\.\d{3}\+00:00 #\d+", found[-1]["latest"])
 
@@ -68,10 +70,14 @@ def test_dump_chosen_columns_as_a_table() -> None:
 
 def test_dump_limit_and_json() -> None:
     assert len(_stdout("dump", "events", "-c", "kind", "-n", "1").splitlines()) == 2
-    found = json.loads(_stdout("dump", "events", "-n", "0", "--json"))
+    shown = json.loads(_stdout("dump", "events", "-n", "0", "--json"))
+    found = shown["rows"]
+    assert shown["columns"] == list(found[0])
     assert [event["kind"] for event in found][:2] == ["repository.added", "repository.added"]
     assert found[0]["payload"]["name"] == "two"
     assert found[0]["occurred_at"] is None
+    second = json.loads(_stdout("dump", "events", "-n", "1", "--offset", "1", "--json"))
+    assert second["rows"] == found[1:2]
 
 
 def test_dump_empty_table() -> None:

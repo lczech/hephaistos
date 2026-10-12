@@ -293,6 +293,13 @@ class Layer:
     exists: bool = True
     path: Path | None = None  # the file's; None for a variable
 
+    @property
+    def state(self) -> str:
+        """Whether it was read: `read`, `not found`, or `broken`."""
+        if self.error is not None:
+            return "broken"
+        return "read" if self.exists else "not found"
+
 
 @dataclass(frozen=True)
 class Loaded:
@@ -392,6 +399,14 @@ def unknown_variables(env: Mapping[str, str] = os.environ) -> dict[str, str | No
     return {
         name: closest(name) for name in sorted(env) if name.startswith(PREFIX) and name not in known
     }
+
+
+def value_of(chosen: Settings, key: str) -> object:
+    """A setting's value in `chosen`, by its key, e.g. `git.timeout`."""
+    value: object = chosen
+    for name in key.split("."):
+        value = getattr(value, name)
+    return value
 
 
 _active = DEFAULTS

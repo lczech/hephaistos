@@ -1,3 +1,4 @@
+import json
 import socket
 from pathlib import Path
 
@@ -104,3 +105,39 @@ def test_defaults() -> None:
     assert result.exit_code == 0
     assert result.stdout == config.DEFAULTS_TEXT
     assert 'time_format = "auto"' in result.stdout
+
+
+def test_show_as_json(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (directory / "config.toml").write_text("[git]\ntimeout = 60\n")
+    (directory / "config.login2.toml").write_text("")
+    monkeypatch.setenv("HEPHAISTOS_SCAN_DEPTH", "nope")
+    monkeypatch.setenv("HEPHAISTOS_GIT_TIMOUT", "3")
+    result = runner.invoke(app, ["config", "show", "--json"])
+    assert result.exit_code == 1  # broken, as without --json
+    shown = json.loads(result.stdout)
+    assert shown["host"] == HOST
+    settings = {setting["key"]: setting for setting in shown["settings"]}
+    assert list(settings) == list(config.KEYS)
+    assert settings["git.timeout"] == {
+        "key": "git.timeout",
+        "value": 60.0,
+        "source": str(directory / "config.toml"),
+        "applied": 30.0,  # this process runs on the defaults
+    }
+    assert settings["time_format"]["value"] == "auto"
+    assert settings["watcher.enabled"]["value"] is True
+    assert [(source["kind"], source["state"]) for source in shown["sources"]] == [
+        ("file", "read"),
+        ("file", "not found"),
+        ("file", "not found"),
+        ("variable", "broken"),
+    ]
+    assert shown["sources"][-1]["error"].startswith("HEPHAISTOS_SCAN_DEPTH: must be an integer")
+    assert shown["other_hosts"] == [str(directory / "config.login2.toml")]
+    assert shown["unknown_variables"] == [
+        {"name": "HEPHAISTOS_GIT_TIMOUT", "closest": "HEPHAISTOS_GIT_TIMEOUT"}
+    ]
+
+    one = runner.invoke(app, ["config", "show", "git", "--json"])
+    assert one.exit_code == 2
+    assert "--json shows all settings; leave out KEY" in one.output

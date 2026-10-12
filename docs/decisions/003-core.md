@@ -158,11 +158,11 @@ hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--s
                      [--repo <name>] [--clone <path>] [--worktree <path|name>] | show <id>
 hephaistos observe [clones] [--clone <path>]…
 hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
-hephaistos db tables | dump <table> [-c <column>]… [--table|--blocks] [--short-ids]
+hephaistos db tables | dump <table> [-c <column>]… [--offset <n>] [--table|--blocks] [--short-ids]
 hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process cli|daemon]
                     [--pid <pid>] [-n <count>] [--follow] [--brief] [--json] [--no-pager]
                | prune [--keep <days>d] [--yes]
-hephaistos config show [<key>|<section>] | defaults
+hephaistos config show [<key>|<section>|--json] | defaults
 hephaistos daemon run | status [--json] | token [--url] [--renew] [--yes]
                   | install [--linger] | uninstall | start | stop | restart
 hephaistos [--debug] …
@@ -177,8 +177,8 @@ hephaistos [--debug] …
 - Output: plain aligned text; `--json` on `list` and `show`, the same JSON as the Server's API ([004](004-server.md)). Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format auto|relative|short|full` and the setting `time_format` override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
 - Common options have one-letter short forms (`-r`, `-k`, `-n`).
 - `log show` shows the newest 50 records, oldest first, local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints them as stored, `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default `log.retention_days`), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
-- `config show` shows each setting, its value and where that comes from (`default`, a file, a variable), then each source in the order it applies, files by full path, as read, broken or not found; also other hosts' files (unused here) and unknown `HEPHAISTOS_*` variables, naming the closest setting's. A section shows its settings, one setting just its value. A broken file or variable is left out and its error shown, and the command fails. `config defaults` prints the shipped `defaults.toml`. Settings aren't entities either, so there is no `--json`; scripts take one value.
-- `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row.
+- `config show` shows each setting, its value and where that comes from (`default`, a file, a variable), then each source in the order it applies, files by full path, as read, broken or not found; also other hosts' files (unused here) and unknown `HEPHAISTOS_*` variables, naming the closest setting's. A section shows its settings, one setting just its value. A broken file or variable is left out and its error shown, and the command fails. `config defaults` prints the shipped `defaults.toml`. `--json` gives all of it, each setting also with the value the process applies, which differs in the Daemon after an edit until it restarts; scripts take one value.
+- `db` shows tables as stored, newest first, also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row. `--json` puts warnings, e.g. an outdated schema, next to the rows; `--offset` pages.
 
 Next: GUI pages showing these tables, plus a Repository overview.
 

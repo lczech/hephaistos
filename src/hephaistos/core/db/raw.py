@@ -145,17 +145,24 @@ def _decoded(table: Table | None, row: sqlite3.Row) -> dict[str, object]:
 
 
 def rows(
-    session: ReadSession, table: str, columns: Sequence[str] = (), limit: int | None = None
+    session: ReadSession,
+    table: str,
+    columns: Sequence[str] = (),
+    limit: int | None = None,
+    offset: int = 0,
 ) -> Rows:
-    """A table's rows, newest first, decoded; only `columns` if given, else all."""
+    """A table's rows, newest first, decoded; only `columns` if given, else all.
+
+    `offset` skips that many, for the next page.
+    """
     stored = stored_columns(session, table)
     if missing := [column for column in columns if column not in stored]:
         raise HephaistosError(
             f"{table} has no column {', '.join(missing)}; it has {', '.join(stored)}"
         )
     known = _known(table)
-    query = f"SELECT * FROM {_quoted(table)} ORDER BY {_order(known, stored)} LIMIT ?"  # noqa: S608 - names quoted
-    cursor = session.conn.execute(query, (limit or -1,))  # SQLite: a negative limit is none
+    query = f"SELECT * FROM {_quoted(table)} ORDER BY {_order(known, stored)} LIMIT ? OFFSET ?"  # noqa: S608 - names quoted
+    cursor = session.conn.execute(query, (limit or -1, offset))  # a negative limit is none
     shown = list(columns) or stored
     decoded = [_decoded(known, row) for row in cursor]
     return Rows(shown, [[row[column] for column in shown] for row in decoded])

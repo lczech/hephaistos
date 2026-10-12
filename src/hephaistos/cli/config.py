@@ -7,8 +7,8 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli.output import print_rows, short_path
-from hephaistos.core import config
+from hephaistos.cli.output import JsonOption, print_json, print_rows, short_path
+from hephaistos.core import config, views
 from hephaistos.core.config import Layer
 from hephaistos.core.utils.paths import Paths
 
@@ -33,17 +33,10 @@ def _source_text(source: str) -> str:
     return Path(source).name
 
 
-def _state_text(layer: Layer) -> str:
-    """Whether a layer was read, and if not, why."""
-    if layer.error is not None:
-        return "broken"
-    return "read" if layer.exists else "not found"
-
-
 def _sources_rows(directory: Path, hostname: str, found: Sequence[Layer]) -> list[tuple[str, str]]:
     """Where settings come from, in the order they apply, then what is ours but unused."""
     rows = [
-        (layer.source if layer.path is None else short_path(layer.path), _state_text(layer))
+        (layer.source if layer.path is None else short_path(layer.path), layer.state)
         for layer in found
     ]
     rows += [
@@ -65,18 +58,25 @@ def show(
             metavar="KEY", help="One setting, e.g. git.timeout, or a section, e.g. git."
         ),
     ] = None,
+    *,
+    as_json: JsonOption = False,
 ) -> None:
     """Show the settings in effect on this Machine, and where each value comes from.
 
     One setting shows just its value. A broken config file or variable is left out, and its
-    error shown; the command then fails.
+    error shown; the command then fails. As JSON, each setting also comes with the value this
+    process applies.
     """
     keys = _keys(key)
     directory = Paths.from_environment().config_dir
     hostname = socket.gethostname()
     found = config.layers(directory, hostname)
     loaded = config.merged(found)
-    if key in config.KEYS:
+    if as_json:
+        if key is not None:
+            raise typer.BadParameter("--json shows all settings; leave out KEY", param_hint="KEY")
+        print_json(views.config_json(directory, hostname))
+    elif key in config.KEYS:
         typer.echo(config.setting_text(loaded.values[key]))
     else:
         print_rows(

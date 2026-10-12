@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 1,
-    "minor": 0
+    "minor": 1
   },
   "shapes": {
     "components": {
@@ -252,6 +252,52 @@
           "title": "CloneRef",
           "type": "object"
         },
+        "ConfigJson": {
+          "description": "The settings as this process finds them, and where they come from.",
+          "properties": {
+            "host": {
+              "title": "Host",
+              "type": "string"
+            },
+            "other_hosts": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Other Hosts",
+              "type": "array"
+            },
+            "settings": {
+              "items": {
+                "$ref": "#/components/schemas/SettingJson"
+              },
+              "title": "Settings",
+              "type": "array"
+            },
+            "sources": {
+              "items": {
+                "$ref": "#/components/schemas/SourceJson"
+              },
+              "title": "Sources",
+              "type": "array"
+            },
+            "unknown_variables": {
+              "items": {
+                "$ref": "#/components/schemas/UnknownVariableJson"
+              },
+              "title": "Unknown Variables",
+              "type": "array"
+            }
+          },
+          "required": [
+            "host",
+            "settings",
+            "sources",
+            "other_hosts",
+            "unknown_variables"
+          ],
+          "title": "ConfigJson",
+          "type": "object"
+        },
         "DaemonJson": {
           "description": "How the Daemon is doing; its parts only while it runs, and only those enabled.",
           "properties": {
@@ -406,6 +452,29 @@
             "machine"
           ],
           "title": "InfoJson",
+          "type": "object"
+        },
+        "LogJson": {
+          "description": "Log records as written, oldest first, and how many lines weren't records.",
+          "properties": {
+            "records": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Records",
+              "type": "array"
+            },
+            "skipped": {
+              "title": "Skipped",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "records",
+            "skipped"
+          ],
+          "title": "LogJson",
           "type": "object"
         },
         "MachineJson": {
@@ -672,6 +741,40 @@
           "title": "RepositoryJson",
           "type": "object"
         },
+        "RowsJson": {
+          "description": "A table's rows, decoded, newest first.",
+          "properties": {
+            "columns": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Columns",
+              "type": "array"
+            },
+            "rows": {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "title": "Rows",
+              "type": "array"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "columns",
+            "rows",
+            "warnings"
+          ],
+          "title": "RowsJson",
+          "type": "object"
+        },
         "ServerJson": {
           "description": "The Server of the running Daemon; counts since the Daemon started.",
           "properties": {
@@ -725,6 +828,49 @@
           "title": "ServerJson",
           "type": "object"
         },
+        "SettingJson": {
+          "description": "A setting: its value now and where that comes from, and the value this process uses.",
+          "properties": {
+            "applied": {
+              "$ref": "#/components/schemas/SettingValue"
+            },
+            "key": {
+              "title": "Key",
+              "type": "string"
+            },
+            "source": {
+              "title": "Source",
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/components/schemas/SettingValue"
+            }
+          },
+          "required": [
+            "key",
+            "value",
+            "source",
+            "applied"
+          ],
+          "title": "SettingJson",
+          "type": "object"
+        },
+        "SettingValue": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
         "SetupJson": {
           "description": "How this Machine keeps its files and database.",
           "properties": {
@@ -769,6 +915,51 @@
           "title": "SetupJson",
           "type": "object"
         },
+        "SourceJson": {
+          "description": "A config file or variable, in the order they apply.",
+          "properties": {
+            "error": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            },
+            "kind": {
+              "enum": [
+                "file",
+                "variable"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "source": {
+              "title": "Source",
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "read",
+                "not found",
+                "broken"
+              ],
+              "title": "State",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "kind",
+            "state",
+            "error"
+          ],
+          "title": "SourceJson",
+          "type": "object"
+        },
         "SubjectRef": {
           "description": "What an Event is about: its ID, type (`clone`), and name or path if known.",
           "properties": {
@@ -798,6 +989,73 @@
             "label"
           ],
           "title": "SubjectRef",
+          "type": "object"
+        },
+        "TableJson": {
+          "description": "A table of the database: its category, rows and latest change.",
+          "properties": {
+            "category": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            },
+            "latest": {
+              "title": "Latest"
+            },
+            "rows": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rows"
+            },
+            "table": {
+              "title": "Table",
+              "type": "string"
+            }
+          },
+          "required": [
+            "table",
+            "category",
+            "rows",
+            "latest"
+          ],
+          "title": "TableJson",
+          "type": "object"
+        },
+        "TablesJson": {
+          "description": "The database's tables, and what's unusual about them.",
+          "properties": {
+            "tables": {
+              "items": {
+                "$ref": "#/components/schemas/TableJson"
+              },
+              "title": "Tables",
+              "type": "array"
+            },
+            "warnings": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Warnings",
+              "type": "array"
+            }
+          },
+          "required": [
+            "tables",
+            "warnings"
+          ],
+          "title": "TablesJson",
           "type": "object"
         },
         "UnitJson": {
@@ -839,6 +1097,32 @@
             "linger"
           ],
           "title": "UnitJson",
+          "type": "object"
+        },
+        "UnknownVariableJson": {
+          "description": "A `HEPHAISTOS_*` variable that isn't a setting's, with the closest one that is.",
+          "properties": {
+            "closest": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Closest"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "closest"
+          ],
+          "title": "UnknownVariableJson",
           "type": "object"
         },
         "ValidationError": {
@@ -1221,6 +1505,25 @@
           "summary": "Clone Show"
         }
       },
+      "/api/config": {
+        "get": {
+          "description": "The settings, as `config show --json` in the Daemon: also what it applies.",
+          "operationId": "config_show_api_config_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ConfigJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Config Show"
+        }
+      },
       "/api/daemon": {
         "get": {
           "description": "How the Daemon is doing, as `daemon status --json`.",
@@ -1238,6 +1541,106 @@
             }
           },
           "summary": "Daemon"
+        }
+      },
+      "/api/db/tables": {
+        "get": {
+          "description": "The database's tables, as `db tables --json`.",
+          "operationId": "db_tables_api_db_tables_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/TablesJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Db Tables"
+        }
+      },
+      "/api/db/tables/{table}": {
+        "get": {
+          "description": "A table's rows, newest first, as `db dump --json`; `offset` skips that many.",
+          "operationId": "db_dump_api_db_tables__table__get",
+          "parameters": [
+            {
+              "in": "path",
+              "name": "table",
+              "required": true,
+              "schema": {
+                "title": "Table",
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "column",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Column"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": false,
+              "schema": {
+                "default": 20,
+                "minimum": 0,
+                "title": "Limit",
+                "type": "integer"
+              }
+            },
+            {
+              "in": "query",
+              "name": "offset",
+              "required": false,
+              "schema": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Offset",
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/RowsJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Db Dump"
         }
       },
       "/api/events": {
@@ -1486,6 +1889,155 @@
             }
           },
           "summary": "Info"
+        }
+      },
+      "/api/log": {
+        "get": {
+          "description": "The newest records of the log, oldest first, as `log show --json`.\n\n`since`, `until` and `before` take a duration (`2h`) or a date; `before` excludes that\ntime, to page back from the oldest record shown. `limit` 0 for all.",
+          "operationId": "log_show_api_log_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "since",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Since"
+              }
+            },
+            {
+              "in": "query",
+              "name": "until",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Until"
+              }
+            },
+            {
+              "in": "query",
+              "name": "before",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Before"
+              }
+            },
+            {
+              "in": "query",
+              "name": "level",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "debug",
+                      "info",
+                      "warning",
+                      "error",
+                      "critical"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Level"
+              }
+            },
+            {
+              "in": "query",
+              "name": "process",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "cli",
+                      "daemon"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Process"
+              }
+            },
+            {
+              "in": "query",
+              "name": "pid",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Pid"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": false,
+              "schema": {
+                "default": 50,
+                "minimum": 0,
+                "title": "Limit",
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/LogJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "Log Show"
         }
       },
       "/api/machines": {
