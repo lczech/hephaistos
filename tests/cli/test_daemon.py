@@ -1,11 +1,13 @@
 import json
 import os
 import socket
+import sys
 from datetime import UTC, datetime
 
 import pytest
 from typer.testing import CliRunner
 
+import hephaistos.daemon
 from hephaistos.cli.main import app
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
@@ -39,6 +41,19 @@ def test_without_parts_doesnt_start(
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
     message = "nothing to do: watcher.interval is 0 and server.enabled is false"
     assert capsys.readouterr().err == f"error: {message}\n"
+
+
+def test_a_missing_package_doesnt_start_it(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for name in ("hephaistos.daemon.main", "hephaistos.daemon.server.server"):
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    monkeypatch.delattr(hephaistos.daemon, "main", raising=False)
+    monkeypatch.setitem(sys.modules, "uvicorn", None)  # importing it fails
+    assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
+    error = capsys.readouterr().err
+    assert error.startswith("error: hephaistos is missing the package uvicorn; reinstall it")
+    assert "uv tool install --reinstall --editable " in error  # from this checkout
 
 
 def test_a_broken_config_doesnt_start_it(
