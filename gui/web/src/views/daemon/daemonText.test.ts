@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daemon, NOW, secondsAgo } from "../test/server";
+import { daemon, NOW, secondsAgo } from "../../test/server";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 
 describe("the Daemon card's lines", () => {

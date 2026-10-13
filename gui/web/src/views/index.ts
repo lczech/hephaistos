@@ -1,0 +1,25 @@
+import type { ComponentType } from "react";
+import type { Address } from "./address";
+import { DaemonView } from "./daemon/DaemonView";
+
+/** A kind of View: how to show it, and what its tab says. */
+export interface ViewKind {
+  name: string;
+  title?: (params: Address["params"]) => string; // the tab's, if not just the name
+  component: ComponentType<{ params: Address["params"] }>;
+  suggested?: boolean; // offered in an empty Group
+}
+
+/** Every kind of View the GUI has. Views know nothing of Panels: `layout/` places them. */
+export const VIEWS: Record<string, ViewKind> = {
+  daemon: { name: "Daemon", component: DaemonView, suggested: true },
+};
+
+export function viewKind(kind: string): ViewKind | undefined {
+  return Object.hasOwn(VIEWS, kind) ? VIEWS[kind] : undefined;
+}
+
+export function viewTitle({ kind, params }: Address): string {
+  const found = viewKind(kind);
+  return found === undefined ? kind : (found.title?.(params) ?? found.name);
+}

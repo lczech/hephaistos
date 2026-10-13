@@ -1,7 +1,7 @@
 // The lines of the Daemon card, worded as `hephaistos daemon status` words them.
 
-import type { Schemas } from "../api/client";
-import { ago, seconds, secondsUntil } from "../time";
+import type { Schemas } from "../../api/client";
+import { ago, seconds, secondsUntil } from "../../time";
 
 type Process = Schemas["ProcessJson"];
 type Pass = Schemas["PassJson"];
