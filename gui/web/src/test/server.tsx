@@ -72,3 +72,25 @@ export function daemon(): Schemas["DaemonJson"] {
     warnings: [],
   };
 }
+
+/** An Event as `/api/events` lists it; IDs count up, so later ones are newer. */
+export function event(n: number, fields: Partial<Schemas["EventJson"]> = {}): Schemas["EventJson"] {
+  const id = `0199e000-0000-7000-8000-${String(n).padStart(12, "0")}`;
+  return {
+    id,
+    recorded_at: secondsAgo(600 - n),
+    recorded_by: { id: "0199e000-0000-7000-8000-00000000aaaa", name: "laptop" },
+    occurred_at: null,
+    priority: 10,
+    kind: "clone.committed",
+    subject: {
+      id: "0199e000-0000-7000-8000-00000000cccc",
+      type: "clone",
+      label: "/home/me/project",
+    },
+    summary: `abc${n} Commit number ${n}`,
+    payload: {},
+    key: null,
+    ...fields,
+  };
+}

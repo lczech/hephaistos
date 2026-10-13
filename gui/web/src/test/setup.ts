@@ -10,6 +10,16 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 
+// Nor does anything scroll into view; tests that need it stand in their own.
+globalThis.IntersectionObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+} as unknown as typeof IntersectionObserver;
+
 afterEach(() => {
   cleanup();
   forgetToken();

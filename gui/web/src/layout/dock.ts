@@ -12,25 +12,24 @@ export const THEME: DockviewTheme = {
 };
 
 const DAEMON: Address = { kind: "daemon", params: {} };
+const EVENTS: Address = { kind: "events", params: {} };
 
-/** Shows a View: focuses the Panel showing it, or opens one in Group `group` (else the active one). */
-export function openView(api: DockviewApi, address: Address, group?: string): void {
+type Position = Parameters<DockviewApi["addPanel"]>[0]["position"];
+
+/** Shows a View: focuses the Panel showing it, or opens one (by default in the active Group). */
+export function openView(api: DockviewApi, address: Address, position?: Position): void {
   const id = panelId(address);
   const open = api.getPanel(id);
   if (open !== undefined) {
     open.api.setActive();
     return;
   }
-  api.addPanel({
-    id,
-    component: PANEL,
-    title: viewTitle(address),
-    ...(group === undefined ? {} : { position: { referenceGroup: group } }),
-  });
+  api.addPanel({ id, component: PANEL, title: viewTitle(address), position });
 }
 
 /** The Layout a new GUI starts with, and falls back to. */
 export function defaultLayout(api: DockviewApi): void {
   api.clear();
   openView(api, DAEMON);
+  openView(api, EVENTS, { referencePanel: panelId(DAEMON), direction: "right" });
 }

@@ -23,14 +23,15 @@ function save(...ids: string[]): void {
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
 
 beforeEach(() => {
-  serve({ "GET /api/daemon": () => json(daemon()) });
+  serve({ "GET /api/daemon": () => json(daemon()), "GET /api/events": () => json([]) });
 });
 
 describe("the Workbench", () => {
-  it("starts with the Daemon, and saves its Layout", async () => {
+  it("starts with the Daemon and Events, and saves its Layout", async () => {
     renderWithQueries(<Workbench />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
-    expect(tabs()).toEqual(["Daemon"]);
+    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    expect(tabs()).toEqual(["Daemon", "Events"]);
     await waitFor(() => expect(savedLayout()?.panels).toHaveProperty("daemon"));
   });
 
@@ -44,14 +45,15 @@ describe("the Workbench", () => {
   it("starts anew from a Layout it can't restore", () => {
     localStorage.setItem("hephaistos.layout", '{"format": 1, "dock": {"grid": 5}}');
     renderWithQueries(<Workbench />);
-    expect(tabs()).toEqual(["Daemon"]);
+    expect(tabs()).toEqual(["Daemon", "Events"]);
   });
 
   it("focuses an open View instead of opening it twice", async () => {
     renderWithQueries(<Workbench />);
-    // jsdom can't open the "+" menu, a popover, so its choices count as hidden.
-    await userEvent.click(screen.getByRole("button", { name: "Daemon", hidden: true }));
-    expect(tabs()).toEqual(["Daemon"]);
+    // jsdom can't open the "+" menus, popovers, so their choices count as hidden.
+    const [, inEvents] = screen.getAllByRole("button", { name: "Daemon", hidden: true });
+    await userEvent.click(inEvents as HTMLElement);
+    expect(tabs()).toEqual(["Daemon", "Events"]);
   });
 
   it("offers Views in an empty Group", async () => {

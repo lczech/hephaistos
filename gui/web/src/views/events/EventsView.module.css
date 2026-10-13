@@ -1,0 +1,80 @@
+.view {
+  container-type: inline-size; /* the rows fit the Panel's width, not the window's */
+  padding: var(--space-2) 0;
+  transition: opacity 0.2s;
+}
+
+.view[data-stale] {
+  opacity: 0.6;
+}
+
+.quiet {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+}
+
+/* A table in all but name: rows share the columns; the subject and summary give way first. */
+.events {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(4rem, max-content) minmax(8rem, 1fr);
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.head,
+.event {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  padding: 2px var(--space-3);
+  border-left: 3px solid transparent; /* the priority's stripe */
+}
+
+.head {
+  color: var(--text-muted);
+}
+
+.head > *,
+.event > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event[data-priority="low"] {
+  color: var(--text-muted);
+}
+
+.event[data-priority="high"] {
+  border-left-color: var(--warning);
+}
+
+.event[data-priority="urgent"] {
+  border-left-color: var(--danger);
+}
+
+/* Narrow: the summary on its own line, the rest below it, quieter. */
+@container (width < 44rem) {
+  .head {
+    display: none;
+  }
+
+  .event {
+    grid-template-columns: auto auto auto 1fr;
+    column-gap: var(--space-3);
+    padding-block: var(--space-1);
+  }
+
+  .summary {
+    grid-row: 1;
+    grid-column: 1 / -1;
+  }
+
+  .event > :not(.summary) {
+    color: var(--text-muted);
+    font-size: var(--text-small);
+  }
+}

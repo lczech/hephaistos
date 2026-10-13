@@ -1,6 +1,6 @@
 // What the GUI asks the Server, kept fresh by polling while the page is visible.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api, unwrap } from "./client";
 
@@ -19,6 +19,24 @@ export function useDaemon() {
   return useQuery({
     queryKey: ["daemon"],
     queryFn: async () => unwrap(await api.GET("/api/daemon")),
+    refetchInterval: POLL_INTERVAL,
+  });
+}
+
+export const EVENTS_PAGE = 50;
+
+/** Events, newest first; each further page goes back from the oldest so far. */
+export function useEvents() {
+  return useInfiniteQuery({
+    queryKey: ["events"],
+    queryFn: async ({ pageParam }) =>
+      unwrap(
+        await api.GET("/api/events", {
+          params: { query: { limit: EVENTS_PAGE, before: pageParam } },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => (page.length < EVENTS_PAGE ? undefined : page.at(-1)?.id),
     refetchInterval: POLL_INTERVAL,
   });
 }

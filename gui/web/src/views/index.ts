@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import type { Address } from "./address";
 import { DaemonView } from "./daemon/DaemonView";
+import { EventsView } from "./events/EventsView";
 
 /** A kind of View: how to show it, and what its tab says. */
 export interface ViewKind {
@@ -13,6 +14,7 @@ export interface ViewKind {
 /** Every kind of View the GUI has. Views know nothing of Panels: `layout/` places them. */
 export const VIEWS: Record<string, ViewKind> = {
   daemon: { name: "Daemon", component: DaemonView, suggested: true },
+  events: { name: "Events", component: EventsView, suggested: true },
 };
 
 export function viewKind(kind: string): ViewKind | undefined {
