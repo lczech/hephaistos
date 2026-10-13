@@ -1,18 +1,18 @@
 import type { ComponentType } from "react";
-import type { Address } from "./address";
+import type { Address, Params } from "./address";
 import { DaemonView } from "./daemon/DaemonView";
 import { EventsView } from "./events/EventsView";
 
-/** What a View gets: its parameters, and a way to show others instead, e.g. when filtered. */
+/** What a View gets: its parameters, and ways to change them and what its tab says. */
 export interface ViewProps {
-  params: Address["params"];
-  setParams: (params: Address["params"]) => void;
+  params: Params;
+  setParams: (params: Params) => void; // shows others instead, e.g. when filtered
+  setTitle: (title: string) => void; // if not just the kind's name
 }
 
-/** A kind of View: how to show it, and what its tab says. */
+/** A kind of View: what it is called, and how to show it. */
 export interface ViewKind {
   name: string;
-  title?: (params: Address["params"]) => string; // the tab's, if not just the name
   component: ComponentType<ViewProps>;
   suggested?: boolean; // offered in an empty Group
 }
@@ -27,7 +27,7 @@ export function viewKind(kind: string): ViewKind | undefined {
   return Object.hasOwn(VIEWS, kind) ? VIEWS[kind] : undefined;
 }
 
-export function viewTitle({ kind, params }: Address): string {
-  const found = viewKind(kind);
-  return found === undefined ? kind : (found.title?.(params) ?? found.name);
+/** What a Panel's tab says until its View says otherwise. */
+export function viewTitle({ kind }: Address): string {
+  return viewKind(kind)?.name ?? kind;
 }

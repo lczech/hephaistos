@@ -1,8 +1,10 @@
+import type { ColumnFilterLook } from "./filters";
 import styles from "./table.module.css";
 
 /** How a column is laid out, beyond TanStack's sizes: `tableFeatures({ columnMeta: {} as ColumnLook })`. */
 export interface ColumnLook {
   width?: string; // a CSS grid track instead of the column's size, e.g. one taking the rest
+  filter?: ColumnFilterLook; // if the list can be filtered by it
 }
 
 interface LaidOut {

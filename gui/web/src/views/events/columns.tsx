@@ -1,4 +1,5 @@
 import {
+  columnFilteringFeature,
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
@@ -16,6 +17,7 @@ import { machineText, repositoryText, subjectText } from "./eventText";
 type Event = Schemas["EventJson"];
 
 export const features = tableFeatures({
+  columnFilteringFeature,
   columnVisibilityFeature,
   columnSizingFeature,
   columnResizingFeature,
@@ -28,18 +30,22 @@ export const defaultColumn = { minSize: 40 };
 
 const column = createColumnHelper<typeof features, Event>();
 
-/** The Events list's columns; the summary takes the width the others leave. */
+/**
+ * The Events list's columns; the summary takes the width the others leave. Their filters are
+ * those of `/api/events`, by the same names.
+ */
 export const columns = column.columns([
   column.display({
     id: "priority", // a square, coloured for high and urgent priorities
     cell: () => <ChevronRight className={styles.chevron} aria-hidden="true" />,
     enableResizing: false,
-    meta: { width: "var(--square)" },
+    meta: { width: "var(--square)", filter: { param: "priority" } },
   }),
   column.display({
     id: "recorded",
     header: "recorded",
-    size: 72,
+    size: 88,
+    meta: { filter: { param: "since" } },
     cell: ({ row, table }) => (
       <span title={fullTime(row.original.recorded_at)}>
         {ago(row.original.recorded_at, table.options.meta?.now ?? Date.now())}
@@ -50,6 +56,7 @@ export const columns = column.columns([
     id: "kind",
     header: "kind",
     size: 140,
+    meta: { filter: { param: "kind", many: "kinds" } },
     cell: ({ row }) => {
       const action = actionOf(row.original.kind);
       const Action = actionIcon(action);
@@ -65,12 +72,14 @@ export const columns = column.columns([
     id: "repository",
     header: "repository",
     size: 120,
+    meta: { filter: { param: "repository", many: "Repositories" } },
     cell: ({ row }) => repositoryText(row.original),
   }),
   column.display({
     id: "machine",
     header: "machine",
     size: 120,
+    meta: { filter: { param: "machine", many: "Machines" } },
     cell: ({ row }) => machineText(row.original),
   }),
   column.display({
