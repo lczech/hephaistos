@@ -16,36 +16,36 @@
 
 /* A table in all but name: rows share the columns; the subject and summary give way first. */
 .events {
+  --subject: minmax(4rem, max-content);
+  --summary: minmax(8rem, 1fr);
   display: grid;
-  grid-template-columns: auto auto auto minmax(4rem, max-content) minmax(8rem, 1fr);
+  grid-template-columns: 1rem auto auto auto var(--subject) var(--summary);
   column-gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.events[data-machines] {
+  grid-template-columns: 1rem auto auto auto auto var(--subject) var(--summary);
+}
+
 .head,
-.event {
+.event,
+.row {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  padding: 2px var(--space-3);
-  border-left: 3px solid transparent; /* the priority's stripe */
 }
 
 .head {
+  padding: 2px var(--space-3);
+  border-left: 3px solid transparent;
   color: var(--text-muted);
 }
 
-.head > *,
-.event > * {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.event[data-priority="low"] {
-  color: var(--text-muted);
+.event {
+  border-left: 3px solid transparent; /* the priority's stripe, beside the row and its details */
 }
 
 .event[data-priority="high"] {
@@ -56,25 +56,155 @@
   border-left-color: var(--danger);
 }
 
-/* Narrow: the summary on its own line, the rest below it, quieter. */
+.row {
+  align-items: center;
+  padding: 2px var(--space-3);
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.event[data-priority="low"] .row {
+  color: var(--text-muted);
+}
+
+.row:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.head > *,
+.row > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  width: 0.9em;
+  height: 0.9em;
+  color: var(--text-muted);
+  transition: rotate 0.15s;
+}
+
+.row[aria-expanded="true"] .chevron {
+  rotate: 90deg;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  margin-right: var(--space-1);
+  vertical-align: -0.15em;
+}
+
+.details {
+  grid-column: 1 / -1;
+  margin: var(--space-1) var(--space-3) var(--space-2) calc(1rem + 2 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bar);
+  color: var(--text);
+  font-size: var(--text-small);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0 var(--space-4);
+  margin: 0;
+}
+
+.fields > div {
+  display: contents;
+}
+
+.fields dt {
+  color: var(--text-muted);
+}
+
+.fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.payload {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+}
+
+.payload + .fields {
+  padding-left: var(--space-4);
+}
+
+/* Narrow: the Repository and summary on one line, the rest below them, quieter. */
 @container (width < 44rem) {
   .head {
     display: none;
   }
 
-  .event {
-    grid-template-columns: auto auto auto 1fr;
+  .row {
+    grid-template-columns: 1rem max-content max-content max-content 1fr;
+    grid-template-areas:
+      "chevron repository summary summary summary"
+      ". recorded kind machine subject";
     column-gap: var(--space-3);
     padding-block: var(--space-1);
   }
 
-  .summary {
-    grid-row: 1;
-    grid-column: 1 / -1;
+  .events:not([data-machines]) .row {
+    grid-template-areas:
+      "chevron repository summary summary summary"
+      ". recorded kind subject subject";
   }
 
-  .event > :not(.summary) {
+  .chevron {
+    grid-area: chevron;
+  }
+
+  .repository {
+    grid-area: repository;
+    font-weight: 600;
+  }
+
+  .summary {
+    grid-area: summary;
+  }
+
+  .recorded {
+    grid-area: recorded;
+  }
+
+  .kind {
+    grid-area: kind;
+  }
+
+  .machine {
+    grid-area: machine;
+  }
+
+  .subject {
+    grid-area: subject;
+  }
+
+  .recorded,
+  .kind,
+  .machine,
+  .subject {
     color: var(--text-muted);
     font-size: var(--text-small);
+  }
+
+  .details {
+    margin-left: calc(1rem + var(--space-3));
   }
 }
