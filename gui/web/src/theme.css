@@ -13,12 +13,13 @@
   --space-4: 1rem;
   --radius: 6px;
 
-  --background: #f6f6f4;
+  /* VS Code's greys (Light Modern), so the GUI sits well next to it. */
+  --background: #ffffff;
   --surface: #ffffff;
-  --bar: #ecebe8;
-  --border: #d9d7d2;
-  --text: #1f1d1a;
-  --text-muted: #6b6760;
+  --bar: #f8f8f8;
+  --border: #e5e5e5;
+  --text: #3b3b3b;
+  --text-muted: #616161;
   --accent: #d85d3a; /* the icon's orange */
   --accent-fill: #b8452a; /* filled buttons, readable with --on-accent */
   --on-accent: #ffffff;
@@ -29,12 +30,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #1f2226;
-    --surface: #2a2e33; /* the icon's slate */
-    --bar: #17191c;
-    --border: #3d434a;
-    --text: #e6e8ea;
-    --text-muted: #9aa1a8;
+    /* VS Code's greys (Dark Modern, its editor at #1e1e1e). */
+    --background: #1e1e1e;
+    --surface: #1e1e1e;
+    --bar: #181818;
+    --border: #2b2b2b;
+    --text: #cccccc;
+    --text-muted: #9d9d9d;
     --accent: #e8774f;
     --accent-fill: #e8774f;
     --on-accent: #1b1d20;

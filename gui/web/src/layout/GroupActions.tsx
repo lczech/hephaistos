@@ -33,7 +33,9 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
       <div id={id} ref={menu} popover="auto" className={styles.menu}>
         <ViewList
           menu={id}
-          open={(kind) => openView(containerApi, { kind, params: {} }, group.id)}
+          open={(kind) =>
+            openView(containerApi, { kind, params: {} }, { referenceGroup: group.id })
+          }
         />
       </div>
     </div>
