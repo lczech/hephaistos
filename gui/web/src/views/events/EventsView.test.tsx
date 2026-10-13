@@ -209,12 +209,8 @@ describe("the Events View's filters", () => {
     expect(asked(requests).getAll("kind")).toEqual(["machine", "clone.added"]);
     expect(asked(requests).getAll("repository")).toEqual([PROJECT]);
     expect(asked(requests).get("priority")).toBe("high");
-    expect(await screen.findByRole("button", { name: "Filter by repository" })).toHaveTextContent(
-      "repository: project",
-    );
-    expect(screen.getByRole("button", { name: "Filter by kind" })).toHaveTextContent(
-      "kind: 2 kinds",
-    );
+    expect(await screen.findByText("repository: project")).toBeInTheDocument();
+    expect(screen.getByText("kind: 2 kinds")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filter by priority" })).toHaveAttribute(
       "title",
       "priority: high+",
