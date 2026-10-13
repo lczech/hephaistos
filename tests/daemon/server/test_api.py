@@ -133,6 +133,7 @@ def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
     assert api("/api/events?limit=0") == listed
     first = listed[0]
     assert api(f"/api/events/{first['id']}") == _cli("event", "show", first["id"])
+    assert api("/api/events/kinds") == _cli("event", "kinds")
     assert api("/api/config") == _cli("config", "show")
     assert api("/api/db/tables") == _cli("db", "tables")
     rows = "/api/db/tables/events?column=kind&column=id&limit=2&offset=1"
@@ -198,6 +199,18 @@ def test_events_filter_and_page_back(client: TestClient) -> None:
     assert pages == every
     kinds = client.get("/api/events", params={"kind": ["clone", "worktree"], "since": "1h"})
     assert {event["subject"]["type"] for event in kinds.json()} == {"clone", "worktree"}
+
+
+def test_events_of_several_repositories_and_machines(client: TestClient) -> None:
+    every = client.get("/api/events", params={"limit": 0}).json()
+    [repository] = client.get("/api/repositories").json()
+    [machine] = client.get("/api/machines").json()
+    nobody = "0199e000-0000-7000-8000-000000000000"
+    about = [event for event in every if event["repository"] is not None]
+    assert 0 < len(about) < len(every)
+    by = {"limit": 0, "repository": [nobody, repository["id"]], "machine": [machine["id"], nobody]}
+    assert client.get("/api/events", params=by).json() == about
+    assert client.get("/api/events", params={"machine": nobody}).json() == []
 
 
 @pytest.mark.parametrize(

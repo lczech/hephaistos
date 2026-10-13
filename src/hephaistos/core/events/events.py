@@ -155,20 +155,27 @@ def _kind_condition(pattern: str) -> tuple[str, list[object]]:
     return "(kind = ? OR substr(kind, 1, ?) = ?)", [pattern, len(pattern) + 1, f"{pattern}."]
 
 
+def _marks(values: Sequence[object]) -> str:
+    """SQL placeholders for these values: `?, ?, ?`."""
+    return ", ".join("?" * len(values))
+
+
 def recent(  # noqa: PLR0913 - one keyword argument per filter
     session: ReadSession,
     *,
     limit: int | None = None,
     kinds: Sequence[str] = (),
     min_priority: int | None = None,
-    recorded_by: uuid.UUID | None = None,
+    recorded_by: Sequence[uuid.UUID] = (),
     since: datetime | None = None,
-    repository_id: uuid.UUID | None = None,
+    repository_ids: Sequence[uuid.UUID] = (),
     clone_id: uuid.UUID | None = None,
     worktree_id: uuid.UUID | None = None,
     before: uuid.UUID | None = None,
 ) -> list[Event]:
-    """The Events matching all given filters, newest first; `kinds` match if any one does.
+    """The Events matching all given filters, newest first.
+
+    Of `kinds`, `recorded_by` (Machines) and `repository_ids`, any one has to match.
 
     `before` pages back: only Events older than that one, which must exist.
 
@@ -185,19 +192,21 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
     if min_priority is not None:
         conditions.append("priority >= ?")
         parameters.append(min_priority)
-    if recorded_by is not None:
-        conditions.append("recorded_by = ?")
-        parameters.append(recorded_by)
+    if recorded_by:
+        conditions.append(f"recorded_by IN ({_marks(recorded_by)})")
+        parameters += recorded_by
     if since is not None:
         conditions.append("recorded_at >= ?")
         parameters.append(Timestamp.of(int(since.timestamp() * 1000)))
-    if repository_id is not None:
+    if repository_ids:
+        marks = _marks(repository_ids)
         conditions.append(
-            "(subject = ? OR subject IN (SELECT id FROM registry_clones WHERE repository_id = ?)"
+            f"(subject IN ({marks})"  # noqa: S608 - only placeholders; values are parameters
+            f" OR subject IN (SELECT id FROM registry_clones WHERE repository_id IN ({marks}))"
             " OR subject IN (SELECT w.id FROM state_worktrees w"
-            " JOIN registry_clones c ON c.id = w.clone_id WHERE c.repository_id = ?))"
+            f" JOIN registry_clones c ON c.id = w.clone_id WHERE c.repository_id IN ({marks})))"
         )
-        parameters += [repository_id] * 3
+        parameters += [*repository_ids] * 3
     if clone_id is not None:
         conditions.append(
             "(subject = ? OR subject IN (SELECT id FROM state_worktrees WHERE clone_id = ?))"

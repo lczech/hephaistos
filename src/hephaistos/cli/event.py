@@ -42,16 +42,22 @@ PriorityOption = Annotated[
     PriorityName | None, typer.Option("--priority", "-p", help="Only this priority or higher.")
 ]
 MachineOption = Annotated[
-    str | None, typer.Option("--machine", "-m", help="Only Events recorded by this Machine.")
+    list[str] | None,
+    typer.Option(
+        "--machine", "-m", help="Only Events recorded by this Machine. Repeat for several."
+    ),
 ]
 SinceOption = Annotated[
     str | None,
     typer.Option("--since", "-s", help="Only Events since then: `30m`, `2h`, `3d`, or a date."),
 ]
 RepoFilterOption = Annotated[
-    str | None,
+    list[str] | None,
     typer.Option(
-        "--repo", "-r", help="Only Events about this Repository, its Clones and their Worktrees."
+        "--repo",
+        "-r",
+        help="Only Events about this Repository, its Clones and their Worktrees."
+        " Repeat for several.",
     ),
 ]
 CloneFilterOption = Annotated[
@@ -118,9 +124,9 @@ def list_(  # noqa: PLR0913 - one option per filter
             limit=limit or None,
             kinds=kind or (),
             min_priority=Priority[priority.upper()] if priority else None,
-            recorded_by=machines.by_name(session, machine).id if machine else None,
+            recorded_by=[machines.by_name(session, name).id for name in machine or ()],
             since=since_time,
-            repository_id=repositories.by_name(session, repo).id if repo else None,
+            repository_ids=[repositories.by_name(session, name).id for name in repo or ()],
             clone_id=clones.find_unobserved(session, clone).clone.id if clone else None,
             worktree_id=find_worktree(session, worktree)[0].id if worktree else None,
         )
@@ -160,6 +166,18 @@ def print_events(
 
 
 SUMMARY_WIDTH = 60
+
+
+@app.command()
+def kinds(*, as_json: JsonOption = False) -> None:
+    """List the kinds of Events, with the priority their Events get."""
+    listed = serialize.event_kinds_json()
+    if as_json:
+        print_json(listed)
+        return
+    print_table(
+        ["kind", "priority"], [[kind["kind"], _priority_text(kind["priority"])] for kind in listed]
+    )
 
 
 @app.command()
