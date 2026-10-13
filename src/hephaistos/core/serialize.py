@@ -20,6 +20,7 @@ from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.events import subjects, summaries
 from hephaistos.core.events.events import Event
+from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.registry.clones import CloneDetails
 from hephaistos.core.registry.filesystems import Filesystem
@@ -42,7 +43,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 3)
+API_VERSION = ApiVersion(0, 4)
 
 
 class Ref(TypedDict):
@@ -203,6 +204,13 @@ class EventJson(TypedDict):
     details: list[DetailJson]  # what the payload says, field by field
     payload: dict[str, Any]
     key: str | None
+
+
+class EventKindJson(TypedDict):
+    """A kind of Event this version records, with the priority its Events get."""
+
+    kind: str
+    priority: int
 
 
 def machine_ref(machine_id: uuid.UUID, names: Mapping[uuid.UUID, str]) -> Ref:
@@ -428,6 +436,11 @@ def events_json(session: ReadSession, listed: Sequence[Event]) -> list[EventJson
     """These Events, naming what they refer to."""
     context = EventContext.of(session, listed)
     return [event_json(event, context) for event in listed]
+
+
+def event_kinds_json() -> list[EventKindJson]:
+    """Every kind of Event this version records; Peers on a newer one may record others."""
+    return [EventKindJson(kind=kind, priority=kind.default_priority) for kind in EventKind]
 
 
 type SettingValue = bool | int | float | str

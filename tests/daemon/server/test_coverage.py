@@ -24,6 +24,7 @@ ROUTES = {
     "worktree show": "/api/worktrees/{worktree_id}",
     "event list": "/api/events",
     "event show": "/api/events/{event_id}",
+    "event kinds": "/api/events/kinds",
     "db tables": "/api/db/tables",
     "db dump": "/api/db/tables/{table}",
     "log show": "/api/log",

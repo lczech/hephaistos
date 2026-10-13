@@ -160,6 +160,9 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
         "clone.added",
         "repository.added",
     ]
+    of_both = _event_rows("--repo", "proj", "--repo", "other", "--limit", "0")
+    assert len(of_both) == len(by_clone) + 3
+    assert {row[4] for row in of_both} == {"proj", "other"}
     refused = runner.invoke(app, ["event", "list", "--worktree", str(repo)])
     assert "not in a Worktree" in str(refused.exception)
 

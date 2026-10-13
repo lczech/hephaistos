@@ -28,6 +28,7 @@ from hephaistos.core.serialize import (
     CloneJson,
     ConfigJson,
     EventJson,
+    EventKindJson,
     LogJson,
     MachineJson,
     Ref,
@@ -177,9 +178,9 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
     *,
     kind: Annotated[list[str] | None, Query()] = None,
     priority: PriorityName | None = None,
-    machine: uuid.UUID | None = None,
+    machine: Annotated[list[uuid.UUID] | None, Query()] = None,
     since: str | None = None,
-    repository: uuid.UUID | None = None,
+    repository: Annotated[list[uuid.UUID] | None, Query()] = None,
     clone: uuid.UUID | None = None,
     worktree: uuid.UUID | None = None,
     limit: Annotated[int, Query(ge=0)] = DEFAULT_LIMIT,
@@ -187,8 +188,8 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
 ) -> list[EventJson]:
     """Events, newest first, as `event list --json`; `before` an Event pages back from it.
 
-    `kind` as in `event list` (repeat for several); `since` a duration (`2h`) or a date;
-    `limit` 0 for all.
+    `kind` as in `event list`; repeat it, `machine` or `repository` for several. `since` is a
+    duration (`2h`) or a date; `limit` 0 for all.
     """
     since_time = _time("since", since, datetime.now(UTC))
     with read_session(paths) as session:
@@ -197,14 +198,20 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
             limit=limit or None,
             kinds=kind or (),
             min_priority=Priority[priority.upper()] if priority else None,
-            recorded_by=machine,
+            recorded_by=machine or (),
             since=since_time,
-            repository_id=repository,
+            repository_ids=repository or (),
             clone_id=clone,
             worktree_id=worktree,
             before=before,
         )
         return serialize.events_json(session, found)
+
+
+@router.get("/events/kinds")
+def event_kinds() -> list[EventKindJson]:
+    """The kinds of Events this Daemon records, as `event kinds --json`."""
+    return serialize.event_kinds_json()
 
 
 @router.get("/events/{event_id}")

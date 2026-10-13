@@ -72,6 +72,7 @@ def test_list() -> None:
         (["-p", "high"], []),
         (["-p", "normal", "-n", "1"], ["repository.changed"]),
         (["-m", "laptop", "-s", "1h", "-n", "1"], ["repository.changed"]),
+        (["-m", "laptop", "-m", "laptop", "-r", "project", "-n", "1"], ["repository.changed"]),
         (["-n", "0", "-k", "machine"], ["machine.added"]),
     ],
 )
@@ -142,6 +143,17 @@ def test_json() -> None:
 
     shown = json.loads(runner.invoke(app, ["event", "show", event["id"], "--json"]).output)
     assert shown == event
+
+
+def test_kinds() -> None:
+    lines = runner.invoke(app, ["event", "kinds"]).output.splitlines()
+    assert lines[0].split() == ["kind", "priority"]
+    assert [line.split() for line in lines[1:]] == [
+        [kind.value, kind.default_priority.name.lower()] for kind in EventKind
+    ]
+    listed = json.loads(runner.invoke(app, ["event", "kinds", "--json"]).output)
+    assert {"kind": "clone.missing", "priority": Priority.HIGH} in listed
+    assert len(listed) == len(EventKind)
 
 
 def test_priority_names_match() -> None:

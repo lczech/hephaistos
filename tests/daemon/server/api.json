@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 3
+    "minor": 4
   },
   "shapes": {
     "components": {
@@ -460,6 +460,25 @@
             "key"
           ],
           "title": "EventJson",
+          "type": "object"
+        },
+        "EventKindJson": {
+          "description": "A kind of Event this version records, with the priority its Events get.",
+          "properties": {
+            "kind": {
+              "title": "Kind",
+              "type": "string"
+            },
+            "priority": {
+              "title": "Priority",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "priority"
+          ],
+          "title": "EventKindJson",
           "type": "object"
         },
         "HTTPValidationError": {
@@ -1691,7 +1710,7 @@
       },
       "/api/events": {
         "get": {
-          "description": "Events, newest first, as `event list --json`; `before` an Event pages back from it.\n\n`kind` as in `event list` (repeat for several); `since` a duration (`2h`) or a date;\n`limit` 0 for all.",
+          "description": "Events, newest first, as `event list --json`; `before` an Event pages back from it.\n\n`kind` as in `event list`; repeat it, `machine` or `repository` for several. `since` is a\nduration (`2h`) or a date; `limit` 0 for all.",
           "operationId": "event_list_api_events_get",
           "parameters": [
             {
@@ -1742,8 +1761,11 @@
               "schema": {
                 "anyOf": [
                   {
-                    "format": "uuid",
-                    "type": "string"
+                    "items": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   {
                     "type": "null"
@@ -1775,8 +1797,11 @@
               "schema": {
                 "anyOf": [
                   {
-                    "format": "uuid",
-                    "type": "string"
+                    "items": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "type": "array"
                   },
                   {
                     "type": "null"
@@ -1875,6 +1900,29 @@
             }
           },
           "summary": "Event List"
+        }
+      },
+      "/api/events/kinds": {
+        "get": {
+          "description": "The kinds of Events this Daemon records, as `event kinds --json`.",
+          "operationId": "event_kinds_api_events_kinds_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/EventKindJson"
+                    },
+                    "title": "Response Event Kinds Api Events Kinds Get",
+                    "type": "array"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            }
+          },
+          "summary": "Event Kinds"
         }
       },
       "/api/events/{event_id}": {

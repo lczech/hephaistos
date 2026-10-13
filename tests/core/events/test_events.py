@@ -98,8 +98,9 @@ def test_min_priority(set_up: Paths, session: ReadSession) -> None:
 
 
 def test_recorded_by(session: ReadSession) -> None:
-    assert _kinds(events.recent(session, recorded_by=session.machine_id)) == SETUP_KINDS
-    assert events.recent(session, recorded_by=new_id()) == []
+    assert _kinds(events.recent(session, recorded_by=[session.machine_id])) == SETUP_KINDS
+    assert _kinds(events.recent(session, recorded_by=[new_id(), session.machine_id])) == SETUP_KINDS
+    assert events.recent(session, recorded_by=[new_id()]) == []
 
 
 def test_since(session: ReadSession) -> None:
