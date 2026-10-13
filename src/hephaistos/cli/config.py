@@ -8,7 +8,7 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli.output import JsonOption, print_json, print_rows, short_path
-from hephaistos.core import config, views
+from hephaistos.core import config, serialize
 from hephaistos.core.config import Layer
 from hephaistos.core.utils.paths import Paths
 
@@ -75,7 +75,7 @@ def show(
     if as_json:
         if key is not None:
             raise typer.BadParameter("--json shows all settings; leave out KEY", param_hint="KEY")
-        print_json(views.config_json(directory, hostname))
+        print_json(serialize.config_json(directory, hostname))
     elif key in config.KEYS:
         typer.echo(config.setting_text(loaded.values[key]))
     else:

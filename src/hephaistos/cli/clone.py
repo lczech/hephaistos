@@ -15,7 +15,7 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session, write_session
 from hephaistos.core.observers import clones as observer
@@ -189,7 +189,7 @@ def list_(
     with read_session(paths) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
         if as_json:
-            print_json(views.clones_json(session, repository_id=repository_id))
+            print_json(serialize.clones_json(session, repository_id=repository_id))
             return
         found = clones.details(session, repository_id=repository_id)
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
@@ -222,9 +222,9 @@ def show(
     observe_checkout(paths, path, refresh=refresh)
     with read_session(paths) as session:
         details = clones.find(session, path)
-        observers = views.observer_names(session, [details])
+        observers = serialize.observer_names(session, [details])
     if as_json:
-        print_json(views.clone_json(details, observers))
+        print_json(serialize.clone_json(details, observers))
         return
     clone, state = details.clone, details.state
     formatted = time_formatter(time_format, TimeFormat.FULL)

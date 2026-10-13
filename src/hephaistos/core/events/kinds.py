@@ -99,7 +99,7 @@ class EventKind(StrEnum):
                 | EventKind.WORKTREE_RESET
             ):
                 return Priority.NORMAL
-            # Everyday git activity: frequent, and grouped by views.
+            # Everyday git activity: frequent, and grouped when listed.
             case (
                 EventKind.CLONE_COMMITTED
                 | EventKind.CLONE_BRANCH_SWITCHED

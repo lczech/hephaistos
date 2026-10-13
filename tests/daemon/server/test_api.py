@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from hephaistos.cli.main import app as cli
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
@@ -53,7 +53,8 @@ def _cli(*args: str) -> Any:  # noqa: ANN401 - parsed JSON
 def test_info(client: TestClient) -> None:
     info = client.get("/api/info").json()
     assert info["version"] == VERSION
-    assert info["api"] == {"major": views.API_VERSION.major, "minor": views.API_VERSION.minor}
+    major, minor = serialize.API_VERSION
+    assert info["api"] == {"major": major, "minor": minor}
     assert info["machine"]["name"] == "laptop"
 
 
@@ -227,7 +228,7 @@ def test_an_unexpected_error_is_logged_not_shown(
     def broken(*_: object) -> None:
         raise KeyError("branch")
 
-    monkeypatch.setattr(views, "machines_json", broken)
+    monkeypatch.setattr(serialize, "machines_json", broken)
     response = client.get("/api/machines")
     assert (response.status_code, response.json()) == (
         500,

@@ -14,7 +14,7 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
@@ -32,7 +32,7 @@ def list_(*, as_json: JsonOption = False) -> None:
     """List the Repositories."""
     with read_session(Paths.from_environment()) as session:
         if as_json:
-            print_json(views.repositories_json(session))
+            print_json(serialize.repositories_json(session))
             return
         summaries = repositories.summaries(session)
     print_table(
@@ -52,7 +52,7 @@ def show(
     with read_session(Paths.from_environment()) as session:
         repository = repositories.by_name(session, name)
         if as_json:
-            print_json(views.repositories_json(session, repository.id)[0])
+            print_json(serialize.repositories_json(session, repository.id)[0])
             return
         [summary] = repositories.summaries(session, repository.id)
         its_clones = clones.details(session, repository_id=repository.id)

@@ -14,8 +14,8 @@ One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, s
 src/hephaistos/
   core/
     config.py     settings: shipped defaults.toml, config files, environment
-    views.py      entities as JSON, for `--json` and the Server's API
-    db/           connection, read and write sessions, schema, raw views
+    serialize.py  entities as JSON, for `--json` and the Server's API
+    db/           connection, read and write sessions, schema, raw listings
     registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
     state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
     events/       events.py (storage and reading), kinds.py, subjects.py
@@ -71,7 +71,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it. JSON output uses the same names; text output drops the suffix (`recorded`).
 - **Function names:** actions are verbs (`add`, `record`, `observe`); functions that only return something are named for what they return (`git.status`, `clones.details`, `caused_events`). Lookups and conversions may be verbs (`get`, `find`, `locate`, `parse_since`, `to_json`), and predicates read as questions (`is_network`, `shares_history`). Formatting helpers in the CLI end in `_text` or `_json`.
 - **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added` or `.deleted` with the record's values, or `.changed` with the changed fields' old and new values (in that shape, a kind may say more: `clone.moved`).
-- **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw views.
+- **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw listings.
 - **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
 - **Schema version:** `PRAGMA user_version`. Until the data is relied on, schema changes edit the initial schema, and an outdated database is reported with a clear message (`setup --reset` replaces it, keeping a backup; one-off scripts where data is worth keeping). Migrations start from a declared schema 1.
 
@@ -110,8 +110,8 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - The subject is always an ID. `events/subjects.py` maps each subject type to its module, which labels its subjects (e.g. a Repository by its current name; deleted records keep theirs). Subjects of unknown types show their short ID.
 - Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
-- Conditions are facts about what one Machine sees. Git activity, and branches created or renamed, are facts about the repository, which several Machines may read on a shared Filesystem: they carry a `key` (16 bytes of SHA-256 over Clone, Worktree name, ref, git's time, and what changed). Others have none. With sync, an arriving Event whose key exists marks the one with the larger ID as a local `duplicate`, which views leave out.
-- Events are never rewritten, one per fact; views group them: runs of one kind and subject (12 commits), a condition with its resolution (missing, then found), and chains (amends of a commit).
+- Conditions are facts about what one Machine sees. Git activity, and branches created or renamed, are facts about the repository, which several Machines may read on a shared Filesystem: they carry a `key` (16 bytes of SHA-256 over Clone, Worktree name, ref, git's time, and what changed). Others have none. With sync, an arriving Event whose key exists marks the one with the larger ID as a local `duplicate`, which listings leave out.
+- Events are never rewritten, one per fact; listings group them: runs of one kind and subject (12 commits), a condition with its resolution (missing, then found), and chains (amends of a commit).
 - `occurred_at`: when it happened, by its source's clock, in milliseconds; NULL where unknown, e.g. for conditions found between two observations. Git activity has git's time. `recorded_at` stays the order for sync.
 - Later, with Agents: how an Event was captured, and whether it is reported or inferred.
 
@@ -120,7 +120,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - An observer observes one kind of thing: it takes a snapshot and has the State compare it with what is stored, which writes the changes and records their Events. Observers know nothing about timing; the Watcher runs them (`watcher.interval`, and on request).
 - Each observation updates `observed_at`; rows and Events change only when something changed.
 - First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
-- Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: views of files ask the Machine's Server live.
+- Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: Views of files ask the Machine's Server live.
 - Git activity comes from git's reflogs (`git log --walk-reflogs`), read from a cursor per Checkout: the last entry read, by its time and a digest, so expiry doesn't move it; if its entry is gone, reading continues after its time. The first read starts at the end (`clone add` observes right away), or with `clone add --import-history` at the beginning; a Worktree found later starts at the beginning, as all of its reflog is new.
   - HEAD's reflog gives `committed` (also amends with the commit they replace, cherry-picks, reverts, `am`), `merged`, `pulled`, `rebased`, `reset`, `branch_switched`, and `head_moved` with git's message for what we can't name. A rebase folds into one Event; while one is in progress, it waits. Resets that don't move (`git stash`) are skipped.
   - Remote-tracking reflogs give `clone.pushed`; fetches are skipped. A new branch's reflog gives its creation time and start, or shows it was renamed (`clone.branch_renamed`, instead of deleted and created).

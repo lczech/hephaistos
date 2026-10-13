@@ -16,7 +16,7 @@ from hephaistos.core.events.kinds import EventKind, Priority
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import Timestamp, new_id
 
-#: The columns of `events`, decoded for raw views.
+#: The columns of `events`, decoded for raw listings.
 DECODERS: dict[str, Decoder] = {
     "id": values.uuid_bytes,
     "recorded_at": values.clock,

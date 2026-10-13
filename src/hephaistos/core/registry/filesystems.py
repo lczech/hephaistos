@@ -10,7 +10,7 @@ from hephaistos.core.db.tables import Table
 from hephaistos.core.registry import records
 from hephaistos.core.registry.records import Record
 
-#: The columns of `registry_filesystems`, decoded for raw views.
+#: The columns of `registry_filesystems`, decoded for raw listings.
 DECODERS = records.DECODERS | {
     "name": values.plain,
 }

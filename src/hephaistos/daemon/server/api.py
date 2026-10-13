@@ -15,17 +15,14 @@ from typing import Annotated, TypedDict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import Priority, PriorityName
 from hephaistos.core.registry import machines
 from hephaistos.core.registry.mounts import mounts_of
-from hephaistos.core.utils import logs, times
-from hephaistos.core.utils.logs import LevelName, ProcessName
-from hephaistos.core.utils.paths import Paths
-from hephaistos.core.views import (
+from hephaistos.core.serialize import (
     API_VERSION,
     CloneJson,
     ConfigJson,
@@ -38,6 +35,9 @@ from hephaistos.core.views import (
     TablesJson,
     WorktreeJson,
 )
+from hephaistos.core.utils import logs, times
+from hephaistos.core.utils.logs import LevelName, ProcessName
+from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
 from hephaistos.daemon.status import Trigger
@@ -96,7 +96,7 @@ def info(paths: PathsOf, request: Request) -> InfoJson:
 def machine_list(paths: PathsOf) -> list[MachineJson]:
     """The Machines, as `machine list --json`."""
     with read_session(paths) as session:
-        return views.machines_json(session)
+        return serialize.machines_json(session)
 
 
 @router.get("/machines/{machine_id}")
@@ -108,7 +108,7 @@ def machine_show(paths: PathsOf, machine_id: uuid.UUID) -> MachineJson:
         except LookupError:
             raise _not_found("Machine", machine_id) from None
         this = machine.id == session.machine_id
-        return views.machine_json(
+        return serialize.machine_json(
             machine,
             mounts_of(session, machine.id),
             this=this,
@@ -120,14 +120,14 @@ def machine_show(paths: PathsOf, machine_id: uuid.UUID) -> MachineJson:
 def repository_list(paths: PathsOf) -> list[RepositoryJson]:
     """The Repositories, as `repo list --json`."""
     with read_session(paths) as session:
-        return views.repositories_json(session)
+        return serialize.repositories_json(session)
 
 
 @router.get("/repositories/{repository_id}")
 def repository_show(paths: PathsOf, repository_id: uuid.UUID) -> RepositoryJson:
     """A Repository, as `repo show --json`."""
     with read_session(paths) as session:
-        found = views.repositories_json(session, repository_id)
+        found = serialize.repositories_json(session, repository_id)
     if not found:
         raise _not_found("Repository", repository_id)
     return found[0]
@@ -137,14 +137,14 @@ def repository_show(paths: PathsOf, repository_id: uuid.UUID) -> RepositoryJson:
 def clone_list(paths: PathsOf, repository: uuid.UUID | None = None) -> list[CloneJson]:
     """The Clones, or those of a Repository, as `clone list --json`."""
     with read_session(paths) as session:
-        return views.clones_json(session, repository_id=repository)
+        return serialize.clones_json(session, repository_id=repository)
 
 
 @router.get("/clones/{clone_id}")
 def clone_show(paths: PathsOf, clone_id: uuid.UUID) -> CloneJson:
     """A Clone, as `clone show --json`."""
     with read_session(paths) as session:
-        found = views.clones_json(session, clone_id=clone_id)
+        found = serialize.clones_json(session, clone_id=clone_id)
     if not found:
         raise _not_found("Clone", clone_id)
     return found[0]
@@ -154,14 +154,14 @@ def clone_show(paths: PathsOf, clone_id: uuid.UUID) -> CloneJson:
 def worktree_list(paths: PathsOf, repository: uuid.UUID | None = None) -> list[WorktreeJson]:
     """The Worktrees, or those of a Repository, as `worktree list --json`."""
     with read_session(paths) as session:
-        return views.worktrees_json(session, repository_id=repository)
+        return serialize.worktrees_json(session, repository_id=repository)
 
 
 @router.get("/worktrees/{worktree_id}")
 def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
     """A Worktree, as `worktree show --json`."""
     with read_session(paths) as session:
-        found = views.worktrees_json(session)
+        found = serialize.worktrees_json(session)
     for worktree in found:
         if worktree["id"] == str(worktree_id):
             return worktree
@@ -201,7 +201,7 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
             worktree_id=worktree,
             before=before,
         )
-        return views.events_json(session, found)
+        return serialize.events_json(session, found)
 
 
 @router.get("/events/{event_id}")
@@ -211,7 +211,7 @@ def event_show(paths: PathsOf, event_id: uuid.UUID) -> EventJson:
         event = events.get(session, event_id)
         if event is None:
             raise _not_found("Event", event_id)
-        return views.events_json(session, [event])[0]
+        return serialize.events_json(session, [event])[0]
 
 
 @router.get("/daemon")
@@ -234,14 +234,14 @@ async def observe(request: Request) -> None:
 @router.get("/config")
 def config_show(paths: PathsOf) -> ConfigJson:
     """The settings, as `config show --json` in the Daemon: also what it applies."""
-    return views.config_json(paths.config_dir, socket.gethostname())
+    return serialize.config_json(paths.config_dir, socket.gethostname())
 
 
 @router.get("/db/tables")
 def db_tables(paths: PathsOf) -> TablesJson:
     """The database's tables, as `db tables --json`."""
     with read_session(paths, check_schema=False) as session:
-        return views.tables_json(session)
+        return serialize.tables_json(session)
 
 
 @router.get("/db/tables/{table}")
@@ -257,7 +257,7 @@ def db_dump(
     with read_session(paths, check_schema=False) as session:
         if table not in raw.stored_tables(session):
             raise HTTPException(404, f"no table {table}; `hephaistos db tables` lists them")
-        return views.rows_json(session, table, column or (), limit or None, offset)
+        return serialize.rows_json(session, table, column or (), limit or None, offset)
 
 
 @router.get("/log")
@@ -286,7 +286,7 @@ def log_show(  # noqa: PLR0913 - one parameter per filter
         process=process,
         pid=pid,
     )
-    return views.log_json(paths.state_dir, selection, limit)
+    return serialize.log_json(paths.state_dir, selection, limit)
 
 
 def _time(name: str, value: str | None, now: datetime) -> datetime | None:

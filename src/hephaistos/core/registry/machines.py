@@ -21,7 +21,7 @@ from hephaistos.core.utils.paths import Paths, mount_of, os_machine_id
 
 log = logging.getLogger(__name__)
 
-#: The columns of `registry_machines`, decoded for raw views.
+#: The columns of `registry_machines`, decoded for raw listings.
 DECODERS = records.DECODERS | {
     "name": values.plain,
     "hostname": values.plain,

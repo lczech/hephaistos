@@ -23,7 +23,7 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.observers import clones as observer
@@ -67,7 +67,7 @@ def list_(
     with read_session(paths) as session:
         repository_id = repositories.by_name(session, repo).id if repo else None
         if as_json:
-            print_json(views.worktrees_json(session, repository_id=repository_id))
+            print_json(serialize.worktrees_json(session, repository_id=repository_id))
             return
         found = [
             (worktree, details)
@@ -159,7 +159,7 @@ def show(
         worktree, details = find_worktree(session, target)
         observers = machines.labels(session, [worktree.observed_by])
     if as_json:
-        print_json(views.worktree_json(worktree, details, observers))
+        print_json(serialize.worktree_json(worktree, details, observers))
         return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(

@@ -11,7 +11,7 @@ from hephaistos.core.db.values import Decoder
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import EventKind
 
-#: The columns all Registry tables end with, decoded for raw views.
+#: The columns all Registry tables end with, decoded for raw listings.
 DECODERS: dict[str, Decoder] = {
     "id": values.uuid_bytes,
     "modified_at": values.clock,

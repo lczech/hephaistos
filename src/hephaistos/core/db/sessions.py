@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 sqlite3.register_adapter(uuid.UUID, lambda value: value.bytes)
 sqlite3.register_adapter(PosixPath, str)
 
-#: The columns of `meta`, decoded for raw views; its values by `META_VALUES`.
+#: The columns of `meta`, decoded for raw listings; its values by `META_VALUES`.
 DECODERS: dict[str, Decoder] = {"key": values.plain, "value": values.plain}
 #: The values in `meta`, by key.
 META_VALUES: dict[str, Decoder] = {

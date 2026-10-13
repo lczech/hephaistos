@@ -61,7 +61,7 @@ class StatusValues(TypedDict):
 STATUS_COLUMNS = tuple(StatusValues.__annotations__)
 
 
-#: The columns Clones' and Worktrees' State share, decoded for raw views.
+#: The columns Clones' and Worktrees' State share, decoded for raw listings.
 DECODERS: dict[str, Decoder] = {
     "observed_at": values.clock,
     "observed_by": values.uuid_bytes,
