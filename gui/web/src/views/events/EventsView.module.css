@@ -14,20 +14,16 @@
   color: var(--text-muted);
 }
 
-/* A table in all but name: rows share the columns; the subject and summary give way first. */
+/* A table in all but name: rows share the columns, sized by TanStack Table (`--columns`). */
 .events {
-  --subject: minmax(4rem, max-content);
-  --summary: minmax(8rem, 1fr);
+  --square: calc(1lh + 4px); /* as wide as a row is high */
+  --column-gap: var(--space-3);
   display: grid;
-  grid-template-columns: 1rem auto auto auto var(--subject) var(--summary);
-  column-gap: var(--space-3);
+  grid-template-columns: var(--columns);
+  column-gap: var(--column-gap);
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.events[data-machines] {
-  grid-template-columns: 1rem auto auto auto auto var(--subject) var(--summary);
 }
 
 .head,
@@ -39,26 +35,31 @@
 }
 
 .head {
-  padding: 2px var(--space-3);
-  border-left: 3px solid transparent;
+  padding: 2px var(--space-3) 2px 0;
   color: var(--text-muted);
 }
 
-.event {
-  border-left: 3px solid transparent; /* the priority's stripe, beside the row and its details */
+.head > * {
+  position: relative; /* for the resizer */
 }
 
-.event[data-priority="high"] {
-  border-left-color: var(--warning);
+/* The priority's square, tinted beside the row and its details. */
+.event:is([data-priority="high"], [data-priority="urgent"]) {
+  --priority: var(--warning);
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--priority) 25%, transparent) var(--square),
+    transparent 0
+  );
 }
 
 .event[data-priority="urgent"] {
-  border-left-color: var(--danger);
+  --priority: var(--danger);
 }
 
 .row {
   align-items: center;
-  padding: 2px var(--space-3);
+  padding: 2px var(--space-3) 2px 0;
   border: none;
   border-radius: 0;
   background: none;
@@ -81,22 +82,36 @@
   outline-offset: -1px;
 }
 
-.head > *,
+.label,
 .row > * {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.row > [data-column="priority"] {
+  display: grid;
+  place-items: center;
 }
 
 .chevron {
   width: 0.9em;
   height: 0.9em;
   color: var(--text-muted);
-  transition: rotate 0.15s;
+  translate: 1px 0; /* towards its point: a centred chevron looks off-centre */
+  transition:
+    rotate 0.15s,
+    translate 0.15s;
+}
+
+.event:is([data-priority="high"], [data-priority="urgent"]) .chevron {
+  color: var(--priority);
 }
 
 .row[aria-expanded="true"] .chevron {
   rotate: 90deg;
+  translate: 0 1px;
 }
 
 .icon {
@@ -108,7 +123,7 @@
 
 .details {
   grid-column: 1 / -1;
-  margin: var(--space-1) var(--space-3) var(--space-2) calc(1rem + 2 * var(--space-3));
+  margin: var(--space-1) var(--space-3) var(--space-2) calc(var(--square) + var(--column-gap));
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -148,63 +163,66 @@
 
 /* Narrow: the Repository and summary on one line, the rest below them, quieter. */
 @container (width < 44rem) {
+  .events {
+    grid-template-columns: 1fr;
+  }
+
   .head {
     display: none;
   }
 
   .row {
-    grid-template-columns: 1rem max-content max-content max-content 1fr;
+    grid-template-columns: var(--square) max-content max-content max-content 1fr;
     grid-template-areas:
-      "chevron repository summary summary summary"
-      ". recorded kind machine subject";
-    column-gap: var(--space-3);
+      "priority repository summary summary summary"
+      "priority recorded kind machine subject";
+    column-gap: var(--column-gap);
     padding-block: var(--space-1);
   }
 
-  .events:not([data-machines]) .row {
+  .row:not(:has([data-column="machine"])) {
     grid-template-areas:
-      "chevron repository summary summary summary"
-      ". recorded kind subject subject";
+      "priority repository summary summary summary"
+      "priority recorded kind subject subject";
   }
 
-  .chevron {
-    grid-area: chevron;
+  .row > [data-column="priority"] {
+    grid-area: priority;
   }
 
-  .repository {
+  .row > [data-column="repository"] {
     grid-area: repository;
     font-weight: 600;
   }
 
-  .summary {
+  .row > [data-column="summary"] {
     grid-area: summary;
   }
 
-  .recorded {
+  .row > [data-column="recorded"] {
     grid-area: recorded;
   }
 
-  .kind {
+  .row > [data-column="kind"] {
     grid-area: kind;
   }
 
-  .machine {
+  .row > [data-column="machine"] {
     grid-area: machine;
   }
 
-  .subject {
+  .row > [data-column="subject"] {
     grid-area: subject;
   }
 
-  .recorded,
-  .kind,
-  .machine,
-  .subject {
+  .row
+    > :is(
+      [data-column="recorded"],
+      [data-column="kind"],
+      [data-column="machine"],
+      [data-column="subject"]
+    ) {
     color: var(--text-muted);
     font-size: var(--text-small);
-  }
-
-  .details {
-    margin-left: calc(1rem + var(--space-3));
   }
 }

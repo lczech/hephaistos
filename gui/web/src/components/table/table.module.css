@@ -1,0 +1,19 @@
+/* In the gap after a column's header cell, which needs `position: relative`. */
+.resizer {
+  position: absolute;
+  top: 0;
+  right: calc(-0.5 * var(--column-gap, 0px) - 3px);
+  bottom: 0;
+  width: 6px;
+  height: auto;
+  margin: 0;
+  border: none;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.resizer:hover,
+.resizer[data-resizing] {
+  background: linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat;
+}

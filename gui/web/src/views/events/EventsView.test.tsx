@@ -1,8 +1,9 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
+import { columnWidths } from "../../components/table/widths";
 import { event, info, json, renderWithQueries, serve } from "../../test/server";
 import { EventsView } from "./EventsView";
 
@@ -18,10 +19,11 @@ function serveEvents(listed: Event[] | (() => Event[]), machines = 1): Request[]
   });
 }
 
-/** The texts of a row's cells, after the chevron. */
+/** The texts of a row's cells, after the priority's square. */
 function cells(row: HTMLElement): string[] {
   const button = within(row).getByRole("button");
-  return [...button.querySelectorAll(":scope > span")].map((cell) => cell.textContent ?? "");
+  const texts = [...button.querySelectorAll(":scope > span")].map((cell) => cell.textContent ?? "");
+  return texts.slice(1);
 }
 
 const committed = event(1, { details: [{ field: "head", text: "aaaaaaa → abc1" }] });
@@ -127,5 +129,44 @@ describe("the Events View", () => {
     serveEvents([]);
     renderWithQueries(<EventsView />);
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+  });
+});
+
+describe("the Events View's columns", () => {
+  afterEach(() => columnWidths("events").set({}));
+
+  const grid = (list: HTMLElement) => list.style.getPropertyValue("--columns");
+  /** The columns, all as wide as at first but the time of recording. */
+  const columns = (recorded: number) =>
+    `var(--square) minmax(40px, ${recorded}px) minmax(40px, 140px) minmax(40px, 120px) ` +
+    "minmax(40px, 200px) minmax(8rem, 1fr)";
+
+  it("resize by dragging their edge, in every Events View, and are kept", async () => {
+    serveEvents([committed]);
+    renderWithQueries(
+      <>
+        <EventsView />
+        <EventsView />
+      </>,
+    );
+    await screen.findAllByText("Commit number 1 (abc1)");
+    const lists = screen.getAllByRole("list");
+    expect(lists.map(grid)).toEqual([columns(72), columns(72)]);
+    // The header row is hidden from assistive technology, so its resizers count as hidden.
+    const [recorded] = screen.getAllByRole("separator", { hidden: true }) as HTMLElement[];
+    fireEvent.mouseDown(recorded as HTMLElement, { clientX: 100 });
+    fireEvent.mouseMove(document, { clientX: 130 });
+    fireEvent.mouseUp(document, { clientX: 130 });
+    expect(lists.map(grid)).toEqual([columns(102), columns(102)]);
+    expect(localStorage.getItem("hephaistos.columns.events")).toBe('{"recorded":102}');
+    fireEvent.doubleClick(recorded as HTMLElement);
+    expect(grid(lists[0] as HTMLElement)).toBe(columns(72));
+  });
+
+  it("include the Machine's once there are several", async () => {
+    serveEvents([committed], 2);
+    renderWithQueries(<EventsView />);
+    const list = await screen.findByRole("list");
+    await vi.waitFor(() => expect(grid(list)).toContain("minmax(40px, 120px) minmax(40px, 120px)"));
   });
 });
