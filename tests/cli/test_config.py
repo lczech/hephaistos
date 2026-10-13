@@ -6,9 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 from hephaistos.cli.main import app
-from hephaistos.cli.output import short_path
 from hephaistos.core import config
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 
 runner = CliRunner()
 

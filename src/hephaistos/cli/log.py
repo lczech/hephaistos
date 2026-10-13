@@ -9,11 +9,12 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import terminal
-from hephaistos.cli.output import JsonOption, LimitOption, number_text, parse_time, short_path
+from hephaistos.cli.output import JsonOption, LimitOption, parse_time
 from hephaistos.core import config
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.logs import LevelName, ProcessName, Record, record_text
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
+from hephaistos.core.utils.text import number_text
 
 app = typer.Typer(
     no_args_is_help=True, help="The log: what hephaistos did on this Machine, for debugging it."

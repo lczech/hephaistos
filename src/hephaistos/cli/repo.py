@@ -7,11 +7,9 @@ from hephaistos.cli.clone import branch_text, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
-    number_text,
     print_fields,
     print_json,
     print_table,
-    short_path,
     time_formatter,
 )
 from hephaistos.core import serialize
@@ -20,7 +18,8 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
+from hephaistos.core.utils.text import number_text
 
 app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, with their Clones.")
 

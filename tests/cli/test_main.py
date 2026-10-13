@@ -8,10 +8,9 @@ from typer.testing import CliRunner
 from hephaistos import __version__
 from hephaistos.cli import terminal
 from hephaistos.cli.main import app, without_debug
-from hephaistos.cli.output import short_path
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 from support import logged, run_cli
 
 runner = CliRunner()

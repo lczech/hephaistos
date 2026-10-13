@@ -5,6 +5,7 @@ import { App } from "./App";
 import { Boundary } from "./components/Boundary";
 import { daemon, info, json, renderWithQueries, serve } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
+import { builtFor } from "./version";
 
 function signIn(): void {
   window.history.replaceState(null, "", "/#token=secret");
@@ -31,7 +32,10 @@ describe("the GUI", () => {
     renderWithQueries(<App />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
     expect(screen.getByText(/^every 60 s; next pass in/)).toBeInTheDocument();
-    expect(screen.getByText("laptop · hephaistos 0.1.0 (abc1234) · API 0.1")).toBeInTheDocument();
+    const { major, minor } = builtFor();
+    expect(
+      screen.getByText(`laptop · hephaistos 0.1.0 (abc1234) · API ${major}.${minor}`),
+    ).toBeInTheDocument();
     expect(screen.getByText("updated now")).toBeInTheDocument();
     const observe = requests.find((request) => request.method === "POST");
     expect(observe?.headers.get("Authorization")).toBe("Bearer secret");

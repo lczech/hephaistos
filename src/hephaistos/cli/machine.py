@@ -8,7 +8,6 @@ from hephaistos.cli.output import (
     print_fields,
     print_json,
     print_table,
-    short_path,
     time_formatter,
 )
 from hephaistos.core import serialize
@@ -18,7 +17,7 @@ from hephaistos.core.registry import machines
 from hephaistos.core.registry.machines import LocalSetup
 from hephaistos.core.registry.mounts import mounts_of
 from hephaistos.core.utils.ids import id_datetime
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 
 app = typer.Typer(no_args_is_help=True, help="Machines: computers running hephaistos.")
 

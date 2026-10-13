@@ -206,6 +206,16 @@ def displayed(typed: Path, target: Path) -> Path:
     return candidate if candidate.resolve() == target else target
 
 
+def short_path(path: Path) -> str:
+    """The path with the home directory shortened to ~."""
+    home = Path.home()
+    if path == home:
+        return "~"
+    if path.is_relative_to(home):
+        return f"~/{path.relative_to(home)}"
+    return str(path)
+
+
 def shell_path(path: Path) -> str:
     """A path as a shell argument, with the home directory as `~`; quoted only where needed."""
     home = Path.home()
