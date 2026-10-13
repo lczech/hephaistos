@@ -45,18 +45,20 @@ def test_events_are_listed(repo: Path) -> None:
     assert lines[0].split() == [
         "id",
         "recorded",
-        "machine",
         "priority",
         "kind",
+        "repository",
+        "machine",
         "subject",
         "summary",
     ]
     start = git(repo, "rev-parse", "--short=7", "HEAD")
     assert lines[1].split()[1:] == [
         "now",
-        "laptop",
         "normal",
         "clone.branch_created",
+        "proj",
+        "laptop",
         str(repo),
         "feature",
         "from",

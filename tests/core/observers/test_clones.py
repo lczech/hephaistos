@@ -239,7 +239,7 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
     assert (_kinds(result), result.updated) == (["worktree.removed"], 1)
     with read_session(paths) as session:
         assert clones.find(session, repo).worktrees == ()
-        assert subjects.labels(session, result.events) == {first.id: tmp_path / "moved"}
+        assert subjects.paths(session, result.events) == {first.id: tmp_path / "moved"}
 
 
 @needs_git(2, 48)

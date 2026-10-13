@@ -11,6 +11,7 @@ import socket
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, TypedDict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -65,6 +66,7 @@ class InfoJson(TypedDict):
     version: str
     api: ApiVersionJson
     machine: Ref
+    home: str  # this user's home directory here, so clients can show paths as `~/…`
 
 
 def _not_found(what: str, entity_id: uuid.UUID) -> HTTPException:
@@ -89,6 +91,7 @@ def info(paths: PathsOf, request: Request) -> InfoJson:
         version=cast("str", request.app.state.version),
         api=ApiVersionJson(major=API_VERSION.major, minor=API_VERSION.minor),
         machine=Ref(id=str(machine.id), name=machine.name),
+        home=str(Path.home()),
     )
 
 

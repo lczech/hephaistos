@@ -15,7 +15,12 @@ describe("Event texts", () => {
 
   it("fall back to short IDs for subjects and Machines without names", () => {
     const unnamed = event(1, {
-      subject: { id: "0199e000-0000-7000-8000-0000deadbeef", type: "clone", label: null },
+      subject: {
+        id: "0199e000-0000-7000-8000-0000deadbeef",
+        type: "clone",
+        name: null,
+        path: null,
+      },
       recorded_by: { id: "0199e000-0000-7000-8000-00000000feed", name: null },
     });
     expect(subjectText(unnamed)).toBe("deadbeef");

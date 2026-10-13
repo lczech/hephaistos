@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 2
+    "minor": 3
   },
   "shapes": {
     "components": {
@@ -352,9 +352,35 @@
           "title": "DaemonJson",
           "type": "object"
         },
+        "DetailJson": {
+          "description": "A field of an Event's payload, as text.",
+          "properties": {
+            "field": {
+              "title": "Field",
+              "type": "string"
+            },
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "field",
+            "text"
+          ],
+          "title": "DetailJson",
+          "type": "object"
+        },
         "EventJson": {
           "description": "An Event.",
           "properties": {
+            "details": {
+              "items": {
+                "$ref": "#/components/schemas/DetailJson"
+              },
+              "title": "Details",
+              "type": "array"
+            },
             "id": {
               "title": "Id",
               "type": "string"
@@ -401,6 +427,16 @@
             "recorded_by": {
               "$ref": "#/components/schemas/Ref"
             },
+            "repository": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Ref"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "subject": {
               "$ref": "#/components/schemas/SubjectRef"
             },
@@ -417,7 +453,9 @@
             "priority",
             "kind",
             "subject",
+            "repository",
             "summary",
+            "details",
             "payload",
             "key"
           ],
@@ -443,6 +481,10 @@
             "api": {
               "$ref": "#/components/schemas/ApiVersionJson"
             },
+            "home": {
+              "title": "Home",
+              "type": "string"
+            },
             "machine": {
               "$ref": "#/components/schemas/Ref"
             },
@@ -454,7 +496,8 @@
           "required": [
             "version",
             "api",
-            "machine"
+            "machine",
+            "home"
           ],
           "title": "InfoJson",
           "type": "object"
@@ -975,13 +1018,13 @@
           "type": "object"
         },
         "SubjectRef": {
-          "description": "What an Event is about: its ID, type (`clone`), and name or path if known.",
+          "description": "What an Event is about: its ID, type (`clone`), and its name or its path, if known.",
           "properties": {
             "id": {
               "title": "Id",
               "type": "string"
             },
-            "label": {
+            "name": {
               "anyOf": [
                 {
                   "type": "string"
@@ -990,7 +1033,18 @@
                   "type": "null"
                 }
               ],
-              "title": "Label"
+              "title": "Name"
+            },
+            "path": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
             },
             "type": {
               "title": "Type",
@@ -1000,7 +1054,8 @@
           "required": [
             "id",
             "type",
-            "label"
+            "name",
+            "path"
           ],
           "title": "SubjectRef",
           "type": "object"

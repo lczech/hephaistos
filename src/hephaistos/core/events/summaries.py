@@ -61,17 +61,40 @@ def _path_change_text(change: object) -> str:
     )
 
 
-def summary(event: Event) -> str:
-    """What an Event's payload says, in short: the CLI's `event list` and the API show it.
+def summary(event: Event, width: int | None = None) -> str:
+    """What an Event's payload says, in short, as `event list` and the API show it.
 
-    Empty for kinds this version doesn't know, and where the subject says it all.
+    Empty for kinds this version doesn't know, and where the subject says it all. A `width`
+    shortens it to fit, keeping a commit's hash at the end.
     """
     try:
         kind = EventKind(event.kind)
     except ValueError:
         return ""
     fields = payload_fields(event.payload)
-    return value_text(event.payload) if fields is None else _summary(kind, fields)
+    if fields is None:
+        text, ending = value_text(event.payload), ""
+    else:
+        text, ending = _summary(kind, fields), _ending(kind, fields)
+    if width is not None and len(text) + len(ending) > width:
+        text = f"{text[: max(width - len(ending) - 1, 0)]}…"
+    return text + ending
+
+
+def _ending(kind: EventKind, payload: dict[str, object]) -> str:
+    """What a summary keeps when shortened: a commit's hash, and how it was made if unusual."""
+    if kind not in {EventKind.CLONE_COMMITTED, EventKind.WORKTREE_COMMITTED}:
+        return ""
+    commit, how = _commit_text(_field(payload, "head", "new")), _field(payload, "how")
+    return f" ({commit})" if how == "commit" else f" ({commit}, {value_text(how)})"
+
+
+def details(event: Event) -> list[tuple[str, str]]:
+    """An Event's payload as text, field by field, as `event show` shows it."""
+    fields = payload_fields(event.payload)
+    if fields is None:  # e.g. from another version: shown whole
+        return [("payload", value_text(event.payload))]
+    return [(key, payload_text(value)) for key, value in fields.items()]
 
 
 def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901, PLR0911, PLR0912 - one case per kind
@@ -126,9 +149,7 @@ def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901,
             display = field("display_path")
             return _path_change_text(display if _given(display) else field("resolved_path"))
         case EventKind.CLONE_COMMITTED | EventKind.WORKTREE_COMMITTED:
-            how = field("how")
-            suffix = "" if how == "commit" else f" ({value_text(how)})"
-            return f"{_commit_text(field('head', 'new'))} {value_text(field('subject'))}{suffix}"
+            return value_text(field("subject"))  # the hash and how: `_ending`
         case EventKind.CLONE_MERGED | EventKind.WORKTREE_MERGED:
             source = field("source")
             merged = value_text(source) if _given(source) else _commit_text(field("head", "new"))

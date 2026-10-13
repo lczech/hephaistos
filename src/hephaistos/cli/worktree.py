@@ -156,7 +156,7 @@ def show(
             note_observed(observer.observe(paths), f"no Worktree named {target} was known")
     with read_session(paths) as session:
         worktree, details = find_worktree(session, target)
-        observers = machines.labels(session, [worktree.observed_by])
+        observers = machines.names(session, [worktree.observed_by])
     if as_json:
         print_json(serialize.worktree_json(worktree, details, observers))
         return

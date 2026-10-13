@@ -136,6 +136,6 @@ def local_setup(session: ReadSession, paths: Paths) -> LocalSetup:
     )
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
-    """How to show these Machines in place of their IDs: by name."""
-    return records.labels(session, Table.REGISTRY_MACHINES, "name", ids)
+def names(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """These Machines' names."""
+    return records.column_values(session, Table.REGISTRY_MACHINES, "name", ids)

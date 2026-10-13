@@ -56,6 +56,7 @@ def test_info(client: TestClient) -> None:
     major, minor = serialize.API_VERSION
     assert info["api"] == {"major": major, "minor": minor}
     assert info["machine"]["name"] == "laptop"
+    assert info["home"] == str(Path.home())
 
 
 def test_needs_the_token(

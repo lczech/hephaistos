@@ -39,7 +39,12 @@ export function secondsAgo(value: number): string {
 }
 
 export function info(api = builtFor()): Schemas["InfoJson"] {
-  return { version: "0.1.0 (abc1234)", api, machine: { id: "01", name: "laptop" } };
+  return {
+    version: "0.1.0 (abc1234)",
+    api,
+    machine: { id: "01", name: "laptop" },
+    home: "/home/me",
+  };
 }
 
 export function daemon(): Schemas["DaemonJson"] {
@@ -86,9 +91,12 @@ export function event(n: number, fields: Partial<Schemas["EventJson"]> = {}): Sc
     subject: {
       id: "0199e000-0000-7000-8000-00000000cccc",
       type: "clone",
-      label: "/home/me/project",
+      name: null,
+      path: "/home/me/project",
     },
-    summary: `abc${n} Commit number ${n}`,
+    repository: { id: "0199e000-0000-7000-8000-00000000dddd", name: "project" },
+    summary: `Commit number ${n} (abc${n})`,
+    details: [],
     payload: {},
     key: null,
     ...fields,
