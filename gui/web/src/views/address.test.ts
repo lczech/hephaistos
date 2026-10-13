@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressText, panelAddress, panelId, parseAddress } from "./address";
+import { addressText, asAddress, parseAddress } from "./address";
 
 describe("addresses", () => {
   it("are the kind, with parameters sorted", () => {
@@ -22,16 +22,17 @@ describe("addresses", () => {
   });
 });
 
-describe("Panel IDs", () => {
-  const file = { kind: "file", params: { path: "/notes~2" } };
-
-  it("are the address, then which Panel showing it", () => {
-    expect(panelId(file)).toBe("file?path=%2Fnotes%7E2");
-    expect(panelId(file, 2)).toBe("file?path=%2Fnotes%7E2~2");
+describe("saved addresses", () => {
+  it("are kept as they were", () => {
+    const address = { kind: "events", params: { since: "1d" } };
+    expect(asAddress(JSON.parse(JSON.stringify(address)))).toEqual(address);
   });
 
-  it("give the address back", () => {
-    expect(panelAddress(panelId(file))).toEqual(file);
-    expect(panelAddress(panelId(file, 2))).toEqual(file);
+  it("aren't anything else", () => {
+    for (const saved of [undefined, "events", { kind: "Events", params: {} }, { kind: "events" }]) {
+      expect(asAddress(saved)).toBeNull();
+    }
+    expect(asAddress({ kind: "events", params: { since: 1 } })).toBeNull();
+    expect(asAddress({ kind: "events", params: ["1d"] })).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ export interface Address {
   params: Record<string, string>;
 }
 
-const INSTANCE = "~"; // a Panel's ID: the address, then `~2` for a second Panel showing it
+const KIND = /^[a-z][a-z-]*$/;
 
 /** An address as text, its parameters sorted, so one View has exactly one. */
 export function addressText({ kind, params }: Address): string {
@@ -14,16 +14,16 @@ export function addressText({ kind, params }: Address): string {
 
 export function parseAddress(text: string): Address | null {
   const [kind = "", query = ""] = text.split(/\?(.*)/s);
-  if (!/^[a-z][a-z-]*$/.test(kind)) return null;
+  if (!KIND.test(kind)) return null;
   return { kind, params: Object.fromEntries(new URLSearchParams(query)) };
 }
 
-/** The ID of a Panel showing this address; a second Panel showing it gets instance 2. */
-export function panelId(address: Address, instance = 1): string {
-  const text = addressText(address);
-  return instance === 1 ? text : `${text}${INSTANCE}${instance}`;
-}
-
-export function panelAddress(id: string): Address | null {
-  return parseAddress(id.replace(new RegExp(`${INSTANCE}\\d+$`), ""));
+/** The address in something saved, e.g. a Panel's parameters, if it holds one. */
+export function asAddress(value: unknown): Address | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { kind, params } = value as Record<string, unknown>;
+  if (typeof kind !== "string" || !KIND.test(kind)) return null;
+  if (typeof params !== "object" || params === null || Array.isArray(params)) return null;
+  if (!Object.values(params).every((param) => typeof param === "string")) return null;
+  return { kind, params: params as Address["params"] };
 }

@@ -1,7 +1,7 @@
 import type { SerializedDockview } from "dockview-react";
 
 const KEY = "hephaistos.layout";
-const FORMAT = 1; // a saved Layout in another format is dropped for the default one
+const FORMAT = 2; // a saved Layout in another format is dropped for the default one
 
 interface Saved {
   format: number;

@@ -15,7 +15,7 @@ describe("the saved Layout", () => {
   });
 
   it("is dropped in another format, or unreadable", () => {
-    for (const saved of ['{"format": 2, "dock": {}}', '{"format": 1}', "not json"]) {
+    for (const saved of ['{"format": 1, "dock": {}}', '{"format": 2}', "not json"]) {
       localStorage.setItem("hephaistos.layout", saved);
       expect(savedLayout()).toBeNull();
     }
