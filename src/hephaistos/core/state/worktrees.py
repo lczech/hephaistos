@@ -27,7 +27,7 @@ from hephaistos.core.state.checkouts import (
 from hephaistos.core.utils import git
 from hephaistos.core.utils.ids import Timestamp, new_id
 
-#: The columns of `state_worktrees`, decoded for raw views.
+#: The columns of `state_worktrees`, decoded for raw listings.
 DECODERS = checkouts.DECODERS | {
     "id": values.uuid_bytes,
     "clone_id": values.uuid_bytes,

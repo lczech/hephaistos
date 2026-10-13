@@ -13,8 +13,8 @@ from typing import cast
 import pytest
 
 from hephaistos.core.registry import machines
+from hephaistos.core.serialize import API_VERSION, ApiVersion
 from hephaistos.core.utils.paths import Paths
-from hephaistos.core.views import API_VERSION, ApiVersion
 from support import openapi
 
 SNAPSHOT = Path(__file__).with_name("api.json")

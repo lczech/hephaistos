@@ -17,7 +17,7 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 
-#: The columns of `registry_repositories`, decoded for raw views.
+#: The columns of `registry_repositories`, decoded for raw listings.
 DECODERS = records.DECODERS | {
     "name": values.plain,
 }

@@ -21,9 +21,9 @@ from starlette.exceptions import HTTPException
 
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
+from hephaistos.core.serialize import API_VERSION
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from hephaistos.core.views import API_VERSION
 from hephaistos.daemon.server import api, web
 from hephaistos.daemon.server.api import Observe
 from hephaistos.daemon.server.token import TokenFile, matches

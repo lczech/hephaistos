@@ -20,7 +20,7 @@ from hephaistos.cli.output import (
     time_formatter,
 )
 from hephaistos.cli.worktree import find_worktree
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.events import events, subjects
@@ -133,7 +133,7 @@ def print_events(
 ) -> None:
     """Prints Events as `event list` does, naming their subjects and Machines."""
     if as_json:
-        print_json(views.events_json(session, listed))
+        print_json(serialize.events_json(session, listed))
         return
     labels = subjects.labels(session, listed)
     names = machines.labels(session, {event.recorded_by for event in listed})
@@ -319,7 +319,7 @@ def show(
     with read_session(Paths.from_environment()) as session:
         event = events.by_short_id(session, event_id)
         if as_json:
-            print_json(views.events_json(session, [event])[0])
+            print_json(serialize.events_json(session, [event])[0])
             return
         labels = subjects.labels(session, [event])
         names = machines.labels(session, [event.recorded_by])

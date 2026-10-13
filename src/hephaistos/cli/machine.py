@@ -11,7 +11,7 @@ from hephaistos.cli.output import (
     short_path,
     time_formatter,
 )
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
@@ -40,7 +40,7 @@ def list_(*, as_json: JsonOption = False) -> None:
     """List the Machines; `*` marks this one."""
     with read_session(Paths.from_environment()) as session:
         if as_json:
-            print_json(views.machines_json(session))
+            print_json(serialize.machines_json(session))
             return
         found = [(machine, mounts_of(session, machine.id)) for machine in machines.listing(session)]
         this_id = session.machine_id
@@ -71,7 +71,7 @@ def show(
         setup = machines.local_setup(session, paths) if this else None
 
     if as_json:
-        print_json(views.machine_json(machine, mounts, this=this, setup=setup))
+        print_json(serialize.machine_json(machine, mounts, this=this, setup=setup))
         return
     formatted = time_formatter(time_format, TimeFormat.FULL)
     print_fields(

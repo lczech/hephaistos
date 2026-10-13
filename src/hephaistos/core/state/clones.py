@@ -27,7 +27,7 @@ from hephaistos.core.state.checkouts import (
 from hephaistos.core.utils import git
 from hephaistos.core.utils.ids import Timestamp
 
-#: The columns of `state_clones`, decoded for raw views.
+#: The columns of `state_clones`, decoded for raw listings.
 DECODERS = checkouts.DECODERS | {
     "clone_id": values.uuid_bytes,
     "bare": values.plain,

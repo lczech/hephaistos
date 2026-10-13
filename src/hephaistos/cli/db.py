@@ -17,7 +17,7 @@ from hephaistos.cli.output import (
     print_table,
     time_formatter,
 )
-from hephaistos.core import views
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import read_session
@@ -72,10 +72,10 @@ def tables(*, time_format: TimeFormatOption = None, as_json: JsonOption = False)
     """List the database's tables, with their row counts and latest changes."""
     with read_session(Paths.from_environment(), check_schema=False) as session:
         if as_json:
-            print_json(views.tables_json(session))
+            print_json(serialize.tables_json(session))
             return
         found = raw.tables(session)
-        _warn(views.db_warnings(session, found))
+        _warn(serialize.db_warnings(session, found))
     text = value_text(time_format)
     print_table(
         ["table", "category", "rows", "latest"],
@@ -136,10 +136,10 @@ def dump(  # noqa: PLR0913 - one option per choice
     """Show a table's rows, newest first, with IDs, times and JSON decoded."""
     with read_session(Paths.from_environment(), check_schema=False) as session:
         if as_json:
-            print_json(views.rows_json(session, table, column or (), limit or None, offset))
+            print_json(serialize.rows_json(session, table, column or (), limit or None, offset))
             return
         found = raw.rows(session, table, column or (), limit or None, offset)
-        _warn(views.db_warnings(session))
+        _warn(serialize.db_warnings(session))
     text = value_text(time_format, short_ids=short_ids)
     rows = [[text(value) for value in row] for row in found.values]
     if not rows:

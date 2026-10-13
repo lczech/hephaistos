@@ -16,14 +16,14 @@ In docs, defined terms (Core terms, Components, Later) are capitalised, includin
 | **Branch** | A named line of commits, in the usual git sense. Each Clone has its own copies, which can diverge. Worktrees share their Clone's Branches. For now, a Branch is part of a Checkout's State: current Branch (or detached HEAD), ahead/behind its upstream, and whether the working tree is dirty. |
 | **Machine** | A computer where processes run, with its own copy of our data. Each login node or free node of a Cluster is its own Machine. |
 | **Filesystem** | A set of paths that resolve to the same files on every Machine that sees it. By default, each Machine has its own. A shared cluster filesystem is one Filesystem, seen by many Machines. |
-| **Cluster** | A named set of Machines, used only for grouping and filtering in views. A Machine may belong to several Clusters. |
+| **Cluster** | A named set of Machines, used only for grouping and filtering. A Machine may belong to several Clusters. |
 | **Link** | A declared sync connection: Machine A syncs with Machine B, reaching it via SSH target T. Directed: A opens the connection. Part of the Registry; its State (written by A) records the last attempt, last success and last error. All Machines and Links form the network. |
 | **Terminal** | A persistent shell on a Machine, with a stable ID. It survives closing the Terminal emulator that shows it. Kept alive by a terminals plugin (currently tmux). |
-| **Terminal emulator** | A program that displays a Terminal: an external app (e.g. GNOME Terminal, opened via a Launcher) or our embedded panel. Always written in full. |
+| **Terminal emulator** | A program that displays a Terminal: an external app (e.g. GNOME Terminal, opened via a Launcher) or our embedded one, in a Panel. Always written in full. |
 | **Provider** | Agent software, e.g. Claude Code or Codex. |
 | **Agent** | One instance of a Provider with its own conversation, ID and transcript. Attributes: Provider, Machine, working directory, front end (Terminal or editor extension), the Terminal it runs in (if any). It outlives its process (the transcript stays on disk and can be resumed). Attention state: working / waiting for input / ended / failed / unknown, marked as reported or inferred. |
 | **Launcher** | A way to open something (directory, files, Terminal, URL) in a tool on a Machine, in its graphical session. Categories: editor, file manager, Terminal emulator. |
-| **Event** | A timestamped fact about any entity. It records its origin Machine, how it was captured (Watcher, our own action, Provider hook), and whether it is reported or inferred. The inbox and summaries are views built from Events, not entities. |
+| **Event** | A timestamped fact about any entity. It records its origin Machine, how it was captured (Watcher, our own action, Provider hook), and whether it is reported or inferred. The inbox and summaries are built from Events; they are not entities. |
 | **State** | What is currently true on a Machine: Checkouts' git status, Worktrees, Terminals, Agents. Observed by that Machine's Watcher (or a CLI run); a newer reading replaces the older one. Qualify other uses ("attention state"). |
 | **Registry** | The user's declarations that no Machine can derive: Repositories, their Clones, Clusters, Links, inbox read position, settings. Any Machine may change it; synced between Peers. See [data ownership](decisions/001-data-ownership.md). |
 
@@ -46,8 +46,10 @@ Vocabulary used consistently, but not stored as entities.
 
 - **Directory**: any directory on a Filesystem. A Checkout is a directory.
 - **Working directory**: the directory a process (Terminal, Agent) runs in. It may lie inside a Checkout.
-- **View**: a page or component of the GUI showing entities, e.g. the Repository table.
-- **Panel**: a dockable area of the GUI that shows a view or a Terminal.
+- **View**: what a Panel shows: its kind (e.g. Daemon, Events, a Repository table, a Terminal) and parameters (e.g. which Terminal).
+- **Panel**: a tab in the GUI showing one View. It can be dragged into another Group, or beside one to split it.
+- **Group**: an area of the GUI's window showing one of its Panels at a time, chosen by their tabs. Groups lie side by side or stacked.
+- **Layout**: the arrangement of the GUI's Groups and Panels, kept between sessions.
 - **Token**: the secret a client sends to a Machine's Server; `hephaistos daemon token` shows it.
 
 ## Later

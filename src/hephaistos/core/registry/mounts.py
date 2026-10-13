@@ -12,7 +12,7 @@ from hephaistos.core.registry import records
 from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.records import Record
 
-#: The columns of `registry_mounts`, decoded for raw views.
+#: The columns of `registry_mounts`, decoded for raw listings.
 DECODERS = records.DECODERS | {
     "machine_id": values.uuid_bytes,
     "filesystem_id": values.uuid_bytes,

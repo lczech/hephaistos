@@ -27,7 +27,7 @@ from hephaistos.core.utils.paths import absolute, displayed, shell_path
 
 log = logging.getLogger(__name__)
 
-#: The columns of `registry_clones`, decoded for raw views.
+#: The columns of `registry_clones`, decoded for raw listings.
 DECODERS = records.DECODERS | {
     "repository_id": values.uuid_bytes,
     "filesystem_id": values.uuid_bytes,

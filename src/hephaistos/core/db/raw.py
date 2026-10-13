@@ -1,4 +1,4 @@
-"""Raw views: every table as stored, its values decoded as the module owning the table declares.
+"""Raw listings: every table as stored, its values decoded as the module owning the table declares.
 
 Works on outdated databases too: columns are read as they are, decoded by name where this version
 knows the name, and shown as stored otherwise.
