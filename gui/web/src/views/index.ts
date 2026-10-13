@@ -3,11 +3,17 @@ import type { Address } from "./address";
 import { DaemonView } from "./daemon/DaemonView";
 import { EventsView } from "./events/EventsView";
 
+/** What a View gets: its parameters, and a way to show others instead, e.g. when filtered. */
+export interface ViewProps {
+  params: Address["params"];
+  setParams: (params: Address["params"]) => void;
+}
+
 /** A kind of View: how to show it, and what its tab says. */
 export interface ViewKind {
   name: string;
   title?: (params: Address["params"]) => string; // the tab's, if not just the name
-  component: ComponentType<{ params: Address["params"] }>;
+  component: ComponentType<ViewProps>;
   suggested?: boolean; // offered in an empty Group
 }
 

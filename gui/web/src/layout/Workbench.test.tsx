@@ -2,14 +2,20 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
+import { VIEWS, type ViewProps } from "../views";
+import { addressText } from "../views/address";
 import { savedLayout } from "./saved";
 import { Workbench } from "./Workbench";
 
-/** A saved Layout: one Group holding these Panels, by ID. */
-function save(...ids: string[]): void {
+/** A saved Layout: one Group holding a Panel for each of these kinds of View. */
+function save(...kinds: string[]): void {
   const panels = Object.fromEntries(
-    ids.map((id) => [id, { id, contentComponent: "view", title: id }]),
+    kinds.map((kind, i) => {
+      const id = `${i}`;
+      return [id, { id, contentComponent: "view", title: kind, params: { kind, params: {} } }];
+    }),
   );
+  const ids = Object.keys(panels);
   const leaf = { type: "leaf", data: { views: ids, activeView: ids[0], id: "1" }, size: 800 };
   const grid = {
     root: { type: "branch", data: [leaf], size: 600 },
@@ -17,7 +23,17 @@ function save(...ids: string[]): void {
     height: 600,
     orientation: "HORIZONTAL",
   };
-  localStorage.setItem("hephaistos.layout", JSON.stringify({ format: 1, dock: { grid, panels } }));
+  localStorage.setItem("hephaistos.layout", JSON.stringify({ format: 2, dock: { grid, panels } }));
+}
+
+const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
+/** A View showing its address, which narrows it to the last hour when clicked. */
+function Probe({ params, setParams }: ViewProps) {
+  return (
+    <button type="button" onClick={() => setParams({ since: "1h" })}>
+      {addressText({ kind: "probe", params })}
+    </button>
+  );
 }
 
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
@@ -32,7 +48,12 @@ describe("the Workbench", () => {
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
     expect(tabs()).toEqual(["Daemon", "Events"]);
-    await waitFor(() => expect(savedLayout()?.panels).toHaveProperty("daemon"));
+    await waitFor(() =>
+      expect(savedViews()).toEqual([
+        { kind: "daemon", params: {} },
+        { kind: "events", params: {} },
+      ]),
+    );
   });
 
   it("restores the saved Layout, saying which Views no longer exist", async () => {
@@ -43,7 +64,7 @@ describe("the Workbench", () => {
   });
 
   it("starts anew from a Layout it can't restore", () => {
-    localStorage.setItem("hephaistos.layout", '{"format": 1, "dock": {"grid": 5}}');
+    localStorage.setItem("hephaistos.layout", '{"format": 2, "dock": {"grid": 5}}');
     renderWithQueries(<Workbench />);
     expect(tabs()).toEqual(["Daemon", "Events"]);
   });
@@ -54,6 +75,22 @@ describe("the Workbench", () => {
     const [, inEvents] = screen.getAllByRole("button", { name: "Daemon", hidden: true });
     await userEvent.click(inEvents as HTMLElement);
     expect(tabs()).toEqual(["Daemon", "Events"]);
+  });
+
+  it("lets a View show other parameters in its Panel, and saves them", async () => {
+    VIEWS.probe = { name: "Probe", title: ({ since }) => `Probe, ${since}`, component: Probe };
+    try {
+      save("probe");
+      renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "probe" }));
+      expect(screen.getByRole("button", { name: "probe?since=1h" })).toBeInTheDocument();
+      expect(tabs()).toEqual(["Probe, 1h"]);
+      await waitFor(() =>
+        expect(savedViews()).toEqual([{ kind: "probe", params: { since: "1h" } }]),
+      );
+    } finally {
+      delete VIEWS.probe;
+    }
   });
 
   it("offers Views in an empty Group", async () => {
