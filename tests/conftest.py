@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -5,6 +6,10 @@ import pytest
 
 from hephaistos.core import config
 from hephaistos.core.utils.paths import Paths
+
+# Typer reads this when it first formats output: plain text, even where GITHUB_ACTIONS or
+# FORCE_COLOR would colour usage errors and help.
+os.environ["_TYPER_FORCE_DISABLE_TERMINAL"] = "1"
 
 
 @pytest.fixture(autouse=True)
