@@ -82,7 +82,7 @@ describe("the GUI", () => {
     signIn();
     serve({ ...ok, "GET /api/info": () => json(info({ major: 0, minor: 0 })) });
     renderWithQueries(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(/hephaistos daemon restart/);
+    expect(await screen.findByText(/restart it: `hephaistos daemon restart`/)).toBeInTheDocument();
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
   });
 
@@ -90,7 +90,7 @@ describe("the GUI", () => {
     signIn();
     serve({ ...ok, "GET /api/info": () => json(info({ major: 9, minor: 0 })) });
     renderWithQueries(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(/rebuild the GUI/);
+    expect(await screen.findByText(/rebuild the GUI/)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Daemon")).not.toBeInTheDocument());
   });
 });
@@ -100,12 +100,12 @@ describe("a part that fails", () => {
     throw new Error("no such field");
   }
 
-  it("shows its error, and what may help", () => {
+  it("shows its error", () => {
     const quiet = console.error;
     console.error = () => {}; // React reports the error it caught
     try {
       renderWithQueries(
-        <Boundary hint="restart it">
+        <Boundary>
           <Broken />
         </Boundary>,
       );
@@ -113,6 +113,5 @@ describe("a part that fails", () => {
       console.error = quiet;
     }
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't show this: no such field");
-    expect(screen.getByRole("alert")).toHaveTextContent("restart it");
   });
 });

@@ -1,20 +1,10 @@
-.card {
-  max-width: 48rem;
+.view {
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
   transition: opacity 0.2s;
 }
 
-.card[data-stale] {
+.view[data-stale] {
   opacity: 0.6;
-}
-
-.title {
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-large);
-  font-weight: 600;
 }
 
 .fields {

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",
+    "dockview-react": "8.5.1",
     "openapi-fetch": "0.17.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

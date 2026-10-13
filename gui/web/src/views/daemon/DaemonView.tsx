@@ -1,18 +1,17 @@
-import { useDaemon, useObserve } from "../api/queries";
-import { useNow } from "../useNow";
-import styles from "./DaemonCard.module.css";
+import { useDaemon, useObserve } from "../../api/queries";
+import { useNow } from "../../useNow";
+import styles from "./DaemonView.module.css";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 
 /** How this Machine's Daemon is doing, as `hephaistos daemon status` shows it. */
-export function DaemonCard() {
+export function DaemonView() {
   const daemon = useDaemon();
   const observing = useObserve();
   const now = useNow();
   if (daemon.data === undefined) {
     const text = daemon.isError ? `No answer: ${daemon.error.message}` : "Asking the Daemon…";
     return (
-      <section className={styles.card}>
-        <h2 className={styles.title}>Daemon</h2>
+      <section className={styles.view}>
         <p className={styles.quiet}>{text}</p>
       </section>
     );
@@ -25,8 +24,7 @@ export function DaemonCard() {
     ["Server", serverText(server, now)],
   ];
   return (
-    <section className={styles.card} data-stale={daemon.isError || undefined}>
-      <h2 className={styles.title}>Daemon</h2>
+    <section className={styles.view} data-stale={daemon.isError || undefined}>
       <dl className={styles.fields}>
         {rows.map(([label, text]) => (
           <div key={label} className={styles.field}>
