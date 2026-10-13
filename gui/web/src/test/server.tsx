@@ -27,9 +27,10 @@ export function serve(routes: Record<string, Route>): Request[] {
   return requests;
 }
 
+/** Renders with a fresh query client, which it also returns, to refresh by hand. */
 export function renderWithQueries(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return { ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>), client };
 }
 
 export const NOW = Date.parse("2026-10-13T12:00:00Z");

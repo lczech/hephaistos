@@ -1,6 +1,7 @@
 // Events as `hephaistos event list` shows them.
 
 import type { Schemas } from "../../api/client";
+import { shortPath } from "../../paths";
 
 type Event = Schemas["EventJson"];
 
@@ -16,9 +17,15 @@ export function shortId(id: string): string {
   return id.replaceAll("-", "").slice(-8);
 }
 
-/** The Event's subject: its name or path, else its short ID. */
-export function subjectText({ subject }: Event): string {
-  return subject.name ?? subject.path ?? shortId(subject.id);
+/** The Event's subject: its name, its path (home as `~`), else its short ID. */
+export function subjectText({ subject }: Event, home: string | undefined): string {
+  if (subject.name !== null) return subject.name;
+  return subject.path === null ? shortId(subject.id) : shortPath(subject.path, home);
+}
+
+/** The Repository of the Event's subject, if it has one: its name, else its short ID. */
+export function repositoryText({ repository }: Event): string {
+  return repository === null ? "" : (repository.name ?? shortId(repository.id));
 }
 
 /** The Machine that recorded the Event: its name, else its short ID. */

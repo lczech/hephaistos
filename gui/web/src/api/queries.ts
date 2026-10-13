@@ -23,6 +23,14 @@ export function useDaemon() {
   });
 }
 
+export function useMachines() {
+  return useQuery({
+    queryKey: ["machines"],
+    queryFn: async () => unwrap(await api.GET("/api/machines")),
+    refetchInterval: 60_000, // Machines come and go rarely
+  });
+}
+
 export const EVENTS_PAGE = 50;
 
 /** Events, newest first; each further page goes back from the oldest so far. */
