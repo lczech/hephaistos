@@ -27,8 +27,8 @@ interface Props {
 }
 
 /**
- * A column's header: its label, and its filter if it has one, saying what it is set to and
- * opening the choices; its edge resizes the column.
+ * A column's header: its label, saying what its filter is set to, and at its end a funnel
+ * opening the filter's choices, if it has one; its edge resizes the column.
  */
 export function ColumnHeader({ header, choices = [], children }: Props) {
   const { column } = header;
@@ -45,25 +45,24 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
       data-filterable={filter !== undefined || undefined}
       data-filtered={text !== undefined || undefined}
     >
-      {filter === undefined ? (
-        <span className={styles.label}>{children}</span>
-      ) : (
+      {children !== undefined && (
+        <span className={styles.label} title={text}>
+          {children}
+          {text !== undefined && `: ${text}`}
+        </span>
+      )}
+      {filter !== undefined && (
         <>
           <button
             type="button"
             className={styles.filter}
             popoverTarget={id}
-            onClick={(event) => placeBelow(menu.current, event.currentTarget, "left")}
+            // Below the whole header, so the choices line up with their column.
+            onClick={(event) => placeBelow(menu.current, event.currentTarget.parentElement, "left")}
             aria-label={`Filter by ${column.id}`}
             title={text === undefined ? `Filter by ${column.id}` : `${column.id}: ${text}`}
           >
-            {children !== undefined && (
-              <span className={styles.label}>
-                {children}
-                {text !== undefined && `: ${text}`}
-              </span>
-            )}
-            <Funnel className={styles.funnel} aria-hidden="true" />
+            <Funnel aria-hidden="true" />
           </button>
           <div id={id} ref={menu} popover="auto" className={`${popover.menu} ${styles.menu}`}>
             {filter.many === undefined ? (

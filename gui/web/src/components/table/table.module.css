@@ -19,66 +19,76 @@
 }
 
 .header {
-  position: relative; /* for the resizer */
+  position: relative; /* for the funnel and the resizer */
   display: flex;
   min-width: 0;
 }
 
 .label {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* A header that filters: all of it opens the choices, its funnel at its end. */
-.filter {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1);
-  min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.header:hover .filter,
-.filter:focus-visible,
-.header[data-filtered] .filter {
+.header[data-filtered] .label {
   color: var(--text);
 }
 
-.funnel {
-  flex: none;
+/* The funnel opens a header's filter. It floats over the label's end, which keeps its width. */
+.filter {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  border: none;
+  background: linear-gradient(to right, transparent, var(--background) var(--space-2));
+  color: inherit;
+  cursor: pointer;
+  opacity: 0; /* not hidden: the keyboard still reaches it */
+}
+
+/* Without a label, it is the header's middle. */
+.filter:first-child {
+  position: static;
+  margin-inline: auto;
+  padding: 0 var(--space-1);
+  background: none;
+}
+
+.filter svg {
   width: 0.85em;
   height: 0.85em;
-  visibility: hidden;
+  translate: 0 -1px; /* on the text's middle, which is above its line's */
 }
 
-/* Without a label, in the middle. */
-.funnel:only-child {
-  margin-inline: auto;
-}
-
-/* Funnels show on hovering their header, where a filter is set, and where nothing hovers. */
-.header:hover .funnel,
-.filter:focus-visible .funnel,
-.header[data-filtered] .funnel {
-  visibility: visible;
+/* It shows on hovering its header, with a filter set, and where nothing hovers. */
+.header:hover .filter,
+.filter:focus-visible,
+.header[data-filtered] .filter {
+  opacity: 1;
 }
 
 @media (hover: none) {
-  .funnel {
-    visibility: visible;
+  .filter {
+    opacity: 1;
   }
 }
 
-.header[data-filtered] .funnel {
+.filter:hover,
+.filter:focus-visible {
+  color: var(--text);
+}
+
+.header[data-filtered] .filter {
   color: var(--accent);
+}
+
+.header[data-filtered] .filter svg {
   fill: currentcolor;
 }
 

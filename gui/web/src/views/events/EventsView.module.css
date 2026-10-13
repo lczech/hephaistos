@@ -38,10 +38,6 @@
   color: var(--text-muted);
 }
 
-.head > [data-column="priority"] {
-  justify-content: center;
-}
-
 .rows {
   margin: 0;
   padding: 0;
@@ -65,6 +61,11 @@
 .clear svg {
   width: 1em;
   height: 1em;
+}
+
+/* The priority's funnel, in line with the chevrons below it; up like every funnel. */
+.head > [data-column="priority"] svg {
+  translate: 1px -1px;
 }
 
 /* The priority's square, tinted beside the row and its details. */
@@ -204,9 +205,16 @@
     display: none;
   }
 
+  /* Nothing is cut off here: the funnels come after their labels. */
+  .head > span > button {
+    position: static;
+    padding: 0 var(--space-1);
+    background: none;
+  }
+
   /* The priority's has no label: here it would be a gap that nobody finds. */
-  .head > [data-column="priority"] svg {
-    visibility: visible;
+  .head > [data-column="priority"] button {
+    opacity: 1;
   }
 
   .clear {
