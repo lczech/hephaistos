@@ -27,10 +27,14 @@ function save(...kinds: string[]): void {
 }
 
 const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
-/** A View showing its address, which narrows it to the last hour when clicked. */
-function Probe({ params, setParams }: ViewProps) {
+/** A View showing its address, which narrows it to the last hour when clicked, and says so. */
+function Probe({ params, setParams, setTitle }: ViewProps) {
+  const narrow = () => {
+    setParams({ since: "1h" });
+    setTitle("Probe, 1h");
+  };
   return (
-    <button type="button" onClick={() => setParams({ since: "1h" })}>
+    <button type="button" onClick={narrow}>
       {addressText({ kind: "probe", params })}
     </button>
   );
@@ -77,8 +81,8 @@ describe("the Workbench", () => {
     expect(tabs()).toEqual(["Daemon", "Events"]);
   });
 
-  it("lets a View show other parameters in its Panel, and saves them", async () => {
-    VIEWS.probe = { name: "Probe", title: ({ since }) => `Probe, ${since}`, component: Probe };
+  it("lets a View show other parameters in its Panel and name its tab, and saves both", async () => {
+    VIEWS.probe = { name: "Probe", component: Probe };
     try {
       save("probe");
       renderWithQueries(<Workbench />);

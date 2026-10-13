@@ -1,8 +1,15 @@
 // What the GUI asks the Server, kept fresh by polling while the page is visible.
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 import { api, unwrap } from "./client";
+import type { paths } from "./schema";
 
 export const POLL_INTERVAL = 5_000;
 export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus
@@ -31,21 +38,48 @@ export function useMachines() {
   });
 }
 
+export function useRepositories() {
+  return useQuery({
+    queryKey: ["repositories"],
+    queryFn: async () => unwrap(await api.GET("/api/repositories")),
+    refetchInterval: 60_000, // as rarely as Machines
+  });
+}
+
+/** The kinds of Events the Daemon records: the same until it is another version. */
+export function useEventKinds() {
+  return useQuery({
+    queryKey: ["events", "kinds"],
+    queryFn: async () => unwrap(await api.GET("/api/events/kinds")),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 export const EVENTS_PAGE = 50;
 
-/** Events, newest first; each further page goes back from the oldest so far. */
-export function useEvents() {
+/** What `/api/events` filters by, as `hephaistos event list` does. */
+export type EventFilters = Omit<
+  NonNullable<paths["/api/events"]["get"]["parameters"]["query"]>,
+  "limit" | "before"
+>;
+
+/**
+ * Events matching the filters, newest first; each further page goes back from the oldest so far.
+ * Other filters keep showing the Events of the ones before, until theirs arrive.
+ */
+export function useEvents(filters: EventFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["events"],
+    queryKey: ["events", "list", filters],
     queryFn: async ({ pageParam }) =>
       unwrap(
         await api.GET("/api/events", {
-          params: { query: { limit: EVENTS_PAGE, before: pageParam } },
+          params: { query: { ...filters, limit: EVENTS_PAGE, before: pageParam } },
         }),
       ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.length < EVENTS_PAGE ? undefined : page.at(-1)?.id),
     refetchInterval: POLL_INTERVAL,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -21,12 +21,10 @@
   display: grid;
   grid-template-columns: var(--columns);
   column-gap: var(--column-gap);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .head,
+.rows,
 .event,
 .row {
   display: grid;
@@ -35,12 +33,38 @@
 }
 
 .head {
+  position: relative; /* for clearing all filters, at its end */
   padding: 2px var(--space-3) 2px 0;
   color: var(--text-muted);
 }
 
-.head > * {
-  position: relative; /* for the resizer */
+.head > [data-column="priority"] {
+  justify-content: center;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clear {
+  position: absolute;
+  top: 0;
+  right: var(--space-2);
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--space-1);
+  border: none;
+  background: var(--background);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.clear svg {
+  width: 1em;
+  height: 1em;
 }
 
 /* The priority's square, tinted beside the row and its details. */
@@ -82,7 +106,6 @@
   outline-offset: -1px;
 }
 
-.label,
 .row > * {
   display: block;
   overflow: hidden;
@@ -167,8 +190,28 @@
     grid-template-columns: 1fr;
   }
 
+  /* The header in one line: only the columns that filter, without their widths. */
   .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    padding: 0 var(--space-3) var(--space-1) var(--space-2);
+    font-size: var(--text-small);
+  }
+
+  .head > span:not([data-filterable]),
+  .head hr {
     display: none;
+  }
+
+  /* The priority's has no label: here it would be a gap that nobody finds. */
+  .head > [data-column="priority"] svg {
+    visibility: visible;
+  }
+
+  .clear {
+    position: static;
+    margin-left: auto;
   }
 
   .row {

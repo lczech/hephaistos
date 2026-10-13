@@ -1,0 +1,11 @@
+/* A menu in the top layer; `placeBelow` puts it at its button. */
+.menu {
+  inset: auto;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+}
