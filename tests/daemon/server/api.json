@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 1
+    "minor": 2
   },
   "shapes": {
     "components": {
@@ -403,6 +403,10 @@
             },
             "subject": {
               "$ref": "#/components/schemas/SubjectRef"
+            },
+            "summary": {
+              "title": "Summary",
+              "type": "string"
             }
           },
           "required": [
@@ -413,6 +417,7 @@
             "priority",
             "kind",
             "subject",
+            "summary",
             "payload",
             "key"
           ],

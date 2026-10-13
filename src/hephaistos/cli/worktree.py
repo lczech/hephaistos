@@ -20,7 +20,6 @@ from hephaistos.cli.output import (
     print_fields,
     print_json,
     print_table,
-    short_path,
     time_formatter,
 )
 from hephaistos.core import serialize
@@ -32,7 +31,7 @@ from hephaistos.core.registry.clones import CloneDetails
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import short_id
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 
 app = typer.Typer(no_args_is_help=True, help="Worktrees: linked working trees of Clones.")
 

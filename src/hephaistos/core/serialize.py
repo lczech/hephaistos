@@ -17,7 +17,7 @@ from typing import Any, Literal, NamedTuple, TypedDict, cast
 from hephaistos.core import config
 from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import ReadSession
-from hephaistos.core.events import subjects
+from hephaistos.core.events import subjects, summaries
 from hephaistos.core.events.events import Event
 from hephaistos.core.events.subjects import Label
 from hephaistos.core.registry import clones, machines, repositories
@@ -42,7 +42,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 1)
+API_VERSION = ApiVersion(0, 2)
 
 
 class Ref(TypedDict):
@@ -190,6 +190,7 @@ class EventJson(TypedDict):
     priority: int
     kind: str
     subject: SubjectRef
+    summary: str  # what the payload says, in short; empty where the subject says it all
     payload: dict[str, Any]
     key: str | None
 
@@ -378,6 +379,7 @@ def event_json(
             type=event.subject_type,
             label=None if label is None else str(label),
         ),
+        summary=summaries.summary(event),
         payload=event.payload,
         key=None if event.key is None else event.key.hex(),
     )

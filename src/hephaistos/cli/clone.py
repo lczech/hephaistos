@@ -8,11 +8,9 @@ from hephaistos.cli import terminal
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
-    number_text,
     print_fields,
     print_json,
     print_table,
-    short_path,
     time_formatter,
 )
 from hephaistos.core import serialize
@@ -25,7 +23,8 @@ from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime, short_id
-from hephaistos.core.utils.paths import Paths, shell_path
+from hephaistos.core.utils.paths import Paths, shell_path, short_path
+from hephaistos.core.utils.text import number_text
 
 app = typer.Typer(no_args_is_help=True, help="Clones: git clones of Repositories.")
 

@@ -3,7 +3,6 @@
 import json
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -28,21 +27,6 @@ def parse_time(value: str, now: datetime, option: str = "--since") -> datetime:
         return times.parse_time(value, now)
     except ValueError as error:
         raise typer.BadParameter(str(error), param_hint=option) from None
-
-
-def number_text(count: int, noun: str, plural: str | None = None) -> str:
-    """`1 Clone`, `2 Clones`; `plural` for nouns not ending in `s` there."""
-    return f"{count} {noun if count == 1 else plural or noun + 's'}"
-
-
-def short_path(path: Path) -> str:
-    """The path with the home directory shortened to ~."""
-    home = Path.home()
-    if path == home:
-        return "~"
-    if path.is_relative_to(home):
-        return f"~/{path.relative_to(home)}"
-    return str(path)
 
 
 def full_time(value: datetime) -> str:

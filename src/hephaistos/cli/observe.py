@@ -4,11 +4,12 @@ from typing import Annotated, Literal
 import typer
 
 from hephaistos.cli.event import print_events
-from hephaistos.cli.output import TimeFormatOption, number_text
+from hephaistos.cli.output import TimeFormatOption
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones
 from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.text import number_text
 
 Target = Literal["clones"]
 

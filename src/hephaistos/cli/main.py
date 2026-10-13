@@ -23,13 +23,12 @@ from hephaistos.cli import (
     worktree,
 )
 from hephaistos.cli import config as config_command
-from hephaistos.cli.output import short_path
 from hephaistos.core import config
 from hephaistos.core.config import ConfigError
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import ForeignDirectoryError, Paths
+from hephaistos.core.utils.paths import ForeignDirectoryError, Paths, short_path
 from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 
 DEBUG_OPTION = "--debug"

@@ -6,13 +6,14 @@ import typer
 
 from hephaistos.cli import terminal
 from hephaistos.cli.clone import ImportHistoryOption
-from hephaistos.cli.output import number_text, print_table, short_path
+from hephaistos.cli.output import print_table
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import scan as scanning
 from hephaistos.core.registry.scan import Action, Planned
-from hephaistos.core.utils.paths import Paths, absolute
+from hephaistos.core.utils.paths import Paths, absolute, short_path
+from hephaistos.core.utils.text import number_text
 
 #: How the summary line counts what plans leave out.
 _QUIET = {

@@ -7,10 +7,10 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli.output import JsonOption, print_json, print_rows, short_path
+from hephaistos.cli.output import JsonOption, print_json, print_rows
 from hephaistos.core import config, serialize
 from hephaistos.core.config import Layer
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 
 app = typer.Typer(
     no_args_is_help=True,

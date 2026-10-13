@@ -398,6 +398,10 @@
           },
           "subject": {
             "$ref": "#/components/schemas/SubjectRef"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
           }
         },
         "required": [
@@ -408,6 +412,7 @@
           "priority",
           "kind",
           "subject",
+          "summary",
           "payload",
           "key"
         ],
@@ -1394,7 +1399,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.1"
+    "version": "0.2"
   },
   "openapi": "3.1.0",
   "paths": {

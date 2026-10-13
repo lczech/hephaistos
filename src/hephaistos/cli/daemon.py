@@ -15,16 +15,15 @@ from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
     chosen_time_format,
-    number_text,
     print_fields,
     print_json,
-    short_path,
     time_formatter,
 )
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import Paths, own_checkout
+from hephaistos.core.utils.paths import Paths, own_checkout, short_path
+from hephaistos.core.utils.text import number_text
 from hephaistos.daemon import report, unit
 from hephaistos.daemon import status as daemon_status
 from hephaistos.daemon.errors import NotStartedError
