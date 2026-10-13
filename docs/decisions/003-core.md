@@ -107,7 +107,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 ## Events
 
 - Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_created`), in past tense: they are facts, while requests (later, e.g. `terminal.open`) are imperative; the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
-- The subject is always an ID. `events/subjects.py` maps each subject type to its module, which labels its subjects (e.g. a Repository by its current name; deleted records keep theirs). Subjects of unknown types show their short ID.
+- The subject is always an ID. `events/subjects.py` maps each subject type to its module, which names its subjects (Machines, Filesystems and Repositories by name, e.g. a Repository's current one; Mounts, Clones and Worktrees by path; deleted records keep theirs) and finds their Repository. Subjects of unknown types show their short ID.
 - Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
 - Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
 - Conditions are facts about what one Machine sees. Git activity, and branches created or renamed, are facts about the repository, which several Machines may read on a shared Filesystem: they carry a `key` (16 bytes of SHA-256 over Clone, Worktree name, ref, git's time, and what changed). Others have none. With sync, an arriving Event whose key exists marks the one with the larger ID as a local `duplicate`, which listings leave out.

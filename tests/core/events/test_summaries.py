@@ -92,7 +92,7 @@ SUMMARIES: dict[EventKind, tuple[object, str]] = {
         "origin: null → git@host:a/b",
     ),
     EventKind.CLONE_BRANCH_RENAMED: (RenamedPayload(Change("old", "new")), "old → new"),
-    EventKind.CLONE_COMMITTED: (COMMITTED, "bbbbbbb Fix (amend)"),
+    EventKind.CLONE_COMMITTED: (COMMITTED, "Fix (bbbbbbb, amend)"),
     EventKind.CLONE_MERGED: (MERGED, "feature (fast-forward)"),
     EventKind.CLONE_PULLED: (PULLED, "rebase to bbbbbbb"),
     EventKind.CLONE_REBASED: (REBASED, "3 commits onto aaaaaaa"),
@@ -108,7 +108,7 @@ SUMMARIES: dict[EventKind, tuple[object, str]] = {
     EventKind.WORKTREE_FOUND: (WORKTREE, ""),
     EventKind.WORKTREE_FAILED: (FailedPayload(ID, Path("/w"), "timed out"), "timed out"),
     EventKind.WORKTREE_RECOVERED: (WORKTREE, ""),
-    EventKind.WORKTREE_COMMITTED: (_in_worktree(COMMITTED), "bbbbbbb Fix (amend)"),
+    EventKind.WORKTREE_COMMITTED: (_in_worktree(COMMITTED), "Fix (bbbbbbb, amend)"),
     EventKind.WORKTREE_MERGED: (_in_worktree(MERGED), "feature (fast-forward)"),
     EventKind.WORKTREE_PULLED: (_in_worktree(PULLED), "rebase to bbbbbbb"),
     EventKind.WORKTREE_REBASED: (_in_worktree(REBASED), "3 commits onto aaaaaaa"),
@@ -118,9 +118,9 @@ SUMMARIES: dict[EventKind, tuple[object, str]] = {
 }
 
 
-def _summary(kind: str, payload: object) -> str:
-    """The summary of an Event with this payload, stored and read back as JSON."""
-    event = Event(
+def _event(kind: str, payload: object) -> Event:
+    """An Event with this payload, stored and read back as JSON."""
+    return Event(
         id=new_id(),
         recorded_at=Timestamp(0),
         recorded_by=ID,
@@ -129,7 +129,10 @@ def _summary(kind: str, payload: object) -> str:
         priority=Priority.NORMAL,
         payload=json.loads(to_json(payload)),
     )
-    return summaries.summary(event)
+
+
+def _summary(kind: str, payload: object, width: int | None = None) -> str:
+    return summaries.summary(_event(kind, payload), width)
 
 
 def test_every_kind_has_a_summary() -> None:
@@ -147,9 +150,9 @@ def test_summary(kind: EventKind, payload: object, expected: str) -> None:
         (
             EventKind.CLONE_COMMITTED,
             {"head": {"old": None, "new": NEW}, "how": "commit"},
-            "bbbbbbb ?",
+            "? (bbbbbbb)",
         ),
-        (EventKind.CLONE_COMMITTED, {"head": NEW, "subject": "Fix", "how": "commit"}, "? Fix"),
+        (EventKind.CLONE_COMMITTED, {"head": NEW, "subject": "Fix", "how": "commit"}, "Fix (?)"),
         (EventKind.CLONE_FAILED, {"error": {"code": 1}}, '{"code": 1}'),
         (EventKind.CLONE_REBASED, {"commits": "three", "onto": None}, "three commits"),
         (EventKind.WORKTREE_MOVED, {"path": "/w"}, "? → ?"),
@@ -164,4 +167,20 @@ def test_summary_of_a_payload_that_doesnt_fit(kind: str, payload: object, expect
 def test_summary_is_whole() -> None:
     subject = "A subject longer than any table column. " * 5
     committed = dataclasses.replace(COMMITTED, subject=subject, how="commit")
-    assert _summary(EventKind.CLONE_COMMITTED, committed) == f"bbbbbbb {subject}"
+    assert _summary(EventKind.CLONE_COMMITTED, committed) == f"{subject} (bbbbbbb)"
+
+
+def test_summary_shortened_keeps_the_hash() -> None:
+    committed = dataclasses.replace(COMMITTED, subject="Add a long feature", how="commit")
+    assert _summary(EventKind.CLONE_COMMITTED, committed, 18) == "Add a l… (bbbbbbb)"
+    assert _summary(EventKind.CLONE_COMMITTED, committed, 99) == "Add a long feature (bbbbbbb)"
+    assert _summary(EventKind.CLONE_FAILED, Failed("timed out"), 6) == "timed…"
+
+
+def test_details_are_the_payload_as_text() -> None:
+    renamed = {"name": Change("proj", "project"), "extra": [1]}
+    assert summaries.details(_event(EventKind.REPOSITORY_CHANGED, renamed)) == [
+        ("extra", "[1]"),
+        ("name", "proj → project"),
+    ]
+    assert summaries.details(_event(EventKind.CLONE_FAILED, "broken")) == [("payload", "broken")]

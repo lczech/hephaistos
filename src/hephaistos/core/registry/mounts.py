@@ -68,7 +68,7 @@ def containing(session: ReadSession, machine_id: uuid.UUID, path: Path) -> tuple
     return max(candidates, key=lambda candidate: len(candidate[0].path.parts))
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
-    """How to show these Mounts in place of their IDs: by path."""
-    found = records.labels(session, Table.REGISTRY_MOUNTS, "path", ids)
+def paths(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
+    """These Mounts' paths."""
+    found = records.column_values(session, Table.REGISTRY_MOUNTS, "path", ids)
     return {key: Path(value) for key, value in found.items()}

@@ -119,6 +119,6 @@ def summaries(
     ]
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
-    """How to show these Repositories in place of their IDs: by name."""
-    return records.labels(session, Table.REGISTRY_REPOSITORIES, "name", ids)
+def names(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """These Repositories' names, deleted ones included."""
+    return records.column_values(session, Table.REGISTRY_REPOSITORIES, "name", ids)

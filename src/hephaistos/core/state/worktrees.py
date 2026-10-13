@@ -313,8 +313,8 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
     return recorded
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
-    """How to show these Worktrees in place of their IDs: by path, the last one if removed."""
+def paths(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
+    """These Worktrees' paths, the last one if removed."""
     found: dict[uuid.UUID, Path] = {}
     for chunk in chunks(ids):
         placeholders = ", ".join("?" * len(chunk))
@@ -323,4 +323,17 @@ def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, 
             chunk,
         )
         found |= {uuid.UUID(bytes=row[0]): Path(row[1]) for row in rows}
+    return found
+
+
+def clone_ids(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, uuid.UUID]:
+    """The Clone of each of these Worktrees, removed ones included."""
+    found: dict[uuid.UUID, uuid.UUID] = {}
+    for chunk in chunks(ids):
+        placeholders = ", ".join("?" * len(chunk))
+        rows = session.conn.execute(
+            f"SELECT id, clone_id FROM state_worktrees WHERE id IN ({placeholders})",  # noqa: S608 - placeholders only
+            chunk,
+        )
+        found |= {uuid.UUID(bytes=row[0]): uuid.UUID(bytes=row[1]) for row in rows}
     return found

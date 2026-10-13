@@ -9,6 +9,7 @@ Other entities are referred to by ID, with a name for showing them.
 import os
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -19,7 +20,6 @@ from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.events import subjects, summaries
 from hephaistos.core.events.events import Event
-from hephaistos.core.events.subjects import Label
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.registry.clones import CloneDetails
 from hephaistos.core.registry.filesystems import Filesystem
@@ -42,7 +42,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 2)
+API_VERSION = ApiVersion(0, 3)
 
 
 class Ref(TypedDict):
@@ -173,11 +173,19 @@ class RepositoryJson(TypedDict):
 
 
 class SubjectRef(TypedDict):
-    """What an Event is about: its ID, type (`clone`), and name or path if known."""
+    """What an Event is about: its ID, type (`clone`), and its name or its path, if known."""
 
     id: str
     type: str
-    label: str | None
+    name: str | None  # Machines, Filesystems, Repositories
+    path: str | None  # Mounts, Clones, Worktrees
+
+
+class DetailJson(TypedDict):
+    """A field of an Event's payload, as text."""
+
+    field: str
+    text: str
 
 
 class EventJson(TypedDict):
@@ -190,7 +198,9 @@ class EventJson(TypedDict):
     priority: int
     kind: str
     subject: SubjectRef
+    repository: Ref | None  # the subject's: itself, or its Clone's or Worktree's
     summary: str  # what the payload says, in short; empty where the subject says it all
+    details: list[DetailJson]  # what the payload says, field by field
     payload: dict[str, Any]
     key: str | None
 
@@ -248,7 +258,7 @@ def machines_json(session: ReadSession) -> list[MachineJson]:
 def observer_names(session: ReadSession, found: Iterable[CloneDetails]) -> dict[uuid.UUID, str]:
     """The names of the Machines that observed these Clones and their Worktrees."""
     ids = {state.observed_by for details in found for state in (details.state, *details.worktrees)}
-    return machines.labels(session, ids)
+    return machines.names(session, ids)
 
 
 def _checkout_json(state: CheckoutState, names: Mapping[uuid.UUID, str]) -> _CheckoutJson:
@@ -362,34 +372,62 @@ def repositories_json(
     ]
 
 
-def event_json(
-    event: Event, labels: Mapping[uuid.UUID, Label], names: Mapping[uuid.UUID, str]
-) -> EventJson:
-    """An Event; `labels` names its subject and `names` its Machine, where they know them."""
-    label = labels.get(event.subject)
+@dataclass(frozen=True)
+class EventContext:
+    """What Events refer to, by ID: their subjects' names and paths, Repositories, Machines."""
+
+    names: Mapping[uuid.UUID, str]
+    paths: Mapping[uuid.UUID, Path]
+    repositories: Mapping[uuid.UUID, uuid.UUID]  # by subject
+    repository_names: Mapping[uuid.UUID, str]
+    machine_names: Mapping[uuid.UUID, str]
+
+    @classmethod
+    def of(cls, session: ReadSession, listed: Sequence[Event]) -> "EventContext":
+        """The context of these Events."""
+        repository_ids = subjects.repository_ids(session, listed)
+        return cls(
+            names=subjects.names(session, listed),
+            paths=subjects.paths(session, listed),
+            repositories=repository_ids,
+            repository_names=repositories.names(session, set(repository_ids.values())),
+            machine_names=machines.names(session, {event.recorded_by for event in listed}),
+        )
+
+    def repository(self, event: Event) -> Ref | None:
+        """The Repository the Event's subject belongs to."""
+        found = self.repositories.get(event.subject)
+        return None if found is None else Ref(id=str(found), name=self.repository_names.get(found))
+
+
+def event_json(event: Event, context: EventContext) -> EventJson:
+    """An Event, with what it refers to named where `context` knows it."""
+    path = context.paths.get(event.subject)
     return EventJson(
         id=str(event.id),
         recorded_at=event.recorded_at.datetime.isoformat(),
-        recorded_by=machine_ref(event.recorded_by, names),
+        recorded_by=machine_ref(event.recorded_by, context.machine_names),
         occurred_at=None if event.occurred_at is None else event.occurred_at.isoformat(),
         priority=event.priority,
         kind=event.kind,
         subject=SubjectRef(
             id=str(event.subject),
             type=event.subject_type,
-            label=None if label is None else str(label),
+            name=context.names.get(event.subject),
+            path=None if path is None else str(path),
         ),
+        repository=context.repository(event),
         summary=summaries.summary(event),
+        details=[DetailJson(field=field, text=text) for field, text in summaries.details(event)],
         payload=event.payload,
         key=None if event.key is None else event.key.hex(),
     )
 
 
 def events_json(session: ReadSession, listed: Sequence[Event]) -> list[EventJson]:
-    """These Events, naming their subjects and Machines."""
-    labels = subjects.labels(session, listed)
-    names = machines.labels(session, {event.recorded_by for event in listed})
-    return [event_json(event, labels, names) for event in listed]
+    """These Events, naming what they refer to."""
+    context = EventContext.of(session, listed)
+    return [event_json(event, context) for event in listed]
 
 
 type SettingValue = bool | int | float | str

@@ -15,7 +15,7 @@ describe("the Events View", () => {
     const rows = screen.getAllByRole("listitem"); // the header row is hidden from these
     expect(rows.map((row) => [...row.children].slice(1).map((cell) => cell.textContent))).toEqual([
       ["laptop", "clone.committed", "/home/me/project", "feature from aaaaaaa"],
-      ["laptop", "clone.committed", "/home/me/project", "abc1 Commit number 1"],
+      ["laptop", "clone.committed", "/home/me/project", "Commit number 1 (abc1)"],
     ]);
     expect(rows.map((row) => row.dataset.priority)).toEqual(["high", "low"]);
     expect(screen.queryByText(/Older Events/)).not.toBeInTheDocument();
@@ -41,7 +41,7 @@ describe("the Events View", () => {
     renderWithQueries(<EventsView />);
     expect(await screen.findByText("Older Events load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
-    expect(await screen.findByText("abc1 Commit number 1")).toBeInTheDocument();
+    expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
     const older = new URL(requests.at(-1)?.url ?? "").searchParams;
     expect(older.get("before")).toBe(event(2).id);
     expect(older.get("limit")).toBe(String(EVENTS_PAGE));

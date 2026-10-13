@@ -91,7 +91,7 @@ def delete(session: WriteSession, table: Table, kind: EventKind, record: Record)
 
 
 # SQLite allows at most 32766 parameters per statement.
-def labels(
+def column_values(
     session: ReadSession, table: Table, column: str, ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, str]:
     """The values of `column` for these records, deleted ones included, by ID."""

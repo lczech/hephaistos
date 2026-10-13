@@ -295,4 +295,4 @@ def test_removed_worktree_is_kept_and_its_name_reused(
     with read_session(paths) as session:
         [current] = clones.find(session, repo).worktrees
         assert current.id == again.subject
-        assert subjects.labels(session, [added]) == {added.subject: side}
+        assert subjects.paths(session, [added]) == {added.subject: side}

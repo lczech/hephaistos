@@ -28,6 +28,6 @@ class Filesystem(Record):
         return cls(id=uuid.UUID(bytes=row["id"]), name=row["name"])
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
-    """How to show these Filesystems in place of their IDs: by name."""
-    return records.labels(session, Table.REGISTRY_FILESYSTEMS, "name", ids)
+def names(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """These Filesystems' names."""
+    return records.column_values(session, Table.REGISTRY_FILESYSTEMS, "name", ids)

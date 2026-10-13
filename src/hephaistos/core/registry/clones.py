@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Self
 
 from hephaistos.core.db import values
-from hephaistos.core.db.sessions import ReadSession, WriteSession
+from hephaistos.core.db.sessions import ReadSession, WriteSession, chunks
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.registry import mounts, records, repositories
@@ -556,7 +556,20 @@ def move(session: WriteSession, planned: Sequence[Move]) -> None:
         records.change(session, Table.REGISTRY_CLONES, EventKind.CLONE_MOVED, old, new)
 
 
-def labels(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
-    """How to show these Clones in place of their IDs: by path."""
-    found = records.labels(session, Table.REGISTRY_CLONES, "display_path", ids)
+def paths(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
+    """These Clones' paths as given, deleted ones included."""
+    found = records.column_values(session, Table.REGISTRY_CLONES, "display_path", ids)
     return {key: Path(value) for key, value in found.items()}
+
+
+def repository_ids(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, uuid.UUID]:
+    """The Repository of each of these Clones, deleted ones included."""
+    found: dict[uuid.UUID, uuid.UUID] = {}
+    for chunk in chunks(ids):
+        placeholders = ", ".join("?" * len(chunk))
+        rows = session.conn.execute(
+            f"SELECT id, repository_id FROM registry_clones WHERE id IN ({placeholders})",  # noqa: S608 - placeholders only
+            chunk,
+        )
+        found |= {uuid.UUID(bytes=row[0]): uuid.UUID(bytes=row[1]) for row in rows}
+    return found

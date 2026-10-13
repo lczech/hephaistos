@@ -18,7 +18,7 @@ export function shortId(id: string): string {
 
 /** The Event's subject: its name or path, else its short ID. */
 export function subjectText({ subject }: Event): string {
-  return subject.label ?? shortId(subject.id);
+  return subject.name ?? subject.path ?? shortId(subject.id);
 }
 
 /** The Machine that recorded the Event: its name, else its short ID. */

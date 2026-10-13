@@ -43,19 +43,22 @@ def test_list() -> None:
     assert lines[0].split() == [
         "id",
         "recorded",
-        "machine",
         "priority",
         "kind",
+        "repository",
+        "machine",
         "subject",
         "summary",
     ]
+    # Empty cells vanish in the split: Mounts and Machines have no Repository, and a
+    # Repository's own Events no subject but it.
     rows = [re.split(r"\s{2,}", line) for line in lines[1:]]
     assert [row[1:] for row in rows] == [
-        ["now", "laptop", "normal", "repository.changed", "project", "name: proj → project"],
-        ["now", "laptop", "normal", "repository.added", "project"],
-        ["now", "laptop", "normal", "mount.added", "/", "/"],
-        ["now", "laptop", "normal", "filesystem.added", "laptop-local"],
-        ["now", "laptop", "normal", "machine.added", "laptop", socket.gethostname()],
+        ["now", "normal", "repository.changed", "project", "laptop", "name: proj → project"],
+        ["now", "normal", "repository.added", "project", "laptop"],
+        ["now", "normal", "mount.added", "laptop", "/", "/"],
+        ["now", "normal", "filesystem.added", "laptop", "laptop-local"],
+        ["now", "normal", "machine.added", "laptop", "laptop", socket.gethostname()],
     ]
     assert all(re.fullmatch(r"[0-9a-f]{8}", row[0]) for row in rows)
 
@@ -73,7 +76,7 @@ def test_list() -> None:
     ],
 )
 def test_filters(args: list[str], kinds: list[str]) -> None:
-    assert [row[4] for row in _rows(*args)] == kinds
+    assert [row[3] for row in _rows(*args)] == kinds
 
 
 def test_unknown_machine() -> None:
@@ -104,6 +107,7 @@ def test_show_change() -> None:
     lines = [line.split(maxsplit=1) for line in result.output.splitlines()]
     assert ["kind", "repository.changed"] in lines
     assert ["subject", "project"] in lines
+    assert ["repository", "project"] in lines
     assert lines[-2:] == [["payload"], ["name", "proj → project"]]
 
 
@@ -122,8 +126,15 @@ def test_json() -> None:
     [event] = json.loads(runner.invoke(app, ["event", "list", "-n", "1", "--json"]).output)
     assert event["kind"] == "repository.changed"
     assert event["recorded_by"]["name"] == "laptop"
-    assert event["subject"]["type"] == "repository"
-    assert event["subject"]["label"] == "project"
+    subject = event["subject"]["id"]
+    assert event["subject"] == {
+        "id": subject,
+        "type": "repository",
+        "name": "project",
+        "path": None,
+    }
+    assert event["repository"] == {"id": subject, "name": "project"}
+    assert event["details"] == [{"field": "name", "text": "proj → project"}]
     assert event["priority"] == 20
     assert event["summary"] == "name: proj → project"
     assert event["payload"] == {"name": {"old": "proj", "new": "project"}}

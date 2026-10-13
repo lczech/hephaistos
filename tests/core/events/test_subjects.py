@@ -16,7 +16,7 @@ def set_up(paths: Paths) -> Paths:
     return paths
 
 
-def test_labels_by_subject_type(set_up: Paths, tmp_path: Path) -> None:
+def test_names_paths_and_repositories_by_subject_type(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     with write_session(set_up) as session:
         repositories.add(session, "proj")
@@ -31,17 +31,30 @@ def test_labels_by_subject_type(set_up: Paths, tmp_path: Path) -> None:
 
     with read_session(set_up) as session:
         found = events.recent(session)
-        labels = subjects.labels(session, found)
-    by_kind = {event.kind: labels.get(event.subject) for event in found}
+        names = subjects.names(session, found)
+        paths = subjects.paths(session, found)
+        repository_ids = subjects.repository_ids(session, found)
+    by_kind = {event.kind: (names.get(event.subject), paths.get(event.subject)) for event in found}
     assert by_kind == {
-        "machine.added": "laptop",
-        "filesystem.added": "laptop-local",
-        "mount.added": Path("/"),
+        "machine.added": ("laptop", None),
+        "filesystem.added": ("laptop-local", None),
+        "mount.added": (None, Path("/")),
         # The current name, also for Events from before the rename.
-        "repository.added": "project",
-        "repository.changed": "project",
-        # Deleted records keep their labels.
-        "clone.added": repo,
-        "clone.deleted": repo,
+        "repository.added": ("project", None),
+        "repository.changed": ("project", None),
+        # Deleted records keep their names and paths.
+        "clone.added": (None, repo),
+        "clone.deleted": (None, repo),
+        "newer.thing": (None, None),
+    }
+    [repository] = {event.subject for event in found if event.kind == "repository.added"}
+    assert {event.kind: repository_ids.get(event.subject) for event in found} == {
+        "machine.added": None,
+        "filesystem.added": None,
+        "mount.added": None,
+        "repository.added": repository,
+        "repository.changed": repository,
+        "clone.added": repository,
+        "clone.deleted": repository,
         "newer.thing": None,
     }

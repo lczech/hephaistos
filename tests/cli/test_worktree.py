@@ -144,9 +144,10 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
     runner.invoke(app, ["observe"])
 
     by_worktree = _event_rows("--worktree", "feature")
-    assert [row[4] for row in by_worktree] == ["worktree.committed", "worktree.added"]
-    assert by_worktree[0][6].endswith(" On feature")
-    by_clone = {row[4] for row in _event_rows("--clone", str(feature))}
+    assert [row[3] for row in by_worktree] == ["worktree.committed", "worktree.added"]
+    assert {row[4] for row in by_worktree} == {"proj"}  # through the Worktree's Clone
+    assert by_worktree[0][7] == f"On feature ({git(feature, 'rev-parse', '--short=7', 'HEAD')})"
+    by_clone = {row[3] for row in _event_rows("--clone", str(feature))}
     assert by_clone == {
         "worktree.committed",
         "clone.committed",
@@ -154,8 +155,8 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
         "clone.branch_created",
         "clone.added",
     }
-    assert {row[4] for row in _event_rows("--repo", "proj")} == by_clone | {"repository.added"}
-    assert [row[4] for row in _event_rows("--repo", "other")] == [
+    assert {row[3] for row in _event_rows("--repo", "proj")} == by_clone | {"repository.added"}
+    assert [row[3] for row in _event_rows("--repo", "other")] == [
         "clone.added",
         "repository.added",
     ]

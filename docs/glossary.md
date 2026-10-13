@@ -46,6 +46,7 @@ Vocabulary used consistently, but not stored as entities.
 
 - **Directory**: any directory on a Filesystem. A Checkout is a directory.
 - **Working directory**: the directory a process (Terminal, Agent) runs in. It may lie inside a Checkout.
+- **Subject**: what an Event is about: a Machine, Filesystem, Mount, Repository, Clone or Worktree, named by its name or its path.
 - **View**: what a Panel shows: its kind (e.g. Daemon, Events, a Repository table, a Terminal) and parameters (e.g. which Terminal).
 - **Panel**: a tab in the GUI showing one View. It can be dragged into another Group, or beside one to split it.
 - **Group**: an area of the GUI's window showing one of its Panels at a time, chosen by their tabs. Groups lie side by side or stacked.

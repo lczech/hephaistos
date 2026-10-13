@@ -1,5 +1,4 @@
-import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -20,11 +19,11 @@ from hephaistos.cli.worktree import find_worktree
 from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import ReadSession, read_session
-from hephaistos.core.events import events, subjects, summaries
+from hephaistos.core.events import events, summaries
 from hephaistos.core.events.events import Event
 from hephaistos.core.events.kinds import Priority, PriorityName
-from hephaistos.core.events.subjects import Label
 from hephaistos.core.registry import clones, machines, repositories
+from hephaistos.core.serialize import EventContext
 from hephaistos.core.utils.ids import short_id
 from hephaistos.core.utils.paths import Paths, short_path
 
@@ -77,17 +76,24 @@ def _priority_text(value: int) -> str:
         return str(value)
 
 
-def _subject_text(event: Event, labels: Mapping[uuid.UUID, Label]) -> str:
-    """The Event's subject as shown: its label, else its short ID."""
-    label = labels.get(event.subject)
-    if label is None:
-        return short_id(event.subject)
-    return short_path(label) if isinstance(label, Path) else label
+def _subject_text(event: Event, context: EventContext) -> str:
+    """The Event's subject as shown: its name or path, else its short ID."""
+    if (name := context.names.get(event.subject)) is not None:
+        return name
+    if (path := context.paths.get(event.subject)) is not None:
+        return short_path(path)
+    return short_id(event.subject)
 
 
-def _machine_text(event: Event, names: Mapping[uuid.UUID, str]) -> str:
+def _repository_text(event: Event, context: EventContext) -> str:
+    """The Repository of the Event's subject, if it has one: its name, else its short ID."""
+    found = context.repositories.get(event.subject)
+    return "" if found is None else context.repository_names.get(found) or short_id(found)
+
+
+def _machine_text(event: Event, context: EventContext) -> str:
     """The name of the Machine that recorded the Event, else its short ID."""
-    return names.get(event.recorded_by) or short_id(event.recorded_by)
+    return context.machine_names.get(event.recorded_by) or short_id(event.recorded_by)
 
 
 @app.command("list")
@@ -132,20 +138,21 @@ def print_events(
     if as_json:
         print_json(serialize.events_json(session, listed))
         return
-    labels = subjects.labels(session, listed)
-    names = machines.labels(session, {event.recorded_by for event in listed})
+    context = EventContext.of(session, listed)
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["id", "recorded", "machine", "priority", "kind", "subject", "summary"],
+        ["id", "recorded", "priority", "kind", "repository", "machine", "subject", "summary"],
         [
             [
                 short_id(event.id),
                 formatted(event.recorded_at.datetime),
-                _machine_text(event, names),
                 _priority_text(event.priority),
                 event.kind,
-                _subject_text(event, labels),
-                _shortened(summaries.summary(event)),
+                _repository_text(event, context),
+                _machine_text(event, context),
+                # A Repository's own Events: its name is in the column before.
+                "" if event.subject_type == "repository" else _subject_text(event, context),
+                summaries.summary(event, SUMMARY_WIDTH),
             ]
             for event in listed
         ],
@@ -153,11 +160,6 @@ def print_events(
 
 
 SUMMARY_WIDTH = 60
-
-
-def _shortened(text: str) -> str:
-    """A summary cut to fit the table."""
-    return text if len(text) <= SUMMARY_WIDTH else f"{text[: SUMMARY_WIDTH - 1]}…"
 
 
 @app.command()
@@ -175,8 +177,7 @@ def show(
         if as_json:
             print_json(serialize.events_json(session, [event])[0])
             return
-        labels = subjects.labels(session, [event])
-        names = machines.labels(session, [event.recorded_by])
+        context = EventContext.of(session, [event])
     formatted = time_formatter(time_format, TimeFormat.FULL)
     fields = summaries.payload_fields(event.payload)
     print_fields(
@@ -184,10 +185,11 @@ def show(
             ("id", str(event.id)),
             ("recorded", formatted(event.recorded_at.datetime)),
             ("occurred", "-" if event.occurred_at is None else formatted(event.occurred_at)),
-            ("machine", _machine_text(event, names)),
             ("priority", _priority_text(event.priority)),
             ("kind", event.kind),
-            ("subject", _subject_text(event, labels)),
+            ("repository", _repository_text(event, context) or "-"),
+            ("machine", _machine_text(event, context)),
+            ("subject", _subject_text(event, context)),
             ("subject id", str(event.subject)),
             # A payload that isn't an object, e.g. from another version, is shown whole.
             *([("payload", summaries.value_text(event.payload))] if fields is None else []),
@@ -195,6 +197,4 @@ def show(
     )
     if fields:
         typer.echo("payload")
-        print_fields(
-            [(key, summaries.payload_text(value)) for key, value in fields.items()], indent="  "
-        )
+        print_fields(summaries.details(event), indent="  ")
