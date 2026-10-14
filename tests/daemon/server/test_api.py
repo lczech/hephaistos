@@ -129,7 +129,7 @@ def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
     assert worktree["name"] == "side"
     assert api("/api/worktrees") == [worktree]
     assert api(f"/api/worktrees/{worktree['id']}") == _cli("worktree", "show", "side")
-    listed = _cli("event", "list", "-n", "0")
+    listed = _cli("event", "list", "-n", "0", "--reverse")
     assert api("/api/events?limit=0") == listed
     first = listed[0]
     assert api(f"/api/events/{first['id']}") == _cli("event", "show", first["id"])
@@ -138,7 +138,7 @@ def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
     assert api("/api/db/tables") == _cli("db", "tables")
     rows = "/api/db/tables/events?column=kind&column=id&limit=2&offset=1"
     assert api(rows) == _cli(
-        "db", "dump", "events", "-c", "kind", "-c", "id", "-n", "2", "--offset", "1"
+        "db", "dump", "events", "-c", "kind", "-c", "id", "-n", "2", "--offset", "1", "--reverse"
     )
 
 
@@ -146,16 +146,18 @@ def test_log_as_log_show_prints_it(paths: Paths, client: TestClient) -> None:
     start = datetime.now(UTC) - timedelta(minutes=10)
     for minute in range(5):
         _write_record(paths, start + timedelta(minutes=minute), f"record {minute}")
-    lines = runner.invoke(cli, ["log", "show", "--json", "--no-pager"]).output.splitlines()
+    show = ["log", "show", "--reverse", "--json", "--no-pager"]
+    lines = runner.invoke(cli, show).output.splitlines()
     shown = client.get("/api/log").json()
-    assert shown == {"records": [json.loads(line) for line in lines], "skipped": 0}
-    pages = client.get("/api/log", params={"limit": 2}).json()["records"]
+    assert shown == {"entries": [json.loads(line) for line in lines], "skipped": 0}
+    pages = client.get("/api/log", params={"limit": 2}).json()["entries"]
     while len(pages) < 5:
-        older = client.get("/api/log", params={"limit": 2, "before": pages[0]["at"]}).json()
-        pages = older["records"] + pages
-    assert [record["message"] for record in pages] == [f"record {minute}" for minute in range(5)]
+        before = pages[-1]["position"]
+        pages += client.get("/api/log", params={"limit": 2, "before": before}).json()["entries"]
+    messages = [entry["record"]["message"] for entry in pages]
+    assert messages == [f"record {minute}" for minute in reversed(range(5))]
     errors = client.get("/api/log", params={"level": "error", "process": "daemon"}).json()
-    assert errors["records"] == []
+    assert errors["entries"] == []
 
 
 def _write_record(paths: Paths, at: datetime, message: str) -> None:
@@ -227,6 +229,7 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
         ("/api/db/tables/nope", 404, "no table nope; `hephaistos db tables` lists them"),
         ("/api/db/tables/events?column=nope", 400, "events has no column nope"),
         ("/api/log?until=soon", 400, "until: 'soon' is neither a duration like 2h"),
+        ("/api/log?before=yesterday", 400, "before: 'yesterday' is not a position like"),
     ],
 )
 def test_errors(client: TestClient, path: str, status: int, error: str) -> None:

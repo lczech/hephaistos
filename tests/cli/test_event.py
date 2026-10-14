@@ -54,21 +54,23 @@ def test_list() -> None:
     # Repository's own Events no subject but it.
     rows = [re.split(r"\s{2,}", line) for line in lines[1:]]
     assert [row[1:] for row in rows] == [
-        ["now", "normal", "repository.changed", "project", "laptop", "name: proj → project"],
-        ["now", "normal", "repository.added", "project", "laptop"],
-        ["now", "normal", "mount.added", "laptop", "/", "/"],
-        ["now", "normal", "filesystem.added", "laptop", "laptop-local"],
         ["now", "normal", "machine.added", "laptop", "laptop", socket.gethostname()],
+        ["now", "normal", "filesystem.added", "laptop", "laptop-local"],
+        ["now", "normal", "mount.added", "laptop", "/", "/"],
+        ["now", "normal", "repository.added", "project", "laptop"],
+        ["now", "normal", "repository.changed", "project", "laptop", "name: proj → project"],
     ]
+    newest = runner.invoke(app, ["event", "list", "--reverse", "-n", "2"]).output.splitlines()
+    assert [line.split()[3] for line in newest[1:]] == ["repository.changed", "repository.added"]
     assert all(re.fullmatch(r"[0-9a-f]{8}", row[0]) for row in rows)
 
 
 @pytest.mark.parametrize(
     ("args", "kinds"),
     [
-        (["-k", "repository"], ["repository.changed", "repository.added"]),
-        (["-k", "machine", "-k", "mount"], ["mount.added", "machine.added"]),
-        (["--kind", "*.added", "-n", "2"], ["repository.added", "mount.added"]),
+        (["-k", "repository"], ["repository.added", "repository.changed"]),
+        (["-k", "machine", "-k", "mount"], ["machine.added", "mount.added"]),
+        (["--kind", "*.added", "-n", "2"], ["mount.added", "repository.added"]),
         (["-p", "high"], []),
         (["-p", "normal", "-n", "1"], ["repository.changed"]),
         (["-m", "laptop", "-s", "1h", "-n", "1"], ["repository.changed"]),

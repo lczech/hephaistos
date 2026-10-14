@@ -43,7 +43,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 4)
+API_VERSION = ApiVersion(0, 5)
 
 
 class Ref(TypedDict):
@@ -610,14 +610,36 @@ def rows_json(
     )
 
 
-class LogJson(TypedDict):
-    """Log records as written, oldest first, and how many lines weren't records."""
+class LogEntryJson(TypedDict):
+    """A log record as written, and where its line starts: day and byte, `2026-10-14:18734`."""
 
-    records: list[dict[str, Any]]
+    position: str
+    record: dict[str, Any]
+
+
+class LogJson(TypedDict):
+    """Log entries, newest first, and how many lines weren't records."""
+
+    entries: list[LogEntryJson]
     skipped: int
 
 
-def log_json(directory: Path, selection: logs.Selection, limit: int = 0) -> LogJson:
-    """The newest `limit` selected records of the log in `directory` (0: all)."""
-    reading = logs.read(directory, selection, limit)
-    return LogJson(records=reading.records, skipped=reading.skipped)
+def log_entry_json(entry: logs.Entry) -> LogEntryJson:
+    """A log record and its position."""
+    return LogEntryJson(position=str(entry.position), record=entry.record)
+
+
+def log_json(
+    directory: Path,
+    selection: logs.Selection,
+    limit: int = 0,
+    before: logs.Position | None = None,
+) -> LogJson:
+    """The newest `limit` selected records of the log in `directory` (0: all), newest first.
+
+    `before` a record's position pages back from it.
+    """
+    reading = logs.read(directory, selection, limit, before=before)
+    return LogJson(
+        entries=[log_entry_json(entry) for entry in reading.entries], skipped=reading.skipped
+    )

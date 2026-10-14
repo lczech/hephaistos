@@ -186,10 +186,10 @@ def event_list(  # noqa: PLR0913 - one parameter per filter
     limit: Annotated[int, Query(ge=0)] = DEFAULT_LIMIT,
     before: uuid.UUID | None = None,
 ) -> list[EventJson]:
-    """Events, newest first, as `event list --json`; `before` an Event pages back from it.
+    """Events, newest first, as `event list --reverse --json`.
 
-    `kind` as in `event list`; repeat it, `machine` or `repository` for several. `since` is a
-    duration (`2h`) or a date; `limit` 0 for all.
+    `before` an Event pages back from it. `kind` as in `event list`; repeat it, `machine` or
+    `repository` for several. `since` is a duration (`2h`) or a date; `limit` 0 for all.
     """
     since_time = _time("since", since, datetime.now(UTC))
     with read_session(paths) as session:
@@ -263,7 +263,7 @@ def db_dump(
     limit: Annotated[int, Query(ge=0)] = DEFAULT_ROWS,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RowsJson:
-    """A table's rows, newest first, as `db dump --json`; `offset` skips that many."""
+    """A table's rows, newest first, as `db dump --reverse --json`; `offset` skips that many."""
     with read_session(paths, check_schema=False) as session:
         if table not in raw.stored_tables(session):
             raise HTTPException(404, f"no table {table}; `hephaistos db tables` lists them")
@@ -276,27 +276,30 @@ def log_show(  # noqa: PLR0913 - one parameter per filter
     *,
     since: str | None = None,
     until: str | None = None,
-    before: str | None = None,
     level: LevelName | None = None,
     process: ProcessName | None = None,
     pid: int | None = None,
     limit: Annotated[int, Query(ge=0)] = DEFAULT_RECORDS,
+    before: str | None = None,
 ) -> LogJson:
-    """The newest records of the log, oldest first, as `log show --json`.
+    """The newest records of the log, newest first, as `log show --reverse --json`.
 
-    `since`, `until` and `before` take a duration (`2h`) or a date; `before` excludes that
-    time, to page back from the oldest record shown. `limit` 0 for all.
+    `before` a record's position pages back from it. `since` and `until` take a duration
+    (`2h`) or a date; `limit` 0 for all.
     """
     now = datetime.now(UTC)
+    try:
+        position = logs.Position.parse(before) if before is not None else None
+    except ValueError as error:
+        raise HTTPException(400, f"before: {error}") from None
     selection = logs.Selection(
         since=_time("since", since, now),
         until=_time("until", until, now),
-        before=_time("before", before, now),
         level=logging.getLevelNamesMapping()[level.upper()] if level else logging.NOTSET,
         process=process,
         pid=pid,
     )
-    return serialize.log_json(paths.state_dir, selection, limit)
+    return serialize.log_json(paths.state_dir, selection, limit, position)
 
 
 def _time(name: str, value: str | None, now: datetime) -> datetime | None:

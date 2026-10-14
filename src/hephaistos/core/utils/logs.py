@@ -13,12 +13,12 @@ import re
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import TracebackType
-from typing import Literal, override
+from typing import Literal, NamedTuple, Self, override
 
 from hephaistos.core import config
 from hephaistos.core.utils.paths import private_directory
@@ -67,7 +67,7 @@ def delete_older(directory: Path, day: date) -> list[Path]:
     return deleted
 
 
-def json_text(record: Record) -> str:
+def json_text(record: Mapping[str, object]) -> str:
     """A record as one line of JSON; lone surrogates (from undecodable names) as escapes."""
     text = json.dumps(record, ensure_ascii=False, default=str)
     return text.encode(errors="backslashreplace").decode()
@@ -297,17 +297,14 @@ class Selection:
 
     since: datetime | None = None
     until: datetime | None = None
-    before: datetime | None = None  # as `until`, but not at that time: to page back
     level: int = logging.NOTSET  # and above
     process: str | None = None
     pid: int | None = None
 
     def covers(self, day: date) -> bool:
         """Whether a UTC day's file may hold selected records."""
-        return (
-            (self.since is None or day >= self.since.astimezone(UTC).date())
-            and (self.until is None or day <= self.until.astimezone(UTC).date())
-            and (self.before is None or day <= self.before.astimezone(UTC).date())
+        return (self.since is None or day >= self.since.astimezone(UTC).date()) and (
+            self.until is None or day <= self.until.astimezone(UTC).date()
         )
 
     def matches(self, record: Record) -> bool:
@@ -317,53 +314,102 @@ class Selection:
         return (
             (self.since is None or at >= self.since)
             and (self.until is None or at <= self.until)
-            and (self.before is None or at < self.before)
             and level >= self.level
             and (self.process is None or record.get("process") == self.process)
             and (self.pid is None or record.get("pid") == self.pid)
         )
 
 
+_POSITION = re.compile(r"(\d{4}-\d{2}-\d{2}):(\d+)")
+
+
+@dataclass(frozen=True, order=True)
+class Position:
+    """Where a record's line starts: its day's file and the byte there, e.g. `2026-10-14:18734`.
+
+    Files are only appended to, so a position stays the same record's until its day is deleted.
+    """
+
+    day: date
+    offset: int
+
+    @override
+    def __str__(self) -> str:
+        return f"{self.day.isoformat()}:{self.offset}"
+
+    @classmethod
+    def parse(cls, text: str) -> Self:
+        """A position as `str` writes it; raises ValueError if it isn't one."""
+        if match := _POSITION.fullmatch(text):
+            try:
+                return cls(date.fromisoformat(match[1]), int(match[2]))
+            except ValueError:
+                pass  # not a day, e.g. 2026-13-01
+        raise ValueError(f"{text!r} is not a position like 2026-10-14:18734")
+
+
+class Entry(NamedTuple):
+    """A record and where it is."""
+
+    position: Position
+    record: Record
+
+
 @dataclass(frozen=True)
 class Reading:
-    """The records read, oldest first, and where to follow on from."""
+    """The entries read, newest first, and where to follow on from."""
 
-    records: list[Record]
+    entries: list[Entry]
     skipped: int  # lines that aren't records
     today: date
     offset: int  # in today's file, after its last complete line
 
 
-def read(
-    directory: Path, selection: Selection, limit: int = 0, today: date | None = None
-) -> Reading:
-    """The newest `limit` selected records (0: all), reading the newest files first.
+def _lines(data: bytes) -> Iterator[tuple[int, bytes]]:
+    """The lines in `data`, each with the offset it starts at."""
+    start = 0
+    for line in data.split(b"\n"):
+        yield start, line
+        start += len(line) + 1
 
-    The last line of today's file is left out unless complete: it may still be written.
+
+def read(
+    directory: Path,
+    selection: Selection,
+    limit: int = 0,
+    *,
+    before: Position | None = None,
+    today: date | None = None,
+) -> Reading:
+    """The newest `limit` selected records (0: all), newest first: as written, backwards.
+
+    `before` pages back: only records written before that position. The last line of today's
+    file is left out unless complete: it may still be written.
     """
     today = today or datetime.now(UTC).date()
     offset = 0
     skipped = 0
-    newest_first: list[list[Record]] = []
+    entries: list[Entry] = []
     for day, path in reversed(day_files(directory)):
-        if not selection.covers(day):
+        if not selection.covers(day) or (before is not None and day > before.day):
             continue
         data = path.read_bytes()
         if day == today:
             data = data[: data.rfind(b"\n") + 1]
             offset = len(data)
-        found: list[Record] = []
-        for line in data.splitlines():
+        if before is not None and day == before.day:
+            data = data[: before.offset]
+        found: list[Entry] = []
+        for start, line in _lines(data):
             record = parsed(line)
             if record is None:
                 skipped += bool(line.strip())
             elif selection.matches(record):
-                found.append(record)
-        newest_first.append(found)
-        if limit and sum(map(len, newest_first)) >= limit:
+                found.append(Entry(Position(day, start), record))
+        entries += reversed(found)
+        if limit and len(entries) >= limit:
             break
-    records = [record for found in reversed(newest_first) for record in found]
-    return Reading(records[-limit:] if limit else records, skipped, today, offset)
+    return Reading(entries[:limit] if limit else entries, skipped, today, offset)
 
 
 def follow(
@@ -373,7 +419,7 @@ def follow(
     *,
     today: Callable[[], date] = lambda: datetime.now(UTC).date(),
     sleep: Callable[[float], None] = time.sleep,
-) -> Iterator[Record]:
+) -> Iterator[Entry]:
     """The selected records written after a reading, as they come; never ends.
 
     Moves on to the next day's file once the day is over and its file stays unchanged.
@@ -386,11 +432,13 @@ def follow(
                 chunk = file.read()
         except FileNotFoundError:
             chunk = b""
+        lines = list(_lines(pending + chunk))
+        start = offset - len(pending)
         offset += len(chunk)
-        *lines, pending = (pending + chunk).split(b"\n")
-        for line in lines:
+        *complete, (_, pending) = lines
+        for at, line in complete:
             if (record := parsed(line)) is not None and selection.matches(record):
-                yield record
+                yield Entry(Position(day, start + at), record)
         if not chunk and (current := today()) != day:
             day, offset, pending = current, 0, b""
             continue

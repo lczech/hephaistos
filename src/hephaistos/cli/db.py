@@ -9,6 +9,7 @@ import typer
 from hephaistos.cli.output import (
     JsonOption,
     LimitOption,
+    ReverseOption,
     TimeFormatOption,
     chosen_time_format,
     full_time,
@@ -128,20 +129,26 @@ def dump(  # noqa: PLR0913 - one option per choice
     ] = False,
     limit: LimitOption = 20,
     offset: Annotated[
-        int, typer.Option("--offset", min=0, help="Skip this many first, for the next page.")
+        int,
+        typer.Option("--offset", min=0, help="Skip this many newest first, for the next page."),
     ] = 0,
+    reverse: ReverseOption = False,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show a table's rows, newest first, with IDs, times and JSON decoded."""
+    """Show a table's newest rows, oldest first, with IDs, times and JSON decoded."""
     with read_session(Paths.from_environment(), check_schema=False) as session:
         if as_json:
-            print_json(serialize.rows_json(session, table, column or (), limit or None, offset))
+            listed = serialize.rows_json(session, table, column or (), limit or None, offset)
+            if not reverse:
+                listed["rows"].reverse()
+            print_json(listed)
             return
         found = raw.rows(session, table, column or (), limit or None, offset)
         _warn(serialize.db_warnings(session))
     text = value_text(time_format, short_ids=short_ids)
-    rows = [[text(value) for value in row] for row in found.values]
+    values = found.values if reverse else found.values[::-1]
+    rows = [[text(value) for value in row] for row in values]
     if not rows:
         typer.echo("No rows")
     elif as_table if as_table is not None else bool(column):

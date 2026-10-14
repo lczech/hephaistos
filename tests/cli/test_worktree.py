@@ -130,7 +130,7 @@ def test_observe_counts_worktrees() -> None:
 
 
 def _event_rows(*args: str) -> list[list[str]]:
-    result = runner.invoke(app, ["event", "list", "-n", "0", *args])
+    result = runner.invoke(app, ["event", "list", "-n", "0", "--reverse", *args])
     assert result.exit_code == 0, result.output
     return [re.split(r"\s{2,}", line) for line in result.output.splitlines()[1:]]
 

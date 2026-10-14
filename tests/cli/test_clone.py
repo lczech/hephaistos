@@ -143,7 +143,7 @@ def test_move_from_missing_to_found(
     result = runner.invoke(app, ["clone", "move", str(repo), str(moved)])
     assert result.exit_code == 0, result.output
 
-    kinds = [event["kind"] for event in _json("event", "list")]
+    kinds = [event["kind"] for event in _json("event", "list", "--reverse")]
     assert set(kinds[:2]) == {"clone.found", "worktree.moved"}  # observed right after the move
     assert kinds[2:4] == ["clone.moved", "clone.missing"]
     [after] = _json("worktree", "list")
