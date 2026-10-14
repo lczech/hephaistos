@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from hephaistos.core.db import values
+from hephaistos.core.db import raw, sessions, values
 from hephaistos.core.db.values import Decoder
 from hephaistos.core.utils.ids import Timestamp
 
@@ -44,3 +44,9 @@ def test_values_that_dont_fit_are_shown_as_stored(
     decoder: Decoder, stored: object, shown: object
 ) -> None:
     assert decoder(stored) == shown
+
+
+def test_every_decoder_has_a_type() -> None:
+    used = {values.fallback, *sessions.META_VALUES.values()}
+    used |= {decoder for columns in raw.DECODERS.values() for decoder in columns.values()}
+    assert used <= set(values.TYPES)

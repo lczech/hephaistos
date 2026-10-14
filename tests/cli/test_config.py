@@ -118,6 +118,7 @@ def test_show_as_json(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert list(settings) == list(config.KEYS)
     assert settings["git.timeout"] == {
         "key": "git.timeout",
+        "description": config.DESCRIPTIONS["git.timeout"],
         "value": 60.0,
         "source": str(directory / "config.toml"),
         "applied": 30.0,  # this process runs on the defaults

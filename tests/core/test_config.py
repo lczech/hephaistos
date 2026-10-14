@@ -23,6 +23,27 @@ def test_defaults_file_sets_every_setting() -> None:
     assert sorted(keys(shipped)) == sorted(config.KEYS)
 
 
+def test_defaults_file_describes_every_setting() -> None:
+    assert sorted(config.DESCRIPTIONS) == sorted(config.KEYS)
+    assert all(config.DESCRIPTIONS.values())
+    assert config.DESCRIPTIONS["git.timeout"].startswith("Seconds one git command may take;")
+
+
+def test_descriptions_are_the_comments_right_above_a_key() -> None:
+    text = """# About the file.
+
+# Above a section.
+[one]
+# About the section.
+
+# What two is,
+# in two lines.
+two = 2
+three = 3
+"""
+    assert config.descriptions(text) == {"one.two": "What two is, in two lines.", "one.three": ""}
+
+
 def test_no_files_give_defaults(tmp_path: Path) -> None:
     loaded = load(tmp_path, "laptop", {})
     assert loaded.settings == DEFAULTS
