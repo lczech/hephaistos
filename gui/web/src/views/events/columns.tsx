@@ -1,14 +1,6 @@
-import {
-  columnFilteringFeature,
-  columnResizingFeature,
-  columnSizingFeature,
-  columnVisibilityFeature,
-  createColumnHelper,
-  tableFeatures,
-} from "@tanstack/react-table";
-import { ChevronRight } from "lucide-react";
 import type { Schemas } from "../../api/client";
-import type { ColumnLook } from "../../components/table/columns";
+import { Chevron } from "../../components/table/ListTable";
+import { listColumnHelper } from "../../components/table/list";
 import { actionIcon, actionOf, entityIcon } from "../../icons";
 import { ago, fullTime } from "../../time";
 import styles from "./EventsView.module.css";
@@ -16,19 +8,7 @@ import { machineText, repositoryText, subjectText } from "./eventText";
 
 type Event = Schemas["EventJson"];
 
-export const features = tableFeatures({
-  columnFilteringFeature,
-  columnVisibilityFeature,
-  columnSizingFeature,
-  columnResizingFeature,
-  columnMeta: {} as ColumnLook,
-  tableMeta: {} as { now: number; home: string | undefined },
-});
-
-/** Every column can be made as narrow as this, and gives way to it before the summary does. */
-export const defaultColumn = { minSize: 40 };
-
-const column = createColumnHelper<typeof features, Event>();
+const column = listColumnHelper<Event>();
 
 /**
  * The Events list's columns; the summary takes the width the others leave. Their filters are
@@ -37,7 +17,7 @@ const column = createColumnHelper<typeof features, Event>();
 export const columns = column.columns([
   column.display({
     id: "priority", // a square, coloured for high and urgent priorities
-    cell: () => <ChevronRight className={styles.chevron} aria-hidden="true" />,
+    cell: Chevron,
     enableResizing: false,
     meta: { width: "var(--square)", filter: { param: "priority" } },
   }),

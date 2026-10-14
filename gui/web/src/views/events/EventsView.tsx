@@ -1,20 +1,24 @@
-import { functionalUpdate, useTable } from "@tanstack/react-table";
-import { FunnelX } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { functionalUpdate } from "@tanstack/react-table";
+import { useEffect, useMemo } from "react";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
-import { ColumnHeader } from "../../components/table/ColumnHeader";
-import { gridColumns } from "../../components/table/columns";
+import { ListTable, type Tone } from "../../components/table/ListTable";
+import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { useNow } from "../../useNow";
 import { columnFilters, filteredParams } from "../filters";
 import type { ViewProps } from "../index";
 import { eventFilters, eventsTitle, useEventChoices } from "./choices";
-import { columns, defaultColumn, features } from "./columns";
-import { EventRow } from "./EventRow";
+import { columns } from "./columns";
+import { EventDetails } from "./EventDetails";
 import styles from "./EventsView.module.css";
+import { priorityName } from "./eventText";
 
-const NONE: Schemas["EventJson"][] = [];
+type Event = Schemas["EventJson"];
+
+const NONE: Event[] = [];
+
+const TONES: Record<string, Tone> = { low: "muted", high: "warning", urgent: "danger" };
 
 /**
  * What happened, on any Machine, newest first: as `hephaistos event list` shows it, filtered
@@ -26,13 +30,10 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   // With one Machine, every Event names the same: its column only shows with several.
   const showMachine = (useMachines().data?.length ?? 1) > 1;
   const now = useNow(10_000);
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const listed = useMemo(() => events.data?.pages.flat() ?? NONE, [events.data]);
   const filters = useMemo(() => columnFilters(columns, params), [params]);
-  const table = useTable({
-    features,
+  const table = useListTable({
     columns,
-    defaultColumn,
     data: listed,
     getRowId: (event) => event.id,
     atoms: { columnSizing: columnWidths("events") },
@@ -41,7 +42,6 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
     state: { columnVisibility: { machine: showMachine }, columnFilters: filters },
     onColumnFiltersChange: (change) =>
       setParams(filteredParams(columns, params, functionalUpdate(change, filters))),
-    columnResizeMode: "onChange",
     meta: { now, home },
   });
   const choices = useEventChoices();
@@ -49,82 +49,25 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   useEffect(() => {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
-  const end = useRef<HTMLParagraphElement>(null);
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = events;
-  // Scrolling to the end of the list loads the page before it.
-  useEffect(() => {
-    if (end.current === null || !hasNextPage || isFetchingNextPage) return;
-    const observer = new IntersectionObserver(([seen]) => {
-      if (seen?.isIntersecting) void fetchNextPage();
-    });
-    observer.observe(end.current);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-  const toggle = (id: string) =>
-    setOpen((was) => {
-      const next = new Set(was);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
   let message: string | null = null;
   if (events.data === undefined) {
     message = events.isError ? `No answer: ${events.error.message}` : "Asking for Events…";
   } else if (listed.length === 0) {
     message = filters.length > 0 ? "No Events match." : "No Events yet.";
   }
-  // Set by script, which the Content-Security-Policy allows, unlike style attributes in markup.
-  const grid = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
   return (
-    <div
-      className={styles.view}
-      data-stale={events.isError || events.isPlaceholderData || undefined}
-    >
-      <div className={styles.events} style={grid}>
-        <div className={styles.head}>
-          {table
-            .getHeaderGroups()
-            .flatMap((group) => group.headers)
-            .map((header) => {
-              const label = header.column.columnDef.header;
-              return (
-                <ColumnHeader key={header.id} header={header} choices={choices[header.column.id]}>
-                  {typeof label === "string" ? label : undefined}
-                </ColumnHeader>
-              );
-            })}
-          {filters.length > 0 && (
-            <button
-              type="button"
-              className={styles.clear}
-              onClick={() => table.resetColumnFilters(true)}
-              title="Clear all filters"
-              aria-label="Clear all filters"
-            >
-              <FunnelX aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        {listed.length > 0 && (
-          <ol className={styles.rows}>
-            {table.getRowModel().rows.map((row) => (
-              <EventRow
-                key={row.id}
-                row={row}
-                now={now}
-                home={home}
-                open={open.has(row.id)}
-                onToggle={() => toggle(row.id)}
-              />
-            ))}
-          </ol>
-        )}
-      </div>
-      {message !== null && <p className={styles.quiet}>{message}</p>}
-      {hasNextPage && (
-        <p ref={end} className={styles.quiet}>
-          {isFetchingNextPage ? "Loading older Events…" : "Older Events load as you scroll."}
-        </p>
-      )}
-    </div>
+    <ListTable
+      table={table}
+      className={styles.events}
+      choices={choices}
+      message={message}
+      stale={events.isError || events.isPlaceholderData}
+      paging={events}
+      older="Events"
+      tone={(event) => TONES[priorityName(event.priority)]}
+      rowTitle={(event) => `${priorityName(event.priority)} priority`}
+      detailsLabel="Event details"
+      details={(event) => <EventDetails event={event} now={now} home={home} />}
+    />
   );
 }

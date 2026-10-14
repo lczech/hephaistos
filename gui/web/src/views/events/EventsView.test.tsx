@@ -77,7 +77,8 @@ describe("the Events View", () => {
       ["added", "project", "", ""], // a Repository's own Event: its name is already there
       ["committed", "project", "~/project", "Commit number 1 (abc1)"],
     ]);
-    expect(rows.map((row) => row.dataset.priority)).toEqual(["high", "normal", "low"]);
+    expect(rows.map((row) => row.dataset.tone)).toEqual(["warning", undefined, "muted"]);
+    expect(within(rows[0] as HTMLElement).getByTitle("high priority")).toBeInTheDocument();
     expect(within(rows[0] as HTMLElement).getByTitle("clone.committed")).toBeInTheDocument();
   });
 
