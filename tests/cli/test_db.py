@@ -53,24 +53,25 @@ def test_dump_all_columns_as_blocks() -> None:
     assert len(blocks) == 2
     fields = dict(line.split(maxsplit=1) for line in blocks[0].splitlines())
     assert list(fields) == ["id", "name", "modified_at", "modified_by", "deleted"]
-    assert fields["name"] == "two"
+    assert fields["name"] == "one"  # the older
     assert re.fullmatch(UUID, fields["id"])
     assert re.fullmatch(FULL_CLOCK, fields["modified_at"])
 
 
 def test_dump_chosen_columns_as_a_table() -> None:
-    lines = _stdout("dump", "events", "-c", "kind", "-c", "subject", "--short-ids").splitlines()
+    chosen = ("dump", "events", "-c", "kind", "-c", "subject", "--short-ids", "--reverse")
+    lines = _stdout(*chosen).splitlines()
     assert lines[0].split() == ["kind", "subject"]
     assert lines[1].split()[0] == "repository.added"
     assert re.fullmatch(r"[0-9a-f]{8}", lines[1].split()[1])
-    blocks = _stdout("dump", "events", "-c", "kind", "--blocks")
+    blocks = _stdout("dump", "events", "-c", "kind", "--blocks", "--reverse")
     assert blocks.startswith("kind  repository.added\n\nkind  repository.added\n")
     assert _stdout("dump", "meta", "--table").splitlines()[0].split() == ["key", "value"]
 
 
 def test_dump_limit_and_json() -> None:
     assert len(_stdout("dump", "events", "-c", "kind", "-n", "1").splitlines()) == 2
-    shown = json.loads(_stdout("dump", "events", "-n", "0", "--json"))
+    shown = json.loads(_stdout("dump", "events", "-n", "0", "--reverse", "--json"))
     found = shown["rows"]
     assert shown["columns"] == list(found[0])
     assert [event["kind"] for event in found][:2] == ["repository.added", "repository.added"]
@@ -78,6 +79,8 @@ def test_dump_limit_and_json() -> None:
     assert found[0]["occurred_at"] is None
     second = json.loads(_stdout("dump", "events", "-n", "1", "--offset", "1", "--json"))
     assert second["rows"] == found[1:2]
+    oldest_first = json.loads(_stdout("dump", "events", "-n", "2", "--json"))["rows"]
+    assert oldest_first == found[1::-1]
 
 
 def test_dump_empty_table() -> None:

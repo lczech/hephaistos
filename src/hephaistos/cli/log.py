@@ -9,10 +9,10 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import terminal
-from hephaistos.cli.output import JsonOption, LimitOption, parse_time
-from hephaistos.core import config
+from hephaistos.cli.output import JsonOption, LimitOption, ReverseOption, parse_time
+from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
-from hephaistos.core.utils.logs import LevelName, ProcessName, Record, record_text
+from hephaistos.core.utils.logs import Entry, LevelName, ProcessName, record_text
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.core.utils.text import number_text
 
@@ -30,9 +30,11 @@ def _directory() -> Path:
     return Paths.from_environment().state_dir
 
 
-def _shown(record: Record, *, as_json: bool, brief: bool) -> str:
+def _shown(entry: Entry, *, as_json: bool, brief: bool) -> str:
     """A record as `log show` prints it."""
-    return logs.json_text(record) if as_json else record_text(record, dated=True, brief=brief)
+    if as_json:
+        return logs.json_text(serialize.log_entry_json(entry))
+    return record_text(entry.record, dated=True, brief=brief)
 
 
 @app.command()
@@ -57,6 +59,7 @@ def show(  # noqa: PLR0913 - one option per filter
         int | None, typer.Option("--pid", help="Only records of this process: one run.")
     ] = None,
     limit: LimitOption = 50,
+    reverse: ReverseOption = False,
     follow: Annotated[
         bool, typer.Option("--follow", "-f", help="Then show new records as they come.")
     ] = False,
@@ -66,9 +69,15 @@ def show(  # noqa: PLR0913 - one option per filter
     no_pager: Annotated[bool, typer.Option("--no-pager", help="Don't page the output.")] = False,
     as_json: JsonOption = False,
 ) -> None:
-    """Show the newest records of the log, oldest first; as JSON, one record per line."""
+    """Show the newest records of the log, oldest first.
+
+    As JSON, one `{"position": …, "record": …}` per line: the record as written, and its day
+    file and line.
+    """
     if follow and until:
         raise typer.BadParameter("shows records as they come; leave out --until", param_hint="-f")
+    if follow and reverse:
+        raise typer.BadParameter("shows new records last; leave out --reverse", param_hint="-f")
     now = datetime.now(UTC)
     selection = logs.Selection(
         since=parse_time(since, now) if since else None,
@@ -79,7 +88,8 @@ def show(  # noqa: PLR0913 - one option per filter
     )
     directory = _directory()
     reading = logs.read(directory, selection, limit)
-    shown = [_shown(record, as_json=as_json, brief=brief) for record in reading.records]
+    entries = reading.entries if reverse else reading.entries[::-1]
+    shown = [_shown(entry, as_json=as_json, brief=brief) for entry in entries]
     if reading.skipped:
         typer.echo(f"skipped {number_text(reading.skipped, 'unreadable line')}", err=True)
     if not follow:
@@ -88,8 +98,8 @@ def show(  # noqa: PLR0913 - one option per filter
         return
     for text in shown:
         typer.echo(text)
-    for record in logs.follow(directory, selection, reading):
-        typer.echo(_shown(record, as_json=as_json, brief=brief))
+    for entry in logs.follow(directory, selection, reading):
+        typer.echo(_shown(entry, as_json=as_json, brief=brief))
 
 
 def _keep_days(value: str) -> int:

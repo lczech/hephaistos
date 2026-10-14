@@ -19,6 +19,8 @@ TimeFormatOption = Annotated[
 LimitOption = Annotated[
     int, typer.Option("--limit", "-n", min=0, help="Show at most this many; 0 for all.")
 ]
+# Lists by time show the newest last, next to the prompt, as `journalctl` does.
+ReverseOption = Annotated[bool, typer.Option("--reverse", help="Newest first.")]
 
 
 def parse_time(value: str, now: datetime, option: str = "--since") -> datetime:

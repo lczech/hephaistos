@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 4
+    "minor": 5
   },
   "shapes": {
     "components": {
@@ -521,15 +521,34 @@
           "title": "InfoJson",
           "type": "object"
         },
-        "LogJson": {
-          "description": "Log records as written, oldest first, and how many lines weren't records.",
+        "LogEntryJson": {
+          "description": "A log record as written, and where its line starts: day and byte, `2026-10-14:18734`.",
           "properties": {
-            "records": {
+            "position": {
+              "title": "Position",
+              "type": "string"
+            },
+            "record": {
+              "additionalProperties": true,
+              "title": "Record",
+              "type": "object"
+            }
+          },
+          "required": [
+            "position",
+            "record"
+          ],
+          "title": "LogEntryJson",
+          "type": "object"
+        },
+        "LogJson": {
+          "description": "Log entries, newest first, and how many lines weren't records.",
+          "properties": {
+            "entries": {
               "items": {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/LogEntryJson"
               },
-              "title": "Records",
+              "title": "Entries",
               "type": "array"
             },
             "skipped": {
@@ -538,7 +557,7 @@
             }
           },
           "required": [
-            "records",
+            "entries",
             "skipped"
           ],
           "title": "LogJson",
@@ -1629,7 +1648,7 @@
       },
       "/api/db/tables/{table}": {
         "get": {
-          "description": "A table's rows, newest first, as `db dump --json`; `offset` skips that many.",
+          "description": "A table's rows, newest first, as `db dump --reverse --json`; `offset` skips that many.",
           "operationId": "db_dump_api_db_tables__table__get",
           "parameters": [
             {
@@ -1710,7 +1729,7 @@
       },
       "/api/events": {
         "get": {
-          "description": "Events, newest first, as `event list --json`; `before` an Event pages back from it.\n\n`kind` as in `event list`; repeat it, `machine` or `repository` for several. `since` is a\nduration (`2h`) or a date; `limit` 0 for all.",
+          "description": "Events, newest first, as `event list --reverse --json`.\n\n`before` an Event pages back from it. `kind` as in `event list`; repeat it, `machine` or\n`repository` for several. `since` is a duration (`2h`) or a date; `limit` 0 for all.",
           "operationId": "event_list_api_events_get",
           "parameters": [
             {
@@ -1987,7 +2006,7 @@
       },
       "/api/log": {
         "get": {
-          "description": "The newest records of the log, oldest first, as `log show --json`.\n\n`since`, `until` and `before` take a duration (`2h`) or a date; `before` excludes that\ntime, to page back from the oldest record shown. `limit` 0 for all.",
+          "description": "The newest records of the log, newest first, as `log show --reverse --json`.\n\n`before` a record's position pages back from it. `since` and `until` take a duration\n(`2h`) or a date; `limit` 0 for all.",
           "operationId": "log_show_api_log_get",
           "parameters": [
             {
@@ -2020,22 +2039,6 @@
                   }
                 ],
                 "title": "Until"
-              }
-            },
-            {
-              "in": "query",
-              "name": "before",
-              "required": false,
-              "schema": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Before"
               }
             },
             {
@@ -2106,6 +2109,22 @@
                 "minimum": 0,
                 "title": "Limit",
                 "type": "integer"
+              }
+            },
+            {
+              "in": "query",
+              "name": "before",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Before"
               }
             }
           ],

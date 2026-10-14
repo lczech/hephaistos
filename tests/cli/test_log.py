@@ -42,19 +42,25 @@ def test_show(paths: Paths) -> None:
     assert lines[-1].endswith("INFO  cli[7] recorded clone.added event=e1")
     assert result.stderr == "skipped 1 unreadable line\n"
 
+    reverse = runner.invoke(app, ["log", "show", "--reverse", "-n", "2"]).stdout.splitlines()
+    assert reverse[0].endswith("INFO  cli[7] recorded clone.added event=e1")
+    assert reverse[1].endswith("ERROR cli[7] unexpected KeyError")
     brief = runner.invoke(app, ["log", "show", "--brief", "-n", "2", "--level", "error"])
     assert brief.stdout.splitlines()[1:] == ["    ↳ KeyError: 'branch'"]
     ninety_seconds_before = (NOW - timedelta(seconds=90)).isoformat()
     since = runner.invoke(app, ["log", "show", "--since", ninety_seconds_before, "--json"])
-    [record] = [json.loads(line) for line in since.stdout.splitlines()]
-    assert record["event"] == "e1"
+    [entry] = [json.loads(line) for line in since.stdout.splitlines()]
+    assert entry["record"]["event"] == "e1"
+    assert entry["position"].startswith(f"{NOW.date()}:")
 
 
 @pytest.mark.usefixtures("paths")
-def test_show_follow_refuses_until() -> None:
-    result = runner.invoke(app, ["log", "show", "--follow", "--until", "1h"])
+@pytest.mark.parametrize("refused", ["--until", "--reverse"])
+def test_show_follow_refuses(refused: str) -> None:
+    args = [refused, "1h"] if refused == "--until" else [refused]
+    result = runner.invoke(app, ["log", "show", "--follow", *args])
     assert result.exit_code == 2
-    assert "leave out --until" in result.output
+    assert f"leave out {refused}" in result.output
 
 
 def test_pages_on_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

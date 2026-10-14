@@ -169,10 +169,10 @@ def test_lines_that_arent_records(line: bytes) -> None:
 
 
 def _messages(reading: logs.Reading) -> list[object]:
-    return [record["message"] for record in reading.records]
+    return [entry.record["message"] for entry in reading.entries]
 
 
-def test_read_the_newest_selected_records_oldest_first(tmp_path: Path) -> None:
+def test_read_the_newest_selected_records_newest_first(tmp_path: Path) -> None:
     _write(
         tmp_path,
         _line(DAY - timedelta(days=2), "old"),
@@ -183,15 +183,50 @@ def test_read_the_newest_selected_records_oldest_first(tmp_path: Path) -> None:
     with logs.day_file(tmp_path, DAY.date() - timedelta(days=1)).open("a") as file:
         file.write("not a record\n")
     everything = logs.read(tmp_path, logs.Selection(), today=DAY.date())
-    assert _messages(everything) == ["old", "warned", "first", "failed"]
+    assert _messages(everything) == ["failed", "first", "warned", "old"]
     assert everything.skipped == 1
-    assert _messages(logs.read(tmp_path, logs.Selection(), 2, DAY.date())) == ["first", "failed"]
+    newest = logs.read(tmp_path, logs.Selection(), 2, today=DAY.date())
+    assert _messages(newest) == ["failed", "first"]
     warnings = logs.Selection(level=logging.WARNING)
-    assert _messages(logs.read(tmp_path, warnings, today=DAY.date())) == ["warned", "failed"]
-    assert _messages(logs.read(tmp_path, logs.Selection(pid=2), 1, DAY.date())) == ["failed"]
+    assert _messages(logs.read(tmp_path, warnings, today=DAY.date())) == ["failed", "warned"]
+    assert _messages(logs.read(tmp_path, logs.Selection(pid=2), 1, today=DAY.date())) == ["failed"]
     yesterday = logs.Selection(since=DAY - timedelta(days=1), until=DAY - timedelta(hours=1))
     assert _messages(logs.read(tmp_path, yesterday, today=DAY.date())) == ["warned"]
-    assert logs.read(tmp_path, logs.Selection(process="daemon"), today=DAY.date()).records == []
+    assert logs.read(tmp_path, logs.Selection(process="daemon"), today=DAY.date()).entries == []
+
+
+def test_read_pages_back_by_position(tmp_path: Path) -> None:
+    # Records of the same millisecond, across two days: each page goes on where the last ended.
+    _write(
+        tmp_path,
+        *(_line(DAY - timedelta(days=1), f"yesterday {n}") for n in range(3)),
+        *(_line(DAY, f"today {n}", "DEBUG" if n == 1 else "INFO") for n in range(4)),
+    )
+    selection = logs.Selection(level=logging.INFO)
+    pages: list[list[object]] = []
+    before: logs.Position | None = None
+    while page := logs.read(tmp_path, selection, 2, before=before, today=DAY.date()).entries:
+        pages.append([entry.record["message"] for entry in page])
+        before = page[-1].position
+    assert pages == [
+        ["today 3", "today 2"],
+        ["today 0", "yesterday 2"],
+        ["yesterday 1", "yesterday 0"],
+    ]
+
+
+def test_positions_are_day_and_offset(tmp_path: Path) -> None:
+    first, second = _line(DAY, "first"), _line(DAY, "second")
+    _write(tmp_path, first, second)
+    entries = logs.read(tmp_path, logs.Selection(), today=DAY.date()).entries
+    assert [str(entry.position) for entry in entries] == [
+        f"2026-10-08:{len(first)}",
+        "2026-10-08:0",
+    ]
+    assert logs.Position.parse("2026-10-08:42") == logs.Position(DAY.date(), 42)
+    for text in ("2026-10-08", "2026-13-01:0", "2026-10-08:-1", "x:1"):
+        with pytest.raises(ValueError, match="is not a position like 2026-10-14:18734"):
+            logs.Position.parse(text)
 
 
 def test_read_leaves_out_a_line_still_being_written(tmp_path: Path) -> None:
@@ -221,9 +256,15 @@ def test_follow_continues_where_reading_stopped_and_into_the_next_day(tmp_path: 
         file.write(_line(DAY, "debug", "DEBUG") + _line(DAY, "after")[:10])
     with path.open("a") as file:
         file.write(_line(DAY, "after")[10:])
-    assert next(following)["message"] == "after"
+    after = next(following)
+    assert after.record["message"] == "after"
+    assert after.position == logs.Position(
+        DAY.date(), len(_line(DAY, "before") + _line(DAY, "debug", "DEBUG"))
+    )
     _write(tmp_path, _line(DAY + timedelta(days=1), "tomorrow"))
-    assert next(following)["message"] == "tomorrow"
+    tomorrow = next(following)
+    assert tomorrow.record["message"] == "tomorrow"
+    assert tomorrow.position == logs.Position(DAY.date() + timedelta(days=1), 0)
 
 
 def test_start_shows_records_on_stderr_and_is_remembered(

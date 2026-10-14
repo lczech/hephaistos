@@ -8,6 +8,7 @@ import typer
 from hephaistos.cli.output import (
     JsonOption,
     LimitOption,
+    ReverseOption,
     TimeFormatOption,
     parse_time,
     print_fields,
@@ -113,10 +114,11 @@ def list_(  # noqa: PLR0913 - one option per filter
     clone: CloneFilterOption = None,
     worktree: WorktreeFilterOption = None,
     limit: LimitOption = 20,
+    reverse: ReverseOption = False,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """List Events, newest first."""
+    """List the newest Events, oldest first."""
     since_time = parse_time(since, datetime.now(UTC)) if since else None
     with read_session(Paths.from_environment()) as session:
         found = events.recent(
@@ -130,7 +132,8 @@ def list_(  # noqa: PLR0913 - one option per filter
             clone_id=clones.find_unobserved(session, clone).clone.id if clone else None,
             worktree_id=find_worktree(session, worktree)[0].id if worktree else None,
         )
-        print_events(session, found, time_format=time_format, as_json=as_json)
+        listed = found if reverse else found[::-1]
+        print_events(session, listed, time_format=time_format, as_json=as_json)
 
 
 def print_events(
