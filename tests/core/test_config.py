@@ -29,6 +29,13 @@ def test_defaults_file_describes_every_setting() -> None:
     assert config.DESCRIPTIONS["git.timeout"].startswith("Seconds one git command may take;")
 
 
+def test_settings_have_types() -> None:
+    found = {key: config.setting_type(key) for key in config.KEYS}
+    assert set(found.values()) <= {"bool", "int", "float", "text"}
+    assert (found["git.timeout"], found["scan.depth"]) == ("float", "int")
+    assert (found["server.enabled"], found["time_format"]) == ("bool", "text")
+
+
 def test_descriptions_are_the_comments_right_above_a_key() -> None:
     text = """# About the file.
 

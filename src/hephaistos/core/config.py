@@ -20,7 +20,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from enum import StrEnum
 from importlib.resources import files
 from pathlib import Path
-from typing import Annotated, Any, cast, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, Literal, cast, get_args, get_origin, get_type_hints
 
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import HOME_VARIABLE
@@ -171,6 +171,16 @@ KEYS = tuple(_LEAVES)  # every setting, e.g. `git.timeout`
 _SECTIONS = frozenset(key.rpartition(".")[0] for key in _LEAVES) - {""}
 
 DEFAULT = "default"  # the source of a value from `defaults.toml`
+
+type SettingType = Literal["bool", "int", "float", "text"]
+
+
+def setting_type(key: str) -> SettingType:
+    """What a setting holds: `text` for one of several words, e.g. `auto`."""
+    kind = _LEAVES[key].kind
+    if issubclass(kind, StrEnum):
+        return "text"
+    return cast("SettingType", kind.__name__)
 
 
 PREFIX = "HEPHAISTOS_"  # of our environment variables
