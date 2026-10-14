@@ -29,7 +29,7 @@ pre.traceback {
   --narrow-areas: "level message message" "level time process";
 }
 
-@container (width < 44rem) {
+@container list (width < 44rem) {
   .log li [data-column="level"] {
     grid-area: level;
   }

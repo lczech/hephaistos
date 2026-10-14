@@ -20,6 +20,7 @@ interface Paging {
 interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;
   className?: string; // the View's, e.g. for its two lines per row in narrow Panels
+  wide?: boolean; // scrolls sideways instead, for more columns than fit
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
@@ -34,11 +35,13 @@ interface Props<TData extends RowData> {
 /**
  * A list as a table: its columns' headers, which filter and resize; rows that open their
  * details below them, each beside a square, which a first column of `Chevron`s fills; more
- * rows as the end comes into view. Narrow Panels show each row in the View's two lines.
+ * rows as the end comes into view. Narrow Panels show each row in the View's two lines, unless
+ * the list is wide: then it scrolls sideways, its details staying in view.
  */
 export function ListTable<TData extends RowData>({
   table,
   className,
+  wide,
   choices,
   message,
   stale,
@@ -72,7 +75,11 @@ export function ListTable<TData extends RowData>({
   // Set by script, which the Content-Security-Policy allows, unlike style attributes in markup.
   const grid = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
   return (
-    <div className={`${styles.frame} ${className ?? ""}`} data-stale={stale || undefined}>
+    <div
+      className={`${styles.frame} ${className ?? ""}`}
+      data-stale={stale || undefined}
+      data-wide={wide || undefined}
+    >
       <div className={styles.grid} style={grid}>
         <div className={styles.head}>
           {table

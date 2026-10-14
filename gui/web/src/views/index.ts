@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { Address, Params } from "./address";
 import { ConfigView } from "./config/ConfigView";
 import { DaemonView } from "./daemon/DaemonView";
+import { DbView } from "./db/DbView";
 import { EventsView } from "./events/EventsView";
 import { LogView } from "./log/LogView";
 
@@ -25,6 +26,7 @@ export const VIEWS: Record<string, ViewKind> = {
   events: { name: "Events", component: EventsView, suggested: true },
   log: { name: "Log", component: LogView, suggested: true },
   config: { name: "Config", component: ConfigView },
+  db: { name: "Database", component: DbView },
 };
 
 export function viewKind(kind: string): ViewKind | undefined {

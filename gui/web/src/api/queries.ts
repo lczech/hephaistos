@@ -118,6 +118,34 @@ export function useLog(filters: LogFilters = {}) {
   });
 }
 
+/** The database's tables, with their rows and latest change, as `db tables` lists them. */
+export function useDbTables() {
+  return useQuery({
+    queryKey: ["db", "tables"],
+    queryFn: async () => unwrap(await api.GET("/api/db/tables")),
+    refetchInterval: POLL_INTERVAL,
+  });
+}
+
+export const DB_PAGE = 50;
+
+/** A table's rows, newest first; each further page skips those before, as `db dump --offset`. */
+export function useDbRows(table: string) {
+  return useInfiniteQuery({
+    queryKey: ["db", "rows", table],
+    queryFn: async ({ pageParam }) =>
+      unwrap(
+        await api.GET("/api/db/tables/{table}", {
+          params: { path: { table }, query: { limit: DB_PAGE, offset: pageParam } },
+        }),
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (page, pages) =>
+      page.rows.length < DB_PAGE ? undefined : pages.length * DB_PAGE,
+    refetchInterval: POLL_INTERVAL,
+  });
+}
+
 /** Has the Watcher pass; what it found, the other queries show. */
 export async function observe(): Promise<void> {
   const answer = await api.POST("/api/observe");
