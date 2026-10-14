@@ -2,7 +2,7 @@
 .frame {
   --square: calc(1lh + 4px); /* as wide as a row is high */
   --column-gap: var(--space-3);
-  container-type: inline-size; /* the rows fit the Panel's width, not the window's */
+  container: list / inline-size; /* the rows fit the Panel's width, not the window's */
   padding: var(--space-2) 0;
   transition: opacity 0.2s;
 }
@@ -354,11 +354,29 @@
   text-decoration: underline;
 }
 
+/* Wider than the Panel: it scrolls itself, so its scrollbars stay at the Panel's edges. */
+.frame[data-wide] {
+  container-name: wide-list; /* no two lines per row */
+  height: 100%;
+  overflow: auto;
+}
+
+.frame[data-wide] .grid {
+  width: max-content;
+  min-width: 100%;
+}
+
+.frame[data-wide] .details {
+  position: sticky;
+  left: 0;
+  width: calc(100cqw - var(--square) - var(--column-gap) - var(--space-3));
+}
+
 /*
  * Narrow: each row in two lines, as the View's `--narrow-columns` and `--narrow-areas` lay them
  * out; the header in one line, of only the columns that filter, without their widths.
  */
-@container (width < 44rem) {
+@container list (width < 44rem) {
   .grid {
     grid-template-columns: 1fr;
   }

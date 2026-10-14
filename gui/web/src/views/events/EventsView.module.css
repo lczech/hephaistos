@@ -17,7 +17,7 @@
     "priority recorded kind subject subject";
 }
 
-@container (width < 44rem) {
+@container list (width < 44rem) {
   .events li [data-column="priority"] {
     grid-area: priority;
   }
