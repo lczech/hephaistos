@@ -83,6 +83,32 @@ export function useEvents(filters: EventFilters = {}) {
   });
 }
 
+export const LOG_PAGE = 50;
+
+/** What `/api/log` filters by, as `hephaistos log show` does. */
+export type LogFilters = Omit<
+  NonNullable<paths["/api/log"]["get"]["parameters"]["query"]>,
+  "limit" | "before"
+>;
+
+/** This Machine's log records matching the filters, newest first, paged back as Events are. */
+export function useLog(filters: LogFilters = {}) {
+  return useInfiniteQuery({
+    queryKey: ["log", filters],
+    queryFn: async ({ pageParam }) =>
+      unwrap(
+        await api.GET("/api/log", {
+          params: { query: { ...filters, limit: LOG_PAGE, before: pageParam } },
+        }),
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: ({ entries }) =>
+      entries.length < LOG_PAGE ? undefined : entries.at(-1)?.position,
+    refetchInterval: POLL_INTERVAL,
+    placeholderData: keepPreviousData,
+  });
+}
+
 /** Has the Watcher pass; what it found, the other queries show. */
 export async function observe(): Promise<void> {
   const answer = await api.POST("/api/observe");

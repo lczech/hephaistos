@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NOW, secondsAgo } from "./test/server";
-import { ago, fullTime, seconds, secondsUntil } from "./time";
+import { ago, fullTime, preciseTime, seconds, secondsUntil } from "./time";
 
 describe("times", () => {
   it("are ages as the CLI shows them", () => {
@@ -23,5 +23,13 @@ describe("times", () => {
 describe("fullTime", () => {
   it("is the local time, to the second", () => {
     expect(fullTime(new Date(2026, 9, 5, 14, 3, 21).toISOString())).toBe("2026-10-05 14:03:21");
+  });
+});
+
+describe("preciseTime", () => {
+  it("is the local time to the millisecond, as `log show` prints it", () => {
+    expect(preciseTime(new Date(2026, 9, 5, 14, 3, 21, 7).toISOString())).toBe(
+      "2026-10-05 14:03:21.007",
+    );
   });
 });

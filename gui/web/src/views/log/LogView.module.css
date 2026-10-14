@@ -1,0 +1,53 @@
+.log li :is([data-column="time"], [data-column="process"]) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* What went wrong, in the row's tone. */
+.traceback {
+  color: var(--tone, inherit);
+}
+
+.fields {
+  color: var(--text-muted);
+}
+
+pre.traceback {
+  margin: 0;
+  padding-left: var(--space-4);
+  overflow-x: auto;
+  color: inherit;
+  font-family: var(--font-mono);
+}
+
+.actions {
+  margin: var(--space-2) 0 0;
+}
+
+/* Narrow: the message on one line, its time and process below it, quieter. */
+.log {
+  --narrow-columns: var(--square) max-content 1fr;
+  --narrow-areas: "level message message" "level time process";
+}
+
+@container (width < 44rem) {
+  .log li [data-column="level"] {
+    grid-area: level;
+  }
+
+  .log li [data-column="message"] {
+    grid-area: message;
+  }
+
+  .log li [data-column="time"] {
+    grid-area: time;
+  }
+
+  .log li [data-column="process"] {
+    grid-area: process;
+  }
+
+  .log li :is([data-column="time"], [data-column="process"]) {
+    color: var(--text-muted);
+    font-size: var(--text-small);
+  }
+}

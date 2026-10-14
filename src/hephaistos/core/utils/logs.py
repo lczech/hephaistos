@@ -256,10 +256,10 @@ def record_text(record: Record, *, dated: bool = False, brief: bool = False) -> 
     """A record as one line in local time, with its traceback (if any) indented below.
 
     E.g. `14:03:21.123 INFO  cli[4242] recorded clone.moved event=… subject=…`; `dated` puts
-    the day in front (`10-08 14:03:21.123`), `brief` shortens a traceback to its last line.
+    the date in front (`2026-10-08 14:03:21.123`), `brief` shortens a traceback to its last line.
     """
     at = record_at(record).astimezone()
-    seconds = f"{at:%m-%d %H:%M:%S}" if dated else f"{at:%H:%M:%S}"
+    seconds = f"{at:%Y-%m-%d %H:%M:%S}" if dated else f"{at:%H:%M:%S}"
     parts = [
         f"{seconds}.{at.microsecond // 1000:03d}",
         f"{record['level']!s:<5}",

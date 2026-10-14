@@ -63,18 +63,23 @@
   height: 1em;
 }
 
-/* The square, tinted by the row's tone beside the row and its details. */
-.item:is([data-tone="warning"], [data-tone="danger"]) {
+/* The square, tinted by the row's tone beside the row and its details; filled for alarms. */
+.item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"]) {
   --tone: var(--warning);
+  --tint: 25%;
   background: linear-gradient(
     to right,
-    color-mix(in srgb, var(--tone) 25%, transparent) var(--square),
+    color-mix(in srgb, var(--tone) var(--tint), transparent) var(--square),
     transparent 0
   );
 }
 
-.item[data-tone="danger"] {
+.item:is([data-tone="danger"], [data-tone="alarm"]) {
   --tone: var(--danger);
+}
+
+.item[data-tone="alarm"] {
+  --tint: 100%;
 }
 
 .row {
@@ -123,6 +128,10 @@
 
 .item:is([data-tone="warning"], [data-tone="danger"]) .chevron {
   color: var(--tone);
+}
+
+.item[data-tone="alarm"] .chevron {
+  color: var(--background);
 }
 
 .row[aria-expanded="true"] .chevron {
