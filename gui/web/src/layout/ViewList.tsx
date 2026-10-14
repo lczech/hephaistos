@@ -12,7 +12,7 @@ export function ViewList({ open, suggested, menu }: Props) {
   const kinds = Object.entries(VIEWS).filter(([, kind]) => !suggested || kind.suggested);
   return (
     <ul className={styles.views}>
-      {kinds.map(([name, kind]) => (
+      {kinds.map(([name, { name: title, icon: Icon }]) => (
         <li key={name}>
           <button
             type="button"
@@ -21,7 +21,8 @@ export function ViewList({ open, suggested, menu }: Props) {
             popoverTargetAction={menu === undefined ? undefined : "hide"}
             onClick={() => open(name)}
           >
-            {kind.name}
+            <Icon className={styles.icon} aria-hidden="true" />
+            {title}
           </button>
         </li>
       ))}

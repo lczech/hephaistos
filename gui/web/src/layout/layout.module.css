@@ -9,6 +9,24 @@
   color: var(--text-muted);
 }
 
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 100%;
+}
+
+.tab > :global(.dv-default-tab) {
+  min-width: 0;
+}
+
+.icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -46,6 +64,10 @@
   background: none;
   color: var(--text);
   text-align: left;
+}
+
+.choice .icon {
+  margin-right: var(--space-2);
 }
 
 .choice:hover,

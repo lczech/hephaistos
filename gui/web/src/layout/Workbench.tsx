@@ -7,6 +7,7 @@ import { GroupActions } from "./GroupActions";
 import { PanelView } from "./PanelView";
 import { Placeholder } from "./Placeholder";
 import { savedLayout, saveLayout } from "./saved";
+import { ViewTab } from "./ViewTab";
 
 const SAVE_DELAY = 300; // ms: a drag or resize saves once, when it ends
 
@@ -47,6 +48,7 @@ export function Workbench() {
   return (
     <DockviewReact
       components={{ [PANEL]: PanelView }}
+      defaultTabComponent={ViewTab}
       rightHeaderActionsComponent={GroupActions}
       watermarkComponent={Placeholder}
       noPanelsOverlay="emptyGroup"

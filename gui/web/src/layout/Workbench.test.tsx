@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { FlaskConical } from "lucide-react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
@@ -60,6 +61,17 @@ describe("the Workbench", () => {
     );
   });
 
+  it("shows each View's icon in its tab and in the lists of Views", () => {
+    renderWithQueries(<Workbench />);
+    const icons = (element: Element) =>
+      [...element.querySelectorAll("svg")].map((icon) => icon.getAttribute("class"));
+    const [daemon, events] = screen.getAllByRole("tab");
+    expect(icons(daemon as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-activity/));
+    expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
+    const [choice] = screen.getAllByRole("button", { name: "Config", hidden: true });
+    expect(icons(choice as HTMLElement)).toEqual([expect.stringMatching(/lucide-sliders/)]);
+  });
+
   it("restores the saved Layout, saying which Views no longer exist", async () => {
     save("gone", "daemon");
     renderWithQueries(<Workbench />);
@@ -82,7 +94,7 @@ describe("the Workbench", () => {
   });
 
   it("lets a View show other parameters in its Panel and name its tab, and saves both", async () => {
-    VIEWS.probe = { name: "Probe", component: Probe };
+    VIEWS.probe = { name: "Probe", icon: FlaskConical, component: Probe };
     try {
       save("probe");
       renderWithQueries(<Workbench />);
@@ -100,7 +112,8 @@ describe("the Workbench", () => {
   it("offers Views in an empty Group", async () => {
     save("gone");
     renderWithQueries(<Workbench />);
-    await userEvent.click(screen.getByRole("button", { name: "Close gone" }));
+    const [tab] = screen.getAllByRole("tab");
+    await userEvent.click(within(tab as HTMLElement).getByRole("button", { name: "Close tab" }));
     expect(tabs()).toEqual([]);
     expect(screen.getByText("Open a View:")).toBeInTheDocument();
     await userEvent.click(within(screen.getByRole("list")).getByRole("button", { name: "Daemon" }));
