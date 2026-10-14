@@ -301,7 +301,8 @@ def _get(port: int, path: str, headers: dict[str, str], method: str = "GET") -> 
             body = response.read()
             return response.status, json.loads(body) if body else None
     except urllib.error.HTTPError as error:
-        return error.code, json.loads(error.read())
+        with error:
+            return error.code, json.loads(error.read())
 
 
 def _server(paths: Paths, daemon: subprocess.Popen[str]) -> ServerStatus | None:
