@@ -73,7 +73,13 @@ def test_dump_limit_and_json() -> None:
     assert len(_stdout("dump", "events", "-c", "kind", "-n", "1").splitlines()) == 2
     shown = json.loads(_stdout("dump", "events", "-n", "0", "--reverse", "--json"))
     found = shown["rows"]
-    assert shown["columns"] == list(found[0])
+    assert [column["name"] for column in shown["columns"]] == list(found[0])
+    types = {column["name"]: column["type"] for column in shown["columns"]}
+    assert (types["recorded_at"], types["occurred_at"], types["payload"]) == (
+        "clock",
+        "time",
+        "json",
+    )
     assert [event["kind"] for event in found][:2] == ["repository.added", "repository.added"]
     assert found[0]["payload"]["name"] == "two"
     assert found[0]["occurred_at"] is None

@@ -62,6 +62,7 @@ def test_rows_are_decoded_newest_first(set_up: Paths) -> None:
         meta = raw.rows(session, "meta")
         machine_id = session.machine_id
     assert found.columns == ["id", "name", "modified_at", "modified_by", "deleted"]
+    assert found.types == ["id", "plain", "clock", "id", "plain"]
     assert [row[1] for row in found.values] == ["two", "one"]
     assert isinstance(found.values[0][0], uuid.UUID)
     assert isinstance(found.values[0][2], Timestamp)

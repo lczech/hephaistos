@@ -8,10 +8,13 @@ import json
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Literal
 
 from hephaistos.core.utils.ids import Timestamp
 
 type Decoder = Callable[[object], object]
+#: What a decoder makes of a column, for JSON, where its values are text or numbers.
+type ValueType = Literal["id", "clock", "time", "json", "hex", "plain"]
 
 
 def fallback(value: object) -> object:
@@ -65,3 +68,14 @@ def json_text(value: object) -> object:
         except json.JSONDecodeError:
             pass
     return fallback(value)
+
+
+TYPES: dict[Decoder, ValueType] = {
+    fallback: "plain",
+    plain: "plain",
+    uuid_bytes: "id",
+    hex_bytes: "hex",
+    clock: "clock",
+    milliseconds: "time",
+    json_text: "json",
+}

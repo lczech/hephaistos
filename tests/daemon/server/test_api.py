@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from hephaistos.cli.main import app as cli
-from hephaistos.core import serialize
+from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
@@ -178,6 +178,7 @@ def test_config_says_what_it_applies(paths: Paths, client: TestClient) -> None:
     [timeout] = [setting for setting in shown["settings"] if setting["key"] == "git.timeout"]
     assert timeout == {
         "key": "git.timeout",
+        "description": config.DESCRIPTIONS["git.timeout"],
         "value": 90.0,
         "source": str(paths.config_dir / "config.toml"),
         "applied": 30.0,  # loaded before the edit

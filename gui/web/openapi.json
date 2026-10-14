@@ -247,6 +247,24 @@
         "title": "CloneRef",
         "type": "object"
       },
+      "ColumnJson": {
+        "description": "A table's column, and what its values are: `clock` values are `\u2026 #3`, `id`s text.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ValueType"
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "ColumnJson",
+        "type": "object"
+      },
       "ConfigJson": {
         "description": "The settings as this process finds them, and where they come from.",
         "properties": {
@@ -836,7 +854,7 @@
         "properties": {
           "columns": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ColumnJson"
             },
             "title": "Columns",
             "type": "array"
@@ -924,6 +942,10 @@
           "applied": {
             "$ref": "#/components/schemas/SettingValue"
           },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
           "key": {
             "title": "Key",
             "type": "string"
@@ -938,6 +960,7 @@
         },
         "required": [
           "key",
+          "description",
           "value",
           "source",
           "applied"
@@ -1108,6 +1131,14 @@
             "title": "Category"
           },
           "latest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Latest"
           },
           "rows": {
@@ -1266,6 +1297,17 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "ValueType": {
+        "enum": [
+          "id",
+          "clock",
+          "time",
+          "json",
+          "hex",
+          "plain"
+        ],
+        "type": "string"
       },
       "WatcherJson": {
         "description": "The Watcher of the running Daemon.",
@@ -1492,7 +1534,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.5"
+    "version": "0.6"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -12,6 +12,7 @@ import difflib
 import json
 import logging
 import os
+import re
 import socket
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -280,9 +281,34 @@ def _built[T](section: type[T], values: Mapping[str, object], prefix: str = "") 
     return section(**arguments)
 
 
+_SECTION = re.compile(r"\[([\w.]+)\]")
+_KEY = re.compile(r"(\w+)\s*=.*")
+
+
+def descriptions(text: str) -> dict[str, str]:
+    """Each setting's description: the comment lines directly above it in `defaults.toml`.
+
+    Comments above a section, or apart from a key by an empty line, describe no setting.
+    """
+    found: dict[str, str] = {}
+    section = ""
+    comments: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("#"):
+            comments.append(line.removeprefix("#").strip())
+            continue
+        if match := _SECTION.fullmatch(line):
+            section = f"{match[1]}."
+        elif match := _KEY.fullmatch(line):
+            found[section + match[1]] = " ".join(comments)
+        comments = []
+    return found
+
+
 DEFAULTS_TEXT = files("hephaistos.core").joinpath("defaults.toml").read_text()
 _DEFAULT_VALUES = _table(tomllib.loads(DEFAULTS_TEXT), "defaults.toml")
 DEFAULTS = _built(Settings, _DEFAULT_VALUES)
+DESCRIPTIONS = descriptions(DEFAULTS_TEXT)  # by key, e.g. `git.timeout`
 
 
 @dataclass(frozen=True)

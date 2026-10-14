@@ -18,6 +18,7 @@ from typing import Any, Literal, NamedTuple, TypedDict, cast
 from hephaistos.core import config
 from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import ReadSession
+from hephaistos.core.db.values import ValueType
 from hephaistos.core.events import subjects, summaries
 from hephaistos.core.events.events import Event
 from hephaistos.core.events.kinds import EventKind
@@ -43,7 +44,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 5)
+API_VERSION = ApiVersion(0, 6)
 
 
 class Ref(TypedDict):
@@ -450,6 +451,7 @@ class SettingJson(TypedDict):
     """A setting: its value now and where that comes from, and the value this process uses."""
 
     key: str
+    description: str  # from `defaults.toml`
     value: SettingValue
     source: str  # a file's path, a variable's name, or `default`
     applied: SettingValue  # differs after an edit, until the process starts again
@@ -501,6 +503,7 @@ def config_json(directory: Path, hostname: str, env: Mapping[str, str] = os.envi
         settings=[
             SettingJson(
                 key=key,
+                description=config.DESCRIPTIONS[key],
                 value=_setting_value(loaded.values[key]),
                 source=loaded.sources[key],
                 applied=_setting_value(config.value_of(applied, key)),
@@ -543,7 +546,7 @@ class TableJson(TypedDict):
     table: str
     category: str | None  # None for a table this version doesn't know
     rows: int | None  # None if this version's table is missing
-    latest: Any
+    latest: str | None  # a clock value, as in rows: `2026-10-14T20:27:20.096+00:00 #3`
 
 
 class TablesJson(TypedDict):
@@ -553,10 +556,17 @@ class TablesJson(TypedDict):
     warnings: list[str]
 
 
+class ColumnJson(TypedDict):
+    """A table's column, and what its values are: `clock` values are `… #3`, `id`s text."""
+
+    name: str
+    type: ValueType
+
+
 class RowsJson(TypedDict):
     """A table's rows, decoded, newest first."""
 
-    columns: list[str]
+    columns: list[ColumnJson]
     rows: list[dict[str, Any]]
     warnings: list[str]
 
@@ -583,7 +593,7 @@ def tables_json(session: ReadSession) -> TablesJson:
                 table=table.name,
                 category=table.category,
                 rows=table.rows,
-                latest=stored_value_json(table.latest),
+                latest=cast("str | None", stored_value_json(table.latest)),
             )
             for table in found
         ],
@@ -601,7 +611,10 @@ def rows_json(
     """A table's rows, newest first: only `columns` if given; `offset` skips that many."""
     found = raw.rows(session, table, columns, limit, offset)
     return RowsJson(
-        columns=list(found.columns),
+        columns=[
+            ColumnJson(name=name, type=type_)
+            for name, type_ in zip(found.columns, found.types, strict=True)
+        ],
         rows=[
             {name: stored_value_json(value) for name, value in zip(found.columns, row, strict=True)}
             for row in found.values

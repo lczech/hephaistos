@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from hephaistos.core.db import sessions, values
 from hephaistos.core.db.sessions import ReadSession
 from hephaistos.core.db.tables import Category, Table
-from hephaistos.core.db.values import Decoder
+from hephaistos.core.db.values import Decoder, ValueType
 from hephaistos.core.events import events
 from hephaistos.core.registry import clones, filesystems, machines, mounts, repositories
 from hephaistos.core.state import clones as clone_states
@@ -56,9 +56,10 @@ class TableSummary:
 
 @dataclass(frozen=True)
 class Rows:
-    """Rows of a table, decoded, with the names of their columns."""
+    """Rows of a table, decoded, with the names of their columns and what those hold."""
 
     columns: list[str]
+    types: list[ValueType]  # `meta`'s values by their key, so `plain` for its column
     values: list[list[object]]
 
 
@@ -165,4 +166,5 @@ def rows(
     cursor = session.conn.execute(query, (limit or -1, offset))  # a negative limit is none
     shown = list(columns) or stored
     decoded = [_decoded(known, row) for row in cursor]
-    return Rows(shown, [[row[column] for column in shown] for row in decoded])
+    types: list[ValueType] = [values.TYPES[_decoder(known, column)] for column in shown]
+    return Rows(shown, types, [[row[column] for column in shown] for row in decoded])

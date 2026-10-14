@@ -32,6 +32,7 @@ depth = 3
 [watcher]
 # Observes this Machine's Clones and their Worktrees in passes, at low priority:
 # on a timer, and when a GUI asks.
+
 # Seconds from the end of one pass to the timer's next. 0: only when asked.
 interval = 60.0
 
@@ -39,6 +40,6 @@ interval = 60.0
 # Gives GUIs access to this Machine, on 127.0.0.1 only; they need its token
 # (`hephaistos daemon token`).
 enabled = true
-# 0: a free port, another at each start, as `hephaistos daemon status` shows.
+# The port it listens on. 0: a free port, another at each start, as `hephaistos daemon status` shows.
 # Where others have accounts, it keeps them from taking the port first.
 port = 8264
