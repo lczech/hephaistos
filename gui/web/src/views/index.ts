@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { Address, Params } from "./address";
 import { DaemonView } from "./daemon/DaemonView";
 import { EventsView } from "./events/EventsView";
+import { LogView } from "./log/LogView";
 
 /** What a View gets: its parameters, and ways to change them and what its tab says. */
 export interface ViewProps {
@@ -21,6 +22,7 @@ export interface ViewKind {
 export const VIEWS: Record<string, ViewKind> = {
   daemon: { name: "Daemon", component: DaemonView, suggested: true },
   events: { name: "Events", component: EventsView, suggested: true },
+  log: { name: "Log", component: LogView, suggested: true },
 };
 
 export function viewKind(kind: string): ViewKind | undefined {

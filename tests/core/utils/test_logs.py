@@ -306,6 +306,6 @@ def test_record_text() -> None:
         "    KeyError: 'branch'",
     ]
     assert logs.record_text(record, dated=True, brief=True).splitlines() == [
-        f"{local:%m-%d %H:%M:%S}.005 {head}",
+        f"{local:%Y-%m-%d %H:%M:%S}.005 {head}",
         "    ↳ KeyError: 'branch'",
     ]

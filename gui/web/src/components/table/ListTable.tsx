@@ -7,8 +7,8 @@ import type { Choice } from "./filters";
 import type { ListFeatures } from "./list";
 import styles from "./table.module.css";
 
-/** How a row's square is coloured: amber or red, or its row quieter. */
-export type Tone = "warning" | "danger" | "muted";
+/** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
+export type Tone = "warning" | "danger" | "alarm" | "muted";
 
 /** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
 interface Paging {

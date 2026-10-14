@@ -3,8 +3,9 @@
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { EventFilters } from "../../api/queries";
 import { useEventKinds, useMachines, useRepositories } from "../../api/queries";
-import { type Choice, filterText } from "../../components/table/filters";
+import type { Choice } from "../../components/table/filters";
 import { type Params, paramValues } from "../address";
+import { filteredTitle, SINCE } from "../filters";
 import { columns } from "./columns";
 
 /** The filters in these parameters, as `/api/events` takes them. */
@@ -27,12 +28,6 @@ const PRIORITIES: Choice[] = [
   { value: "normal", label: "normal+" },
   { value: "high", label: "high+" },
   { value: "urgent", label: "urgent" },
-];
-
-const SINCE: Choice[] = [
-  { value: "1h", label: "last hour" },
-  { value: "1d", label: "last day" },
-  { value: "7d", label: "last week" },
 ];
 
 /** Kinds by what they are about: `clone` is within reach of `clone.added` and its others. */
@@ -63,24 +58,10 @@ export function useEventChoices(): Record<string, Choice[] | undefined> {
   };
 }
 
-const NAMED = 2; // more filters than this are only counted
-
-/**
- * The tab's title for these filters: `Events: last day, project`. Nothing while the choices
- * of one are still asked for, so that a name never shows as an ID first.
- */
+/** The tab's title for these filters: `Events: last day, project`. */
 export function eventsTitle(
   filters: ColumnFiltersState,
   choices: Record<string, Choice[] | undefined>,
 ): string | undefined {
-  if (filters.length === 0) return "Events";
-  if (filters.length > NAMED) return `Events: ${filters.length} filters`;
-  const texts: string[] = [];
-  for (const { id, value } of filters) {
-    const offered = choices[id];
-    if (offered === undefined) return undefined;
-    const many = columns.find((column) => column.id === id)?.meta?.filter?.many;
-    texts.push(filterText(value as string[], offered, many));
-  }
-  return `Events: ${texts.join(", ")}`;
+  return filteredTitle("Events", columns, filters, choices);
 }
