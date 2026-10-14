@@ -46,6 +46,15 @@ export function useRepositories() {
   });
 }
 
+/** The settings as the Daemon finds them; they change by hand, so looked at again on focus. */
+export function useConfig() {
+  return useQuery({
+    queryKey: ["config"],
+    queryFn: async () => unwrap(await api.GET("/api/config")),
+    refetchInterval: 60_000,
+  });
+}
+
 /** The kinds of Events the Daemon records: the same until it is another version. */
 export function useEventKinds() {
   return useQuery({

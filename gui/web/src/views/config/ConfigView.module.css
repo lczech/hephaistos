@@ -1,0 +1,68 @@
+.view {
+  padding: var(--space-3) var(--space-4);
+  transition: opacity 0.2s;
+}
+
+.view[data-stale] {
+  opacity: 0.6;
+}
+
+.quiet {
+  color: var(--text-muted);
+}
+
+/* Each setting a row of key, value and source, its description below them. */
+.settings,
+.sources {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  gap: 0 var(--space-4);
+}
+
+.sources {
+  grid-template-columns: max-content 1fr;
+}
+
+.setting,
+.source {
+  display: contents;
+}
+
+.key {
+  font-weight: 600;
+}
+
+/* Defaults are quieter, so the values set stand out. */
+[data-preset] {
+  color: var(--text-muted);
+}
+
+.description {
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+[data-tone="warning"] > *,
+[data-tone="warning"] > .description {
+  color: var(--warning);
+}
+
+[data-tone="danger"] > *,
+[data-tone="danger"] > .description {
+  color: var(--danger);
+}
+
+.source[data-tone="muted"] > * {
+  color: var(--text-muted);
+}
+
+.description code {
+  font-family: var(--font-mono);
+}
+
+.host {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-muted);
+}

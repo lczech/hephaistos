@@ -954,6 +954,9 @@
             "title": "Source",
             "type": "string"
           },
+          "type": {
+            "$ref": "#/components/schemas/SettingType"
+          },
           "value": {
             "$ref": "#/components/schemas/SettingValue"
           }
@@ -961,12 +964,22 @@
         "required": [
           "key",
           "description",
+          "type",
           "value",
           "source",
           "applied"
         ],
         "title": "SettingJson",
         "type": "object"
+      },
+      "SettingType": {
+        "enum": [
+          "bool",
+          "int",
+          "float",
+          "text"
+        ],
+        "type": "string"
       },
       "SettingValue": {
         "anyOf": [
@@ -1534,7 +1547,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.6"
+    "version": "0.7"
   },
   "openapi": "3.1.0",
   "paths": {

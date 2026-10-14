@@ -179,6 +179,7 @@ def test_config_says_what_it_applies(paths: Paths, client: TestClient) -> None:
     assert timeout == {
         "key": "git.timeout",
         "description": config.DESCRIPTIONS["git.timeout"],
+        "type": "float",
         "value": 90.0,
         "source": str(paths.config_dir / "config.toml"),
         "applied": 30.0,  # loaded before the edit

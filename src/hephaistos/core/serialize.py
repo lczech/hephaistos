@@ -44,7 +44,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 6)
+API_VERSION = ApiVersion(0, 7)
 
 
 class Ref(TypedDict):
@@ -452,6 +452,7 @@ class SettingJson(TypedDict):
 
     key: str
     description: str  # from `defaults.toml`
+    type: config.SettingType  # in JSON, a `float` may look like an `int`: `30` for 30.0
     value: SettingValue
     source: str  # a file's path, a variable's name, or `default`
     applied: SettingValue  # differs after an edit, until the process starts again
@@ -504,6 +505,7 @@ def config_json(directory: Path, hostname: str, env: Mapping[str, str] = os.envi
             SettingJson(
                 key=key,
                 description=config.DESCRIPTIONS[key],
+                type=config.setting_type(key),
                 value=_setting_value(loaded.values[key]),
                 source=loaded.sources[key],
                 applied=_setting_value(config.value_of(applied, key)),

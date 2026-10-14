@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 6
+    "minor": 7
   },
   "shapes": {
     "components": {
@@ -959,6 +959,9 @@
               "title": "Source",
               "type": "string"
             },
+            "type": {
+              "$ref": "#/components/schemas/SettingType"
+            },
             "value": {
               "$ref": "#/components/schemas/SettingValue"
             }
@@ -966,12 +969,22 @@
           "required": [
             "key",
             "description",
+            "type",
             "value",
             "source",
             "applied"
           ],
           "title": "SettingJson",
           "type": "object"
+        },
+        "SettingType": {
+          "enum": [
+            "bool",
+            "int",
+            "float",
+            "text"
+          ],
+          "type": "string"
         },
         "SettingValue": {
           "anyOf": [
