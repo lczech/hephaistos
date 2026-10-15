@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { Boundary } from "./components/Boundary";
+import { saveViews } from "./test/layout";
 import { daemon, info, json, renderWithQueries, serve } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
 import { builtFor } from "./version";
@@ -15,6 +16,7 @@ function signIn(): void {
 const ok = {
   "GET /api/info": () => json(info()),
   "GET /api/daemon": () => json(daemon()),
+  "GET /api/repositories": () => json([]),
   "POST /api/observe": () => new Response(null, { status: 204 }),
 };
 
@@ -28,6 +30,7 @@ describe("the GUI", () => {
 
   it("shows the Daemon and this Machine, asking for a pass as it opens", async () => {
     signIn();
+    saveViews("daemon");
     const requests = serve(ok);
     renderWithQueries(<App />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
@@ -62,6 +65,7 @@ describe("the GUI", () => {
 
   it("passes when asked, and shows why one failed", async () => {
     signIn();
+    saveViews("daemon");
     let passes = 0;
     serve({
       ...ok,
@@ -80,6 +84,7 @@ describe("the GUI", () => {
 
   it("names the restart for a Daemon of an older version", async () => {
     signIn();
+    saveViews("daemon");
     serve({ ...ok, "GET /api/info": () => json(info({ major: 0, minor: 0 })) });
     renderWithQueries(<App />);
     expect(await screen.findByText(/restart it: `hephaistos daemon restart`/)).toBeInTheDocument();

@@ -6,7 +6,7 @@ import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/table/widths";
 import { cells } from "../../test/list";
-import { event, info, json, renderWithQueries, serve } from "../../test/server";
+import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { addressText, type Params } from "../address";
 import { EventsView } from "./EventsView";
 
@@ -257,11 +257,27 @@ describe("the Events View's filters", () => {
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
   });
 
+  it("take a Clone from a link, by its path, until removed", async () => {
+    const requests = serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/machines": () => json([{ id: "01", name: "laptop" }]),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/events/kinds": () => json([]),
+      "GET /api/events": () => json([]),
+    });
+    renderWithQueries(<Events at={{ clone: "clone-proj" }} />);
+    expect(await screen.findByText("subject: ~/proj")).toBeInTheDocument();
+    expect(asked(requests).get("clone")).toBe("clone-proj");
+    await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
+    expect(address()).toBe("events");
+    expect(screen.queryByRole("button", { name: "Filter by subject" })).toBeNull();
+  });
+
   it("keep other parameters, and say what the Server refuses", async () => {
     serve({ "GET /api/events": () => json({ error: "since: 'soon' is no time" }, 400) });
-    renderWithQueries(<Events at={{ since: "soon", worktree: "0199" }} />);
+    renderWithQueries(<Events at={{ since: "soon", other: "kept" }} />);
     expect(await screen.findByText("No answer: since: 'soon' is no time")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
-    expect(address()).toBe("events?worktree=0199");
+    expect(address()).toBe("events?other=kept");
   });
 });

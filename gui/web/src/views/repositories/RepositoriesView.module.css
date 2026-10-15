@@ -1,0 +1,63 @@
+/* Clones within their Repository, Worktrees within their Clone. */
+.repositories li:not([data-depth]) [data-column="name"] {
+  font-weight: 600;
+}
+
+.repositories li[data-depth="1"] [data-column="name"] {
+  padding-left: var(--space-4);
+}
+
+.repositories li[data-depth="2"] [data-column="name"] {
+  padding-left: calc(2 * var(--space-4));
+}
+
+.repositories li :is([data-column="active"], [data-column="observed"]) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Narrow: the name and status on one line, the branch and when active below them, quieter. */
+.repositories {
+  --narrow-columns: var(--square) max-content 1fr max-content var(--square);
+  --narrow-areas: "square name name status events" "square branch active active events";
+}
+
+/* A Repository's row has no branch: when it was active comes right below its name. */
+.repositories li:not([data-depth]) {
+  --narrow-areas: "square name name status events" "square active active active events";
+}
+
+@container list (width < 44rem) {
+  .repositories li [data-column="square"] {
+    grid-area: square;
+  }
+
+  .repositories li [data-column="name"] {
+    grid-area: name;
+  }
+
+  .repositories li [data-column="status"] {
+    grid-area: status;
+  }
+
+  .repositories li [data-column="events"] {
+    grid-area: events;
+  }
+
+  .repositories li [data-column="branch"] {
+    grid-area: branch;
+  }
+
+  .repositories li [data-column="active"] {
+    grid-area: active;
+  }
+
+  .repositories li [data-column="observed"],
+  .repositories li:not([data-depth]) [data-column="branch"] {
+    display: none;
+  }
+
+  .repositories li :is([data-column="branch"], [data-column="active"]) {
+    color: var(--text-muted);
+    font-size: var(--text-small);
+  }
+}

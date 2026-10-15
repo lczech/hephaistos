@@ -6,6 +6,7 @@ import { DbView } from "./db/DbView";
 import { EventsView } from "./events/EventsView";
 import type { KindName } from "./kinds";
 import { LogView } from "./log/LogView";
+import { RepositoriesView } from "./repositories/RepositoriesView";
 
 /** What a View gets: its parameters, and ways to change them and what its tab says. */
 export interface ViewProps {
@@ -18,6 +19,7 @@ type View = ComponentType<ViewProps>;
 
 /** Each kind's View. Views know nothing of Panels: `layout/` places them. */
 export const VIEWS: Record<string, View> = {
+  repositories: RepositoriesView,
   daemon: DaemonView,
   events: EventsView,
   log: LogView,

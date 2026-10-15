@@ -5,7 +5,13 @@ import {
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
+  createExpandedRowModel,
+  createSortedRowModel,
   createTableHook,
+  rowExpandingFeature,
+  rowSortingFeature,
+  sortFn_basic,
+  sortFn_text,
   tableFeatures,
 } from "@tanstack/react-table";
 import type { ColumnLook } from "./columns";
@@ -21,6 +27,11 @@ export const listFeatures = tableFeatures({
   columnVisibilityFeature,
   columnSizingFeature,
   columnResizingFeature,
+  rowSortingFeature, // by the columns that allow it
+  rowExpandingFeature, // rows within rows
+  sortedRowModel: createSortedRowModel(),
+  expandedRowModel: createExpandedRowModel(),
+  sortFns: { basic: sortFn_basic, text: sortFn_text },
   columnMeta: {} as ColumnLook,
   tableMeta: {} as ListMeta,
 });
@@ -31,6 +42,6 @@ export const { useAppTable: useListTable, createAppColumnHelper: listColumnHelpe
   createTableHook({
     features: listFeatures,
     // Every column can be made as narrow as this, and gives way to it before one taking the rest.
-    defaultColumn: { minSize: 40 },
+    defaultColumn: { minSize: 40, enableSorting: false },
     columnResizeMode: "onChange",
   });

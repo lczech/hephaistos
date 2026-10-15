@@ -1,30 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
+import { saveViews as save } from "../test/layout";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
 import { savedLayout } from "./saved";
 import { Workbench } from "./Workbench";
-
-/** A saved Layout: one Group holding a Panel for each of these kinds of View. */
-function save(...kinds: string[]): void {
-  const panels = Object.fromEntries(
-    kinds.map((kind, i) => {
-      const id = `${i}`;
-      return [id, { id, contentComponent: "view", title: kind, params: { kind, params: {} } }];
-    }),
-  );
-  const ids = Object.keys(panels);
-  const leaf = { type: "leaf", data: { views: ids, activeView: ids[0], id: "1" }, size: 800 };
-  const grid = {
-    root: { type: "branch", data: [leaf], size: 600 },
-    width: 800,
-    height: 600,
-    orientation: "HORIZONTAL",
-  };
-  localStorage.setItem("hephaistos.layout", JSON.stringify({ format: 2, dock: { grid, panels } }));
-}
 
 const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
 /** A View showing its address, which narrows it to the last hour when clicked, and says so. */
@@ -43,18 +25,22 @@ function Probe({ params, setParams, setTitle }: ViewProps) {
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
 
 beforeEach(() => {
-  serve({ "GET /api/daemon": () => json(daemon()), "GET /api/events": () => json([]) });
+  serve({
+    "GET /api/daemon": () => json(daemon()),
+    "GET /api/events": () => json([]),
+    "GET /api/repositories": () => json([]),
+  });
 });
 
 describe("the Workbench", () => {
-  it("starts with the Daemon and Events, and saves its Layout", async () => {
+  it("starts with the Repositories and Events, and saves its Layout", async () => {
     renderWithQueries(<Workbench />);
-    expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+    expect(await screen.findByText(/^No Repositories yet/)).toBeInTheDocument();
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
-    expect(tabs()).toEqual(["Daemon", "Events"]);
+    expect(tabs()).toEqual(["Repositories", "Events"]);
     await waitFor(() =>
       expect(savedViews()).toEqual([
-        { kind: "daemon", params: {} },
+        { kind: "repositories", params: {} },
         { kind: "events", params: {} },
       ]),
     );
@@ -64,8 +50,10 @@ describe("the Workbench", () => {
     renderWithQueries(<Workbench />);
     const icons = (element: Element) =>
       [...element.querySelectorAll("svg")].map((icon) => icon.getAttribute("class"));
-    const [daemon, events] = screen.getAllByRole("tab");
-    expect(icons(daemon as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-activity/));
+    const [repositories, events] = screen.getAllByRole("tab");
+    expect(icons(repositories as HTMLElement)).toContainEqual(
+      expect.stringMatching(/lucide-folder-git/),
+    );
     expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
     const [choice] = screen.getAllByRole("button", { name: "Config", hidden: true });
     expect(icons(choice as HTMLElement)).toEqual([expect.stringMatching(/lucide-sliders/)]);
@@ -81,15 +69,15 @@ describe("the Workbench", () => {
   it("starts anew from a Layout it can't restore", () => {
     localStorage.setItem("hephaistos.layout", '{"format": 2, "dock": {"grid": 5}}');
     renderWithQueries(<Workbench />);
-    expect(tabs()).toEqual(["Daemon", "Events"]);
+    expect(tabs()).toEqual(["Repositories", "Events"]);
   });
 
   it("focuses an open View instead of opening it twice", async () => {
     renderWithQueries(<Workbench />);
     // jsdom can't open the "+" menus, popovers, so their choices count as hidden.
-    const [, inEvents] = screen.getAllByRole("button", { name: "Daemon", hidden: true });
+    const [, inEvents] = screen.getAllByRole("button", { name: "Repositories", hidden: true });
     await userEvent.click(inEvents as HTMLElement);
-    expect(tabs()).toEqual(["Daemon", "Events"]);
+    expect(tabs()).toEqual(["Repositories", "Events"]);
   });
 
   it("lets a View open another in its Group", async () => {
@@ -98,9 +86,10 @@ describe("the Workbench", () => {
       "GET /api/events": () => json([]),
       "GET /api/log": () => json({ entries: [], skipped: 0 }),
     });
+    save("daemon", "events");
     renderWithQueries(<Workbench />);
     await userEvent.click(await screen.findByRole("button", { name: "The Daemon's log" }));
-    expect(tabs()).toEqual(["Daemon", "Log: daemon[4242]", "Events"]);
+    expect(tabs()).toEqual(["daemon", "Events", "Log: daemon[4242]"]);
     await waitFor(() =>
       expect(savedViews()).toContainEqual({
         kind: "log",
@@ -132,7 +121,9 @@ describe("the Workbench", () => {
     await userEvent.click(within(tab as HTMLElement).getByRole("button", { name: "Close tab" }));
     expect(tabs()).toEqual([]);
     expect(screen.getByText("Open a View:")).toBeInTheDocument();
-    await userEvent.click(within(screen.getByRole("list")).getByRole("button", { name: "Daemon" }));
-    expect(tabs()).toEqual(["Daemon"]);
+    const suggested = within(screen.getByRole("list")).getAllByRole("button");
+    expect(suggested.map((choice) => choice.textContent)).toEqual(["Repositories", "Events"]);
+    await userEvent.click(suggested[0] as HTMLElement);
+    expect(tabs()).toEqual(["Repositories"]);
   });
 });
