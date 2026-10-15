@@ -23,6 +23,12 @@ export function subjectText({ subject }: Event, home: string | undefined): strin
   return subject.path === null ? shortId(subject.id) : shortPath(subject.path, home);
 }
 
+/** The subject with its type, which its icon shows: `Worktree ~/Repos/heph/.worktrees/x`. */
+export function subjectTitle(event: Event, home: string | undefined): string {
+  const { type } = event.subject;
+  return `${type.charAt(0).toUpperCase()}${type.slice(1)} ${subjectText(event, home)}`;
+}
+
 /** The Repository of the Event's subject, if it has one: its name, else its short ID. */
 export function repositoryText({ repository }: Event): string {
   return repository === null ? "" : (repository.name ?? shortId(repository.id));

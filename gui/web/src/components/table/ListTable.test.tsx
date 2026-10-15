@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Chevron, ListTable } from "./ListTable";
@@ -22,7 +22,7 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
         </button>
       ),
     }),
-    column.accessor("name", { header: "name" }),
+    column.accessor("name", { header: "name", meta: { description: "What it is called" } }),
   ]);
   const table = useListTable({ columns, data: [{ name: "apple" }, { name: "pear" }] });
   return (
@@ -31,6 +31,7 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
       choices={{}}
       message={null}
       older="fruits"
+      squareTitle={(fruit) => `${fruit.name} square`}
       detailsLabel="Fruit details"
       details={(fruit) => `ripe ${fruit.name}`}
     />
@@ -48,5 +49,38 @@ describe("a list's rows", () => {
     await userEvent.click(pear);
     expect(pear).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("region", { name: "Fruit details" })).toHaveTextContent("ripe pear");
+  });
+
+  it("open by a click anywhere else, but not one selecting text", async () => {
+    render(<Fruits act={vi.fn()} />);
+    const pear = screen.getByRole("button", { name: /pear$/ });
+    const name = screen.getByText("pear");
+    await userEvent.click(name);
+    expect(pear).toHaveAttribute("aria-expanded", "true");
+    document.getSelection()?.selectAllChildren(name);
+    fireEvent.click(name, { detail: 1 }); // ending a selection by dragging
+    expect(pear).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(name, { detail: 2 }); // a double click's second, selecting a word
+    expect(pear).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(name, { detail: 3 }); // selecting the line
+    expect(pear).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("show their own tooltips: the square's, and cut-off cells' whole text", () => {
+    render(<Fruits act={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /pear$/ })).toHaveAttribute("title", "pear square");
+    const cell = screen.getByText("pear");
+    Object.defineProperty(cell, "clientWidth", { value: 30, configurable: true });
+    Object.defineProperty(cell, "scrollWidth", { value: 30, configurable: true });
+    fireEvent.pointerOver(cell);
+    expect(cell).not.toHaveAttribute("title");
+    Object.defineProperty(cell, "scrollWidth", { value: 50 });
+    fireEvent.pointerOver(cell);
+    expect(cell).toHaveAttribute("title", "pear");
+  });
+
+  it("say what their columns show, if their labels don't", () => {
+    render(<Fruits act={vi.fn()} />);
+    expect(screen.getByText("name")).toHaveAttribute("title", "What it is called");
   });
 });

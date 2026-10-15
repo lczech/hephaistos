@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { clone, repository, worktree } from "../../test/server";
 import {
+  branchTitle,
   entries,
   nameText,
+  nameTitle,
   sorting,
   sortParams,
   statusText,
@@ -30,6 +32,14 @@ describe("a Checkout's status", () => {
     expect(statusTitle(clone("proj", { error: "git timed out" }))).toBe("failed: git timed out");
     expect(statusText(clone("proj", { staged: null }))).toBe("bare");
   });
+
+  it("names its branch with what it tracks, or the commit a detached HEAD is at", () => {
+    expect(branchTitle(clone("proj"))).toBe("main, tracking origin/main");
+    expect(branchTitle(clone("proj", { upstream: null }))).toBe("main, no upstream");
+    const detached = clone("proj", { branch: null, head: "3f2a1c9d0e" });
+    expect(branchTitle(detached)).toBe("detached at 3f2a1c9");
+    expect(branchTitle(clone("proj", { branch: null, head: null }))).toBe("detached");
+  });
 });
 
 describe("the rows", () => {
@@ -41,6 +51,13 @@ describe("the rows", () => {
     const [inWorktree] = inClone?.subRows ?? [];
     const names = [proj, inClone, inWorktree].map((entry) => entry && nameText(entry, "/home/me"));
     expect(names).toEqual(["proj", "~/proj", ".worktrees/feature"]);
+    const titles = [proj, inClone, inWorktree].map((entry) => entry && nameTitle(entry));
+    expect(titles).toEqual([undefined, "/home/me/proj", "/home/me/proj/.worktrees/feature"]);
+    const [linked] = entries([
+      repository("proj", [clone("proj", { resolved_path: "/data/proj" })]),
+    ]);
+    const linkedClone = linked?.subRows[0];
+    expect(linkedClone && nameTitle(linkedClone)).toBe("/home/me/proj\nresolves to /data/proj");
     const elsewhere = worktree("proj", "x", { path: "/tmp/x" });
     expect(worktreePath(elsewhere, clone("proj"), "/home/me")).toBe("/tmp/x");
   });

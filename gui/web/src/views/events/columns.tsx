@@ -4,7 +4,7 @@ import { listColumnHelper } from "../../components/table/list";
 import { actionIcon, actionOf, entityIcon } from "../../icons";
 import { ago, fullTime } from "../../time";
 import styles from "./EventsView.module.css";
-import { machineText, repositoryText, subjectText } from "./eventText";
+import { machineText, repositoryText, subjectText, subjectTitle } from "./eventText";
 
 type Event = Schemas["EventJson"];
 
@@ -25,7 +25,10 @@ export const columns = column.columns([
     id: "recorded",
     header: "recorded",
     size: 88,
-    meta: { filter: { param: "since" } },
+    meta: {
+      filter: { param: "since" },
+      description: "When the Event was recorded; its details say when it happened, if known",
+    },
     cell: ({ row, table }) => (
       <span title={fullTime(row.original.recorded_at)}>
         {ago(row.original.recorded_at, table.options.meta?.now ?? Date.now())}
@@ -71,12 +74,12 @@ export const columns = column.columns([
       const event = row.original;
       // A Repository's own Events: its name is in the column before.
       if (event.subject.type === "repository") return "";
-      const subject = subjectText(event, table.options.meta?.home);
+      const home = table.options.meta?.home;
       const Entity = entityIcon(event.subject.type);
       return (
-        <span title={subject}>
+        <span title={subjectTitle(event, home)}>
           <Entity className={styles.icon} aria-hidden="true" />
-          {subject}
+          {subjectText(event, home)}
         </span>
       );
     },
@@ -84,7 +87,7 @@ export const columns = column.columns([
   column.display({
     id: "summary",
     header: "summary",
-    cell: ({ row }) => <span title={row.original.summary}>{row.original.summary}</span>,
+    cell: ({ row }) => row.original.summary,
     enableResizing: false,
     meta: { width: "minmax(8rem, 1fr)" },
   }),

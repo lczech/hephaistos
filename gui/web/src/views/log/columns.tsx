@@ -14,13 +14,12 @@ function Message({ entry }: { entry: LogEntry }) {
   const fields = extraFields(record)
     .map(([key, text]) => `${key}=${text}`)
     .join(" ");
-  const line = [message, end && `↳ ${end}`, fields].filter(Boolean).join(" ");
   return (
-    <span title={line}>
+    <>
       {message}
       {end !== undefined && <span className={styles.traceback}> ↳ {end}</span>}
       {fields && <span className={styles.fields}> {fields}</span>}
-    </span>
+    </>
   );
 }
 
