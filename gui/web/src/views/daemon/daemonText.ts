@@ -46,5 +46,8 @@ export function serverText(server: Server | null, now: number): string {
     const requests = `${server.requests} ${server.requests === 1 ? "request" : "requests"}`;
     text += `${requests} since start, last ${ago(server.last_request_at, now)}`;
   }
-  return server.refused > 0 ? `${text}; ${server.refused} refused` : text;
+  if (server.refused > 0) text += `; ${server.refused} refused`;
+  if (server.live > 0)
+    text += `; ${server.live} live ${server.live === 1 ? "connection" : "connections"}`;
+  return text;
 }

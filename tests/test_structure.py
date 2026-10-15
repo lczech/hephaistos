@@ -36,7 +36,7 @@ def test_daemon_imports_no_cli() -> None:
 
 def test_the_cli_starts_without_the_server_libraries() -> None:
     """They take a tenth of a second to import, which Tab completion would feel."""
-    heavy = ("fastapi", "starlette", "pydantic", "uvicorn")
+    heavy = ("fastapi", "starlette", "pydantic", "uvicorn", "websockets")
     code = "import sys, hephaistos.cli.main; print(' '.join(sorted(sys.modules)))"
     loaded = subprocess.run(
         [sys.executable, "-c", code], check=True, capture_output=True, text=True

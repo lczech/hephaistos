@@ -231,7 +231,8 @@ def _server_text(server: ServerStatus, when: Callable[[datetime], str]) -> str:
     else:
         requests = number_text(server.requests, "request")
         text += f"{requests} since start, last {when(server.last_request_at)}"
-    return text + (f"; {server.refused} refused" if server.refused else "")
+    text += f"; {server.refused} refused" if server.refused else ""
+    return text + (f"; {number_text(server.live, 'live connection')}" if server.live else "")
 
 
 @app.command()

@@ -9,6 +9,7 @@ worker, so the Server answers at normal priority. Asked to observe, it awaits th
 
 import asyncio
 import errno
+import importlib
 import logging
 import os
 import socket
@@ -23,7 +24,8 @@ from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.errors import PartError
 from hephaistos.daemon.server import ports, token, web
 from hephaistos.daemon.server.api import Observe
-from hephaistos.daemon.server.app import Counts, create_app
+from hephaistos.daemon.server.app import create_app
+from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.status import ServerStatus
 
 HOST = "127.0.0.1"  # never other interfaces: SSH or Tailscale reach it from elsewhere
@@ -39,6 +41,19 @@ class _Uvicorn(uvicorn.Server):
     @contextmanager
     def capture_signals(self) -> Generator[None]:
         yield
+
+
+def _check_websockets() -> None:
+    """Raises PartError without the WebSocket library.
+
+    uvicorn would only warn, and answer live connections as plain requests.
+    """
+    try:
+        importlib.import_module("websockets")
+    except ImportError:
+        raise PartError(
+            "the websockets package is missing; reinstall hephaistos with its dependencies"
+        ) from None
 
 
 def address(port: int) -> str:
@@ -99,6 +114,7 @@ class Server:
             requests=counts.requests,
             last_request_at=counts.last_request_at,
             refused=counts.refused,
+            live=counts.live,
         )
 
     async def _keep_reporting(self, where: str) -> None:
@@ -119,6 +135,7 @@ class Server:
         if token.tighten(self._paths):
             log.warning("others could read %s; now only you can", token.token_file(self._paths))
         try:
+            _check_websockets()
             sock = bind(port)
         except PartError as error:
             self._report(self._status(where, listening=False, error=str(error)))
@@ -128,7 +145,12 @@ class Server:
         logging.getLogger("uvicorn").setLevel(logging.WARNING)  # we log what it would say
         server = _Uvicorn(
             uvicorn.Config(
-                app, log_config=None, access_log=False, lifespan="off", server_header=False
+                app,
+                ws="websockets-sansio",
+                log_config=None,
+                access_log=False,
+                lifespan="off",
+                server_header=False,
             )
         )
         reporting = asyncio.create_task(self._keep_reporting(where))

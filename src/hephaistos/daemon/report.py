@@ -126,6 +126,7 @@ class ServerJson(TypedDict):
     requests: int
     last_request_at: str | None
     refused: int
+    live: int  # live connections open, e.g. GUIs
 
 
 class DaemonJson(TypedDict):
@@ -177,6 +178,7 @@ def _server_json(server: ServerStatus) -> ServerJson:
         requests=server.requests,
         last_request_at=_at(server.last_request_at),
         refused=server.refused,
+        live=server.live,
     )
 
 

@@ -44,4 +44,6 @@ The tool installed with `--editable` runs the current code, but keeps the depend
 
 `uv run scripts/bench_observe.py ~/Repos --synthetic 6` times observing the repositories found there, plus synthetic ones with Worktrees, in a temporary home.
 
-Set `HEPHAISTOS_HOME` to a scratch directory to keep experiments away from your real data, e.g. `HEPHAISTOS_HOME=/tmp/heph hephaistos setup`.
+Set `HEPHAISTOS_HOME` to a scratch directory to keep experiments away from your real data, e.g. `HEPHAISTOS_HOME=/tmp/heph hephaistos setup`. `scripts/scratch_daemon.sh start|stop|status` runs a Daemon from the checkout that way, in `/tmp/hephaistos-scratch` on port 8299, without touching the real one.
+
+`uv run scripts/watch_live.py` prints the hints and heartbeats that the Server sends to GUIs (`--port` for another Server).

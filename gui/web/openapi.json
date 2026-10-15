@@ -546,6 +546,56 @@
         "title": "InfoJson",
         "type": "object"
       },
+      "LiveHeartbeatJson": {
+        "description": "The Server is alive, at this time.",
+        "properties": {
+          "heartbeat": {
+            "title": "Heartbeat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "heartbeat"
+        ],
+        "title": "LiveHeartbeatJson",
+        "type": "object"
+      },
+      "LiveHintsJson": {
+        "description": "What changed; the client asks the API again for what shows it.",
+        "properties": {
+          "hints": {
+            "items": {
+              "enum": [
+                "data",
+                "daemon",
+                "log"
+              ],
+              "type": "string"
+            },
+            "title": "Hints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "hints"
+        ],
+        "title": "LiveHintsJson",
+        "type": "object"
+      },
+      "LiveTokenJson": {
+        "description": "The first message, from the client: this Machine's token.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "LiveTokenJson",
+        "type": "object"
+      },
       "LogEntryJson": {
         "description": "A log record as written, and where its line starts: day and byte, `2026-10-14:18734`.",
         "properties": {
@@ -952,6 +1002,10 @@
             "title": "Listening",
             "type": "boolean"
           },
+          "live": {
+            "title": "Live",
+            "type": "integer"
+          },
           "refused": {
             "title": "Refused",
             "type": "integer"
@@ -967,7 +1021,8 @@
           "error",
           "requests",
           "last_request_at",
-          "refused"
+          "refused",
+          "live"
         ],
         "title": "ServerJson",
         "type": "object"
@@ -1595,7 +1650,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.9"
+    "version": "0.10"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2322,7 +2377,7 @@
     },
     "/api/observe": {
       "post": {
-        "description": "Observes this Machine in a pass that starts after this request; answers once it ended.\n\nWhat changed, the other endpoints show, with what other passes changed.",
+        "description": "Observes this Machine in a pass that starts after this request; answers once it ended.\n\nWhat changed, the other endpoints show, with what other passes changed; live connections\nget their hints at once.",
         "operationId": "observe_api_observe_post",
         "responses": {
           "204": {

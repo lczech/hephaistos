@@ -15,7 +15,8 @@ import pytest
 from hephaistos.cli.main import run
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
-from hephaistos.daemon.server.app import Counts, create_app
+from hephaistos.daemon.server.app import create_app
+from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 

@@ -44,12 +44,12 @@ describe("the Daemon card's lines", () => {
     const server = daemon().server;
     if (server === null) throw new Error("no Server");
     expect(serverText(server, NOW)).toBe(
-      "listening on 127.0.0.1:8264; 312 requests since start, last now",
+      "listening on 127.0.0.1:8264; 312 requests since start, last now; 1 live connection",
     );
-    expect(serverText({ ...server, requests: 1, refused: 2 }, NOW)).toBe(
+    expect(serverText({ ...server, requests: 1, refused: 2, live: 0 }, NOW)).toBe(
       "listening on 127.0.0.1:8264; 1 request since start, last now; 2 refused",
     );
-    expect(serverText({ ...server, last_request_at: null }, NOW)).toBe(
+    expect(serverText({ ...server, last_request_at: null, live: 0 }, NOW)).toBe(
       "listening on 127.0.0.1:8264; no requests yet",
     );
   });

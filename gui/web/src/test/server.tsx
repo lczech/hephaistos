@@ -74,6 +74,7 @@ export function daemon(): Schemas["DaemonJson"] {
       requests: 312,
       last_request_at: secondsAgo(2),
       refused: 0,
+      live: 1,
     },
     warnings: [],
   };
