@@ -14,7 +14,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
-    proxy: { "/api": "http://127.0.0.1:8264" }, // the Daemon's Server
+    proxy: { "/api": { target: "http://127.0.0.1:8264", ws: true } }, // the Daemon's Server
   },
   test: {
     environment: "jsdom",

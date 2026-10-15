@@ -241,7 +241,8 @@ describe("the Events View's filters", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
     expect(address()).toBe("events");
-    await vi.waitFor(() => expect([...asked(requests).keys()]).toEqual(["limit"]));
+    // Unfiltered, as first asked for: kept current by hints, so not asked again.
+    expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Clear all filters" })).not.toBeInTheDocument();
   });
 

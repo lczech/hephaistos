@@ -1,9 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { Boundary } from "./components/Boundary";
 import { saveViews } from "./test/layout";
+import { lastSocket } from "./test/live";
 import { daemon, info, json, renderWithQueries, serve } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
 import { builtFor } from "./version";
@@ -40,7 +41,10 @@ describe("the GUI", () => {
     expect(
       screen.getByText(`laptop · hephaistos 0.1.0 (abc1234) · API ${major}.${minor}`),
     ).toBeInTheDocument();
-    expect(screen.getByText("updated now")).toBeInTheDocument();
+    expect(screen.getByText("connecting…")).toBeInTheDocument();
+    act(() => lastSocket().open());
+    expect(screen.getByText("live")).toBeInTheDocument();
+    expect(JSON.parse(lastSocket().sent[0] ?? "")).toEqual({ token: "secret" });
     const observe = requests.find((request) => request.method === "POST");
     expect(observe?.headers.get("Authorization")).toBe("Bearer secret");
   });
@@ -49,6 +53,8 @@ describe("the GUI", () => {
     signIn();
     serve(ok);
     renderWithQueries(<App />);
+    await waitFor(() => lastSocket());
+    act(() => lastSocket().open());
     const health = await screen.findByRole("button", { name: "Daemon: running; show it" });
     expect(health).toHaveAttribute("data-health", "good");
     await userEvent.click(health);
@@ -63,15 +69,44 @@ describe("the GUI", () => {
     expect(token()).toBeNull();
   });
 
-  it("says when the Server doesn't answer", async () => {
+  it("says when the live connection is lost", async () => {
     signIn();
-    serve({
-      "GET /api/info": () => {
-        throw new TypeError("Failed to fetch");
-      },
-    });
+    serve(ok);
     renderWithQueries(<App />);
-    expect(await screen.findByText("no answer: Failed to fetch")).toBeInTheDocument();
+    await waitFor(() => lastSocket());
+    act(() => lastSocket().open());
+    act(() => lastSocket().drop());
+    expect(screen.getByText("disconnected")).toHaveAttribute("data-state", "disconnected");
+    expect(screen.getByRole("button", { name: "Daemon: disconnected; show it" })).toHaveAttribute(
+      "data-health",
+      "lost",
+    );
+  });
+
+  it("tells in the Daemon View what to check while disconnected", async () => {
+    signIn();
+    saveViews("daemon");
+    serve(ok);
+    renderWithQueries(<App />);
+    expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+    const notice = /^No connection to this Machine's Server since .*; trying again in \d+ s\.$/;
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+    act(() => lastSocket().open());
+    act(() => lastSocket().drop());
+    expect(screen.getByText(notice)).toBeInTheDocument();
+    expect(screen.getByText("hephaistos daemon start")).toBeInTheDocument();
+    act(() => lastSocket().open());
+    await waitFor(() => expect(screen.queryByText(notice)).not.toBeInTheDocument());
+  });
+
+  it("forgets a token the live connection refuses", async () => {
+    signIn();
+    serve(ok);
+    renderWithQueries(<App />);
+    await waitFor(() => lastSocket());
+    act(() => lastSocket().drop(4401, "wrong token"));
+    expect(await screen.findByText("hephaistos daemon token --url")).toBeInTheDocument();
+    expect(token()).toBeNull();
   });
 
   it("passes when asked, and shows why one failed", async () => {

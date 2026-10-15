@@ -1,30 +1,41 @@
+import { type Connection, useConnection } from "../api/live";
 import { useDaemon, useInfo } from "../api/queries";
-import { ago } from "../time";
+import { ago, fullTime } from "../time";
 import { useNow } from "../useNow";
-import { daemonHealth } from "../views/daemon/health";
+import { daemonHealth, disconnectedText, retryText } from "../views/daemon/health";
 import { KINDS } from "../views/kinds";
 import { useOpenView } from "../views/opening";
 import styles from "./StatusBar.module.css";
 
 const Icon = KINDS.daemon.icon;
 
-/** One line at the bottom: this Machine; at its end, how the Daemon is doing and when it last
- * answered. The Daemon's icon opens the Daemon View. */
+/** The live connection, in a word, and in more words for its tooltip. */
+function connectionText(connection: Connection, now: number): [string, string] {
+  switch (connection.state) {
+    case "connecting":
+      return ["connecting…", "connecting to this Machine's Server"];
+    case "live":
+      return ["live", `connected since ${fullTime(new Date(connection.since).toISOString())}`];
+    case "disconnected": {
+      const since = fullTime(new Date(connection.since).toISOString());
+      const next = retryText(connection.retryAt, now);
+      return [disconnectedText(connection.since, now), `disconnected since ${since}; ${next}`];
+    }
+  }
+}
+
+/** One line at the bottom: this Machine; at its end, how the Daemon is doing and whether the
+ * live connection to it is. The Daemon's icon opens the Daemon View. */
 export function StatusBar() {
   const info = useInfo();
   const daemon = useDaemon();
+  const connection = useConnection();
   const open = useOpenView();
   const now = useNow();
-  const answered = info.dataUpdatedAt > 0 ? ago(info.dataUpdatedAt, now) : null;
-  const { health, reasons } = daemonHealth(
-    answered !== null,
-    info.isError ? info.error.message : null,
-    daemon.data,
-  );
-  let text = "connecting…";
-  if (info.isError) text = `no answer: ${info.error.message}`;
-  else if (answered !== null) text = `updated ${answered}`;
-  if (info.isError && answered !== null) text += `; last answer ${answered}`;
+  const { health, reasons } = daemonHealth(connection, daemon.data, now);
+  const lastPass = daemon.data?.watcher?.last_pass;
+  const title = `Daemon: ${reasons.join("; ")}${lastPass ? `; last pass ${ago(lastPass.finished_at, now)}` : ""}`;
+  const [text, details] = connectionText(connection, now);
   const where =
     info.data &&
     `${info.data.machine.name} · hephaistos ${info.data.version}` +
@@ -38,12 +49,14 @@ export function StatusBar() {
           className={styles.health}
           data-health={health}
           onClick={() => open({ kind: "daemon", params: {} })}
-          title={`Daemon: ${reasons.join("; ")}`}
+          title={title}
           aria-label={`Daemon: ${reasons.join("; ")}; show it`}
         >
           <Icon aria-hidden="true" />
         </button>
-        <span className={styles.text}>{text}</span>
+        <span className={styles.text} data-state={connection.state} title={details}>
+          {text}
+        </span>
       </span>
     </footer>
   );

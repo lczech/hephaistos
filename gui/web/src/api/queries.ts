@@ -1,67 +1,85 @@
-// What the GUI asks the Server, kept fresh by polling while the page is visible.
+// What the GUI asks the Server; asked again when the live connection hints at a change
+// (`live.ts`), never on a timer.
 
 import {
   keepPreviousData,
+  type QueryClientConfig,
+  type QueryKey,
   useInfiniteQuery,
   useMutation,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect } from "react";
 import { api, unwrap } from "./client";
 import type { paths } from "./schema";
 
-export const POLL_INTERVAL = 5_000;
-export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus
+/**
+ * What answers stay: current until a hint, the page gaining focus or reconnecting says
+ * otherwise, so never asked again just for being old. No retries: a failed answer is asked
+ * again at the next of those.
+ */
+export const QUERY_DEFAULTS: QueryClientConfig = {
+  defaultOptions: {
+    queries: { retry: false, staleTime: Number.POSITIVE_INFINITY, refetchOnWindowFocus: false },
+  },
+};
+
+/** The queries' keys by name; each names the queries whose keys start with it. */
+export const KEYS = {
+  info: ["info"],
+  daemon: ["daemon"],
+  machines: ["machines"],
+  repositories: ["repositories"],
+  config: ["config"],
+  eventKinds: ["events", "kinds"],
+  events: ["events", "list"],
+  log: ["log"],
+  db: ["db"],
+} as const satisfies Record<string, QueryKey>;
+
+export type KeyName = keyof typeof KEYS;
 
 export function useInfo() {
   return useQuery({
-    queryKey: ["info"],
+    queryKey: KEYS.info,
     queryFn: async () => unwrap(await api.GET("/api/info")),
-    refetchInterval: POLL_INTERVAL,
   });
 }
 
 export function useDaemon() {
   return useQuery({
-    queryKey: ["daemon"],
+    queryKey: KEYS.daemon,
     queryFn: async () => unwrap(await api.GET("/api/daemon")),
-    refetchInterval: POLL_INTERVAL,
   });
 }
 
 export function useMachines() {
   return useQuery({
-    queryKey: ["machines"],
+    queryKey: KEYS.machines,
     queryFn: async () => unwrap(await api.GET("/api/machines")),
-    refetchInterval: 60_000, // Machines come and go rarely
   });
 }
 
-/** The Repositories with their Clones and Worktrees; shown, asked for as often as the others. */
-export function useRepositories(interval = 60_000) {
+/** The Repositories with their Clones and Worktrees. */
+export function useRepositories() {
   return useQuery({
-    queryKey: ["repositories"],
+    queryKey: KEYS.repositories,
     queryFn: async () => unwrap(await api.GET("/api/repositories")),
-    refetchInterval: interval, // the shortest that a component asks for applies
   });
 }
 
-/** The settings as the Daemon finds them; they change by hand, so looked at again on focus. */
+/** The settings as the Daemon finds them; they change by hand, so asked again on focus. */
 export function useConfig() {
   return useQuery({
-    queryKey: ["config"],
+    queryKey: KEYS.config,
     queryFn: async () => unwrap(await api.GET("/api/config")),
-    refetchInterval: 60_000,
   });
 }
 
 /** The kinds of Events the Daemon records: the same until it is another version. */
 export function useEventKinds() {
   return useQuery({
-    queryKey: ["events", "kinds"],
+    queryKey: KEYS.eventKinds,
     queryFn: async () => unwrap(await api.GET("/api/events/kinds")),
-    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
@@ -79,7 +97,7 @@ export type EventFilters = Omit<
  */
 export function useEvents(filters: EventFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["events", "list", filters],
+    queryKey: [...KEYS.events, filters],
     queryFn: async ({ pageParam }) =>
       unwrap(
         await api.GET("/api/events", {
@@ -88,7 +106,6 @@ export function useEvents(filters: EventFilters = {}) {
       ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => (page.length < EVENTS_PAGE ? undefined : page.at(-1)?.id),
-    refetchInterval: POLL_INTERVAL,
     placeholderData: keepPreviousData,
   });
 }
@@ -104,7 +121,7 @@ export type LogFilters = Omit<
 /** This Machine's log records matching the filters, newest first, paged back as Events are. */
 export function useLog(filters: LogFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["log", filters],
+    queryKey: [...KEYS.log, filters],
     queryFn: async ({ pageParam }) =>
       unwrap(
         await api.GET("/api/log", {
@@ -114,7 +131,6 @@ export function useLog(filters: LogFilters = {}) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: ({ entries }) =>
       entries.length < LOG_PAGE ? undefined : entries.at(-1)?.position,
-    refetchInterval: POLL_INTERVAL,
     placeholderData: keepPreviousData,
   });
 }
@@ -122,9 +138,8 @@ export function useLog(filters: LogFilters = {}) {
 /** The database's tables, with their rows and latest change, as `db tables` lists them. */
 export function useDbTables() {
   return useQuery({
-    queryKey: ["db", "tables"],
+    queryKey: [...KEYS.db, "tables"],
     queryFn: async () => unwrap(await api.GET("/api/db/tables")),
-    refetchInterval: POLL_INTERVAL,
   });
 }
 
@@ -133,7 +148,7 @@ export const DB_PAGE = 50;
 /** A table's rows, newest first; each further page skips those before, as `db dump --offset`. */
 export function useDbRows(table: string) {
   return useInfiniteQuery({
-    queryKey: ["db", "rows", table],
+    queryKey: [...KEYS.db, "rows", table],
     queryFn: async ({ pageParam }) =>
       unwrap(
         await api.GET("/api/db/tables/{table}", {
@@ -143,7 +158,6 @@ export function useDbRows(table: string) {
     initialPageParam: 0,
     getNextPageParam: (page, pages) =>
       page.rows.length < DB_PAGE ? undefined : pages.length * DB_PAGE,
-    refetchInterval: POLL_INTERVAL,
   });
 }
 
@@ -153,30 +167,7 @@ export async function observe(): Promise<void> {
   if (!answer.response.ok) unwrap(answer);
 }
 
+/** Asks for a pass; what it changed, the live connection's hints bring. */
 export function useObserve() {
-  const client = useQueryClient();
-  return useMutation({ mutationFn: observe, onSettled: () => client.invalidateQueries() });
-}
-
-/** Asks for a pass when the page opens or gains focus, at most every FOCUS_GAP. */
-export function useObserveOnFocus(): void {
-  const client = useQueryClient();
-  useEffect(() => {
-    let last = Number.NEGATIVE_INFINITY;
-    const onFocus = () => {
-      if (document.visibilityState !== "visible" || Date.now() - last < FOCUS_GAP) return;
-      last = Date.now();
-      // A failed pass shows in the Daemon's status, like any other.
-      void observe()
-        .catch(() => undefined)
-        .then(() => client.invalidateQueries());
-    };
-    onFocus();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, [client]);
+  return useMutation({ mutationFn: observe });
 }

@@ -5,6 +5,7 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { vi } from "vitest";
 import type { Schemas } from "../api/client";
+import { QUERY_DEFAULTS } from "../api/queries";
 import { builtFor } from "../version";
 
 type Route = () => Response | Promise<Response>;
@@ -29,7 +30,7 @@ export function serve(routes: Record<string, Route>): Request[] {
 
 /** Renders with a fresh query client, which it also returns, to refresh by hand. */
 export function renderWithQueries(ui: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient(QUERY_DEFAULTS);
   return { ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>), client };
 }
 
