@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from hephaistos import __version__
-from hephaistos.cli import terminal
+from hephaistos.cli import daemon, desktop, terminal
 from hephaistos.cli.main import app, without_debug
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
@@ -190,6 +190,33 @@ def _this_id() -> str:
     return json.loads(runner.invoke(app, ["machine", "show", "--json"]).output)["id"]
 
 
+def test_setup_sets_up_everything_again_keeping_the_database(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installed: list[str] = []
+    monkeypatch.setattr(daemon, "install", lambda: installed.append("daemon"))
+    monkeypatch.setattr(desktop, "install", lambda: installed.append("desktop"))
+    first = runner.invoke(app, ["setup", "--name", "laptop"])
+    assert first.output.splitlines()[1:] == ["No graphical session here, so no Desktop"]
+    machine_id = _this_id()
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    again = runner.invoke(app, ["setup", "--name", "other"])
+    assert again.output == f"Already set up: Machine laptop ({machine_id})\n"
+    assert installed == ["daemon", "daemon", "desktop"]
+    assert runner.invoke(app, ["setup", "--no-daemon", "--no-desktop"]).exit_code == 0
+    assert installed == ["daemon", "daemon", "desktop"]
+    assert paths.database.exists()
+
+
+@pytest.mark.usefixtures("paths")
+def test_setup_skips_a_part_that_fails_saying_how_to_do_it_later() -> None:
+    result = runner.invoke(app, ["setup", "--name", "laptop"])  # systemd isn't available
+    assert result.exit_code == 0
+    assert "warning: skipped the Daemon: " in result.output
+    assert "; later: `hephaistos daemon install`\n" in result.output
+    assert _this_id()
+
+
 def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
     runner.invoke(app, ["setup", "--name", "laptop"])
     old_id = _this_id()
@@ -208,7 +235,7 @@ def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -
     result = runner.invoke(app, ["setup", "--reset"], input="y\n")
     assert result.exit_code == 0, result.output
     assert "Set up Machine laptop" in result.output
-    assert result.output.endswith(f"The old database is kept as {paths.database_backup}\n")
+    assert f"The old database is kept as {paths.database_backup}\n" in result.output
     assert _this_id() != old_id
 
 
@@ -236,7 +263,7 @@ def test_settings_are_loaded_and_used(
     assert run_cli(monkeypatch, "--version") == 0
     assert logged(paths) == []  # nothing at warning level or above
     monkeypatch.setenv("HEPHAISTOS_LOG_LEVEL", "debug")
-    assert run_cli(monkeypatch, "setup", "--name", "laptop") == 0
+    assert run_cli(monkeypatch, "setup", "--name", "laptop", "--no-daemon") == 0
     assert "DEBUG" in {line["level"] for line in logged(paths)}
     assert capsys.readouterr().err == ""
 

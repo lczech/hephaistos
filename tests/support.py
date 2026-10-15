@@ -143,4 +143,6 @@ def desktop_checkout(tmp_path: Path, electron: str | None, *, built: bool = True
     if built:
         (checkout / launch.MAIN).parent.mkdir(parents=True)
         (checkout / launch.MAIN).touch()
+    (checkout / "assets").mkdir()
+    (checkout / "assets" / "icon.svg").write_text("<svg/>")
     return checkout

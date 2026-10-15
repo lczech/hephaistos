@@ -12,10 +12,10 @@ NAME = "hephaistos-desktop"
 INSTALLED = Path("/etc/apparmor.d") / NAME
 
 
-def needed(restriction: Path = RESTRICTION) -> bool:
+def needed() -> bool:
     """Whether this Machine restricts user namespaces to programs with a profile."""
     try:
-        return restriction.read_text().strip() == "1"
+        return RESTRICTION.read_text().strip() == "1"
     except OSError:
         return False
 
@@ -34,22 +34,27 @@ def profile_text(electron: Path) -> str:
     )
 
 
-def is_installed(electron: Path, installed: Path = INSTALLED) -> bool:
+def is_installed(electron: Path) -> bool:
     """Whether our profile is installed for the Electron at this path."""
     try:
-        return installed.read_text() == profile_text(electron)
+        return INSTALLED.read_text() == profile_text(electron)
     except OSError:
         return False
 
 
-def commands(source: Path, installed: Path = INSTALLED) -> list[list[str]]:
+def commands(source: Path) -> list[list[str]]:
     """What installs the profile written to `source`, and loads it; as root."""
     return [
-        ["install", "-m", "644", str(source), str(installed)],
-        ["apparmor_parser", "-r", str(installed)],
+        ["install", "-m", "644", str(source), str(INSTALLED)],
+        ["apparmor_parser", "-r", str(INSTALLED)],
     ]
 
 
-def script(source: Path, installed: Path = INSTALLED) -> str:
-    """The commands as one shell line, for one sudo."""
-    return " && ".join(shlex.join(command) for command in commands(source, installed))
+def removal_commands() -> list[list[str]]:
+    """What unloads the profile and removes it; as root."""
+    return [["apparmor_parser", "-R", str(INSTALLED)], ["rm", str(INSTALLED)]]
+
+
+def script(commands: list[list[str]]) -> str:
+    """Commands as one shell line, for one sudo."""
+    return " && ".join(shlex.join(command) for command in commands)
