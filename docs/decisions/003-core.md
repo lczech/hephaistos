@@ -38,8 +38,8 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 ## Setup and files
 
-- `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); `setup` fails on a Machine that is already set up.
-- Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Later setup steps (hooks, autostart, remote setup) also exist as their own commands.
+- `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); run again, `setup` keeps the database and updates the other parts.
+- Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Its other parts are also commands of their own, which it runs after: `daemon install` and, in a graphical session, `desktop install` (`--no-daemon`, `--no-desktop` skip them); a part that fails is skipped with a warning naming its command. Later ones: hooks, remote setup.
 - A Machine's chassis comes from `hostnamectl chassis` (`Chassis:` in `hostnamectl status` before systemd 249), or the setting `machine.chassis`; it is stored at setup and updated when the Daemon starts (`machine.changed`).
 - Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
   - config: `~/.config/hephaistos/`, optional files; see Settings.

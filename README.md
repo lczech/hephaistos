@@ -8,8 +8,11 @@ Requires [uv](https://docs.astral.sh/uv/).
 
 ```sh
 uv tool install --editable .     # puts `hephaistos` on the path, following the current code
+uv run npm --prefix gui ci                  # in the checkout: the GUI's packages, again when they change
+uv run npm --prefix gui run fetch-electron  # once per Electron version: its binary, for the Desktop
+uv run npm --prefix gui run build           # the GUI, served by the Daemon, and the Desktop
+hephaistos setup                 # once per Machine, again to update: database, Daemon service, Desktop
 hephaistos --install-completion  # optional: tab completion
-hephaistos setup                 # once per Machine
 hephaistos machine show
 hephaistos repo add hephaistos
 hephaistos clone add ~/Repos/hephaistos -r hephaistos
@@ -19,15 +22,11 @@ hephaistos worktree list
 hephaistos observe
 hephaistos event list --repo hephaistos
 hephaistos db tables                # the database as stored; `db dump <table>` for its rows
-hephaistos daemon install          # observes in the background, from login on; `--linger`: from boot
+hephaistos daemon install --linger # optional: the Daemon from boot on, not only from login
 hephaistos daemon status
 curl -H "Authorization: Bearer $(hephaistos daemon token)" 127.0.0.1:8264/api/repositories
-uv run npm --prefix gui ci                  # in the checkout: the GUI's packages, again when they change
-uv run npm --prefix gui run fetch-electron  # once per Electron version: its binary, for the Desktop
-uv run npm --prefix gui run build           # the GUI, served by the Daemon, and the Desktop
-hephaistos browse                           # the GUI in your browser
-hephaistos desktop install                  # once: what the Desktop needs here (Ubuntu: an AppArmor profile, with sudo)
-hephaistos desktop open                     # the GUI in its own window
+hephaistos browse                  # the GUI in your browser
+hephaistos desktop open            # the GUI in its own window, also from the desktop's app list
 ```
 
 ## Development

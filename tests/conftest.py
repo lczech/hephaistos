@@ -7,6 +7,8 @@ import pytest
 from hephaistos.core import config
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon import unit
+from hephaistos.desktop import apparmor
 from support import hostnamectl
 
 # Typer reads this when it first formats output: plain text, even where GITHUB_ACTIONS or
@@ -23,6 +25,26 @@ def never_real_files(
     monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("user")))
     for key in config.KEYS:
         monkeypatch.delenv(config.variable(key), raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_systemd_or_desktop(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """systemctl and loginctl fail, there's no graphical session, and AppArmor's files are
+    temporary ones: `setup` and others never reach the user's services, desktop or system. The
+    `systemd` fixture stands in for systemd."""
+    for name in ("DISPLAY", "WAYLAND_DISPLAY", *unit.PATH_VARIABLES[1:]):  # all but our HOME
+        monkeypatch.delenv(name, raising=False)
+    bin_dir = tmp_path_factory.mktemp("bin")
+    for name in ("systemctl", "loginctl"):
+        failing = bin_dir / name
+        failing.write_text("#!/bin/sh\nexit 1\n")
+        failing.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    system = tmp_path_factory.mktemp("system")
+    monkeypatch.setattr(apparmor, "RESTRICTION", system / "apparmor_restrict_unprivileged_userns")
+    monkeypatch.setattr(apparmor, "INSTALLED", system / "apparmor.d" / apparmor.NAME)
 
 
 @pytest.fixture(autouse=True)

@@ -42,24 +42,48 @@ def test_open(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+def _entry() -> Path:
+    return Path.home() / ".local" / "share" / "applications" / "hephaistos.desktop"
+
+
 @pytest.mark.usefixtures("checkout")
-def test_install_shows_the_commands_and_runs_them_only_when_asked(
+def test_install_writes_the_launcher_entry_and_icon(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(apparmor, "needed", lambda: False)
+    shown = "~/.local/share/applications/hephaistos.desktop"
+    assert runner.invoke(app, ["desktop", "install"]).output == f"Installed: {shown}\n"
+    assert _entry().read_text().splitlines()[5].endswith(" desktop open")
+    icon = Path.home() / ".local/share/icons/hicolor/scalable/apps/hephaistos.svg"
+    assert icon.read_text() == "<svg/>"
+    assert runner.invoke(app, ["desktop", "install"]).output == f"Already installed: {shown}\n"
+    assert runner.invoke(app, ["desktop", "uninstall"]).output == f"Deleted {shown}\n"
+    assert not _entry().exists()
+    assert not icon.exists()
+    assert runner.invoke(app, ["desktop", "uninstall"]).output == "No launcher entry installed\n"
+
+
+@pytest.mark.usefixtures("checkout")
+def test_the_apparmor_profile_takes_root_only_when_asked(
     paths: Paths, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(apparmor, "needed", lambda: False)
-    assert runner.invoke(app, ["desktop", "install"]).output == (
-        "This Machine needs no AppArmor profile for the Desktop\n"
-    )
+    installed = apparmor.INSTALLED
     _restricted(monkeypatch, installed=True)
-    assert runner.invoke(app, ["desktop", "install"]).output == (
-        "Already installed: /etc/apparmor.d/hephaistos-desktop\n"
-    )
+    lines = runner.invoke(app, ["desktop", "install"]).output.splitlines()
+    assert lines[1:] == [f"Already installed: {installed}"]
     _restricted(monkeypatch, installed=False)
-    shown = runner.invoke(app, ["desktop", "install"]).output.splitlines()  # no terminal: no sudo
+    lines = runner.invoke(app, ["desktop", "install"]).output.splitlines()  # no terminal: no sudo
     source = paths.state_dir / "hephaistos-desktop.apparmor"
-    assert shown[1:] == [
-        f"  sudo install -m 644 {source} /etc/apparmor.d/hephaistos-desktop",
-        "  sudo apparmor_parser -r /etc/apparmor.d/hephaistos-desktop",
+    assert lines[2:] == [
+        f"  sudo install -m 644 {source} {installed}",
+        f"  sudo apparmor_parser -r {installed}",
         "Run them, then `hephaistos desktop open`",
     ]
     assert "userns," in source.read_text()
+    installed.parent.mkdir()
+    installed.touch()
+    lines = runner.invoke(app, ["desktop", "uninstall"]).output.splitlines()
+    assert lines[1:] == [
+        f"Unloading and removing {installed} takes root:",
+        f"  sudo apparmor_parser -R {installed}",
+        f"  sudo rm {installed}",
+        "Run them to remove it",
+    ]

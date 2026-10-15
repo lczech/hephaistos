@@ -3,6 +3,7 @@ import os
 import shlex
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -200,6 +201,14 @@ def _confirm_reset(paths: Paths) -> None:
         raise typer.Abort
 
 
+def _install(part: str, install: Callable[[], None], later: str) -> None:
+    """Runs one of `setup`'s parts; if it fails, says so, and how to do it later."""
+    try:
+        install()
+    except HephaistosError as error:
+        typer.echo(f"warning: skipped {part}: {error}; later: `{later}`", err=True)
+
+
 @app.command()
 def setup(
     name: Annotated[
@@ -214,15 +223,39 @@ def setup(
         ),
     ] = False,
     yes: Annotated[bool, typer.Option("--yes", help="Reset without asking.")] = False,
+    no_daemon: Annotated[
+        bool, typer.Option("--no-daemon", help="Skip `daemon install`: the Daemon's service.")
+    ] = False,
+    no_desktop: Annotated[
+        bool,
+        typer.Option("--no-desktop", help="Skip `desktop install`: the Desktop's launcher entry."),
+    ] = False,
 ) -> None:
-    """Set up hephaistos on this Machine: once, or again with --reset."""
+    """Set up hephaistos on this Machine: its database, the Daemon and the Desktop.
+
+    Again to update the Daemon's service and the Desktop, keeping the database; with --reset, a
+    new one. Each part also has its own command; a part that fails is skipped, saying why. The
+    Desktop only in a graphical session.
+    """
     paths = Paths.from_environment()
-    replacing = reset and paths.database.exists()
-    if replacing and not yes:
-        _confirm_reset(paths)
-    if reset and not replacing:
-        typer.echo("Nothing to reset")
-    created = machines.set_up(paths, name, reset=reset)
-    typer.echo(f"Set up Machine {created.name} ({created.id}), data in {paths.data_dir}")
-    if replacing:
-        typer.echo(f"The old database is kept as {short_path(paths.database_backup)}")
+    existing = paths.database.exists()
+    if existing and not reset:
+        found = machines.previous(paths)
+        typer.echo("Already set up" + (f": Machine {found.name} ({found.id})" if found else ""))
+    else:
+        if reset and not yes and existing:
+            _confirm_reset(paths)
+        if reset and not existing:
+            typer.echo("Nothing to reset")
+        created = machines.set_up(paths, name, reset=reset)
+        typer.echo(f"Set up Machine {created.name} ({created.id}), data in {paths.data_dir}")
+        if reset and existing:
+            typer.echo(f"The old database is kept as {short_path(paths.database_backup)}")
+    if not no_daemon:
+        _install("the Daemon", daemon.install, "hephaistos daemon install")
+    if no_desktop:
+        return
+    if not any(os.environ.get(variable) for variable in browse.SESSION_VARIABLES):
+        typer.echo("No graphical session here, so no Desktop")
+        return
+    _install("the Desktop", desktop.install, "hephaistos desktop install")
