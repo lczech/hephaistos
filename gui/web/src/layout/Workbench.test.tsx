@@ -46,6 +46,13 @@ describe("the Workbench", () => {
     );
   });
 
+  it("closes the active Panel on Ctrl+W", async () => {
+    renderWithQueries(<Workbench />);
+    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    await userEvent.keyboard("{Control>}w{/Control}");
+    expect(tabs()).toEqual(["Repositories"]);
+  });
+
   it("shows each View's icon in its tab and in the lists of Views", () => {
     renderWithQueries(<Workbench />);
     const icons = (element: Element) =>

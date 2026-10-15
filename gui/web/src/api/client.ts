@@ -22,8 +22,9 @@ const auth: Middleware = {
     if (value !== null) request.headers.set("Authorization", `Bearer ${value}`);
     return request;
   },
-  onResponse({ response }) {
-    if (response.status === 401) forgetToken();
+  onResponse({ request, response }) {
+    const sent = request.headers.get("Authorization")?.replace(/^Bearer /, "") ?? null;
+    if (response.status === 401) forgetToken(sent);
     return response;
   },
 };

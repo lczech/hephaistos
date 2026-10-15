@@ -27,6 +27,17 @@ function keepSaved(api: DockviewApi): { dispose: () => void } {
   };
 }
 
+/** Ctrl+W closes the active Panel; only the Desktop passes it on, as browsers close their tab. */
+function closeByKey(api: DockviewApi): { dispose: () => void } {
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== "w" || !event.ctrlKey || event.altKey || event.metaKey) return;
+    event.preventDefault();
+    api.activePanel?.api.close();
+  };
+  window.addEventListener("keydown", onKey);
+  return { dispose: () => window.removeEventListener("keydown", onKey) };
+}
+
 function restore(api: DockviewApi): void {
   const saved = savedLayout();
   try {
@@ -39,18 +50,18 @@ function restore(api: DockviewApi): void {
 
 /** The Groups and Panels: the saved Layout, or the default one. */
 export function Workbench() {
-  const saving = useRef<{ dispose: () => void } | null>(null);
+  const attached = useRef<{ dispose: () => void }[]>([]);
   const register = useDockRegistry();
   useEffect(
     () => () => {
-      saving.current?.dispose();
+      for (const part of attached.current) part.dispose();
       register(null);
     },
     [register],
   );
   const ready = ({ api }: DockviewReadyEvent) => {
-    saving.current?.dispose();
-    saving.current = keepSaved(api);
+    for (const part of attached.current) part.dispose();
+    attached.current = [keepSaved(api), closeByKey(api)];
     restore(api);
     register(api);
   };

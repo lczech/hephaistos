@@ -290,19 +290,28 @@ def wait_started(paths: Paths, previous: int | None = None) -> int:
     raise SystemdError(f"the Daemon didn't start within {START_WAIT:g} s")
 
 
-def _require_installed() -> None:
-    """Raises if our unit isn't installed."""
-    if installed_text() is None:
+def _require_installed(env: Mapping[str, str]) -> None:
+    """Raises if our unit isn't installed, or for other directories than `env` names.
+
+    Such a Daemon would keep other data, e.g. the real one for a shell with a scratch home.
+    """
+    text = installed_text()
+    if text is None:
         raise SystemdError(
             "the Daemon isn't installed; run `hephaistos daemon install`,"
             " or `hephaistos daemon run` for this session"
         )
+    if differences := path_differences(text, env):
+        raise SystemdError(
+            f"the installed Daemon keeps its data elsewhere ({'; '.join(differences)});"
+            " `hephaistos daemon install` installs this shell's instead"
+        )
 
 
-def start(paths: Paths) -> int:
+def start(paths: Paths, env: Mapping[str, str] = os.environ) -> int:
     """Starts the Daemon through systemd; returns its pid."""
     _refuse_daemon_without_systemd(paths)
-    _require_installed()
+    _require_installed(env)
     running = _running_pid(paths.state_dir)
     if running is not None:
         return running
@@ -310,10 +319,10 @@ def start(paths: Paths) -> int:
     return wait_started(paths)
 
 
-def restart(paths: Paths) -> int:
+def restart(paths: Paths, env: Mapping[str, str] = os.environ) -> int:
     """Restarts the Daemon through systemd, or starts it; returns its new pid."""
     _refuse_daemon_without_systemd(paths)
-    _require_installed()
+    _require_installed(env)
     previous = _running_pid(paths.state_dir)
     _systemctl("restart", UNIT_NAME)
     return wait_started(paths, previous)

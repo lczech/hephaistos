@@ -1,15 +1,15 @@
 #!/bin/sh
 # Type checks and tests before each push, in parallel; output is shown only on failure.
 # Skip in an emergency with `git push --no-verify`.
-if [ ! -d gui/web/node_modules ]; then
-    echo "gui/web has no packages yet: uv run npm --prefix gui/web ci" >&2
+if [ ! -d gui/node_modules ]; then
+    echo "gui has no packages yet: uv run npm --prefix gui ci" >&2
     exit 1
 fi
 log=$(mktemp -d)
 trap 'rm -rf "$log"' EXIT
 uv run --frozen pyright > "$log/pyright" 2>&1 & pyright=$!
 uv run --frozen pytest --quiet -p no:cacheprovider > "$log/pytest" 2>&1 & pytest=$!
-uv run --frozen npm --prefix gui/web run --silent check > "$log/gui" 2>&1 & gui=$!
+uv run --frozen npm --prefix gui run --silent check > "$log/gui" 2>&1 & gui=$!
 failed=0
 wait $pyright || { cat "$log/pyright"; failed=1; }
 wait $pytest || { cat "$log/pytest"; failed=1; }

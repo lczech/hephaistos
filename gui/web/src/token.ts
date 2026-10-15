@@ -38,9 +38,18 @@ export function token(): string | null {
   return current;
 }
 
-/** Forgets a token the Server refused, e.g. after `daemon token --renew`. */
-export function forgetToken(): void {
-  if (current !== null) write(null);
+/** Takes the token from links now and from those opened in this page later, e.g. the Desktop's. */
+export function followTokenLinks(): void {
+  takeTokenFromUrl();
+  window.addEventListener("hashchange", () => takeTokenFromUrl());
+}
+
+/**
+ * Forgets the token the Server refused, e.g. after `daemon token --renew`; not a newer one,
+ * which a link may have brought meanwhile.
+ */
+export function forgetToken(refused: string | null = current): void {
+  if (current !== null && current === refused) write(null);
 }
 
 export function subscribe(listener: Listener): () => void {

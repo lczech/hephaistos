@@ -5,8 +5,8 @@
 set -e
 uv run --frozen ruff check --quiet .
 uv run --frozen ruff format --check --quiet .
-if [ ! -d gui/web/node_modules ]; then
-    echo "gui/web has no packages yet: uv run npm --prefix gui/web ci" >&2
+if [ ! -d gui/node_modules ]; then
+    echo "gui has no packages yet: uv run npm --prefix gui ci" >&2
     exit 1
 fi
-uv run --frozen npm --prefix gui/web run --silent lint
+uv run --frozen npm --prefix gui run --silent lint

@@ -75,7 +75,7 @@ def _reinstall_text() -> str:
     return "uv tool install --reinstall hephaistos"
 
 
-def _executable() -> Path:
+def executable() -> Path:
     """The hephaistos running now, by the path it was run as: links stay links."""
     path = Path(os.path.abspath(sys.argv[0]))  # noqa: PTH100 - Path.absolute keeps `..`
     if not path.is_file():
@@ -109,7 +109,7 @@ def install(
     paths = Paths.from_environment()
     previous = daemon_status.read(paths.state_dir)
     running = previous.pid if previous and daemon_status.is_running(paths.state_dir) else None
-    done = unit.install(_executable(), os.environ)
+    done = unit.install(executable(), os.environ)
     where = short_path(unit.unit_file())
     if done.created:
         typer.echo(f"Installed {where}")
@@ -305,8 +305,18 @@ def token(
         value = server_token.renew(paths)
     else:
         value = server_token.token(paths)
+    typer.echo(value if port is None else _link(port, value))
+
+
+def _link(port: int, value: str) -> str:
+    """The link that opens the GUI with the token."""
     # In the fragment, after `#`, the token never reaches a server; the GUI's page reads it.
-    typer.echo(value if port is None else f"http://127.0.0.1:{port}/#token={value}")
+    return f"http://127.0.0.1:{port}/#token={value}"
+
+
+def server_link(paths: Paths) -> str:
+    """The link that opens this Machine's GUI; raises unless our own Server listens."""
+    return _link(_own_server_port(paths), server_token.token(paths))
 
 
 def _own_server_port(paths: Paths) -> int:

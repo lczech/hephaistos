@@ -37,7 +37,7 @@ Our own software parts; see [technology stack](decisions/002-technology-stack.md
   - **Watcher**: observes this Machine and records State and Events, on a timer and on request.
   - **Sync**: exchanges data with Peers.
   - **Server**: HTTP/WebSocket access for GUIs; also serves the GUI files.
-- **GUI**: the React app; **Desktop**: the Electron shell around it, `hephaistos-gui`.
+- **GUI**: the React app; **Desktop**: the Electron shell around it, `hephaistos desktop open`.
 - **Peer**: the Machine at the other end of a Link.
 
 ## Supporting terms

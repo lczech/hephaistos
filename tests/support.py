@@ -1,5 +1,5 @@
 """Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
-stand-in for the Watcher, the API's schema, systemd's answers."""
+stand-in for the Watcher, the API's schema, systemd's answers, a checkout with a Desktop."""
 
 import functools
 import json
@@ -19,6 +19,7 @@ from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
+from hephaistos.desktop import launch
 
 
 def hostnamectl(answers: Mapping[tuple[str, ...], str]) -> Callable[..., str | None]:
@@ -128,3 +129,18 @@ def logged(paths: Paths) -> list[dict[str, object]]:
         for _, path in logs.day_files(paths.state_dir)
         for line in path.read_text().splitlines()
     ]
+
+
+def desktop_checkout(tmp_path: Path, electron: str | None, *, built: bool = True) -> Path:
+    """A checkout whose Electron is a shell script running `electron`, if any."""
+    checkout = tmp_path / "checkout"
+    (checkout / launch.PACKAGE).mkdir(parents=True)
+    if electron is not None:
+        binary = checkout / launch.ELECTRON
+        binary.parent.mkdir(parents=True)
+        binary.write_text(f"#!/bin/sh\n{electron}\n")
+        binary.chmod(0o755)
+    if built:
+        (checkout / launch.MAIN).parent.mkdir(parents=True)
+        (checkout / launch.MAIN).touch()
+    return checkout

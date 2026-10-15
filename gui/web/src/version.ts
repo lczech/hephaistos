@@ -19,8 +19,7 @@ export interface Fit {
 }
 
 const RESTART = "restart it: `hephaistos daemon restart`";
-const REBUILD =
-  "rebuild the GUI in the checkout: `uv run npm --prefix gui/web run build`, then reload";
+const REBUILD = "rebuild the GUI in the checkout: `uv run npm --prefix gui run build`, then reload";
 
 /**
  * How the GUI fits the running API: a newer minor only adds; before 1.0, any change may break.
