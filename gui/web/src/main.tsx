@@ -4,9 +4,9 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { QUERY_DEFAULTS } from "./api/queries";
 import "./theme.css";
-import { takeTokenFromUrl } from "./token";
+import { followTokenLinks } from "./token";
 
-takeTokenFromUrl();
+followTokenLinks();
 
 const queries = new QueryClient(QUERY_DEFAULTS);
 

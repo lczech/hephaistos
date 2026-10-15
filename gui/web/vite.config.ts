@@ -6,6 +6,7 @@ import { defineConfig } from "vitest/config";
 const schema = JSON.parse(readFileSync(new URL("openapi.json", import.meta.url), "utf8"));
 
 export default defineConfig({
+  root: import.meta.dirname, // also when started from the package, as `vite web` or a project
   plugins: [react()],
   define: { __API_VERSION__: JSON.stringify(schema.info.version) },
   // Served by this Machine's Server and kept by the browser: one script is fine at this size.
@@ -17,6 +18,7 @@ export default defineConfig({
     proxy: { "/api": { target: "http://127.0.0.1:8264", ws: true } }, // the Daemon's Server
   },
   test: {
+    name: "web",
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
   },

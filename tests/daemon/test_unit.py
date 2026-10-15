@@ -42,7 +42,11 @@ def test_unit_text_round_trip() -> None:
 
 @pytest.mark.usefixtures("repo")
 def test_install_start_stop_uninstall(
-    paths: Paths, systemd: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    paths: Paths,
+    systemd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     def run(*args: str) -> object:
         return run_cli(monkeypatch, "daemon", *args, program=str(systemd))
@@ -101,6 +105,12 @@ def test_install_start_stop_uninstall(
     assert capsys.readouterr().out == f"The Daemon runs (pid {third})\n"
     assert run("restart") == 0
     assert capsys.readouterr().out == f"The Daemon runs again (pid {_pid(paths)})\n"
+    with monkeypatch.context() as scratch:
+        scratch.setenv("HEPHAISTOS_HOME", str(tmp_path / "scratch"))
+        assert run("restart") == 1
+        assert "the installed Daemon keeps its data elsewhere (HEPHAISTOS_HOME:" in (
+            capsys.readouterr().err
+        )
 
     assert run("uninstall") == 0
     assert capsys.readouterr().out == f"Stopped the Daemon and deleted {UNIT}\n"

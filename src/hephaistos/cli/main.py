@@ -10,9 +10,11 @@ import typer
 
 from hephaistos import __description__, __version__
 from hephaistos.cli import (
+    browse,
     clone,
     daemon,
     db,
+    desktop,
     event,
     log,
     machine,
@@ -57,8 +59,10 @@ app.add_typer(db.app, name="db")
 app.add_typer(log.app, name="log")
 app.add_typer(config_command.app, name="config")
 app.add_typer(daemon.app, name="daemon")
+app.add_typer(desktop.app, name="desktop")
 app.command()(observe.observe)
 app.command()(scan.scan)
+app.command()(browse.browse)
 
 
 def without_debug(args: list[str]) -> tuple[list[str], bool]:

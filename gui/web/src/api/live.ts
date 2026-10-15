@@ -91,8 +91,9 @@ class LiveConnection {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(url);
     this.socket = socket;
+    const sent = token();
     socket.onopen = () => {
-      socket.send(JSON.stringify({ token: token() }));
+      socket.send(JSON.stringify({ token: sent }));
       this.heard = Date.now();
       this.delay = FIRST_DELAY;
       set({ state: "live", since: Date.now() });
@@ -107,7 +108,7 @@ class LiveConnection {
       if (socket !== this.socket) return;
       this.socket = null;
       // Refused: the page then shows how to get the token.
-      if (event.code === REFUSED) forgetToken();
+      if (event.code === REFUSED) forgetToken(sent);
       else this.lost();
     };
   }

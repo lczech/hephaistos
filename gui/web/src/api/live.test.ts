@@ -123,6 +123,15 @@ describe("the live connection", () => {
     expect(token()).toBeNull();
   });
 
+  it("keeps a newer token than the one refused", () => {
+    start();
+    act(() => lastSocket().open());
+    window.history.replaceState(null, "", "/#token=renewed");
+    takeTokenFromUrl();
+    act(() => lastSocket().drop(4401, "wrong token"));
+    expect(token()).toBe("renewed");
+  });
+
   it("asks again on focus for what no hint covers", () => {
     const { invalidated } = start();
     invalidated.mockClear();

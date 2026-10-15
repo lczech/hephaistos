@@ -1,23 +1,28 @@
 {
-  "name": "hephaistos-gui-web",
+  "name": "hephaistos",
+  "productName": "hephaistos",
+  "desktopName": "hephaistos.desktop",
   "private": true,
   "type": "module",
+  "main": "desktop/dist/main.js",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "types": "openapi-typescript openapi.json --output src/api/schema.d.ts --silent",
-    "dev": "npm run types && vite",
-    "build": "npm run types && tsc && vite build",
-    "check": "npm run types && tsc && vitest run",
+    "types": "openapi-typescript web/openapi.json --output web/src/api/schema.d.ts --silent",
+    "dev": "npm run types && vite web",
+    "build": "npm run types && tsc -p web && vite build web && tsc -p desktop/tsconfig.build.json",
+    "check": "npm run types && tsc -p web && tsc -p desktop && vitest run",
     "lint": "biome check",
-    "format": "biome check --write"
+    "format": "biome check --write",
+    "fetch-electron": "node node_modules/electron/install.js"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-store": "0.11.2",
     "@tanstack/react-table": "9.3.1",
     "dockview-react": "8.5.1",
+    "electron": "44.7.2",
     "lucide-react": "1.56.0",
     "openapi-fetch": "0.17.0",
     "react": "19.3.0",

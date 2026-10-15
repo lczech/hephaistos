@@ -12,8 +12,8 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 from hephaistos.core.utils.paths import own_checkout, shell_path
 
-SOURCE = Path("gui", "web")  # in the checkout
-BUILD = SOURCE / "dist"
+PACKAGE = Path("gui")  # the GUI's npm package, in the checkout
+BUILD = PACKAGE / "web" / "dist"
 ASSETS = "assets"  # files named by their content, so browsers may keep them for good
 
 POLICY = (  # what the page may load and where it may connect: only this Server
@@ -62,7 +62,7 @@ def _not_built(built: Path | None) -> HTMLResponse:
         text = "This hephaistos doesn't run from a checkout, so it has no GUI yet."
     else:
         checkout = html.escape(shell_path(built.parents[len(BUILD.parts) - 1]))
-        npm = f"uv run npm --prefix {SOURCE}"  # uv finds our Node only in the checkout
+        npm = f"uv run npm --prefix {PACKAGE}"  # uv finds our Node only in the checkout
         text = (
             f"The GUI isn't built yet: <code>cd {checkout} &amp;&amp; {npm} ci &amp;&amp;"
             f" {npm} run build</code>, then reload."

@@ -90,8 +90,8 @@ def test_says_how_to_build_it(paths: Paths, tmp_path: Path) -> None:
     page = _browser(paths, gui).get("/")
     assert page.status_code == 503
     assert (
-        f"<code>cd {tmp_path} &amp;&amp; uv run npm --prefix gui/web ci &amp;&amp;"
-        " uv run npm --prefix gui/web run build</code>"
+        f"<code>cd {tmp_path} &amp;&amp; uv run npm --prefix gui ci &amp;&amp;"
+        " uv run npm --prefix gui run build</code>"
     ) in page.text
     assert page.headers["content-security-policy"] == web.POLICY
     outside = _browser(paths, None).get("/")

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { forgetToken, subscribe, takeTokenFromUrl, token } from "./token";
+import { followTokenLinks, forgetToken, subscribe, takeTokenFromUrl, token } from "./token";
 
 describe("the token", () => {
   it("comes from a link's fragment, which leaves the address bar", () => {
@@ -29,5 +29,22 @@ describe("the token", () => {
     expect(token()).toBeNull();
     expect(localStorage.getItem("hephaistos.token")).toBeNull();
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("is forgotten only while it is the one refused", () => {
+    window.history.replaceState(null, "", "/#token=new");
+    takeTokenFromUrl();
+    forgetToken("old");
+    expect(token()).toBe("new");
+    forgetToken("new");
+    expect(token()).toBeNull();
+  });
+
+  it("comes from links opened in the page later", () => {
+    followTokenLinks();
+    window.history.replaceState(null, "", "/#token=later");
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    expect(token()).toBe("later");
+    expect(window.location.hash).toBe("");
   });
 });

@@ -5,7 +5,7 @@ from pathlib import Path
 
 PACKAGE = Path(__file__).parents[1] / "src" / "hephaistos"
 CORE = PACKAGE / "core"
-OTHER_PARTS = ("hephaistos.cli", "hephaistos.daemon", "hephaistos.plugins")
+OTHER_PARTS = ("hephaistos.cli", "hephaistos.daemon", "hephaistos.desktop", "hephaistos.plugins")
 
 
 def _imported_modules(path: Path) -> set[str]:
