@@ -58,3 +58,7 @@
 .health[data-health="lost"] {
   color: var(--danger);
 }
+
+.text[data-state="disconnected"] {
+  color: var(--warning);
+}

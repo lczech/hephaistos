@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import styles from "./App.module.css";
-import { useInfo, useObserveOnFocus } from "./api/queries";
+import { useLiveUpdates } from "./api/live";
+import { useInfo } from "./api/queries";
 import { StatusBar } from "./components/StatusBar";
 import { TokenHint } from "./components/TokenHint";
 import { ViewOpener } from "./layout/ViewOpener";
@@ -15,7 +16,7 @@ export function App() {
 
 /** The desktop shell: Groups of Panels between the version hint and the status bar. */
 function Shell() {
-  useObserveOnFocus();
+  useLiveUpdates();
   const info = useInfo();
   const fits = info.data ? apiFit(builtFor(), info.data.api) : null;
   return (
