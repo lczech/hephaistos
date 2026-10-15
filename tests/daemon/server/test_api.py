@@ -15,7 +15,8 @@ from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token
-from hephaistos.daemon.server.app import Counts, create_app
+from hephaistos.daemon.server.app import create_app
+from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.watcher.worker import PassFailed
 from support import FakeWatcher, git
 

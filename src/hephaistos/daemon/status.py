@@ -46,6 +46,7 @@ class ServerStatus:
     requests: int = 0  # answered, with the token
     last_request_at: datetime | None = None
     refused: int = 0  # for a wrong or missing token, or a foreign host
+    live: int = 0  # live connections open, e.g. GUIs
 
     @property
     def port(self) -> int:
@@ -112,6 +113,7 @@ def _status_json(status: Status) -> dict[str, object]:
             "requests": server.requests,
             "last_request_at": _at(server.last_request_at),
             "refused": server.refused,
+            "live": server.live,
         },
     }
 
@@ -142,6 +144,7 @@ def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked by using 
             requests=int(server["requests"]),
             last_request_at=_from_at(server["last_request_at"]),
             refused=int(server["refused"]),
+            live=int(server["live"]),
         ),
     )
 

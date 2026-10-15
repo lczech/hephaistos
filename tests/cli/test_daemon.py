@@ -134,6 +134,10 @@ def test_token_url_only_for_our_own_server(paths: Paths) -> None:
             ),
             "listening on 127.0.0.1:8264; 12 requests since start, last now; 3 refused",
         ),
+        (
+            ServerStatus("127.0.0.1:8264", listening=True, requests=2, last_request_at=NOW, live=1),
+            "listening on 127.0.0.1:8264; 2 requests since start, last now; 1 live connection",
+        ),
     ],
 )
 def test_status_of_the_server(

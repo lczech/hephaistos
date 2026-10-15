@@ -77,6 +77,11 @@ class ReadSession:
         return _schema_mismatch(self.conn)
 
     @property
+    def data_version(self) -> int:
+        """A number that changes whenever another connection commits; kept sessions compare it."""
+        return int(self.conn.execute("PRAGMA data_version").fetchone()[0])
+
+    @property
     def journal_mode(self) -> str:
         """SQLite's journal mode: `wal`, or `delete` on network filesystems."""
         return str(self.conn.execute("PRAGMA journal_mode").fetchone()[0])

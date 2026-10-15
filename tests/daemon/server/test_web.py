@@ -6,7 +6,8 @@ from fastapi.testclient import TestClient
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import token, web
-from hephaistos.daemon.server.app import Counts, create_app
+from hephaistos.daemon.server.app import create_app
+from hephaistos.daemon.server.guard import Counts
 from support import FakeWatcher
 
 PAGE = "<!doctype html><script type=module src=/assets/index-3f9a.js></script>"

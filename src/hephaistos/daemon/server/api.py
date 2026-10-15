@@ -12,7 +12,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, TypedDict, cast
+from typing import Annotated, Literal, TypedDict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -42,6 +42,7 @@ from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
+from hephaistos.daemon.server.live import Hint, Live
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 
@@ -52,6 +53,31 @@ DEFAULT_RECORDS = 50  # as `log show` shows
 router = APIRouter(prefix="/api")
 
 type Observe = Callable[[Trigger], Awaitable[Done | PassFailed]]  # the Watcher's pass
+
+type Current = Hint | Literal["focus", "reconnect"]
+
+#: What keeps each endpoint's answer current in a GUI: a live connection's hint; asking again
+#: when the GUI gains focus, for what changes by hand outside it; or only on reconnecting, for
+#: what changes only with the Daemon.
+KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
+    "/api/info": ("reconnect",),
+    "/api/machines": ("data",),
+    "/api/machines/{machine_id}": ("data",),
+    "/api/repositories": ("data",),
+    "/api/repositories/{repository_id}": ("data",),
+    "/api/clones": ("data",),
+    "/api/clones/{clone_id}": ("data",),
+    "/api/worktrees": ("data",),
+    "/api/worktrees/{worktree_id}": ("data",),
+    "/api/events": ("data",),
+    "/api/events/kinds": ("reconnect",),
+    "/api/events/{event_id}": ("data",),
+    "/api/daemon": ("daemon", "focus"),  # focus: its systemd unit
+    "/api/config": ("focus",),
+    "/api/db/tables": ("data",),
+    "/api/db/tables/{table}": ("data",),
+    "/api/log": ("log",),
+}
 
 
 class ApiVersionJson(TypedDict):
@@ -234,9 +260,11 @@ def daemon(paths: PathsOf) -> DaemonJson:
 async def observe(request: Request) -> None:
     """Observes this Machine in a pass that starts after this request; answers once it ended.
 
-    What changed, the other endpoints show, with what other passes changed.
+    What changed, the other endpoints show, with what other passes changed; live connections
+    get their hints at once.
     """
     outcome = await cast("Observe", request.app.state.observe)("api")
+    cast("Live", request.app.state.live).wake()
     if isinstance(outcome, PassFailed):
         raise HTTPException(503, f"the pass failed: {outcome.message}")
 
