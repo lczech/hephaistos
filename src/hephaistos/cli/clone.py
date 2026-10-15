@@ -1,4 +1,6 @@
 import shlex
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -64,6 +66,11 @@ def observe_checkout(paths: Paths, path: Path, *, refresh: bool) -> None:
 def branch_text(state: CheckoutState) -> str:
     """The branch as shown in lists: its name, or `(detached)`."""
     return state.branch or "(detached)"
+
+
+def active_text(at: datetime | None, formatted: Callable[[datetime], str]) -> str:
+    """When HEAD last moved, formatted; `-` if unknown."""
+    return "-" if at is None else formatted(at)
 
 
 def status_text(state: CheckoutState) -> str:
@@ -193,12 +200,13 @@ def list_(
         found = clones.details(session, repository_id=repository_id)
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["repository", "branch", "status", "observed", "filesystem", "path"],
+        ["repository", "branch", "status", "active", "observed", "filesystem", "path"],
         [
             [
                 details.repository.name,
                 branch_text(details.state),
                 status_text(details.state),
+                active_text(details.state.active_at, formatted),
                 formatted(details.state.observed_at.datetime),
                 details.filesystem.name,
                 short_path(details.clone.display_path),
@@ -235,6 +243,7 @@ def show(
             ("resolved path", str(clone.resolved_path)),
             ("filesystem", details.filesystem.name),
             ("created", formatted(id_datetime(clone.id))),
+            ("active", active_text(state.active_at, formatted)),
             ("observed", formatted(state.observed_at.datetime)),
             ("observed by", observers.get(state.observed_by) or short_id(state.observed_by)),
             ("present", "yes" if state.present else "no"),

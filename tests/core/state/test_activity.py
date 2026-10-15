@@ -190,6 +190,8 @@ def test_cursor() -> None:
     lost = Cursor(int(entries[2].at.timestamp()), "expired")
     assert activity.newer(entries, lost) == entries[1::-1]
     assert activity.end([]) == BEGINNING
+    assert activity.end(entries).at == entries[0].at  # when HEAD last moved
+    assert BEGINNING.at is None
 
 
 def test_pushes_skip_fetches() -> None:

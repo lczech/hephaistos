@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -6,10 +7,11 @@ import pytest
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
+from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, records, repositories
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from support import clone, create
+from support import clone, create, git
 
 
 @pytest.fixture
@@ -106,3 +108,29 @@ def test_summaries_count_clones_and_their_main_remotes(set_up: Paths, tmp_path: 
         empty, proj = repositories.summaries(session)
     assert (empty.clones, empty.remotes) == (0, ())
     assert (proj.clones, proj.remotes) == (2, (str(repo), "host/me/proj"))
+
+
+def test_summaries_say_when_head_last_moved_in_any_checkout(
+    set_up: Paths, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = create(tmp_path / "repo")
+    with write_session(set_up) as session:
+        repositories.add(session, "proj")
+        repositories.add(session, "empty")
+        clones.add(session, "proj", clones.inspect(repo))
+    observer.observe(set_up)  # reading the reflogs starts at their ends
+    with read_session(set_up) as session:
+        [details] = clones.details(session)
+    assert details.state.active_at is not None
+    later = datetime(2030, 1, 2, 3, 4, 5, tzinfo=UTC)
+    monkeypatch.setenv("GIT_COMMITTER_DATE", later.isoformat())  # git's time for reflog entries
+    git(repo, "worktree", "add", "--quiet", str(tmp_path / "feature"))
+    observer.observe(set_up)
+    with read_session(set_up) as session:
+        empty, proj = repositories.summaries(session)
+        [details] = clones.details(session)
+    assert empty.active_at is None
+    assert [worktree.active_at for worktree in details.worktrees] == [later]
+    assert details.state.active_at is not None
+    assert details.state.active_at < later
+    assert proj.active_at == later

@@ -7,6 +7,7 @@ from hephaistos.cli import terminal
 from hephaistos.cli.clone import (
     RefreshOption,
     RepoOption,
+    active_text,
     branch_text,
     note_observed,
     observe_checkout,
@@ -75,13 +76,14 @@ def list_(
         ]
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["repository", "clone", "branch", "status", "observed", "path"],
+        ["repository", "clone", "branch", "status", "active", "observed", "path"],
         [
             [
                 details.repository.name,
                 short_path(details.clone.display_path),
                 branch_text(worktree),
                 status_text(worktree),
+                active_text(worktree.active_at, formatted),
                 formatted(worktree.observed_at.datetime),
                 worktree_path_text(worktree, details.clone),
             ]
@@ -169,6 +171,7 @@ def show(
             ("id", str(worktree.id)),
             ("path", short_path(worktree.path)),
             ("locked", _lock_text(worktree)),
+            ("active", active_text(worktree.active_at, formatted)),
             ("observed", formatted(worktree.observed_at.datetime)),
             ("observed by", observers.get(worktree.observed_by) or short_id(worktree.observed_by)),
             ("present", "yes" if worktree.present else "no"),

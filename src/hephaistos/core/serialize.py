@@ -44,7 +44,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 8)
+API_VERSION = ApiVersion(0, 9)
 
 
 class Ref(TypedDict):
@@ -99,6 +99,7 @@ class _CheckoutJson(TypedDict):
 
     observed_at: str
     observed_by: Ref
+    active_at: str | None
     present: bool
     head: str | None
     branch: str | None
@@ -123,6 +124,7 @@ class WorktreeJson(TypedDict):
     lock_reason: str | None
     observed_at: str
     observed_by: Ref
+    active_at: str | None
     present: bool
     head: str | None
     branch: str | None
@@ -148,6 +150,7 @@ class CloneJson(TypedDict):
     bare: bool
     observed_at: str
     observed_by: Ref
+    active_at: str | None
     present: bool
     head: str | None
     branch: str | None
@@ -171,6 +174,7 @@ class RepositoryJson(TypedDict):
     id: str
     name: str
     created_at: str
+    active_at: str | None
     remotes: list[str]
     clones: list[CloneJson]
 
@@ -277,6 +281,7 @@ def _checkout_json(state: CheckoutState, names: Mapping[uuid.UUID, str]) -> _Che
     return _CheckoutJson(
         observed_at=state.observed_at.datetime.isoformat(),
         observed_by=machine_ref(state.observed_by, names),
+        active_at=None if state.active_at is None else state.active_at.isoformat(),
         present=state.present,
         head=state.head,
         branch=state.branch,
@@ -362,6 +367,7 @@ def repository_json(
         id=str(repository.id),
         name=repository.name,
         created_at=id_datetime(repository.id).isoformat(),
+        active_at=None if summary.active_at is None else summary.active_at.isoformat(),
         remotes=list(summary.remotes),
         clones=[clone_json(details, names) for details in its_clones],
     )

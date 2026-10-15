@@ -33,7 +33,15 @@ def _fields(*args: str) -> list[list[str]]:
 
 def test_list_and_show(repo: Path) -> None:
     lines = runner.invoke(app, ["worktree", "list"]).output.splitlines()
-    assert lines[1].split() == ["proj", str(repo), "feature", "clean", "now", ".worktrees/feature"]
+    assert lines[1].split() == [
+        "proj",
+        str(repo),
+        "feature",
+        "clean",
+        "now",
+        "now",
+        ".worktrees/feature",
+    ]
 
     for target in (str(repo / ".worktrees" / "feature"), "feature"):
         fields = _fields("worktree", "show", target)

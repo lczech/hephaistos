@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 8
+    "minor": 9
   },
   "shapes": {
     "components": {
@@ -28,6 +28,17 @@
         "CloneJson": {
           "description": "A Clone with its State and Worktrees.",
           "properties": {
+            "active_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Active At"
+            },
             "ahead": {
               "anyOf": [
                 {
@@ -214,6 +225,7 @@
             "bare",
             "observed_at",
             "observed_by",
+            "active_at",
             "present",
             "head",
             "branch",
@@ -829,6 +841,17 @@
         "RepositoryJson": {
           "description": "A Repository with its main remotes and Clones.",
           "properties": {
+            "active_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Active At"
+            },
             "clones": {
               "items": {
                 "$ref": "#/components/schemas/CloneJson"
@@ -860,6 +883,7 @@
             "id",
             "name",
             "created_at",
+            "active_at",
             "remotes",
             "clones"
           ],
@@ -1384,6 +1408,17 @@
         "WorktreeJson": {
           "description": "A Worktree with its State.",
           "properties": {
+            "active_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Active At"
+            },
             "ahead": {
               "anyOf": [
                 {
@@ -1544,6 +1579,7 @@
             "lock_reason",
             "observed_at",
             "observed_by",
+            "active_at",
             "present",
             "head",
             "branch",

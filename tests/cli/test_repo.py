@@ -22,9 +22,9 @@ def test_add_list_rename() -> None:
     assert runner.invoke(app, ["repo", "add", "proj"]).output == "Added Repository proj\n"
     runner.invoke(app, ["repo", "add", "other"])
     assert runner.invoke(app, ["repo", "list"]).output.splitlines() == [
-        "name   clones  remote",
-        "other  0       -",
-        "proj   0       -",
+        "name   clones  active  remote",
+        "other  0       -       -",
+        "proj   0       -       -",
     ]
     runner.invoke(app, ["repo", "rename", "proj", "project"])
     data = json.loads(runner.invoke(app, ["repo", "list", "--json"]).output)

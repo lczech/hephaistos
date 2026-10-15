@@ -5,6 +5,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Collection
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Self
 
 from hephaistos.core.db import values
@@ -13,6 +14,7 @@ from hephaistos.core.db.tables import Table
 from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.registry import records
 from hephaistos.core.registry.records import Record
+from hephaistos.core.state.activity import Cursor
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
@@ -37,11 +39,12 @@ class Repository(Record):
 
 @dataclass(frozen=True)
 class RepositorySummary:
-    """A Repository with its number of Clones and their main remotes, as shown by `repo list`."""
+    """A Repository with its number of Clones, their main remotes and when HEAD last moved."""
 
     repository: Repository
     clones: int
     remotes: tuple[str, ...]  # normalised, distinct, sorted
+    active_at: datetime | None  # the latest of its Clones' and Worktrees'; None if unknown
 
 
 def _check_name(session: ReadSession, name: str) -> None:
@@ -97,14 +100,19 @@ def remove(session: WriteSession, name: str) -> Repository:
 def summaries(
     session: ReadSession, repository_id: uuid.UUID | None = None
 ) -> list[RepositorySummary]:
-    """The Repositories (or one) with their number of Clones and main remotes, sorted by name."""
+    """The Repositories (or one) with their number of Clones and more, sorted by name."""
     remotes: defaultdict[bytes, set[str]] = defaultdict(set)  # by Repository ID
+    active: defaultdict[bytes, list[datetime]] = defaultdict(list)
     for row in session.conn.execute(
-        "SELECT c.repository_id, s.remotes FROM registry_clones c"
+        "SELECT c.repository_id, s.remotes, s.head_log FROM registry_clones c"
         " JOIN state_clones s ON s.clone_id = c.id WHERE c.deleted = 0"
+        " UNION ALL SELECT c.repository_id, NULL, w.head_log FROM registry_clones c"
+        " JOIN state_worktrees w ON w.clone_id = c.id WHERE c.deleted = 0 AND w.removed = 0"
     ):
-        if (url := git.main_remote(json.loads(row["remotes"]))) is not None:
+        if row["remotes"] and (url := git.main_remote(json.loads(row["remotes"]))) is not None:
             remotes[row["repository_id"]].add(git.normalise_remote(url))
+        if row["head_log"] and (at := Cursor.from_text(row["head_log"]).at) is not None:
+            active[row["repository_id"]].append(at)
     rows = session.conn.execute(
         "SELECT r.id, r.name, count(c.id) AS clones FROM registry_repositories r"
         " LEFT JOIN registry_clones c ON c.repository_id = r.id AND c.deleted = 0"
@@ -113,7 +121,10 @@ def summaries(
     )
     return [
         RepositorySummary(
-            Repository.from_row(row), row["clones"], tuple(sorted(remotes[row["id"]]))
+            Repository.from_row(row),
+            row["clones"],
+            tuple(sorted(remotes[row["id"]])),
+            max(active[row["id"]], default=None),
         )
         for row in rows
     ]

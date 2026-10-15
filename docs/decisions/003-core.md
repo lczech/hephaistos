@@ -126,6 +126,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
   - HEAD's reflog gives `committed` (also amends with the commit they replace, cherry-picks, reverts, `am`), `merged`, `pulled`, `rebased`, `reset`, `branch_switched`, and `head_moved` with git's message for what we can't name. A rebase folds into one Event; while one is in progress, it waits. Resets that don't move (`git stash`) are skipped.
   - Remote-tracking reflogs give `clone.pushed`; fetches are skipped. A new branch's reflog gives its creation time and start, or shows it was renamed (`clone.branch_renamed`, instead of deleted and created).
   - Reflog messages are git's text, stable in practice but unspecified; tests pin them with real git. Bare repositories keep no reflogs by default.
+- A Checkout's activity (`active_at`, "active" in lists) is when HEAD last moved: the time of the newest HEAD reflog entry read, from `head_log`, by git's clock; unknown without a reflog. A Repository's is the latest of its Checkouts'.
 - Views show stored State with its age. `--refresh` observes first, in a separate write session. Views also observe first, saying so, when git knows a Checkout that the record misses, e.g. a Worktree not observed yet.
 
 ## Daemon
