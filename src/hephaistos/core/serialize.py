@@ -44,7 +44,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 7)
+API_VERSION = ApiVersion(0, 8)
 
 
 class Ref(TypedDict):
@@ -86,6 +86,7 @@ class MachineJson(TypedDict):
     id: str
     name: str
     hostname: str
+    chassis: str | None
     os_machine_id: str | None
     created_at: str
     this: bool
@@ -231,6 +232,7 @@ def machine_json(
         id=str(machine.id),
         name=machine.name,
         hostname=machine.hostname,
+        chassis=machine.chassis,
         os_machine_id=machine.os_machine_id,
         created_at=id_datetime(machine.id).isoformat(),
         this=this,
@@ -574,12 +576,10 @@ class RowsJson(TypedDict):
 
 
 def db_warnings(session: ReadSession, found: Sequence[raw.TableSummary] = ()) -> list[str]:
-    """What's unusual about the database: an outdated schema, unknown tables among `found`."""
+    """What's unusual about the database: another schema, unknown tables among `found`."""
     warnings: list[str] = []
-    if not session.has_current_schema:
-        warnings.append(
-            "the database's schema is outdated (setup --reset replaces it); showing it as stored"
-        )
+    if (mismatch := session.schema_mismatch) is not None:
+        warnings.append(f"{mismatch}; showing it as stored")
     if unknown := [table.name for table in found if table.category is None]:
         tables = "1 table" if len(unknown) == 1 else f"{len(unknown)} tables"
         warnings.append(f"{tables} not in this version's schema: {', '.join(unknown)}")

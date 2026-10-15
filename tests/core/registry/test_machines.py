@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import socket
 import sqlite3
@@ -6,11 +7,15 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos.core import config
+from hephaistos.core.config import ChassisSetting
 from hephaistos.core.db.sessions import read_session
+from hephaistos.core.events import events
 from hephaistos.core.registry import machines
 from hephaistos.core.registry.mounts import mounts_of
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
+from support import hostnamectl
 
 
 def test_setup_registers_machine_filesystem_and_mount(paths: Paths) -> None:
@@ -47,10 +52,57 @@ def test_setup_records_events_with_values(paths: Paths) -> None:
         "id": str(machine.id),
         "name": "laptop",
         "hostname": machine.hostname,
+        "chassis": "laptop",
         "os_machine_id": machine.os_machine_id,
     }
     assert json.loads(rows[2]["payload"])["path"] == "/"
     assert all(row["modified_at"] > 0 for row in registry_times)
+
+
+def _systemd(monkeypatch: pytest.MonkeyPatch, answers: dict[tuple[str, ...], str]) -> None:
+    """systemd answers `hostnamectl` with these, and fails at anything else."""
+    monkeypatch.setattr(machines, "hostnamectl", hostnamectl(answers))
+
+
+@pytest.mark.parametrize(
+    ("answers", "chassis"),
+    [
+        ({("chassis",): "server"}, "server"),
+        # systemd before 249 only shows it in the status, with an icon since 252.
+        ({("status",): " Static hostname: login1\n         Chassis: vm 🖴\n"}, "vm"),
+        ({("chassis",): ""}, None),
+        ({}, None),
+    ],
+)
+def test_chassis_as_systemd_knows_it(
+    monkeypatch: pytest.MonkeyPatch, answers: dict[tuple[str, ...], str], chassis: str | None
+) -> None:
+    _systemd(monkeypatch, answers)
+    assert machines.chassis() == chassis
+
+
+def test_chassis_as_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    _systemd(monkeypatch, {("chassis",): "vm"})
+    chosen = config.Machine(chassis=ChassisSetting.SERVER)
+    config.activate(dataclasses.replace(config.DEFAULTS, machine=chosen))
+    assert machines.chassis() == "server"
+
+
+def test_update_records_a_changed_chassis_only(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    machines.set_up(paths, "laptop")
+    machines.update(paths)
+    _systemd(monkeypatch, {("chassis",): "convertible"})
+    machine = machines.update(paths)
+    machines.update(paths)
+    with read_session(paths) as session:
+        assert machines.this(session) == machine
+        changed = [event for event in events.recent(session) if event.kind == "machine.changed"]
+    assert machine.chassis == "convertible"
+    assert [event.payload for event in changed] == [
+        {"chassis": {"old": "laptop", "new": "convertible"}}
+    ]
 
 
 def test_by_name(paths: Paths) -> None:

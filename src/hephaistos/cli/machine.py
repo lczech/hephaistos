@@ -44,9 +44,14 @@ def list_(*, as_json: JsonOption = False) -> None:
         found = [(machine, mounts_of(session, machine.id)) for machine in machines.listing(session)]
         this_id = session.machine_id
     print_table(
-        ["", "name", "hostname"],
+        ["", "name", "hostname", "chassis"],
         [
-            ["*" if machine.id == this_id else "", machine.name, machine.hostname]
+            [
+                "*" if machine.id == this_id else "",
+                machine.name,
+                machine.hostname,
+                machine.chassis or "-",
+            ]
             for machine, _ in found
         ],
     )
@@ -78,6 +83,7 @@ def show(
             ("name", machine.name),
             ("id", str(machine.id)),
             ("hostname", machine.hostname),
+            ("chassis", machine.chassis or "-"),
             ("os machine id", machine.os_machine_id or "-"),
             ("created", formatted(id_datetime(machine.id))),
             ("this", "yes" if this else "no"),

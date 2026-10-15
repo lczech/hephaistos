@@ -19,6 +19,7 @@ class EventKind(StrEnum):
     """Stored as text; the part before the dot names the subject's type."""
 
     MACHINE_ADDED = "machine.added"
+    MACHINE_CHANGED = "machine.changed"
     FILESYSTEM_ADDED = "filesystem.added"
     MOUNT_ADDED = "mount.added"
     REPOSITORY_ADDED = "repository.added"
@@ -66,6 +67,7 @@ class EventKind(StrEnum):
         match self:
             case (
                 EventKind.MACHINE_ADDED
+                | EventKind.MACHINE_CHANGED
                 | EventKind.FILESYSTEM_ADDED
                 | EventKind.MOUNT_ADDED
                 | EventKind.REPOSITORY_ADDED

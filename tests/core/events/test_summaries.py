@@ -55,9 +55,10 @@ WORKTREE = WorktreePayload(ID, Path("/w"))
 # Payloads as the code that records them builds them, with their summaries.
 SUMMARIES: dict[EventKind, tuple[object, str]] = {
     EventKind.MACHINE_ADDED: (
-        Machine(id=ID, name="m", hostname="m.lan", os_machine_id=None),
+        Machine(id=ID, name="m", hostname="m.lan", chassis="laptop", os_machine_id=None),
         "m.lan",
     ),
+    EventKind.MACHINE_CHANGED: ({"chassis": Change(None, "laptop")}, "chassis: null → laptop"),
     EventKind.FILESYSTEM_ADDED: (Filesystem(id=ID, name="m-local"), ""),
     EventKind.MOUNT_ADDED: (Mount(id=ID, machine_id=ID, filesystem_id=ID, path=Path("/")), "/"),
     EventKind.REPOSITORY_ADDED: (Repository(id=ID, name="proj"), ""),

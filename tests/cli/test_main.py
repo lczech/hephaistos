@@ -167,8 +167,9 @@ def test_a_log_that_cannot_be_written_is_a_warning(
 def test_machine_list() -> None:
     runner.invoke(app, ["setup", "--name", "laptop"])
     lines = runner.invoke(app, ["machine", "list"]).output.splitlines()
-    assert lines[0].split() == ["name", "hostname"]
+    assert lines[0].split() == ["name", "hostname", "chassis"]
     assert lines[1].split()[:2] == ["*", "laptop"]
+    assert lines[1].split()[-1] == "laptop"  # as the tests' stub of systemd says
     [machine] = json.loads(runner.invoke(app, ["machine", "list", "--json"]).output)
     assert (machine["name"], machine["this"]) == ("laptop", True)
 

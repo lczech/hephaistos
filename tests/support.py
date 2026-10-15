@@ -1,11 +1,12 @@
 """Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
-stand-in for the Watcher, the API's schema."""
+stand-in for the Watcher, the API's schema, systemd's answers."""
 
 import functools
 import json
 import re
 import socket
 import subprocess
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,15 @@ from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server.app import Counts, create_app
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
+
+
+def hostnamectl(answers: Mapping[tuple[str, ...], str]) -> Callable[..., str | None]:
+    """A stand-in for `machines.hostnamectl`: these answers, by arguments; None to others."""
+
+    def answer(*args: str) -> str | None:
+        return answers.get(args)
+
+    return answer
 
 
 def free_port() -> int:

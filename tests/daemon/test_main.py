@@ -217,7 +217,10 @@ def _daemon(*args: str, port: int | None = None, interval: int = 1) -> subproces
             "run",
             *args,
         ],
-        env=os.environ | {"HEPHAISTOS_WATCHER_INTERVAL": str(interval)} | server,
+        # As the tests' stub of systemd answers: no real `hostnamectl` in the Daemon either.
+        env=os.environ
+        | {"HEPHAISTOS_WATCHER_INTERVAL": str(interval), "HEPHAISTOS_MACHINE_CHASSIS": "laptop"}
+        | server,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

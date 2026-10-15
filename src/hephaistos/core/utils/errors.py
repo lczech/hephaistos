@@ -34,11 +34,19 @@ class DatabaseBusyError(HephaistosError):
         )
 
 
-class SchemaOutdatedError(HephaistosError):
-    """The database was created with a different schema than this version's."""
+class SchemaMismatchError(HephaistosError):
+    """The database's schema isn't this version's: older, newer, or changed at the same version."""
 
-    def __init__(self) -> None:
-        """Creates the error with its message."""
-        super().__init__(
-            "the database schema has changed; run `hephaistos setup --reset` (keeps a backup)"
-        )
+    def __init__(self, found: int, known: int) -> None:
+        """Creates the error for a database with schema `found`; this version knows `known`."""
+        reset = "run `hephaistos setup --reset` (keeps a backup)"
+        if found > known:
+            message = (
+                f"the database has schema {found}, newer than this hephaistos knows ({known});"
+                " restart the Daemon (`hephaistos daemon restart`) or update hephaistos"
+            )
+        elif found < known:
+            message = f"the database has schema {found}; this hephaistos needs {known}: {reset}"
+        else:
+            message = f"the database's schema {found} differs from this hephaistos's: {reset}"
+        super().__init__(message)

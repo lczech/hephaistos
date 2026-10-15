@@ -97,7 +97,7 @@ def test_outdated_database_is_shown_as_stored(set_up: Paths) -> None:
         "UPDATE meta SET value = 'outdated' WHERE key = 'schema_hash'",
     )
     with read_session(set_up, check_schema=False) as session:
-        assert not session.has_current_schema
+        assert session.schema_mismatch is not None
         found = {table.name: table for table in raw.tables(session)}
         events = raw.rows(session, "events", limit=1)
         [old] = raw.rows(session, "old_things").values

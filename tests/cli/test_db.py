@@ -108,6 +108,6 @@ def test_outdated_database_gives_a_warning(paths: Paths) -> None:
     conn.close()
     result = runner.invoke(app, ["db", "tables"])
     assert result.exit_code == 0, result.output
-    assert "warning: the database's schema is outdated" in result.stderr
+    assert "warning: the database's schema 2 differs from this hephaistos's" in result.stderr
     assert "warning: 1 table not in this version's schema: old_things" in result.stderr
     assert result.stdout.splitlines()[-1].split() == ["old_things", "unknown", "0", "-"]

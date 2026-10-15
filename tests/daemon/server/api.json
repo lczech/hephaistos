@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 7
+    "minor": 8
   },
   "shapes": {
     "components": {
@@ -584,6 +584,17 @@
         "MachineJson": {
           "description": "A Machine; `setup` only for this one, where shown.",
           "properties": {
+            "chassis": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chassis"
+            },
             "created_at": {
               "title": "Created At",
               "type": "string"
@@ -637,6 +648,7 @@
             "id",
             "name",
             "hostname",
+            "chassis",
             "os_machine_id",
             "created_at",
             "this",

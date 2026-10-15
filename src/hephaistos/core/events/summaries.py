@@ -123,7 +123,11 @@ def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901,
             return value_text(field("hostname"))
         case EventKind.MOUNT_ADDED:
             return value_text(field("path"))
-        case EventKind.REPOSITORY_CHANGED | EventKind.CLONE_REMOTES_CHANGED:
+        case (
+            EventKind.MACHINE_CHANGED
+            | EventKind.REPOSITORY_CHANGED
+            | EventKind.CLONE_REMOTES_CHANGED
+        ):
             return ", ".join(f"{name}: {payload_text(value)}" for name, value in payload.items())
         case EventKind.CLONE_FAILED | EventKind.WORKTREE_FAILED:
             return value_text(field("error"))

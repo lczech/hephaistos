@@ -14,7 +14,7 @@ In docs, defined terms (Core terms, Components, Later) are capitalised, includin
 | **Clone** | A Checkout that owns its `.git`. Registered by the user, so part of the Registry. |
 | **Worktree** | A Checkout linked to a Clone via `git worktree`. Found by observing its Clone, so part of State; identified by its Clone and git's name for it, which survives moves. |
 | **Branch** | A named line of commits, in the usual git sense. Each Clone has its own copies, which can diverge. Worktrees share their Clone's Branches. For now, a Branch is part of a Checkout's State: current Branch (or detached HEAD), ahead/behind its upstream, and whether the working tree is dirty. |
-| **Machine** | A computer where processes run, with its own copy of our data. Each login node or free node of a Cluster is its own Machine. |
+| **Machine** | A computer where processes run, with its own copy of our data. Each login node or free node of a Cluster is its own Machine. Its chassis is what kind of computer it is, as systemd names it: `laptop`, `server`, `vm`, … |
 | **Filesystem** | A set of paths that resolve to the same files on every Machine that sees it. By default, each Machine has its own. A shared cluster filesystem is one Filesystem, seen by many Machines. |
 | **Cluster** | A named set of Machines, used only for grouping and filtering. A Machine may belong to several Clusters. |
 | **Link** | A declared sync connection: Machine A syncs with Machine B, reaching it via SSH target T. Directed: A opens the connection. Part of the Registry; its State (written by A) records the last attempt, last success and last error. All Machines and Links form the network. |

@@ -40,6 +40,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 
 - `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); `setup` fails on a Machine that is already set up.
 - Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Later setup steps (hooks, autostart, remote setup) also exist as their own commands.
+- A Machine's chassis comes from `hostnamectl chassis` (`Chassis:` in `hostnamectl status` before systemd 249), or the setting `machine.chassis`; it is stored at setup and updated when the Daemon starts (`machine.changed`).
 - Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
   - config: `~/.config/hephaistos/`, optional files; see Settings.
   - data: `~/.local/share/hephaistos/<machine>/`
@@ -73,7 +74,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 - **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.added` or `.deleted` with the record's values, or `.changed` with the changed fields' old and new values (in that shape, a kind may say more: `clone.moved`).
 - **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw listings.
 - **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
-- **Schema version:** `PRAGMA user_version`. Until the data is relied on, schema changes edit the initial schema, and an outdated database is reported with a clear message (`setup --reset` replaces it, keeping a backup; one-off scripts where data is worth keeping). Migrations start from a declared schema 1.
+- **Schema version:** `PRAGMA user_version`, one more with each change, and a hash of the schema in `meta`. Until releases, schema changes edit the schema itself, with no migrations in the code: a one-off script carries data that is worth keeping over, rebuilding changed tables in place; otherwise `setup --reset` replaces the database, keeping a backup. A database with another schema is reported by how it differs: older (`setup --reset`), newer (restart the Daemon or update), or changed at the same version.
 
 ## Logs
 
@@ -88,7 +89,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
 | Table | Columns |
 |---|---|
 | `meta` | `key`, `value`: this Machine's ID, the clock |
-| `registry_machines` | `id`, `name`, `hostname`, `os_machine_id` |
+| `registry_machines` | `id`, `name`, `hostname`, `chassis`, `os_machine_id` |
 | `registry_filesystems` | `id`, `name` |
 | `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
 | `registry_repositories` | `id`, `name` |
