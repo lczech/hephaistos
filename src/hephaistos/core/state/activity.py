@@ -9,7 +9,7 @@ import re
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Self
 
@@ -23,6 +23,11 @@ class Cursor:
 
     seconds: int
     digest: str  # empty before the first entry
+
+    @property
+    def at(self) -> datetime | None:
+        """When the last entry read was made, by git's clock; None before the first."""
+        return datetime.fromtimestamp(self.seconds, UTC) if self.digest else None
 
     def to_text(self) -> str:
         """The cursor as stored."""

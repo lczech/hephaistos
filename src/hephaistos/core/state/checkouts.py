@@ -3,6 +3,7 @@
 import dataclasses
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import TypedDict
 
@@ -44,6 +45,11 @@ class CheckoutState:
     untracked: int | None
     conflicted: int | None
     head_log: Cursor | None  # where reading HEAD's reflog stopped; None before the first read
+
+    @property
+    def active_at(self) -> datetime | None:
+        """When HEAD last moved (a commit, checkout, merge, …), by its reflog; None if unknown."""
+        return None if self.head_log is None else self.head_log.at
 
 
 class StatusValues(TypedDict):

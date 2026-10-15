@@ -3,7 +3,7 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import terminal
-from hephaistos.cli.clone import branch_text, status_text, worktree_lines
+from hephaistos.cli.clone import active_text, branch_text, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -27,17 +27,23 @@ NameArgument = Annotated[str, typer.Argument(help="Name of the Repository.")]
 
 
 @app.command("list")
-def list_(*, as_json: JsonOption = False) -> None:
+def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
     """List the Repositories."""
     with read_session(Paths.from_environment()) as session:
         if as_json:
             print_json(serialize.repositories_json(session))
             return
         summaries = repositories.summaries(session)
+    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["name", "clones", "remote"],
+        ["name", "clones", "active", "remote"],
         [
-            [summary.repository.name, str(summary.clones), ", ".join(summary.remotes) or "-"]
+            [
+                summary.repository.name,
+                str(summary.clones),
+                active_text(summary.active_at, formatted),
+                ", ".join(summary.remotes) or "-",
+            ]
             for summary in summaries
         ],
     )
@@ -61,6 +67,7 @@ def show(
             ("name", repository.name),
             ("id", str(repository.id)),
             ("created", formatted(id_datetime(repository.id))),
+            ("active", active_text(summary.active_at, formatted)),
             *(("remote", remote) for remote in summary.remotes),
             *(
                 line

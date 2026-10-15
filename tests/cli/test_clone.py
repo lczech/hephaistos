@@ -47,13 +47,14 @@ def test_add_with_repo_then_list_and_show(repo: Path) -> None:
         "proj",
         "main",
         "clean",
+        "now",  # active: the test's commit
         "now",
         "laptop-local",
         str(repo),
     ]
 
     result = runner.invoke(app, ["repo", "list"])
-    assert result.output.splitlines()[1].split() == ["proj", "1", "host/me/hephaistos"]
+    assert result.output.splitlines()[1].split() == ["proj", "1", "now", "host/me/hephaistos"]
 
     result = runner.invoke(app, ["clone", "show", "--json"])
     data = json.loads(result.output)
