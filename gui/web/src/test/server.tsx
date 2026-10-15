@@ -103,3 +103,88 @@ export function event(n: number, fields: Partial<Schemas["EventJson"]> = {}): Sc
     ...fields,
   };
 }
+
+const LAPTOP = { id: "0199e000-0000-7000-8000-00000000aaaa", name: "laptop" };
+
+/** A Checkout's State as the API gives it: clean on `main`, up to date with its upstream. */
+function checkoutState(path: string) {
+  return {
+    observed_at: secondsAgo(30),
+    observed_by: LAPTOP,
+    active_at: null,
+    present: true,
+    head: "abc1234",
+    branch: "main",
+    upstream: "origin/main",
+    ahead: 0,
+    behind: 0,
+    staged: 0,
+    changed: 0,
+    untracked: 0,
+    conflicted: 0,
+    error: null,
+    path,
+  };
+}
+
+/** A Worktree of the Clone at `/home/me/<repository>`, at `<that>/.worktrees/<name>`. */
+export function worktree(
+  repository: string,
+  name: string,
+  fields: Partial<Schemas["WorktreeJson"]> = {},
+): Schemas["WorktreeJson"] {
+  return {
+    ...checkoutState(`/home/me/${repository}/.worktrees/${name}`),
+    id: `wt-${repository}-${name}`,
+    repository: { id: `repo-${repository}`, name: repository },
+    clone: { id: `clone-${repository}`, path: `/home/me/${repository}` },
+    name,
+    lock_reason: null,
+    branch: name,
+    ...fields,
+  };
+}
+
+/** A Clone of `repository`, at `/home/me/<repository>`. */
+export function clone(
+  repository: string,
+  fields: Partial<Schemas["CloneJson"]> = {},
+): Schemas["CloneJson"] {
+  const path = `/home/me/${repository}`;
+  return {
+    ...checkoutState(path),
+    id: `clone-${repository}`,
+    repository: { id: `repo-${repository}`, name: repository },
+    filesystem: { id: "fs", name: "laptop-local" },
+    resolved_path: path,
+    created_at: secondsAgo(86_400),
+    bare: false,
+    branches: ["main"],
+    root_commits: ["0000001"],
+    remotes: { origin: `git@host:me/${repository}.git` },
+    worktrees: [],
+    ...fields,
+  };
+}
+
+/** A Repository named so, with these Clones. */
+export function repository(
+  name: string,
+  clones: Schemas["CloneJson"][] = [],
+  fields: Partial<Schemas["RepositoryJson"]> = {},
+): Schemas["RepositoryJson"] {
+  const times = clones.flatMap((each) => [each, ...each.worktrees]).map((each) => each.active_at);
+  return {
+    id: `repo-${name}`,
+    name,
+    created_at: secondsAgo(86_400),
+    active_at:
+      times
+        .filter((at) => at !== null)
+        .sort()
+        .at(-1) ?? null,
+    remotes: [`host/me/${name}`],
+    clones,
+    ...fields,
+  };
+}

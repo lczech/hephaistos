@@ -4,6 +4,7 @@
 export interface ColumnFilterLook {
   param: string; // what the filter is called outside the list: a View's parameter
   many?: string; // what several chosen are called, e.g. `kinds`; without it, only one can be
+  linked?: boolean; // only set from outside, e.g. by a link: offered only while set
 }
 
 /** Something to filter by. Its own choices are within it: choosing it covers them all. */

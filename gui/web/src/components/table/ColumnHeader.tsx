@@ -1,4 +1,4 @@
-import { Funnel } from "lucide-react";
+import { ArrowDown, ArrowUp, Funnel } from "lucide-react";
 import { type ReactNode, useId, useRef } from "react";
 import { placeBelow } from "../popover";
 import popover from "../popover.module.css";
@@ -14,6 +14,9 @@ interface Header {
     getFilterValue: () => unknown;
     setFilterValue: (value: string[] | undefined) => void;
     getCanResize: () => boolean;
+    getCanSort: () => boolean;
+    getIsSorted: () => false | "asc" | "desc";
+    getToggleSortingHandler: () => undefined | ((event: unknown) => void);
     getIsResizing: () => boolean;
     resetSize: () => void;
   };
@@ -27,15 +30,16 @@ interface Props {
 }
 
 /**
- * A column's header: its label, saying what its filter is set to, and at its end a funnel
- * opening the filter's choices, if it has one; its edge resizes the column.
+ * A column's header: its label, saying what its filter is set to, which sorts by the column if it
+ * can; at its end a funnel opening the filter's choices, if it has one; its edge resizes it.
  */
 export function ColumnHeader({ header, choices = [], children }: Props) {
   const { column } = header;
-  const filter = column.columnDef.meta?.filter;
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
   const values = (column.getFilterValue() as string[] | undefined) ?? [];
+  const look = column.columnDef.meta?.filter;
+  const filter = look?.linked && values.length === 0 ? undefined : look;
   const set = (chosen: string[]) => column.setFilterValue(chosen.length ? chosen : undefined);
   const text = values.length > 0 ? filterText(values, choices, filter?.many) : undefined;
   return (
@@ -43,14 +47,18 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
       className={styles.header}
       data-column={column.id}
       data-filterable={filter !== undefined || undefined}
+      data-sortable={column.getCanSort() || undefined}
       data-filtered={text !== undefined || undefined}
     >
-      {children !== undefined && (
-        <span className={styles.label} title={text}>
-          {children}
-          {text !== undefined && `: ${text}`}
-        </span>
-      )}
+      {children !== undefined &&
+        (column.getCanSort() ? (
+          <SortButton column={column}>{children}</SortButton>
+        ) : (
+          <span className={styles.label} title={text}>
+            {children}
+            {text !== undefined && `: ${text}`}
+          </span>
+        ))}
       {filter !== undefined && (
         <>
           <button
@@ -75,6 +83,25 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
       )}
       {column.getCanResize() && <Resizer header={header} />}
     </span>
+  );
+}
+
+const DIRECTIONS = { asc: "ascending", desc: "descending" };
+
+/** A column's label that sorts by it, or the other way round once it does. */
+function SortButton({ column, children }: { column: Header["column"]; children: ReactNode }) {
+  const sorted = column.getIsSorted();
+  const Arrow = sorted === "desc" ? ArrowDown : ArrowUp;
+  return (
+    <button
+      type="button"
+      className={`${styles.label} ${styles.sort}`}
+      onClick={column.getToggleSortingHandler()}
+      title={sorted ? `Sorted by ${column.id}, ${DIRECTIONS[sorted]}` : `Sort by ${column.id}`}
+    >
+      {children}
+      {sorted && <Arrow aria-hidden="true" />}
+    </button>
   );
 }
 

@@ -114,7 +114,12 @@ export function ListTable<TData extends RowData>({
               const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
               const [first, ...others] = row.getVisibleCells();
               return (
-                <li key={row.id} className={styles.item} data-tone={tone?.(row.original)}>
+                <li
+                  key={row.id}
+                  className={styles.item}
+                  data-tone={tone?.(row.original)}
+                  data-depth={row.depth || undefined}
+                >
                   <div id={id} className={styles.row} title={rowTitle?.(row.original)}>
                     {first && (
                       <span data-column={first.column.id}>

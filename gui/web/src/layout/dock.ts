@@ -16,7 +16,7 @@ export const THEME: DockviewTheme = {
   className: `${themeLight.className} hephaistos-dock`,
 };
 
-const DAEMON: Address = { kind: "daemon", params: {} };
+const REPOSITORIES: Address = { kind: "repositories", params: {} };
 const EVENTS: Address = { kind: "events", params: {} };
 
 type Position = Parameters<DockviewApi["addPanel"]>[0]["position"];
@@ -45,6 +45,6 @@ export function openView(api: DockviewApi, address: Address, position?: Position
 /** The Layout a new GUI starts with, and falls back to. */
 export function defaultLayout(api: DockviewApi): void {
   api.clear();
-  const daemon = openView(api, DAEMON);
-  openView(api, EVENTS, { referencePanel: daemon, direction: "right" });
+  const repositories = openView(api, REPOSITORIES);
+  openView(api, EVENTS, { referencePanel: repositories, direction: "right" });
 }

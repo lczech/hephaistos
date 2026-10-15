@@ -27,6 +27,10 @@
   vertical-align: -0.15em;
 }
 
+.tab > .icon {
+  translate: 0 -1px; /* centred, it sits a little low beside the title */
+}
+
 .actions {
   display: flex;
   align-items: center;

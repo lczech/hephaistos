@@ -2,6 +2,7 @@ import {
   Activity,
   Calendar,
   Database,
+  FolderGit2,
   type LucideIcon,
   ScrollText,
   SlidersHorizontal,
@@ -16,9 +17,10 @@ export interface ViewKind {
 }
 
 const kinds = {
-  daemon: { name: "Daemon", icon: Activity, suggested: true },
+  repositories: { name: "Repositories", icon: FolderGit2, suggested: true },
   events: { name: "Events", icon: Calendar, suggested: true },
-  log: { name: "Log", icon: ScrollText, suggested: true },
+  daemon: { name: "Daemon", icon: Activity },
+  log: { name: "Log", icon: ScrollText },
   config: { name: "Config", icon: SlidersHorizontal },
   db: { name: "Database", icon: Database },
 } satisfies Record<string, ViewKind>;

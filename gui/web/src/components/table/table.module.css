@@ -235,6 +235,30 @@
   white-space: nowrap;
 }
 
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort:hover,
+.sort:focus-visible {
+  color: var(--text);
+}
+
+.sort svg {
+  flex: none;
+  width: 0.9em;
+  height: 0.9em;
+}
+
 .header[data-filtered] .label {
   color: var(--text);
 }
@@ -396,7 +420,7 @@
 
 /*
  * Narrow: each row in two lines, as the View's `--narrow-columns` and `--narrow-areas` lay them
- * out; the header in one line, of only the columns that filter, without their widths.
+ * out; the header in one line, of only the columns that filter or sort, without their widths.
  */
 @container list (width < 44rem) {
   .grid {
@@ -418,7 +442,7 @@
     font-size: var(--text-small);
   }
 
-  .head > .header:not([data-filterable]),
+  .head > .header:not([data-filterable], [data-sortable]),
   .resizer {
     display: none;
   }

@@ -66,6 +66,7 @@ export const columns = column.columns([
     id: "subject",
     header: "subject",
     size: 200,
+    meta: { filter: { param: "subject", linked: true } }, // as `clone=…` or `worktree=…`
     cell: ({ row, table }) => {
       const event = row.original;
       // A Repository's own Events: its name is in the column before.

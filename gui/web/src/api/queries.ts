@@ -38,11 +38,12 @@ export function useMachines() {
   });
 }
 
-export function useRepositories() {
+/** The Repositories with their Clones and Worktrees; shown, asked for as often as the others. */
+export function useRepositories(interval = 60_000) {
   return useQuery({
     queryKey: ["repositories"],
     queryFn: async () => unwrap(await api.GET("/api/repositories")),
-    refetchInterval: 60_000, // as rarely as Machines
+    refetchInterval: interval, // the shortest that a component asks for applies
   });
 }
 

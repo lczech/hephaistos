@@ -6,9 +6,14 @@ import { ListTable, type Tone } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { useNow } from "../../useNow";
-import { columnFilters, filteredParams } from "../filters";
 import type { ViewProps } from "../index";
-import { eventFilters, eventsTitle, useEventChoices } from "./choices";
+import {
+  eventColumnFilters,
+  eventFilters,
+  eventParams,
+  eventsTitle,
+  useEventChoices,
+} from "./choices";
 import { columns } from "./columns";
 import { EventDetails } from "./EventDetails";
 import styles from "./EventsView.module.css";
@@ -31,7 +36,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   const showMachine = (useMachines().data?.length ?? 1) > 1;
   const now = useNow(10_000);
   const listed = useMemo(() => events.data?.pages.flat() ?? NONE, [events.data]);
-  const filters = useMemo(() => columnFilters(columns, params), [params]);
+  const filters = useMemo(() => eventColumnFilters(params), [params]);
   const table = useListTable({
     columns,
     data: listed,
@@ -41,10 +46,10 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
     manualFiltering: true,
     state: { columnVisibility: { machine: showMachine }, columnFilters: filters },
     onColumnFiltersChange: (change) =>
-      setParams(filteredParams(columns, params, functionalUpdate(change, filters))),
+      setParams(eventParams(params, functionalUpdate(change, filters))),
     meta: { now, home },
   });
-  const choices = useEventChoices();
+  const choices = useEventChoices(params);
   const title = eventsTitle(filters, choices);
   useEffect(() => {
     if (title !== undefined) setTitle(title);
