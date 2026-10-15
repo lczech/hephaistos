@@ -7,6 +7,7 @@ import { GroupActions } from "./GroupActions";
 import { PanelView } from "./PanelView";
 import { Placeholder } from "./Placeholder";
 import { savedLayout, saveLayout } from "./saved";
+import { useDockRegistry } from "./ViewOpener";
 import { ViewTab } from "./ViewTab";
 
 const SAVE_DELAY = 300; // ms: a drag or resize saves once, when it ends
@@ -39,11 +40,19 @@ function restore(api: DockviewApi): void {
 /** The Groups and Panels: the saved Layout, or the default one. */
 export function Workbench() {
   const saving = useRef<{ dispose: () => void } | null>(null);
-  useEffect(() => () => saving.current?.dispose(), []);
+  const register = useDockRegistry();
+  useEffect(
+    () => () => {
+      saving.current?.dispose();
+      register(null);
+    },
+    [register],
+  );
   const ready = ({ api }: DockviewReadyEvent) => {
     saving.current?.dispose();
     saving.current = keepSaved(api);
     restore(api);
+    register(api);
   };
   return (
     <DockviewReact

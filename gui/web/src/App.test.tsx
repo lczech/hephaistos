@@ -17,6 +17,7 @@ const ok = {
   "GET /api/info": () => json(info()),
   "GET /api/daemon": () => json(daemon()),
   "GET /api/repositories": () => json([]),
+  "GET /api/events": () => json([]),
   "POST /api/observe": () => new Response(null, { status: 204 }),
 };
 
@@ -42,6 +43,16 @@ describe("the GUI", () => {
     expect(screen.getByText("updated now")).toBeInTheDocument();
     const observe = requests.find((request) => request.method === "POST");
     expect(observe?.headers.get("Authorization")).toBe("Bearer secret");
+  });
+
+  it("shows the Daemon's health in the status bar, and the Daemon when asked", async () => {
+    signIn();
+    serve(ok);
+    renderWithQueries(<App />);
+    const health = await screen.findByRole("button", { name: "Daemon: running; show it" });
+    expect(health).toHaveAttribute("data-health", "good");
+    await userEvent.click(health);
+    expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
   });
 
   it("forgets a token the Server refuses", async () => {
