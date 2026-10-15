@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core import config
+from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
+from support import hostnamectl
 
 # Typer reads this when it first formats output: plain text, even where GITHUB_ACTIONS or
 # FORCE_COLOR would colour usage errors and help.
@@ -21,6 +23,12 @@ def never_real_files(
     monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("user")))
     for key in config.KEYS:
         monkeypatch.delenv(config.variable(key), raising=False)
+
+
+@pytest.fixture(autouse=True)
+def laptop_chassis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """systemd, as asked about the chassis, answers as on a laptop; never the real one."""
+    monkeypatch.setattr(machines, "hostnamectl", hostnamectl({("chassis",): "laptop"}))
 
 
 @pytest.fixture(autouse=True)

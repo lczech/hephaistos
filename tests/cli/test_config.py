@@ -31,8 +31,9 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     result = runner.invoke(app, ["config", "show"])
     assert result.exit_code == 0, result.output
-    assert result.stdout.splitlines()[:11] == [
+    assert result.stdout.splitlines()[:12] == [
         "time_format         short  config.toml",
+        "machine.chassis     auto   default",
         "log.level           info   default",
         "log.retention_days  30     default",
         "git.timeout         60.0   config.toml",
@@ -45,7 +46,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         f"Host: {HOST}",
     ]
     width = len(short_path(directory / f"config.{HOST}.toml"))
-    assert result.stdout.splitlines()[11:] == [
+    assert result.stdout.splitlines()[12:] == [
         f"{short_path(directory / name):<{width}}  {state}".rstrip()
         for name, state in [
             ("config.toml", "read"),

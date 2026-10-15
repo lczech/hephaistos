@@ -50,6 +50,22 @@ class LogLevel(StrEnum):
         return logging.getLevelNamesMapping()[self.upper()]
 
 
+class ChassisSetting(StrEnum):
+    """What kind of computer this is: systemd's chassis types, or `auto` to ask systemd."""
+
+    AUTO = "auto"
+    DESKTOP = "desktop"
+    LAPTOP = "laptop"
+    CONVERTIBLE = "convertible"
+    SERVER = "server"
+    TABLET = "tablet"
+    HANDSET = "handset"
+    WATCH = "watch"
+    EMBEDDED = "embedded"
+    VM = "vm"
+    CONTAINER = "container"
+
+
 @dataclass(frozen=True)
 class AtLeast:
     """A setting's limit: at least this, or else 0 if `or_zero`, which turns something off."""
@@ -70,6 +86,13 @@ class Above:
     """A setting's limit: more than this."""
 
     value: float
+
+
+@dataclass(frozen=True)
+class Machine:
+    """The section [machine]."""
+
+    chassis: ChassisSetting
 
 
 @dataclass(frozen=True)
@@ -121,6 +144,7 @@ class Settings:
     """All settings, by section; `defaults.toml` documents them and holds their defaults."""
 
     time_format: TimeFormat
+    machine: Machine
     log: Log
     git: Git
     observe: Observe

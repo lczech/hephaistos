@@ -21,15 +21,16 @@ from hephaistos.core.utils.errors import (
     DatabaseBusyError,
     HephaistosError,
     NotSetUpError,
-    SchemaOutdatedError,
+    SchemaMismatchError,
 )
 from hephaistos.core.utils.ids import Clock, Timestamp
 from hephaistos.core.utils.paths import Paths, mount_of, private_directory
 
 MIN_SQLITE = (3, 37, 0)  # STRICT tables
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # one more with each change to the schema
 SCHEMA = files("hephaistos.core.db").joinpath("schema.sql").read_text()
-# Until migrations exist, any change to the schema makes existing databases outdated.
+# Until migrations exist, any change to the schema makes existing databases outdated; the hash
+# also catches a change that forgot to count up the version.
 SCHEMA_HASH = hashlib.sha256(SCHEMA.encode()).hexdigest()[:16]
 BUSY_TIMEOUT_MS = 5000
 
@@ -71,9 +72,9 @@ class ReadSession:
         return Timestamp(last if isinstance(last, int) else 0)
 
     @property
-    def has_current_schema(self) -> bool:
-        """Whether the database has this version's schema; only unchecked sessions may lack it."""
-        return _has_current_schema(self.conn)
+    def schema_mismatch(self) -> SchemaMismatchError | None:
+        """How the database's schema differs from this version's; only in unchecked sessions."""
+        return _schema_mismatch(self.conn)
 
     @property
     def journal_mode(self) -> str:
@@ -117,11 +118,13 @@ def _connect(database: Path, *, read_only: bool) -> sqlite3.Connection:
     return conn
 
 
-def _has_current_schema(conn: sqlite3.Connection) -> bool:
-    """Whether the database has this version's schema."""
+def _schema_mismatch(conn: sqlite3.Connection) -> SchemaMismatchError | None:
+    """How the database's schema differs from this version's; None if it doesn't."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     row = conn.execute("SELECT value FROM meta WHERE key = 'schema_hash'").fetchone()
-    return version == SCHEMA_VERSION and row is not None and row[0] == SCHEMA_HASH
+    if version == SCHEMA_VERSION and row is not None and row[0] == SCHEMA_HASH:
+        return None
+    return SchemaMismatchError(version, SCHEMA_VERSION)
 
 
 def _open(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite3.Connection:
@@ -129,9 +132,9 @@ def _open(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite
     if not paths.database.exists():
         raise NotSetUpError
     conn = _connect(paths.database, read_only=read_only)
-    if check_schema and not _has_current_schema(conn):
+    if check_schema and (mismatch := _schema_mismatch(conn)) is not None:
         conn.close()
-        raise SchemaOutdatedError
+        raise mismatch
     return conn
 
 

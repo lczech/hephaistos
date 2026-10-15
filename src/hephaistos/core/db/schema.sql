@@ -12,6 +12,7 @@ CREATE TABLE registry_machines (
     id            BLOB PRIMARY KEY CHECK (length(id) = 16),
     name          TEXT NOT NULL,
     hostname      TEXT NOT NULL,
+    chassis       TEXT,  -- as systemd names it: laptop, server, vm, …; NULL if unknown
     os_machine_id TEXT,
     modified_at   INTEGER NOT NULL,
     modified_by   BLOB NOT NULL REFERENCES registry_machines (id),

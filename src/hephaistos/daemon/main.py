@@ -18,6 +18,7 @@ from typing import Protocol
 from hephaistos import __version__
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session
+from hephaistos.core.registry import machines
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import SOURCE, Paths, own_checkout
@@ -185,6 +186,10 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
         previous = status.read(paths.state_dir)
         if previous is not None and previous.stopped_at is None:
             log.warning("the previous Daemon (pid %d) ended without stopping", previous.pid)
+        try:
+            machines.update(paths)
+        except HephaistosError as error:
+            log.warning("cannot update this Machine: %s", error)
         version = running_version()
         daemon = Daemon(paths, names, version)
         log.info(

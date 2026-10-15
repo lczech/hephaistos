@@ -8,14 +8,14 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.db import sessions
-from hephaistos.core.db.sessions import SCHEMA, read_session, write_session
+from hephaistos.core.db.sessions import SCHEMA, SCHEMA_VERSION, read_session, write_session
 from hephaistos.core.db.tables import Category, Table
 from hephaistos.core.registry import machines, repositories
 from hephaistos.core.utils.errors import (
     AlreadySetUpError,
     DatabaseBusyError,
     NotSetUpError,
-    SchemaOutdatedError,
+    SchemaMismatchError,
 )
 from hephaistos.core.utils.ids import Timestamp
 from hephaistos.core.utils.paths import Paths
@@ -219,9 +219,20 @@ def test_write_session_rolls_back_on_error(set_up: Paths) -> None:
         assert session.conn.execute("SELECT count(*) FROM events").fetchone()[0] > 0
 
 
-def test_outdated_schema_is_reported(set_up: Paths) -> None:
+@pytest.mark.parametrize(
+    ("version", "schema_hash", "message"),
+    [
+        (SCHEMA_VERSION - 1, "old", r"has schema 1; this hephaistos needs 2: .*setup --reset"),
+        (SCHEMA_VERSION + 1, "new", r"has schema 3, newer .*`hephaistos daemon restart`"),
+        (SCHEMA_VERSION, "changed", r"schema 2 differs from this hephaistos's: .*setup --reset"),
+    ],
+)
+def test_another_schema_is_reported_by_how_it_differs(
+    set_up: Paths, version: int, schema_hash: str, message: str
+) -> None:
     with sqlite3.connect(set_up.database) as conn:
-        conn.execute("UPDATE meta SET value = 'old' WHERE key = 'schema_hash'")
+        conn.execute(f"PRAGMA user_version = {version}")
+        conn.execute("UPDATE meta SET value = ? WHERE key = 'schema_hash'", (schema_hash,))
     conn.close()
-    with pytest.raises(SchemaOutdatedError, match="setup --reset"), read_session(set_up):
+    with pytest.raises(SchemaMismatchError, match=message), read_session(set_up):
         pass

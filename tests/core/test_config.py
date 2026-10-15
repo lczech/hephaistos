@@ -76,6 +76,7 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
     assert loaded.settings.scan.depth == 3  # an empty variable is as if unset
     assert loaded.sources == {
         "time_format": str(tmp_path / "config.login1.toml"),
+        "machine.chassis": config.DEFAULT,
         "log.level": "HEPHAISTOS_LOG_LEVEL",
         "log.retention_days": config.DEFAULT,
         "git.timeout": str(tmp_path / "config.login1.hpc.example.org.toml"),
@@ -103,7 +104,8 @@ def test_files_for() -> None:
     [
         ('time_fromat = "short"\n', r"unknown setting time_fromat \(did you mean time_format\?\)"),
         ("[git]\ntimout = 3\n", r"unknown setting git.timout \(did you mean git.timeout\?\)"),
-        ("[machines.laptop]\n", "unknown setting machines$"),
+        ("[machines.laptop]\n", r"unknown setting machines \(did you mean machine\?\)"),
+        ('[machine]\nchassis = "pc"\n', "machine.chassis must be one of auto, desktop, laptop"),
         (
             'time_format = "long"\n',
             'time_format must be one of auto, relative, short, full, not "long"',

@@ -9,6 +9,12 @@
 # or full (2026-10-05 14:03:21).
 time_format = "auto"
 
+[machine]
+# What kind of computer this is, as systemd names it: desktop, laptop, convertible,
+# server, tablet, handset, watch, embedded, vm or container. auto: as
+# `hostnamectl chassis` says. Set it for one Machine in config.<hostname>.toml.
+chassis = "auto"
+
 [log]
 # Records below this level aren't written: debug, info, warning, error, critical.
 level = "info"
