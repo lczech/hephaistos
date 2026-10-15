@@ -2,7 +2,7 @@
   width: 1em;
   height: 1em;
   margin-right: var(--space-1);
-  vertical-align: -0.15em;
+  vertical-align: var(--icon-drop);
 }
 
 /* Narrow: the Repository and summary on one line, the rest below them, quieter. */

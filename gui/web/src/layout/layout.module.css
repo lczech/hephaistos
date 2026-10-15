@@ -24,11 +24,11 @@
   flex: none;
   width: 1em;
   height: 1em;
-  vertical-align: -0.15em;
+  vertical-align: var(--icon-drop);
 }
 
 .tab > .icon {
-  translate: 0 -1px; /* centred, it sits a little low beside the title */
+  translate: 0 var(--icon-lift);
 }
 
 .actions {

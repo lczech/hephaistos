@@ -6,7 +6,8 @@
   border-radius: var(--radius);
   background: none;
   color: var(--text-muted);
-  vertical-align: middle;
+  margin: -2px; /* its padding takes no room: in text, it lines up as an inline icon */
+  vertical-align: var(--icon-drop);
   cursor: pointer;
 }
 

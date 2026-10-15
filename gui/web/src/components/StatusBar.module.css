@@ -44,6 +44,7 @@
 .health svg {
   width: 1.1em;
   height: 1.1em;
+  translate: 0 var(--icon-lift);
 }
 
 .health[data-health="good"] {
