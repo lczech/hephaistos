@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/table/widths";
+import { cells } from "../../test/list";
 import { event, info, json, renderWithQueries, serve } from "../../test/server";
 import { addressText, type Params } from "../address";
 import { EventsView } from "./EventsView";
@@ -47,12 +48,6 @@ const asked = (requests: Request[]) =>
     .searchParams;
 
 /** The texts of a row's cells, after the priority's square. */
-function cells(row: HTMLElement): string[] {
-  const button = within(row).getByRole("button");
-  const texts = [...button.querySelectorAll(":scope > span")].map((cell) => cell.textContent ?? "");
-  return texts.slice(1);
-}
-
 const committed = event(1, { details: [{ field: "head", text: "aaaaaaa → abc1" }] });
 const added = event(2, {
   kind: "repository.added",

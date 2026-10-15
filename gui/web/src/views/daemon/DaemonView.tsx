@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { useDaemon, useObserve } from "../../api/queries";
 import { useNow } from "../../useNow";
+import { ViewLink } from "../ViewLink";
 import styles from "./DaemonView.module.css";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 
@@ -17,8 +19,19 @@ export function DaemonView() {
     );
   }
   const { daemon: process, watcher, server, warnings } = daemon.data;
-  const rows: [string, string][] = [
-    ["Daemon", daemonText(process, now)],
+  const log = process.pid !== null && (
+    <ViewLink
+      address={{ kind: "log", params: { process: "daemon", pid: String(process.pid) } }}
+      label="The Daemon's log"
+    />
+  );
+  const rows: [string, ReactNode][] = [
+    [
+      "Daemon",
+      <>
+        {daemonText(process, now)} {log}
+      </>,
+    ],
     ["Last pass", lastPassText(watcher?.last_pass ?? null, now)],
     ["Watcher", watcherText(watcher, now)],
     ["Server", serverText(server, now)],

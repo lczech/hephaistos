@@ -83,14 +83,10 @@
 }
 
 .row {
+  position: relative; /* for its button's cover */
   align-items: center;
   padding: 2px var(--space-3) 2px 0;
-  border: none;
-  border-radius: 0;
-  background: none;
   color: var(--text);
-  font: inherit;
-  text-align: left;
   cursor: pointer;
 }
 
@@ -102,9 +98,35 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
-.row:focus-visible {
+/* The row's button, in its first cell, covers the whole row; other cells' buttons lie above. */
+.open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.open::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.open:focus-visible {
+  outline: none;
+}
+
+.open:focus-visible::after {
   outline: 1px solid var(--accent);
   outline-offset: -1px;
+}
+
+.row :is(button, a):not(.open) {
+  position: relative;
 }
 
 .row > * {
@@ -134,7 +156,7 @@
   color: var(--background);
 }
 
-.row[aria-expanded="true"] .chevron {
+.open[aria-expanded="true"] .chevron {
   rotate: 90deg;
   translate: 0 1px;
 }

@@ -1,6 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { FlaskConical } from "lucide-react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
@@ -93,8 +92,25 @@ describe("the Workbench", () => {
     expect(tabs()).toEqual(["Daemon", "Events"]);
   });
 
+  it("lets a View open another in its Group", async () => {
+    serve({
+      "GET /api/daemon": () => json(daemon()),
+      "GET /api/events": () => json([]),
+      "GET /api/log": () => json({ entries: [], skipped: 0 }),
+    });
+    renderWithQueries(<Workbench />);
+    await userEvent.click(await screen.findByRole("button", { name: "The Daemon's log" }));
+    expect(tabs()).toEqual(["Daemon", "Log: daemon[4242]", "Events"]);
+    await waitFor(() =>
+      expect(savedViews()).toContainEqual({
+        kind: "log",
+        params: { pid: "4242", process: "daemon" },
+      }),
+    );
+  });
+
   it("lets a View show other parameters in its Panel and name its tab, and saves both", async () => {
-    VIEWS.probe = { name: "Probe", icon: FlaskConical, component: Probe };
+    VIEWS.probe = Probe;
     try {
       save("probe");
       renderWithQueries(<Workbench />);

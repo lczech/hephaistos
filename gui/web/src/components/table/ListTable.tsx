@@ -1,6 +1,6 @@
 import { FlexRender, type ReactTable, type RowData } from "@tanstack/react-table";
 import { ChevronRight, FunnelX } from "lucide-react";
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ColumnHeader } from "./ColumnHeader";
 import { gridColumns } from "./columns";
 import type { Choice } from "./filters";
@@ -35,7 +35,8 @@ interface Props<TData extends RowData> {
 /**
  * A list as a table: its columns' headers, which filter and resize; rows that open their
  * details below them, each beside a square, which a first column of `Chevron`s fills; more
- * rows as the end comes into view. Narrow Panels show each row in the View's two lines, unless
+ * rows as the end comes into view. A row opens by its first cell's button, which covers the
+ * row, so that other cells may hold buttons of their own. Narrow Panels show each row in the View's two lines, unless
  * the list is wide: then it scrolls sideways, its details staying in view.
  */
 export function ListTable<TData extends RowData>({
@@ -54,6 +55,7 @@ export function ListTable<TData extends RowData>({
 }: Props<TData>) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const end = useRef<HTMLParagraphElement>(null);
+  const list = useId();
   const { hasNextPage = false, isFetchingNextPage = false, fetchNextPage } = paging ?? {};
   // Scrolling to the end of the list loads the page before it.
   useEffect(() => {
@@ -107,27 +109,39 @@ export function ListTable<TData extends RowData>({
         </div>
         {rows.length > 0 && (
           <ol className={styles.rows}>
-            {rows.map((row) => {
+            {rows.map((row, index) => {
               const shown = open.has(row.id);
-              const id = `details-${row.id}`;
+              const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
+              const [first, ...others] = row.getVisibleCells();
               return (
                 <li key={row.id} className={styles.item} data-tone={tone?.(row.original)}>
-                  <button
-                    type="button"
-                    className={styles.row}
-                    aria-expanded={shown}
-                    aria-controls={shown ? id : undefined}
-                    onClick={() => toggle(row.id)}
-                    title={rowTitle?.(row.original)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
+                  <div id={id} className={styles.row} title={rowTitle?.(row.original)}>
+                    {first && (
+                      <span data-column={first.column.id}>
+                        <button
+                          type="button"
+                          className={styles.open}
+                          aria-expanded={shown}
+                          aria-controls={shown ? `${id}-details` : undefined}
+                          aria-labelledby={id}
+                          onClick={() => toggle(row.id)}
+                        >
+                          <FlexRender cell={first} />
+                        </button>
+                      </span>
+                    )}
+                    {others.map((cell) => (
                       <span key={cell.id} data-column={cell.column.id}>
                         <FlexRender cell={cell} />
                       </span>
                     ))}
-                  </button>
+                  </div>
                   {shown && (
-                    <section id={id} className={styles.details} aria-label={detailsLabel}>
+                    <section
+                      id={`${id}-details`}
+                      className={styles.details}
+                      aria-label={detailsLabel}
+                    >
                       {details(row.original)}
                     </section>
                   )}

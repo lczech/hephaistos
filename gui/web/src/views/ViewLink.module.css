@@ -1,0 +1,22 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.link:hover,
+.link:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.link svg {
+  width: 1em;
+  height: 1em;
+}
