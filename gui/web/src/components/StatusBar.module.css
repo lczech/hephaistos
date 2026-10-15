@@ -11,24 +11,49 @@
   overflow: hidden;
 }
 
-.dot {
-  flex: none;
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.dot[data-state="connected"] {
-  background: var(--success);
-}
-
-.dot[data-state="lost"] {
-  background: var(--danger);
-}
-
 .end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
   margin-left: auto;
+}
+
+.text {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The Daemon's icon, coloured by its health; it opens the Daemon View. */
+.health {
+  display: flex;
+  flex: none;
+  padding: 1px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.health:hover,
+.health:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.health svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.health[data-health="good"] {
+  color: var(--success);
+}
+
+.health[data-health="warning"] {
+  color: var(--warning);
+}
+
+.health[data-health="lost"] {
+  color: var(--danger);
 }
