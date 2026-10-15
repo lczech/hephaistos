@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from websockets.exceptions import ConnectionClosed
+from websockets.sync.client import ClientConnection, connect
 
 from hephaistos import __version__
 from hephaistos.core import config
@@ -26,7 +28,7 @@ from hephaistos.daemon import main, status
 from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.server import token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
-from hephaistos.daemon.watcher.watcher import Watcher
+from hephaistos.daemon.watcher.watcher import STOPPING, Watcher
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 from support import create, git, logged
 
@@ -191,10 +193,14 @@ def test_a_pass_cut_short_by_stopping(paths: Paths, monkeypatch: pytest.MonkeyPa
     async def stopped() -> None:
         watcher = Watcher(paths, lambda _: None)
         request = asyncio.create_task(watcher.observe("api"))
+        left = asyncio.create_task(watcher.observe("api"))
         await asyncio.sleep(0.01)
-        await watcher.stop()
+        left.cancel()  # the request itself, not the pass
         with pytest.raises(asyncio.CancelledError):
-            await request
+            await left
+        await watcher.stop()
+        assert await request is STOPPING
+        assert await watcher.observe("api") is STOPPING  # none after stopping
 
     asyncio.run(asyncio.wait_for(stopped(), WAIT))
     assert passes.started == 1
@@ -348,6 +354,42 @@ def test_serves_until_stopped(paths: Paths) -> None:
     assert f"listening on 127.0.0.1:{port}" in messages
     assert "refused GET /api/info?token=… from 127.0.0.1: wrong token" in str(messages)
     assert value not in str(logged(paths))
+
+
+@pytest.mark.usefixtures("repo")
+def test_stopping_closes_live_connections_first(paths: Paths) -> None:
+    daemon = _daemon(port=0)
+    stopping = False
+    try:
+        port = _until(lambda: _server(paths, daemon)).port
+        with connect(f"ws://127.0.0.1:{port}/api/live", proxy=None) as socket_:
+            socket_.send(json.dumps({"token": token.token(paths)}))
+            _until(lambda: _server(paths, daemon) if _live(paths) else None)
+            daemon.send_signal(signal.SIGTERM)
+            stopping = True
+            code = _close_code(socket_)
+    finally:
+        if not stopping:
+            daemon.send_signal(signal.SIGTERM)
+        _, err = daemon.communicate(timeout=WAIT)
+    assert daemon.returncode == 0, err
+    assert code == 1012  # service restart: the GUI tries again
+    errors = [record for record in logged(paths) if record["level"] in {"ERROR", "CRITICAL"}]
+    assert errors == []
+
+
+def _close_code(socket_: ClientConnection) -> int | None:
+    """The code with which the Server closes the connection; None if it sends none."""
+    try:
+        while True:
+            socket_.recv(timeout=WAIT)
+    except ConnectionClosed as closed:
+        return None if closed.rcvd is None else closed.rcvd.code
+
+
+def _live(paths: Paths) -> int:
+    found = status.read(paths.state_dir)
+    return 0 if found is None or found.server is None else found.server.live
 
 
 def _requests(paths: Paths) -> int:

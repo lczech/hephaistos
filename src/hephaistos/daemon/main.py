@@ -1,7 +1,8 @@
 """The Daemon: runs this Machine's enabled parts until stopped, restarting any that crash.
 
 The first SIGINT or SIGTERM stops it at once: a pass cut short loses nothing, as git only reads
-and SQLite rolls back what wasn't committed. A second one, while it stops, exits immediately.
+and SQLite rolls back what wasn't committed; then the parts end, the Server answering what is
+open. A second signal, while it stops, exits immediately.
 """
 
 import asyncio
@@ -161,8 +162,8 @@ class Daemon:
         finally:
             for task in tasks:
                 task.cancel()
+            await self._watcher.stop()  # first, so that no request waits for a pass
             await asyncio.gather(*tasks, return_exceptions=True)
-            await self._watcher.stop()
             for number in STOP_SIGNALS:
                 loop.remove_signal_handler(number)
 
