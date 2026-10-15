@@ -30,12 +30,13 @@ from hephaistos.daemon.status import ServerStatus
 
 HOST = "127.0.0.1"  # never other interfaces: SSH or Tailscale reach it from elsewhere
 REPORT_INTERVAL = 2.0  # seconds between writing the counts to the status file, if changed
+SHUTDOWN_TIME = 3  # seconds that requests may take to finish once stopping; then cut off
 
 log = logging.getLogger(__name__)
 
 
 class _Uvicorn(uvicorn.Server):
-    """uvicorn, leaving signals to the Daemon, which stops it by cancelling."""
+    """uvicorn, leaving signals to the Daemon, which stops it by cancelling `Server.run`."""
 
     @override
     @contextmanager
@@ -62,11 +63,15 @@ def address(port: int) -> str:
 
 
 def bind(port: int) -> socket.socket:
-    """A socket bound to our address; raises PartError if it can't be."""
+    """A socket listening on our address; raises PartError if it can't.
+
+    Listening already, connections wait for uvicorn to start, instead of being refused.
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.bind((HOST, port))
+        sock.listen()
     except OSError as error:
         sock.close()
         if error.errno != errno.EADDRINUSE:
@@ -151,12 +156,20 @@ class Server:
                 access_log=False,
                 lifespan="off",
                 server_header=False,
+                timeout_graceful_shutdown=SHUTDOWN_TIME,
             )
         )
         reporting = asyncio.create_task(self._keep_reporting(where))
         log.info("listening on %s", where)
+        serving = asyncio.create_task(server.serve(sockets=[sock]))
         try:
-            await server.serve(sockets=[sock])
+            await asyncio.shield(serving)
+        except asyncio.CancelledError:
+            # uvicorn's own shutdown: requests finish, live connections close (1012), so that
+            # none is cancelled midway, which it would log as an error.
+            server.should_exit = True
+            await serving
+            raise
         finally:
             reporting.cancel()
             sock.close()

@@ -3,6 +3,7 @@
 Passes never overlap. A request waits for a pass that starts after it arrives, so that the pass
 sees what the user just did; requests arriving during a pass share the one after it. The timer
 asks for a pass `watcher.interval` seconds after the last one ended, whatever asked for that.
+Stopping cuts passes short; requests then get STOPPING as the outcome, not a cancellation.
 """
 
 import asyncio
@@ -18,6 +19,8 @@ from hephaistos.daemon.status import PassStatus, Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDiedError
 
 log = logging.getLogger(__name__)
+
+STOPPING = PassFailed("the Daemon is stopping")
 
 
 def _log_pass(outcome: Done | PassFailed, duration: float, trigger: Trigger) -> None:
@@ -53,16 +56,26 @@ class Watcher:
         self._turn = asyncio.Lock()  # held by the pass running
         self._next: asyncio.Task[Done | PassFailed] | None = None  # waiting for its turn
         self._passes: set[asyncio.Task[Done | PassFailed]] = set()
+        self._stopped = False
         self._passed = asyncio.Event()  # set as each pass ends
         self._last_ended: float | None = None  # monotonic
 
     async def observe(self, trigger: Trigger) -> Done | PassFailed:
         """The outcome of a pass that starts after this call; one waiting already is shared."""
+        if self._stopped:
+            return STOPPING
         if self._next is None:
             self._next = asyncio.create_task(self._pass(trigger))
             self._passes.add(self._next)
             self._next.add_done_callback(self._passes.discard)
-        return await asyncio.shield(self._next)
+        task = self._next
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            current = asyncio.current_task()
+            if task.cancelled() and (current is None or not current.cancelling()):
+                return STOPPING  # the pass was cut short, not the request
+            raise
 
     async def _pass(self, trigger: Trigger) -> Done | PassFailed:
         """Runs a pass once the one running ended, reporting it."""
@@ -110,7 +123,8 @@ class Watcher:
                 await asyncio.wait_for(self._passed.wait(), wait)
 
     async def stop(self) -> None:
-        """Cancels the passes running or waiting, and ends the worker."""
+        """Cancels the passes running or waiting, and ends the worker; later requests get none."""
+        self._stopped = True
         for task in list(self._passes):
             task.cancel()
         await asyncio.gather(*self._passes, return_exceptions=True)
