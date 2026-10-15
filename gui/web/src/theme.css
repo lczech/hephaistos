@@ -13,6 +13,11 @@
   --space-4: 1rem;
   --radius: 6px;
 
+  /* Icons beside text: their centre a little above the middle of its capitals, where they look
+     centred. Inline ones (1em high) by vertical-align, ones centred on their line by translate. */
+  --icon-drop: -0.1em;
+  --icon-lift: -0.07em;
+
   /* VS Code's greys (Light Modern), so the GUI sits well next to it. */
   --background: #ffffff;
   --surface: #ffffff;
