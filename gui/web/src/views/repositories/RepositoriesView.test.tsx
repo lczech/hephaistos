@@ -31,7 +31,7 @@ function serveRepositories() {
       json([
         repository("idle", [clone("idle", { present: false })]),
         repository("old", [old]),
-        repository("recent", [recent]),
+        repository("recent", [recent], { remotes: ["/home/me/mirror", "github.com/me/recent"] }),
       ]),
   });
 }
@@ -47,7 +47,7 @@ function Repositories({ open = () => {} }: { open?: OpenView }) {
   );
 }
 
-const names = () => screen.getAllByRole("listitem").map((row) => cells(row)[0]);
+const names = () => screen.getAllByRole("listitem").map((row) => cells(row)[1]); // after the link
 
 describe("the Repositories View", () => {
   it("lists the most recently active first, each with its Clones and their Worktrees", async () => {
@@ -82,7 +82,7 @@ describe("the Repositories View", () => {
       undefined,
       "warning",
     ]);
-    expect(cells(rows[1] as HTMLElement).slice(2, 4)).toEqual(["main", "~2"]);
+    expect(cells(rows[1] as HTMLElement).slice(3, 5)).toEqual(["main", "~2"]);
     expect(screen.getByTitle("2 changed; up to date with origin/main")).toBeInTheDocument();
     const resizable = [...document.querySelectorAll("[data-column]:has(> hr)")];
     expect(resizable.map((header) => header.getAttribute("data-column"))).toEqual([
@@ -115,6 +115,21 @@ describe("the Repositories View", () => {
       "events?clone=clone-recent",
       "events?worktree=wt-recent-feature",
     ]);
+  });
+
+  it("links a Repository to its page on its forge, in a new tab", async () => {
+    serveRepositories();
+    renderWithQueries(<Repositories />);
+    await screen.findByText("recent");
+    const [link] = screen.getAllByRole("link", { name: "https://github.com/me/recent on GitHub" });
+    expect(link).toHaveAttribute("href", "https://github.com/me/recent");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(screen.getAllByRole("link")).toHaveLength(1); // the others' remotes are on no forge
+    const [row] = screen.getAllByRole("listitem");
+    await userEvent.click(within(row as HTMLElement).getAllByRole("button")[0] as HTMLElement);
+    const details = within(screen.getByRole("region", { name: "Details" }));
+    expect(details.getByText("/home/me/mirror", { exact: false })).toBeInTheDocument();
+    expect(details.getByRole("link", { name: "https://github.com/me/recent" })).toBeInTheDocument();
   });
 
   it("shows a Clone's details without what's empty", async () => {

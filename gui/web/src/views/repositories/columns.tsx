@@ -1,5 +1,7 @@
+import { ForgeLink } from "../../components/ForgeLink";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
+import { forgePage } from "../../forges";
 import { ago, fullTime } from "../../time";
 import type { Address } from "../address";
 import { ViewLink } from "../ViewLink";
@@ -46,6 +48,16 @@ export const columns = column.columns([
     cell: Chevron,
     enableResizing: false,
     meta: { width: "var(--square)" },
+  }),
+  column.display({
+    id: "remote", // a Repository's page on its forge, if a main remote is on one
+    enableResizing: false,
+    meta: { width: "calc(1em + 4px)" }, // the logo, with its padding
+    cell: ({ row }) => {
+      if (row.original.type !== "repository") return "";
+      const [page] = row.original.repository.remotes.flatMap((remote) => forgePage(remote) ?? []);
+      return page && <ForgeLink page={page} />;
+    },
   }),
   column.accessor(nameKey, {
     id: "name",
