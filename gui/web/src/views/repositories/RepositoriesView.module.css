@@ -1,3 +1,22 @@
+/* Each Repository starts a group: a line, with some room, above all but the first. */
+.repositories li:not([data-depth], :first-child) {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border);
+}
+
+/* The name close to the forge's logo before it, as an icon's label; its header too, while the
+ * header is a row of columns (not in narrow Panels). */
+.repositories li [data-column="name"] {
+  margin-left: calc(var(--space-1) - var(--column-gap));
+}
+
+@container list (width >= 44rem) {
+  .repositories [data-column="name"] {
+    margin-left: calc(var(--space-1) - var(--column-gap));
+  }
+}
+
 /* Clones within their Repository, Worktrees within their Clone. */
 .repositories li:not([data-depth]) [data-column="name"] {
   font-weight: 600;
@@ -17,13 +36,15 @@
 
 /* Narrow: the name and status on one line, the branch and when active below them, quieter. */
 .repositories {
-  --narrow-columns: var(--square) max-content 1fr max-content var(--square);
-  --narrow-areas: "square name name status events" "square branch active active events";
+  --narrow-columns: var(--square) calc(1em + 4px) max-content 1fr max-content var(--square);
+  --narrow-areas: "square remote name name status events"
+    "square remote branch active active events";
 }
 
 /* A Repository's row has no branch: when it was active comes right below its name. */
 .repositories li:not([data-depth]) {
-  --narrow-areas: "square name name status events" "square active active active events";
+  --narrow-areas: "square remote name name status events"
+    "square remote active active active events";
 }
 
 @container list (width < 44rem) {
@@ -43,6 +64,10 @@
     grid-area: events;
   }
 
+  .repositories li [data-column="remote"] {
+    grid-area: remote;
+  }
+
   .repositories li [data-column="branch"] {
     grid-area: branch;
   }
@@ -59,5 +84,11 @@
   .repositories li :is([data-column="branch"], [data-column="active"]) {
     color: var(--text-muted);
     font-size: var(--text-small);
+  }
+
+  /* The second line starts where the name does. */
+  .repositories li [data-column="branch"],
+  .repositories li:not([data-depth]) [data-column="active"] {
+    margin-left: calc(var(--space-1) - var(--column-gap));
   }
 }

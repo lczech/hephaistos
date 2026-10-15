@@ -1,4 +1,7 @@
+import { Fragment, type ReactNode } from "react";
+import { ForgeLink } from "../../components/ForgeLink";
 import { Fields } from "../../components/table/Fields";
+import { forgePage } from "../../forges";
 import { shortPath } from "../../paths";
 import { ago, fullTime } from "../../time";
 import { branchText, type Checkout, type Entry, statusText, worktreePath } from "./rows";
@@ -9,7 +12,7 @@ interface Props {
   home: string | undefined;
 }
 
-type Field = [string, string | number | boolean | null];
+type Field = [string, ReactNode];
 
 /** A row's fields as `show` shows them, without those that are empty, and nothing the rows
  * around it say. */
@@ -35,12 +38,13 @@ export function RepositoryDetails({ entry, now, home }: Props) {
   let fields: Field[];
   if (entry.type === "repository") {
     const { repository } = entry;
+    const remotes = repository.remotes.length > 0 ? <Remotes remotes={repository.remotes} /> : null;
     fields = [
       ["id", repository.id],
       ["created", when(repository.created_at)],
       ["active", when(repository.active_at)],
       ["clones", repository.clones.length],
-      ["remotes", repository.remotes.join(", ")],
+      ["remotes", remotes],
     ];
   } else if (entry.type === "clone") {
     const { clone } = entry;
@@ -68,11 +72,24 @@ export function RepositoryDetails({ entry, now, home }: Props) {
   }
   return (
     <Fields
-      fields={fields.flatMap(([label, value]): [string, string][] => {
-        if (value === null || value === "") return [];
+      fields={fields.flatMap(([label, value]): Field[] => {
+        if (value === null || value === undefined || value === "") return [];
         if (typeof value === "boolean") return [[label, value ? "yes" : "no"]];
-        return [[label, String(value)]];
+        return [[label, typeof value === "object" ? value : String(value)]];
       })}
     />
   );
+}
+
+/** Main remotes, each one on a forge as a link to its page there. */
+function Remotes({ remotes }: { remotes: string[] }) {
+  return remotes.map((remote, index) => {
+    const page = forgePage(remote);
+    return (
+      <Fragment key={remote}>
+        {index > 0 && ", "}
+        {page ? <ForgeLink page={page} text /> : remote}
+      </Fragment>
+    );
+  });
 }

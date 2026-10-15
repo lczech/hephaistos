@@ -1,0 +1,21 @@
+/* A forge's logo, as small and quiet as the icons beside it. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.icon:hover,
+.icon:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.icon svg {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}

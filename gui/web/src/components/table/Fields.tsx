@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import styles from "./table.module.css";
 
 interface Props {
-  fields: [string, string][]; // labels and their texts
+  fields: [string, ReactNode][]; // labels and their texts, or links
   title?: string; // over them, which then go in a little
 }
 
