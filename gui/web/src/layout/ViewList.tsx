@@ -1,4 +1,4 @@
-import { VIEWS } from "../views";
+import { KINDS } from "../views/kinds";
 import styles from "./layout.module.css";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 
 /** The kinds of View to choose from. */
 export function ViewList({ open, suggested, menu }: Props) {
-  const kinds = Object.entries(VIEWS).filter(([, kind]) => !suggested || kind.suggested);
+  const kinds = Object.entries(KINDS).filter(([, kind]) => !suggested || kind.suggested);
   return (
     <ul className={styles.views}>
       {kinds.map(([name, { name: title, icon: Icon }]) => (

@@ -4,8 +4,8 @@ import {
   type IDockviewPanel,
   themeLight,
 } from "dockview-react";
-import { viewTitle } from "../views";
 import { type Address, addressText, asAddress } from "../views/address";
+import { viewTitle } from "../views/kinds";
 
 export const PANEL = "view"; // dockview's one component: every Panel shows the View its parameters name
 

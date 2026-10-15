@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOG_PAGE } from "../../api/queries";
+import { cells } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
 import { addressText, type Params } from "../address";
 import { LogView } from "./LogView";
@@ -50,12 +51,6 @@ const address = () => screen.getByRole("status").textContent;
 const asked = (requests: Request[]) => new URL(requests.at(-1)?.url ?? "").searchParams;
 
 /** The texts of a row's cells, after the level's square. */
-function cells(row: HTMLElement): string[] {
-  const button = within(row).getByRole("button");
-  const texts = [...button.querySelectorAll(":scope > span")].map((cell) => cell.textContent ?? "");
-  return texts.slice(1);
-}
-
 const failed = entry(2, {
   level: "ERROR",
   pid: 77,
