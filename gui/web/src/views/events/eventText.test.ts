@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { event } from "../../test/server";
-import { machineText, priorityName, repositoryText, shortId, subjectText } from "./eventText";
+import {
+  machineText,
+  priorityName,
+  repositoryText,
+  shortId,
+  subjectText,
+  subjectTitle,
+} from "./eventText";
 
 describe("Event texts", () => {
   it("name priorities, and show unknown ones as numbers", () => {
@@ -30,6 +37,7 @@ describe("Event texts", () => {
 
   it("show paths under home as ~, and Repositories by name", () => {
     expect(subjectText(event(1), "/home/me")).toBe("~/project");
+    expect(subjectTitle(event(1), "/home/me")).toBe("Clone ~/project");
     expect(repositoryText(event(1))).toBe("project");
     expect(repositoryText(event(1, { repository: null }))).toBe("");
   });

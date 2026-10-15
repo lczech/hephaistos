@@ -63,6 +63,14 @@ export function nameText(entry: Entry, home: string | undefined): string {
   return entry.repository.name;
 }
 
+/** A Checkout's path in full, and what it resolves to if not itself; nothing for a Repository. */
+export function nameTitle(entry: Entry): string | undefined {
+  if (entry.type === "worktree") return entry.worktree.path;
+  if (entry.type !== "clone") return undefined;
+  const { path, resolved_path } = entry.clone;
+  return resolved_path === path ? path : `${path}\nresolves to ${resolved_path}`;
+}
+
 /** What the name column sorts by: the name, or the path. */
 export function nameKey(entry: Entry): string {
   return checkout(entry)?.path ?? entry.repository.name;
@@ -78,6 +86,14 @@ export function branchText(state: Checkout): string {
 }
 
 /** The status as the CLI's lists show it: `clean`, `+2 ~3 ?1 !1 ↑1 ↓2`, or a condition. */
+/** The branch and what it tracks, or the commit a detached HEAD is at. */
+export function branchTitle(state: Checkout): string {
+  if (state.branch === null) {
+    return state.head === null ? "detached" : `detached at ${state.head.slice(0, 7)}`;
+  }
+  return `${state.branch}, ${state.upstream === null ? "no upstream" : `tracking ${state.upstream}`}`;
+}
+
 export function statusText(state: Checkout): string {
   if (!state.present) return "missing";
   if (state.error !== null) return "failed";

@@ -42,6 +42,7 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
   const filter = look?.linked && values.length === 0 ? undefined : look;
   const set = (chosen: string[]) => column.setFilterValue(chosen.length ? chosen : undefined);
   const text = values.length > 0 ? filterText(values, choices, filter?.many) : undefined;
+  const description = column.columnDef.meta?.description;
   return (
     <span
       className={styles.header}
@@ -52,9 +53,11 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
     >
       {children !== undefined &&
         (column.getCanSort() ? (
-          <SortButton column={column}>{children}</SortButton>
+          <SortButton column={column} description={description}>
+            {children}
+          </SortButton>
         ) : (
-          <span className={styles.label} title={text}>
+          <span className={styles.label} title={lines(description, text)}>
             {children}
             {text !== undefined && `: ${text}`}
           </span>
@@ -88,8 +91,19 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
 
 const DIRECTIONS = { asc: "ascending", desc: "descending" };
 
+/** A tooltip of these lines, leaving out those missing; none without any. */
+function lines(...texts: (string | undefined)[]): string | undefined {
+  return texts.filter(Boolean).join("\n") || undefined;
+}
+
+interface SortProps {
+  column: Header["column"];
+  description: string | undefined;
+  children: ReactNode;
+}
+
 /** A column's label that sorts by it, or the other way round once it does. */
-function SortButton({ column, children }: { column: Header["column"]; children: ReactNode }) {
+function SortButton({ column, description, children }: SortProps) {
   const sorted = column.getIsSorted();
   const Arrow = sorted === "desc" ? ArrowDown : ArrowUp;
   return (
@@ -97,7 +111,10 @@ function SortButton({ column, children }: { column: Header["column"]; children: 
       type="button"
       className={`${styles.label} ${styles.sort}`}
       onClick={column.getToggleSortingHandler()}
-      title={sorted ? `Sorted by ${column.id}, ${DIRECTIONS[sorted]}` : `Sort by ${column.id}`}
+      title={lines(
+        description,
+        sorted ? `Sorted by ${column.id}, ${DIRECTIONS[sorted]}` : `Sort by ${column.id}`,
+      )}
     >
       {children}
       {sorted && <Arrow aria-hidden="true" />}

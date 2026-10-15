@@ -65,6 +65,8 @@ describe("the Database View", () => {
     renderWithQueries(<Db at={{ table: "registry_repositories" }} />);
     const [newest] = await screen.findAllByRole("listitem");
     expect(cells(newest as HTMLElement)).toEqual(["01a2", "two", `${preciseTime(AT)} #2`, "NULL"]);
+    expect(within(newest as HTMLElement).getByTitle(`${AT} #2`)).toBeInTheDocument();
+    expect(screen.getByText("modified_at")).toHaveAttribute("title", "Type: clock");
     await userEvent.click(within(newest as HTMLElement).getAllByRole("button")[0] as HTMLElement);
     const details = screen.getByRole("region", { name: "Row details" });
     expect(within(details).getByText("deleted")).toBeInTheDocument();

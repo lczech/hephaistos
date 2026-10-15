@@ -65,7 +65,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
       paging={log}
       older="records"
       tone={(entry) => levelTone(entry.record)}
-      rowTitle={(entry) => levelName(entry.record)}
+      squareTitle={(entry) => levelName(entry.record)}
       detailsLabel="Record details"
       details={(entry) => <LogDetails entry={entry} now={now} onlyProcess={onlyProcess(entry)} />}
     />

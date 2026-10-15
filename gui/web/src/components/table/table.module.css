@@ -84,7 +84,7 @@
 }
 
 .row {
-  position: relative; /* for its button's cover */
+  position: relative; /* for its button's outline */
   align-items: center;
   padding: 2px var(--space-3) 2px 0;
   color: var(--text);
@@ -99,7 +99,8 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
-/* The row's button, in its first cell, covers the whole row; other cells' buttons lie above. */
+/* The row's button, in its first cell, outlines the whole row when focused; the cells under its
+   outline stay hoverable, for their tooltips, and a click on them opens the row too. */
 .open {
   display: block;
   width: 100%;
@@ -115,6 +116,7 @@
   position: absolute;
   inset: 0;
   content: "";
+  pointer-events: none;
 }
 
 .open:focus-visible {
@@ -124,10 +126,6 @@
 .open:focus-visible::after {
   outline: 1px solid var(--accent);
   outline-offset: -1px;
-}
-
-.row :is(button, a):not(.open) {
-  position: relative;
 }
 
 /* A cell of only an icon button or link: centred on the row, then lifted as icons are. */

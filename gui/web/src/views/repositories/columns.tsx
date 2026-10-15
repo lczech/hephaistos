@@ -8,10 +8,12 @@ import { ViewLink } from "../ViewLink";
 import {
   activeAt,
   branchText,
+  branchTitle,
   checkout,
   type Entry,
   nameKey,
   nameText,
+  nameTitle,
   statusText,
   statusTitle,
 } from "./rows";
@@ -67,7 +69,7 @@ export const columns = column.columns([
     size: 280,
     cell: ({ row, table }) => {
       const name = nameText(row.original, table.options.meta?.home);
-      return <span title={name}>{name}</span>;
+      return <span title={nameTitle(row.original)}>{name}</span>;
     },
   }),
   column.display({
@@ -87,7 +89,7 @@ export const columns = column.columns([
     size: 120,
     cell: ({ row }) => {
       const state = checkout(row.original);
-      return state === undefined ? "" : branchText(state);
+      return state && <span title={branchTitle(state)}>{branchText(state)}</span>;
     },
   }),
   column.display({
@@ -108,13 +110,14 @@ export const columns = column.columns([
     sortFn: "basic",
     sortDescFirst: true,
     sortUndefined: "last",
+    meta: { description: "When HEAD last moved here; for a Repository, in any of its Checkouts" },
     cell: ({ row, table }) => <Ago at={activeAt(row.original)} now={table.options.meta?.now} />,
   }),
   column.display({
     id: "observed",
     header: "observed",
     enableResizing: false,
-    meta: { width: "minmax(88px, 1fr)" },
+    meta: { width: "minmax(88px, 1fr)", description: "When the Checkout was last observed" },
     cell: ({ row, table }) => {
       const state = checkout(row.original);
       return state && <Ago at={state.observed_at} now={table.options.meta?.now} />;

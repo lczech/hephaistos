@@ -70,7 +70,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
       paging={events}
       older="Events"
       tone={(event) => TONES[priorityName(event.priority)]}
-      rowTitle={(event) => `${priorityName(event.priority)} priority`}
+      squareTitle={(event) => `${priorityName(event.priority)} priority`}
       detailsLabel="Event details"
       details={(event) => <EventDetails event={event} now={now} home={home} />}
     />

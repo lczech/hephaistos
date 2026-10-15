@@ -16,10 +16,11 @@ type Column = Schemas["ColumnJson"];
 const NONE: Row[] = [];
 const OPEN = "#"; // the square's column, named apart from any table's
 
-/** A value in a cell or the details; NULL quieter. */
+/** A value in a cell; NULL quieter; clocks and times stored as they are, when hovered. */
 function Value({ value, type }: { value: unknown; type: ValueType }) {
   const text = cellText(value, type);
-  return text === null ? <span className={styles.null}>NULL</span> : text;
+  if (text === null) return <span className={styles.null}>NULL</span>;
+  return typeof value === "string" && text !== value ? <span title={value}>{text}</span> : text;
 }
 
 const column = listColumnHelper<Row>();
@@ -37,6 +38,7 @@ function tableColumns(columns: Column[]) {
         id: name,
         header: name,
         size: 140,
+        meta: { description: `Type: ${type}` },
         cell: ({ row }) => <Value value={row.original[name]} type={type} />,
       }),
     ),
