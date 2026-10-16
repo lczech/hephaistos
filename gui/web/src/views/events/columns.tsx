@@ -46,7 +46,7 @@ export const columns = column.columns([
       return (
         <span title={row.original.kind}>
           <Action className={styles.icon} aria-hidden="true" />
-          {action}
+          <span className={styles.action}>{action}</span>
         </span>
       );
     },

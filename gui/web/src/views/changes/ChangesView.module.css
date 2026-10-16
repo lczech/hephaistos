@@ -224,26 +224,18 @@
 }
 
 /* Narrow: still one line, as high as when wide, the path taking what the others leave. */
-.changes {
-  --narrow-columns: var(--square) minmax(0, 1fr) max-content 3rem;
-  --narrow-areas: "square path lines meter";
-}
-
 @container list (width < 44rem) {
-  .changes li [data-column="square"] {
-    grid-area: square;
-  }
-
   .changes li [data-column="path"] {
-    grid-area: path;
+    flex: 1 1 0;
+    order: 1;
   }
 
   .changes li [data-column="lines"] {
-    grid-area: lines;
+    order: 2;
   }
 
   .changes li [data-column="meter"] {
-    grid-area: meter;
+    order: 3;
   }
 
   /* Over the lines, before the bars. */
@@ -254,11 +246,6 @@
 
 /* Very narrow: no bars, as the names need the room more. */
 @container list (width < 30rem) {
-  .changes li {
-    --narrow-columns: var(--square) minmax(0, 1fr) max-content;
-    --narrow-areas: "square path lines";
-  }
-
   .changes li [data-column="meter"] {
     display: none;
   }

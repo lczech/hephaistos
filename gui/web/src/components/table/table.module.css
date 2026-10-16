@@ -438,22 +438,47 @@
 }
 
 /*
- * Narrow: each row in two lines, as the View's `--narrow-columns` and `--narrow-areas` lay them
- * out, its square and icons in the first, beside what the row is, its details below them; with
- * more room around them; the header in one line, of only the columns that filter or
- * sort, without their widths. A list whose rows stay in one line keeps its rows' height and its
- * header's look.
+ * Narrow: each row in two lines, with more room around them. The first holds the square, what
+ * the row is and its icons; the second its details, one after the other, from where what the row
+ * is starts (`--narrow-indent` from the row's start, else the square's width). The View orders
+ * its cells (`order`, below 10 for the first line, above for the second) and lets one cell in
+ * each line take the room left (`flex: 1 1 0`). The header in one line, of only the columns that
+ * filter or sort, without their widths. A list whose rows stay in one line keeps its rows'
+ * height and its header's look.
  */
 @container list (width < 44rem) {
   .grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr); /* as wide as the Panel, whatever the rows hold */
   }
 
   .row {
-    grid-template-columns: var(--narrow-columns);
-    grid-template-areas: var(--narrow-areas);
+    display: flex;
+    flex-wrap: wrap;
     column-gap: var(--column-gap);
     padding-block: var(--space-1);
+  }
+
+  /* Cells as wide as their text, cut off where they must shrink; the square as when wide. */
+  .row > * {
+    flex: none;
+    min-width: 0;
+  }
+
+  .row > :first-child {
+    width: var(--square);
+  }
+
+  /* The break between the lines, and the room before the second. */
+  .row::after {
+    flex-basis: 100%;
+    order: 10;
+    content: "";
+  }
+
+  .row::before {
+    width: var(--narrow-indent, var(--square));
+    order: 11;
+    content: "";
   }
 
   .head {

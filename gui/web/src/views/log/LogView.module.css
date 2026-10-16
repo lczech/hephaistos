@@ -24,26 +24,19 @@ pre.traceback {
 }
 
 /* Narrow: the message on one line, its time and process below it, quieter. */
-.log {
-  --narrow-columns: var(--square) max-content 1fr;
-  --narrow-areas: "level message message" ". time process";
-}
-
 @container list (width < 44rem) {
-  .log li [data-column="level"] {
-    grid-area: level;
-  }
-
   .log li [data-column="message"] {
-    grid-area: message;
+    flex: 1 1 0;
+    order: 1;
   }
 
   .log li [data-column="time"] {
-    grid-area: time;
+    order: 11;
   }
 
   .log li [data-column="process"] {
-    grid-area: process;
+    flex: 1 1 0;
+    order: 12;
   }
 
   .log li :is([data-column="time"], [data-column="process"]) {
