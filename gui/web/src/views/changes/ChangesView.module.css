@@ -1,0 +1,269 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* How the changes are compared, the branch, the totals; asking again at its end. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+/* Staged apart: pressed, as a toggle. */
+.toggle {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--text);
+}
+
+.toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.compared {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.totals {
+  font-variant-numeric: tabular-nums;
+}
+
+/* What happened to a file, by its icon's colour; directories grey. */
+.kind {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.kind svg {
+  width: 1em;
+  height: 1em;
+  translate: 0 var(--icon-lift);
+}
+
+.kind:is([data-kind="added"], [data-kind="new folder"]) {
+  color: var(--success);
+}
+
+.kind:is([data-kind="modified"], [data-kind="renamed"]) {
+  color: var(--warning);
+}
+
+.kind:is([data-kind="deleted"], [data-kind="conflict"]) {
+  color: var(--danger);
+}
+
+.refresh {
+  display: flex;
+  margin-left: auto;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.refresh:hover,
+.refresh:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.refresh svg {
+  width: 1em;
+  height: 1em;
+}
+
+.refresh[data-busy] svg {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh[data-busy] svg {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* Each group starts with a line, with some room, above all but the first. */
+.changes li:not([data-depth], :first-child) {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border);
+}
+
+/* A group's row: its name, and how many of each kind of change it holds. */
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: 600;
+}
+
+.counted {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-weight: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.note,
+.other,
+.total {
+  color: var(--text-muted);
+}
+
+/* An icon, then a path. */
+.named {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.path {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cut off from its start, so that its end stays: the text runs right to left, but isolated, so
+ * that it reads left to right. */
+.path[data-from-start] {
+  direction: rtl;
+  text-align: left;
+}
+
+[data-deleted] .path {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.folder {
+  color: var(--text-muted);
+}
+
+/* Files within a directory or a new folder, below it. */
+.changes li[data-depth="2"] [data-column="path"] {
+  padding-left: var(--space-4);
+}
+
+.changes li[data-depth="3"] [data-column="path"] {
+  padding-left: calc(2 * var(--space-4));
+}
+
+/* Lines added and removed, each as wide as most counts, in a column ending at the bars. */
+.lines {
+  display: flex;
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+.lines > * {
+  min-width: 6ch;
+  text-align: right;
+}
+
+.added {
+  color: var(--success);
+}
+
+.removed {
+  color: var(--danger);
+}
+
+.total .lines > * {
+  color: var(--text-muted);
+}
+
+.other {
+  display: block;
+  text-align: right;
+}
+
+/* As long as the lines' share of the most in any file: added, then removed. */
+.meter {
+  --length: 3rem;
+  display: block;
+  width: var(--length);
+  height: 0.5em;
+  border-radius: 1px;
+  background:
+    linear-gradient(var(--success), var(--success)) 0 0 / calc(var(--added) * var(--length)) 100%
+    no-repeat,
+    linear-gradient(var(--danger), var(--danger)) calc(var(--added) * var(--length)) 0 /
+    calc(var(--removed) * var(--length)) 100% no-repeat,
+    color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* Narrow: still one line, as high as when wide, the path taking what the others leave. */
+.changes {
+  --narrow-columns: var(--square) minmax(0, 1fr) max-content 3rem;
+  --narrow-areas: "square path lines meter";
+}
+
+@container list (width < 44rem) {
+  .changes li [data-column="square"] {
+    grid-area: square;
+  }
+
+  .changes li [data-column="path"] {
+    grid-area: path;
+  }
+
+  .changes li [data-column="lines"] {
+    grid-area: lines;
+  }
+
+  .changes li [data-column="meter"] {
+    grid-area: meter;
+  }
+
+  /* Over the lines, before the bars. */
+  .changes [data-column="lines"]:not(li *) {
+    margin-right: calc(3rem + var(--column-gap));
+  }
+}
+
+/* Very narrow: no bars, as the names need the room more. */
+@container list (width < 30rem) {
+  .changes li {
+    --narrow-columns: var(--square) minmax(0, 1fr) max-content;
+    --narrow-areas: "square path lines";
+  }
+
+  .changes li [data-column="meter"] {
+    display: none;
+  }
+
+  .changes [data-column="lines"]:not(li *) {
+    margin-right: 0;
+  }
+}

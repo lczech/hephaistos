@@ -99,6 +99,10 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+.row[data-plain] {
+  cursor: default;
+}
+
 /* The row's button, in its first cell, outlines the whole row when focused; the cells under its
    outline stay hoverable, for their tooltips, and a click on them opens the row too. */
 .open {
@@ -233,12 +237,20 @@
   min-width: 0;
 }
 
+.header[data-end] {
+  justify-content: flex-end;
+}
+
 .label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.header[data-end] > .label {
+  flex: none;
 }
 
 .sort {
@@ -427,7 +439,10 @@
 
 /*
  * Narrow: each row in two lines, as the View's `--narrow-columns` and `--narrow-areas` lay them
- * out; the header in one line, of only the columns that filter or sort, without their widths.
+ * out, its square and icons in the first, beside what the row is, its details below them; with
+ * more room around them; the header in one line, of only the columns that filter or
+ * sort, without their widths. A list whose rows stay in one line keeps its rows' height and its
+ * header's look.
  */
 @container list (width < 44rem) {
   .grid {
@@ -452,6 +467,19 @@
   .head > .header:not([data-filterable], [data-sortable]),
   .resizer {
     display: none;
+  }
+
+  .head > .header[data-end] {
+    margin-left: auto;
+  }
+
+  .frame[data-one-line] .row {
+    padding-block: 2px;
+  }
+
+  .frame[data-one-line] .head {
+    padding: 2px var(--space-3) 2px calc(var(--square) + var(--column-gap));
+    font-size: inherit;
   }
 
   /* Nothing is cut off here: the funnels come after their labels. */

@@ -82,7 +82,7 @@ describe("the Repositories View", () => {
       undefined,
       "warning",
     ]);
-    expect(cells(rows[1] as HTMLElement).slice(3, 5)).toEqual(["main", "~2"]);
+    expect(cells(rows[1] as HTMLElement).slice(4, 6)).toEqual(["main", "~2"]);
     expect(screen.getByTitle("2 changed; up to date with origin/main")).toBeInTheDocument();
     const resizable = [...document.querySelectorAll("[data-column]:has(> hr)")];
     expect(resizable.map((header) => header.getAttribute("data-column"))).toEqual([
@@ -115,6 +115,27 @@ describe("the Repositories View", () => {
       "events?clone=clone-recent",
       "events?worktree=wt-recent-feature",
     ]);
+  });
+
+  it("opens the Changes of a Clone or Worktree, beside as a preview", async () => {
+    serveRepositories();
+    const open = vi.fn<OpenView>();
+    renderWithQueries(<Repositories open={open} />);
+    await screen.findByText("recent");
+    expect(screen.queryByRole("button", { name: "Changes in recent" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent" }));
+    await userEvent.click(screen.getByRole("button", { name: "Changes in .worktrees/feature" }));
+    expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
+      ["changes?clone=clone-recent", { beside: true, preview: true }],
+      ["changes?worktree=wt-recent-feature", { beside: true, preview: true }],
+    ]);
+    // Greyed out without changes: the Worktree has none, the Clone 2 changed.
+    const feature = screen.getByRole("button", { name: "Changes in .worktrees/feature" });
+    expect(feature).toHaveAttribute("title", "Changes in .worktrees/feature: no changes");
+    expect(feature.className).toMatch(/quiet/);
+    expect(screen.getByRole("button", { name: "Changes in ~/recent" }).className).not.toMatch(
+      /quiet/,
+    );
   });
 
   it("links a Repository to its page on its forge, in a new tab", async () => {

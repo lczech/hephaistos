@@ -7,6 +7,7 @@ import {
   type QueryKey,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
 } from "@tanstack/react-query";
 import { api, unwrap } from "./client";
@@ -29,6 +30,7 @@ export const KEYS = {
   daemon: ["daemon"],
   machines: ["machines"],
   repositories: ["repositories"],
+  changes: ["changes"],
   config: ["config"],
   eventKinds: ["events", "kinds"],
   events: ["events", "list"],
@@ -65,6 +67,33 @@ export function useRepositories() {
     queryKey: KEYS.repositories,
     queryFn: async () => unwrap(await api.GET("/api/repositories")),
   });
+}
+
+/** Which Checkout's changes, compared how: `/api/changes`'s parameters. */
+export type ChangesQuery = NonNullable<paths["/api/changes"]["get"]["parameters"]["query"]>;
+
+function changesQuery(query: ChangesQuery) {
+  return {
+    queryKey: [...KEYS.changes, query],
+    queryFn: async () => unwrap(await api.GET("/api/changes", { params: { query } })),
+  };
+}
+
+/**
+ * A Checkout's changes, which git reads anew each time: asked again on a hint, as files
+ * changed by hand change no State, on focus too. Others keep showing until theirs arrive.
+ */
+export function useChanges(query: ChangesQuery) {
+  return useQuery({
+    ...changesQuery(query),
+    placeholderData: keepPreviousData,
+    enabled: query.clone !== undefined || query.worktree !== undefined,
+  });
+}
+
+/** The changes within each of these folders, as `useChanges` gives them for the Checkout. */
+export function useChangesWithin(query: ChangesQuery, folders: string[]) {
+  return useQueries({ queries: folders.map((path) => changesQuery({ ...query, path })) });
 }
 
 /** The settings as the Daemon finds them; they change by hand, so asked again on focus. */

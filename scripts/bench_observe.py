@@ -105,12 +105,14 @@ class Timings:
 
     def install(self) -> None:
         """Wraps what is timed: git's runner, the Clone observation, the sessions."""
-        run_git = git._git  # noqa: SLF001 # pyright: ignore[reportPrivateUsage] - runs every git command
+        run_git = git.run  # runs every git command
 
-        def timed_git(path: Path, *args: str) -> object:
+        def timed_git(
+            path: Path, *args: str, stdin: str | None = None
+        ) -> subprocess.CompletedProcess[str]:
             start = time.perf_counter()
             try:
-                return run_git(path, *args)
+                return run_git(path, *args, stdin=stdin)
             finally:
                 name = " ".join(arg for arg in args[:2] if not arg.startswith("-"))
                 with self.lock:
@@ -138,7 +140,7 @@ class Timings:
 
             return timed
 
-        git._git = timed_git  # noqa: SLF001 # pyright: ignore[reportPrivateUsage]
+        git.run = timed_git
         observer.clone_observation = timed_clone
         for name in ("read_session", "write_session"):
             setattr(observer, name, timed_session(name, getattr(observer, name)))

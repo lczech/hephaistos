@@ -27,3 +27,12 @@
   margin: -2px -4px -2px var(--space-3); /* apart from the text before it */
   padding: 2px 4px;
 }
+
+.quiet {
+  opacity: 0.4;
+}
+
+.quiet:hover,
+.quiet:focus-visible {
+  opacity: 1;
+}

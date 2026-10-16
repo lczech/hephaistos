@@ -1,6 +1,7 @@
 """What `--json` prints and the Server's API returns, built in one place.
 
-Entities, and the settings, database and log behind them.
+Entities, and the settings, database and log behind them; and a Checkout's changes, which
+only the API shows.
 
 These shapes are the API's contract with its clients: API_VERSION counts how they changed.
 Other entities are referred to by ID, with a name for showing them.
@@ -30,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import logs
+from hephaistos.core.utils import changes, git, logs
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -44,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 10)
+API_VERSION = ApiVersion(0, 11)
 
 
 class Ref(TypedDict):
@@ -663,4 +664,94 @@ def log_json(
     reading = logs.read(directory, selection, limit, before=before)
     return LogJson(
         entries=[log_entry_json(entry) for entry in reading.entries], skipped=reading.skipped
+    )
+
+
+class ChangeJson(TypedDict):
+    """A changed file, or a new folder (its path ending in `/`) with the files in it.
+
+    Lines are counted for text; sizes, in bytes, are given for files without counted lines.
+    """
+
+    path: str
+    status: str  # git's letter: A, M, D, R, T; U unmerged; ? untracked
+    original: str | None  # the path before a rename
+    added: int | None  # None for binary files, those too large, and folders
+    removed: int | None
+    binary: bool
+    size: int | None  # the new version's; None if deleted, or not needed
+    old_size: int | None  # the old version's; None if added, or not needed
+    files: int | None  # in a new folder; at most 10,000 are counted
+    more_files: bool  # a new folder with more files than counted
+
+
+# A group of changes: those `from` one state `to` another, at most `gui.diff.max_files` of
+# them, sorted by path, and how many there are.
+ChangeGroupJson = TypedDict(
+    "ChangeGroupJson",
+    {
+        "name": changes.GroupName,
+        "from": str,
+        "to": str,
+        "changes": list[ChangeJson],
+        "count": int,
+    },
+)
+
+
+class BranchJson(TypedDict):
+    """A Checkout's branch, as `git status` says it."""
+
+    head: str | None
+    branch: str | None  # None when HEAD is detached
+    upstream: str | None
+    ahead: int | None
+    behind: int | None
+
+
+class ChangesJson(TypedDict):
+    """A Checkout's changes in groups; with its branch, unless only commits were compared."""
+
+    branch: BranchJson | None
+    groups: list[ChangeGroupJson]
+
+
+def _branch_json(status: git.Status) -> BranchJson:
+    return BranchJson(
+        head=status.head,
+        branch=status.branch,
+        upstream=status.upstream,
+        ahead=status.ahead,
+        behind=status.behind,
+    )
+
+
+def changes_json(found: changes.Changes) -> ChangesJson:
+    """A Checkout's changes, as the API gives them."""
+    return ChangesJson(
+        branch=None if found.status is None else _branch_json(found.status),
+        groups=[
+            {
+                "name": group.name,
+                "from": group.base,
+                "to": group.target,
+                "changes": [
+                    ChangeJson(
+                        path=change.path,
+                        status=change.status,
+                        original=change.original,
+                        added=change.added,
+                        removed=change.removed,
+                        binary=change.binary,
+                        size=change.size,
+                        old_size=change.old_size,
+                        files=change.files,
+                        more_files=change.more_files,
+                    )
+                    for change in group.changes
+                ],
+                "count": group.count,
+            }
+            for group in found.groups
+        ],
     )

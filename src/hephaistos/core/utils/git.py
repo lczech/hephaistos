@@ -84,8 +84,8 @@ def installation() -> Installation:
     return Installation(Path(executable), result.stdout.strip())
 
 
-def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    """Runs git in `path`; the caller checks the exit code."""
+def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Runs git in `path`, given `stdin`; the caller checks the exit code."""
     executable = shutil.which("git")
     if executable is None:
         raise GitError("git is not installed")
@@ -98,6 +98,7 @@ def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             [executable, "-C", str(path), *args],
+            input=stdin,
             capture_output=True,
             encoding="utf-8",
             errors="surrogateescape",
@@ -107,7 +108,8 @@ def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         )
     except subprocess.TimeoutExpired:
         _log_call(path, args, started, None, None)
-        raise GitTimeoutError(f"`git {args[0]}` timed out after {timeout:g} s in {path}") from None
+        command = next((arg for arg in args if not arg.startswith("-")), args[0])
+        raise GitTimeoutError(f"`git {command}` timed out after {timeout:g} s in {path}") from None
     _log_call(path, args, started, result.returncode, result.stderr)
     return result
 
@@ -136,9 +138,9 @@ def _log_ignored_variables() -> None:
         log.debug("ignoring git's variables %s", ", ".join(ignored))
 
 
-def _output(path: Path, *args: str) -> str:
+def read(path: Path, *args: str, stdin: str | None = None) -> str:
     """The output of git without the final newline; raises GitError if it fails."""
-    result = _git(path, *args)
+    result = run(path, *args, stdin=stdin)
     if result.returncode != 0:
         raise GitError(f"`git {' '.join(args)}` failed in {path}: {result.stderr.strip()}")
     return result.stdout.removesuffix("\n")
@@ -160,9 +162,9 @@ _LOCATE = ("rev-parse", "--is-bare-repository", "--is-inside-work-tree", "--abso
 def locate(path: Path) -> Location:
     """The git repository that `path` lies in; raises GitError if none."""
     # Asking for the top level fails outside a working tree; only then is a second call needed.
-    result = _git(path, *_LOCATE, "--git-common-dir", "--show-toplevel")
+    result = run(path, *_LOCATE, "--git-common-dir", "--show-toplevel")
     if result.returncode != 0:
-        result = _git(path, *_LOCATE, "--git-common-dir")
+        result = run(path, *_LOCATE, "--git-common-dir")
     if result.returncode != 0:
         raise NotInRepositoryError(f"{path} is not in a git repository")
     bare, inside, git_dir, common_dir, *toplevel = result.stdout.removesuffix("\n").split("\n")
@@ -179,7 +181,7 @@ def locate(path: Path) -> Location:
     main = None
     if Path(git_dir).resolve() != common:
         # The first entry of `worktree list` is the main working tree, or the bare repository.
-        first = _output(path, "worktree", "list", "--porcelain").split("\n", 1)[0]
+        first = read(path, "worktree", "list", "--porcelain").split("\n", 1)[0]
         main = Path(first.removeprefix("worktree ")).resolve()
     return Location(top=top, main=main, common_dir=common, bare=bare == "true")
 
@@ -187,7 +189,7 @@ def locate(path: Path) -> Location:
 def superproject(path: Path) -> Path | None:
     """The working tree that has the repository at `path` as a submodule; None if none has."""
     # Not part of `locate`: git checks it by running `ls-files` in the parent directory.
-    output = _output(path, "rev-parse", "--show-superproject-working-tree")
+    output = read(path, "rev-parse", "--show-superproject-working-tree")
     return Path(output).resolve() if output else None
 
 
@@ -287,7 +289,7 @@ def parse_status(output: str) -> Status:
 def status(top: Path) -> Status:
     """The status of the working tree at `top`; ignored files are left out."""
     return parse_status(
-        _output(
+        read(
             top,
             "status",
             "--porcelain=v2",
@@ -300,7 +302,7 @@ def status(top: Path) -> Status:
 
 def branches(top: Path) -> tuple[str, ...]:
     """The local branches' names, sorted."""
-    output = _output(top, "for-each-ref", "--format=%(refname)", "refs/heads")
+    output = read(top, "for-each-ref", "--format=%(refname)", "refs/heads")
     return tuple(sorted(line.removeprefix("refs/heads/") for line in output.splitlines()))
 
 
@@ -337,7 +339,7 @@ def _worktree_names(common_dir: Path) -> dict[Path, str]:
 def worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
     """The linked worktrees of the repository at `top`, including those whose directory is gone."""
     # Without -z, which needs git 2.36: paths with newlines are not supported.
-    output = _output(top, "worktree", "list", "--porcelain")
+    output = read(top, "worktree", "list", "--porcelain")
     names = _worktree_names(common_dir)
     found: list[LinkedWorktree] = []
     for record in output.split("\n\n")[1:]:  # the first is the main working tree
@@ -404,7 +406,7 @@ class ReflogEntry:
 
 def _reflog(top: Path, *args: str) -> list[ReflogEntry]:
     """Reflog entries as `git log --walk-reflogs` lists them: newest first, ref by ref."""
-    output = _output(
+    output = read(
         top,
         "log",
         "--walk-reflogs",
@@ -413,14 +415,14 @@ def _reflog(top: Path, *args: str) -> list[ReflogEntry]:
         "--format=%H%x1f%gD%x1f%gs",
         *args,
     )
-    read: list[tuple[str, str, datetime, str]] = []
+    found: list[tuple[str, str, datetime, str]] = []
     for line in output.splitlines():
         new, selector, message = line.split("\x1f", 2)
         ref, _, date = selector.rpartition("@{")
-        read.append((ref, new, datetime.fromisoformat(date.removesuffix("}")), message))
+        found.append((ref, new, datetime.fromisoformat(date.removesuffix("}")), message))
     previous: dict[str, str] = {}
     entries: list[ReflogEntry] = []
-    for ref, new, at, message in reversed(read):
+    for ref, new, at, message in reversed(found):
         entries.append(ReflogEntry(ref, previous.get(ref), new, at, message))
         previous[ref] = new
     return entries[::-1]
@@ -462,9 +464,9 @@ def snapshot(location: Location) -> Snapshot:
     top = location.top
     found = None if location.bare else status(top)
     if found is None:
-        head_result = _git(top, "rev-parse", "--verify", "--quiet", "HEAD")
+        head_result = run(top, "rev-parse", "--verify", "--quiet", "HEAD")
         head = head_result.stdout.strip() if head_result.returncode == 0 else None
-        branch_result = _git(top, "symbolic-ref", "--quiet", "--short", "HEAD")
+        branch_result = run(top, "symbolic-ref", "--quiet", "--short", "HEAD")
         branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
     else:
         head, branch = found.head, found.branch
@@ -482,7 +484,7 @@ def snapshot(location: Location) -> Snapshot:
 def root_commits(top: Path, *, include_head: bool = True) -> tuple[str, ...]:
     """The commits without parents, reachable from HEAD and all local and remote branches."""
     refs = ["HEAD"] if include_head else []
-    output = _output(top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
+    output = read(top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
     return tuple(sorted(set(output.split()))) if output else ()
 
 
@@ -492,7 +494,7 @@ def describe(top: Path) -> str | None:
     None if git can't say, e.g. as there is no commit yet.
     """
     try:
-        result = _git(top, "describe", "--always", "--dirty")
+        result = run(top, "describe", "--always", "--dirty")
     except GitError:
         return None
     described = result.stdout.strip()
@@ -506,7 +508,7 @@ def shares_history(roots: Collection[str], known: Collection[str]) -> bool:
 
 def remotes(top: Path) -> dict[str, str]:
     """The remotes' names and URLs, without credentials."""
-    result = _git(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$")
+    result = run(top, "config", "-z", "--get-regexp", r"^remote\..*\.url$")
     if result.returncode == 1:  # no remotes
         return {}
     if result.returncode != 0:

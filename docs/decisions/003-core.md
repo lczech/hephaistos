@@ -59,7 +59,7 @@ Tools: Typer for the CLI (with shell completion; heavy imports only inside comma
   4. `config.<hostname>.toml`: the first part of the hostname (`login1`), then all of it (`login1.hpc.example.org`).
   5. Environment variables `HEPHAISTOS_<SECTION>_<KEY>`, e.g. `HEPHAISTOS_GIT_TIMEOUT`, for every setting; empty ones count as unset.
   6. Command-line options, e.g. `--time-format`, `--debug` for `log.level`.
-- TOML, one or two levels of sections. Every setting has a real value: no null; "unset" behaviour gets a name (`time_format = "auto"`) or a natural number (0). A missing key leaves it to the layer below.
+- TOML, one or two levels of sections, named by topic: `[gui]` holds what only the GUI uses, e.g. `[gui.diff]` the limits of its diffs, though the Server applies some; the GUI reads what its Server's Daemon applies. Every setting has a real value: no null; "unset" behaviour gets a name (`time_format = "auto"`) or a natural number (0). A missing key leaves it to the layer below.
 - Checked against typed sections (`Settings` in `config.py`) with limits: unknown keys and wrong types or values fail, naming the file or variable and the key.
 - Each process loads its settings once, at startup (CLI `run()`, Daemon), and activates them; the Core reads them where it uses them (`config.settings().git.timeout`). Changes apply to the next command, or to the Daemon after a restart.
 - A broken config stops every command but `--help`, `--version`, `log`, `config` and `daemon` (which run on the defaults, with a warning); `daemon run` doesn't start.

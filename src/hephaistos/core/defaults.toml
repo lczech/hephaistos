@@ -49,3 +49,20 @@ enabled = true
 # The port it listens on. 0: a free port, another at each start, as `hephaistos daemon status` shows.
 # Where others have accounts, it keeps them from taking the port first.
 port = 8264
+
+# The GUI's: it reads them from the Server it shows.
+
+[gui]
+# How code looks in light mode, e.g. in diffs: a theme's name, as the syntax
+# highlighter Shiki names it, e.g. github-light, light-plus, solarized-light.
+code_theme_light = "github-light"
+# And in dark mode, e.g. github-dark, dark-plus, one-dark-pro, solarized-dark.
+code_theme_dark = "github-dark"
+
+[gui.diff]
+# Bytes of a file's diff or version the Server sends; it refuses larger ones.
+max_bytes = 5_000_000
+# Lines changed in a file above which its diff waits to be shown.
+large_lines = 2000
+# Files a group of changes lists, of a Checkout or a new folder in it; the rest are counted.
+max_files = 1000

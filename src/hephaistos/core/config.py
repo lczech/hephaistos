@@ -140,6 +140,24 @@ class Server:
 
 
 @dataclass(frozen=True)
+class Diff:
+    """The section [gui.diff]."""
+
+    max_bytes: Annotated[int, AtLeast(1)]
+    large_lines: Annotated[int, AtLeast(1)]
+    max_files: Annotated[int, AtLeast(1)]
+
+
+@dataclass(frozen=True)
+class Gui:
+    """The section [gui]."""
+
+    code_theme_light: str
+    code_theme_dark: str
+    diff: Diff
+
+
+@dataclass(frozen=True)
 class Settings:
     """All settings, by section; `defaults.toml` documents them and holds their defaults."""
 
@@ -151,6 +169,7 @@ class Settings:
     scan: Scan
     watcher: Watcher
     server: Server
+    gui: Gui
 
 
 class ConfigError(HephaistosError):
@@ -159,7 +178,7 @@ class ConfigError(HephaistosError):
 
 @dataclass(frozen=True)
 class _Leaf:
-    """A setting's type (bool, int, float or a StrEnum) and limits."""
+    """A setting's type (bool, int, float, str or a StrEnum) and limits."""
 
     kind: type
     limits: tuple[object, ...]
@@ -192,7 +211,9 @@ def _leaves(section: type, prefix: str = "") -> dict[str, _Leaf]:
 
 _LEAVES = _leaves(Settings)
 KEYS = tuple(_LEAVES)  # every setting, e.g. `git.timeout`
-_SECTIONS = frozenset(key.rpartition(".")[0] for key in _LEAVES) - {""}
+_SECTIONS = frozenset(  # with those holding only sections
+    key.rsplit(".", depth)[0] for key in _LEAVES for depth in range(1, key.count(".") + 1)
+)
 
 DEFAULT = "default"  # the source of a value from `defaults.toml`
 
@@ -200,9 +221,9 @@ type SettingType = Literal["bool", "int", "float", "text"]
 
 
 def setting_type(key: str) -> SettingType:
-    """What a setting holds: `text` for one of several words, e.g. `auto`."""
+    """What a setting holds: `text` for any text, or one of several words, e.g. `auto`."""
     kind = _LEAVES[key].kind
-    if issubclass(kind, StrEnum):
+    if issubclass(kind, str):
         return "text"
     return cast("SettingType", kind.__name__)
 
@@ -246,6 +267,10 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
     if kind is bool:
         if not isinstance(value, bool):
             raise ConfigError(f"{where} must be true or false, not {_value_text(value)}")
+        return value
+    if kind is str:
+        if not isinstance(value, str) or not value:
+            raise ConfigError(f"{where} must be some text, not {_value_text(value)}")
         return value
     number = isinstance(value, int | float) and not isinstance(value, bool)
     if kind is float and number:

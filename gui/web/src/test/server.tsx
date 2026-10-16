@@ -8,7 +8,7 @@ import type { Schemas } from "../api/client";
 import { QUERY_DEFAULTS } from "../api/queries";
 import { builtFor } from "../version";
 
-type Route = () => Response | Promise<Response>;
+type Route = (request: Request) => Response | Promise<Response>;
 
 export function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -23,7 +23,7 @@ export function serve(routes: Record<string, Route>): Request[] {
   vi.stubGlobal("fetch", async (request: Request) => {
     requests.push(request);
     const route = routes[`${request.method} ${new URL(request.url).pathname}`];
-    return route ? route() : json({ error: "no such route" }, 404);
+    return route ? route(request) : json({ error: "no such route" }, 404);
   });
   return requests;
 }
