@@ -1,10 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { saveViews as save } from "../test/layout";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
+import { ViewLink } from "../views/ViewLink";
 import { savedLayout } from "./saved";
 import { Workbench } from "./Workbench";
 
@@ -22,7 +23,27 @@ function Probe({ params, setParams, setTitle }: ViewProps) {
   );
 }
 
+/** A View linking to Probes 1 and 2, beside it as previews. */
+function Linker() {
+  return ["1", "2"].map((n) => (
+    <ViewLink
+      key={n}
+      address={{ kind: "probe", params: { n } }}
+      label={`Probe ${n}`}
+      opening={{ beside: true, preview: true }}
+    />
+  ));
+}
+
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
+/** The tabs by Group, and which are previews: `Probe*`. */
+const groups = () =>
+  [...document.querySelectorAll(".dv-groupview")].map((group) =>
+    [...group.querySelectorAll("[role=tab]")].map(
+      (tab) =>
+        `${tab.getAttribute("aria-label")}${tab.querySelector("[class*=preview]") ? "*" : ""}`,
+    ),
+  );
 
 beforeEach(() => {
   serve({
@@ -87,7 +108,7 @@ describe("the Workbench", () => {
     expect(tabs()).toEqual(["Repositories", "Events"]);
   });
 
-  it("lets a View open another in its Group", async () => {
+  it("lets a View open another beside it, splitting its Group off when alone", async () => {
     serve({
       "GET /api/daemon": () => json(daemon()),
       "GET /api/events": () => json([]),
@@ -95,14 +116,71 @@ describe("the Workbench", () => {
     });
     save("daemon", "events");
     renderWithQueries(<Workbench />);
-    await userEvent.click(await screen.findByRole("button", { name: "The Daemon's log" }));
-    expect(tabs()).toEqual(["daemon", "Events", "Log: daemon[4242]"]);
+    const link = await screen.findByRole("button", { name: "The Daemon's log" });
+    expect(link).toHaveTextContent("Log");
+    await userEvent.click(link);
+    expect(groups()).toEqual([["daemon", "Events"], ["Log: daemon[4242]"]]);
     await waitFor(() =>
       expect(savedViews()).toContainEqual({
         kind: "log",
         params: { pid: "4242", process: "daemon" },
       }),
     );
+  });
+
+  describe("with previews", () => {
+    beforeEach(() => {
+      VIEWS.linker = Linker;
+      VIEWS.probe = Probe;
+      save("linker");
+    });
+    afterEach(() => {
+      delete VIEWS.linker;
+      delete VIEWS.probe;
+    });
+
+    it("opens one beside, which the next replaces, and saves it as a preview", async () => {
+      renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      expect(groups()).toEqual([["linker"], ["probe*"]]);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 2" }));
+      expect(groups()).toEqual([["linker"], ["probe*"]]);
+      expect(screen.getByRole("button", { name: "probe?n=2" })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(savedViews()).toContainEqual({ kind: "probe", params: { n: "2" }, preview: true }),
+      );
+    });
+
+    it("keeps a preview whose tab is double-clicked", async () => {
+      renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.dblClick(screen.getByText("probe", { selector: ".dv-default-tab *" }));
+      expect(groups()).toEqual([["linker"], ["probe"]]);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 2" }));
+      expect(groups()).toEqual([["linker"], ["probe", "probe*"]]);
+    });
+
+    it("keeps a preview whose link is double-clicked", async () => {
+      renderWithQueries(<Workbench />);
+      await userEvent.dblClick(screen.getByRole("button", { name: "Probe 1" }));
+      expect(groups()).toEqual([["linker"], ["probe"]]);
+    });
+
+    it("keeps a preview that is changed", async () => {
+      renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.click(screen.getByRole("button", { name: "probe?n=1" }));
+      expect(groups()).toEqual([["linker"], ["Probe, 1h"]]);
+    });
+
+    it("restores a preview as one", async () => {
+      const { unmount } = renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await waitFor(() => expect(savedViews()).toHaveLength(2));
+      unmount();
+      renderWithQueries(<Workbench />);
+      expect(groups()).toEqual([["linker"], ["probe*"]]);
+    });
   });
 
   it("lets a View show other parameters in its Panel and name its tab, and saves both", async () => {

@@ -49,6 +49,7 @@ Vocabulary used consistently, but not stored as entities.
 - **Subject**: what an Event is about: a Machine, Filesystem, Mount, Repository, Clone or Worktree, named by its name or its path.
 - **View**: what a Panel shows: its kind (e.g. Daemon, Events, a Repository table, a Terminal) and parameters (e.g. which Terminal).
 - **Panel**: a tab in the GUI showing one View. It can be dragged into another Group, or beside one to split it.
+- **Preview**: a Panel that the next preview opened into its Group replaces, until it is kept, e.g. by a double-click; its title is in italics.
 - **Group**: an area of the GUI's window showing one of its Panels at a time, chosen by their tabs. Groups lie side by side or stacked.
 - **Layout**: the arrangement of the GUI's Groups: where they are and their sizes. Each Workspace uses one; at first, all use the same one. Kept between sessions.
 - **Token**: the secret a client sends to a Machine's Server; `hephaistos daemon token` shows it.

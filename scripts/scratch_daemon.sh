@@ -27,7 +27,8 @@ start)
         exit 1
     fi
     uv run --project "$repo" true || exit 1 # the environment, up to date
-    [ -e "$home/data" ] || "$heph" setup --name scratch || exit 1
+    # Only the database: not the service or the launcher entry, which are the real ones.
+    [ -e "$home/data" ] || "$heph" setup --name scratch --no-daemon --no-desktop || exit 1
     HEPHAISTOS_SERVER_PORT=$port HEPHAISTOS_WATCHER_INTERVAL=0 \
         nohup "$heph" daemon run >"$home/daemon.out" 2>&1 &
     echo "started; its output in $home/daemon.out"

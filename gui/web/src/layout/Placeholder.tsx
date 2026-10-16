@@ -10,9 +10,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
       <p>Open a View:</p>
       <ViewList
         suggested
-        open={(kind) =>
-          openView(containerApi, { kind, params: {} }, group && { referenceGroup: group.id })
-        }
+        open={(kind) => openView(containerApi, { kind, params: {} }, {}, group)}
       />
     </div>
   );

@@ -21,3 +21,9 @@
   width: 1em;
   height: 1em;
 }
+
+.named {
+  gap: var(--space-1);
+  margin: -2px -4px -2px var(--space-3); /* apart from the text before it */
+  padding: 2px 4px;
+}

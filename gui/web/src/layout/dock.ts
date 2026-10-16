@@ -1,13 +1,18 @@
 import {
   type DockviewApi,
+  type DockviewGroupPanel,
   type DockviewTheme,
+  type IDockviewGroupPanel,
   type IDockviewPanel,
   themeLight,
 } from "dockview-react";
 import { type Address, addressText, asAddress } from "../views/address";
 import { viewTitle } from "../views/kinds";
+import type { Opening } from "../views/opening";
+import { besideOf } from "./beside";
 
 export const PANEL = "view"; // dockview's one component: every Panel shows the View its parameters name
+export const PREVIEW = "preview"; // a Panel parameter, beside its View's: true while a preview
 
 /** dockview's light theme for sizes and behaviour; `dock.css` gives it our colours. */
 export const THEME: DockviewTheme = {
@@ -19,26 +24,70 @@ export const THEME: DockviewTheme = {
 const REPOSITORIES: Address = { kind: "repositories", params: {} };
 const EVENTS: Address = { kind: "events", params: {} };
 
-type Position = Parameters<DockviewApi["addPanel"]>[0]["position"];
+/** Whether a Panel with these parameters shows a preview. */
+export function isPreview(params: Record<string, unknown> | undefined): boolean {
+  return params?.[PREVIEW] === true;
+}
 
-/** Shows a View: focuses a Panel showing it, or opens one (by default in the active Group). */
-export function openView(api: DockviewApi, address: Address, position?: Position): IDockviewPanel {
+/** Makes a preview Panel an ordinary one, which the next preview no longer replaces. */
+export function keep(panel: IDockviewPanel | undefined): void {
+  if (isPreview(panel?.params)) panel?.api.updateParameters({ [PREVIEW]: undefined });
+}
+
+/** The Group beside `from`, if it isn't alone; see `besideOf`. */
+function besideGroup(api: DockviewApi, from: IDockviewGroupPanel): DockviewGroupPanel | undefined {
+  const others = api.groups.filter(
+    (group) => group.id !== from.id && group.api.location.type === "grid",
+  );
+  const box = api.groups.find((group) => group.id === from.id)?.api.boundingBox;
+  const boxes = others.flatMap((group) => {
+    const other = group.api.boundingBox;
+    return other ? [{ item: group, box: other }] : [];
+  });
+  return (box && besideOf(box, boxes)) ?? others[0]; // the first before the Groups have sizes
+}
+
+/**
+ * Shows a View: focuses a Panel showing it, or opens one in `from`'s Group (by default the
+ * active one), or beside it. A preview replaces the View of that Group's preview Panel, if any.
+ */
+export function openView(
+  api: DockviewApi,
+  address: Address,
+  opening: Opening = {},
+  from: IDockviewGroupPanel | undefined = api.activeGroup,
+): IDockviewPanel {
   const text = addressText(address);
   const open = api.panels.find((panel) => {
     const shown = asAddress(panel.params);
     return shown !== null && addressText(shown) === text;
   });
   if (open !== undefined) {
+    if (!opening.preview) keep(open);
     open.api.setActive();
     return open;
   }
   const { kind, params } = address;
+  const title = viewTitle(address);
+  const group = from && opening.beside ? besideGroup(api, from) : from;
+  const replaced = opening.preview
+    ? group?.panels.find((panel) => isPreview(panel.params))
+    : undefined;
+  if (replaced !== undefined) {
+    replaced.api.updateParameters({ kind, params });
+    replaced.api.setTitle(title);
+    replaced.api.setActive();
+    return replaced;
+  }
   return api.addPanel({
     id: crypto.randomUUID(), // a Panel's View can change, so its ID doesn't name it
     component: PANEL,
-    title: viewTitle(address),
-    params: { kind, params },
-    position,
+    title,
+    params: { kind, params, ...(opening.preview && { [PREVIEW]: true }) },
+    position:
+      group !== undefined
+        ? { referenceGroup: group.id }
+        : from && { referenceGroup: from.id, direction: "right" }, // beside, from a Group alone
   });
 }
 
@@ -46,5 +95,5 @@ export function openView(api: DockviewApi, address: Address, position?: Position
 export function defaultLayout(api: DockviewApi): void {
   api.clear();
   const repositories = openView(api, REPOSITORIES);
-  openView(api, EVENTS, { referencePanel: repositories, direction: "right" });
+  openView(api, EVENTS, { beside: true }, repositories.group);
 }
