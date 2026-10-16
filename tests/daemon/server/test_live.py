@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 import sys
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -42,6 +43,21 @@ def quick(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
+def looked(monkeypatch: pytest.MonkeyPatch) -> threading.Event:
+    """Set once the live loop has looked, after which it hints at any write."""
+    event = threading.Event()
+    changes = live.Looker.changes
+
+    def changes_and_tell(self: live.Looker, *, check: bool = False) -> list[live.Hint]:
+        hints = changes(self, check=check)
+        event.set()
+        return hints
+
+    monkeypatch.setattr(live.Looker, "changes", changes_and_tell)
+    return event
+
+
+@pytest.fixture
 def counts() -> Counts:
     return Counts()
 
@@ -57,6 +73,12 @@ def client(paths: Paths, counts: Counts) -> Iterator[TestClient]:
 
 def _connect(client: TestClient, **headers: str) -> WebSocketTestSession:
     return client.websocket_connect(LIVE, headers={"Origin": ORIGIN, **headers})
+
+
+def _admitted(socket: WebSocketTestSession, paths: Paths, looked: threading.Event) -> None:
+    """Sends the token, then waits for the live loop's first look: writes before it don't count."""
+    socket.send_json({"token": token.token(paths)})
+    assert looked.wait(10), "the live loop didn't look"
 
 
 def _write(paths: Paths) -> None:
@@ -165,9 +187,11 @@ def test_every_endpoint_says_what_keeps_it_current(paths: Paths) -> None:
 # Live connections
 
 
-def test_hints_at_changes(client: TestClient, paths: Paths, counts: Counts) -> None:
+def test_hints_at_changes(
+    client: TestClient, paths: Paths, counts: Counts, looked: threading.Event
+) -> None:
     with _connect(client) as socket:
-        socket.send_json({"token": token.token(paths)})
+        _admitted(socket, paths, looked)
         _write(paths)
         assert _hints_until(socket, "data")[-1] == {"hints": ["data"]}
         assert counts.live == 1
@@ -185,12 +209,11 @@ def test_beats(client: TestClient, paths: Paths, monkeypatch: pytest.MonkeyPatch
 
 
 def test_a_pass_asked_for_hints_at_once(
-    client: TestClient, paths: Paths, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, paths: Paths, monkeypatch: pytest.MonkeyPatch, looked: threading.Event
 ) -> None:
     monkeypatch.setattr(live, "INTERVAL", 60.0)
     with _connect(client) as socket:
-        socket.send_json({"token": token.token(paths)})
-        client.get("/api/info")  # the loop has started, and had its first look
+        _admitted(socket, paths, looked)
         _write(paths)
         assert client.post("/api/observe").status_code == 204
         assert _hints_until(socket, "data")[-1] == {"hints": ["data"]}
@@ -251,9 +274,11 @@ def test_refuses_other_pages_and_hosts(
     assert reason in caplog.text
 
 
-def test_clients_without_a_page_may_connect(client: TestClient, paths: Paths) -> None:
+def test_clients_without_a_page_may_connect(
+    client: TestClient, paths: Paths, looked: threading.Event
+) -> None:
     with client.websocket_connect(LIVE) as socket:
-        socket.send_json({"token": token.token(paths)})
+        _admitted(socket, paths, looked)
         _write(paths)
         _hints_until(socket, "data")
 
@@ -267,9 +292,11 @@ def _until_closed(socket: WebSocketTestSession) -> WebSocketDisconnect:
             return closed
 
 
-def test_renewing_the_token_closes_connections(client: TestClient, paths: Paths) -> None:
+def test_renewing_the_token_closes_connections(
+    client: TestClient, paths: Paths, looked: threading.Event
+) -> None:
     with _connect(client) as socket:
-        socket.send_json({"token": token.token(paths)})
+        _admitted(socket, paths, looked)
         token.renew(paths)
         closed = _until_closed(socket)
     assert closed.code == live.REFUSED

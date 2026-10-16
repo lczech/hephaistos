@@ -37,7 +37,7 @@ def _alive(pid: object) -> bool:
     """Whether a process runs, not counting zombies (it was started by an earlier call)."""
     try:
         fields = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()
-    except (FileNotFoundError, IndexError):
+    except (FileNotFoundError, ProcessLookupError, IndexError):  # gone, even while reading
         return False
     return isinstance(pid, int) and fields[0] != "Z"
 
