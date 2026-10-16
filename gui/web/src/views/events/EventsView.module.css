@@ -5,54 +5,53 @@
   vertical-align: var(--icon-drop);
 }
 
-/* Narrow: the Repository and summary on one line, the rest below them, quieter. */
+/* Narrow: the action's icon, the Repository and summary on one line; below them, from where the
+ * Repository starts, quieter, the Machine and subject, then when, at the end, where times of any
+ * length line up. The action's name is in its icon's title. */
 .events {
-  --narrow-columns: var(--square) max-content max-content max-content 1fr;
-  --narrow-areas: "priority repository summary summary summary" ". recorded kind machine subject";
-}
-
-.events:not(:has([data-column="machine"])) {
-  --narrow-areas: "priority repository summary summary summary" ". recorded kind subject subject";
+  --narrow-indent: calc(var(--square) + 1em + var(--space-1));
 }
 
 @container list (width < 44rem) {
-  .events li [data-column="priority"] {
-    grid-area: priority;
+  .events li [data-column="kind"] {
+    order: 1;
+    color: var(--text-muted);
+  }
+
+  .events li [data-column="kind"] .icon {
+    margin-right: 0;
+  }
+
+  .events li .action {
+    display: none;
   }
 
   .events li [data-column="repository"] {
-    grid-area: repository;
+    order: 2;
+    margin-left: calc(var(--space-1) - var(--column-gap));
     font-weight: 600;
   }
 
   .events li [data-column="summary"] {
-    grid-area: summary;
-  }
-
-  .events li [data-column="recorded"] {
-    grid-area: recorded;
-  }
-
-  .events li [data-column="kind"] {
-    grid-area: kind;
+    flex: 1 1 0;
+    order: 3;
   }
 
   .events li [data-column="machine"] {
-    grid-area: machine;
+    order: 11;
   }
 
   .events li [data-column="subject"] {
-    grid-area: subject;
+    flex: 1 1 0;
+    order: 12;
   }
 
-  .events
-    li
-    :is(
-      [data-column="recorded"],
-      [data-column="kind"],
-      [data-column="machine"],
-      [data-column="subject"]
-    ) {
+  .events li [data-column="recorded"] {
+    order: 13;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .events li :is([data-column="recorded"], [data-column="machine"], [data-column="subject"]) {
     color: var(--text-muted);
     font-size: var(--text-small);
   }

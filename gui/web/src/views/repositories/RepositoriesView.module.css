@@ -34,50 +34,55 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Narrow: the name and status on one line, beside the icons, the branch and when active below
- * them, quieter. */
+/* Narrow: the name and status on one line, beside the icons; the branch below them, quieter,
+ * from where the name starts: after the square and the forge's logo; when active at its end. A
+ * Repository row, without either, is one line. */
 .repositories {
-  --narrow-columns: var(--square) calc(1em + 4px) minmax(0, max-content) minmax(0, 1fr) max-content
-    var(--square) var(--square);
-  --narrow-areas: "square remote name name status events changes" ". . branch active active . .";
-}
-
-/* A Repository's row has no branch: when it was active comes right below its name. */
-.repositories li:not([data-depth]) {
-  --narrow-areas: "square remote name name status events changes" ". . active active active . .";
+  --narrow-indent: calc(var(--square) + var(--column-gap) + 1em + 4px);
 }
 
 @container list (width < 44rem) {
-  .repositories li [data-column="square"] {
-    grid-area: square;
+  .repositories li [data-column="remote"] {
+    order: 1;
+    width: calc(1em + 4px);
   }
 
   .repositories li [data-column="name"] {
-    grid-area: name;
+    flex: 1 1 0;
+    order: 2;
   }
 
   .repositories li [data-column="status"] {
-    grid-area: status;
+    order: 3;
   }
 
   .repositories li [data-column="events"] {
-    grid-area: events;
+    order: 4;
   }
 
   .repositories li [data-column="changes"] {
-    grid-area: changes;
-  }
-
-  .repositories li [data-column="remote"] {
-    grid-area: remote;
+    order: 5;
   }
 
   .repositories li [data-column="branch"] {
-    grid-area: branch;
+    flex: 0 1 auto;
+    order: 11;
   }
 
+  /* At the end, where times of any length line up. */
   .repositories li [data-column="active"] {
-    grid-area: active;
+    order: 12;
+    margin-left: auto;
+  }
+
+  /* A Repository's has the room of the status it lacks, on its one line. */
+  .repositories li:not([data-depth]) [data-column="active"] {
+    order: 3;
+  }
+
+  /* As wide when empty, so that the links line up from row to row. */
+  .repositories li :is([data-column="events"], [data-column="changes"]) {
+    width: var(--square);
   }
 
   .repositories li [data-column="observed"],
@@ -91,8 +96,7 @@
   }
 
   /* The second line starts where the name does, indented as it is. */
-  .repositories li [data-column="branch"],
-  .repositories li:not([data-depth]) [data-column="active"] {
+  .repositories li [data-column="branch"] {
     margin-left: calc(var(--space-1) - var(--column-gap));
   }
 
