@@ -47,6 +47,7 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
     <span
       className={styles.header}
       data-column={column.id}
+      data-end={column.columnDef.meta?.end || undefined}
       data-filterable={filter !== undefined || undefined}
       data-sortable={column.getCanSort() || undefined}
       data-filtered={text !== undefined || undefined}

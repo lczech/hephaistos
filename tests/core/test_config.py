@@ -85,6 +85,11 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "watcher.interval": config.DEFAULT,
         "server.enabled": config.DEFAULT,
         "server.port": config.DEFAULT,
+        "gui.code_theme_light": config.DEFAULT,
+        "gui.code_theme_dark": config.DEFAULT,
+        "gui.diff.max_bytes": config.DEFAULT,
+        "gui.diff.large_lines": config.DEFAULT,
+        "gui.diff.max_files": config.DEFAULT,
     }
     assert load(tmp_path, "login1", {}).settings.git.timeout == 90.0
     assert load(tmp_path, "laptop", {}).settings.git.timeout == 60.0
@@ -120,6 +125,10 @@ def test_files_for() -> None:
         ("[watcher]\ninterval = -1\n", "watcher.interval must be 0 or at least 1, not -1"),
         ("[server]\nport = 70000\n", "server.port must be at most 65535, not 70000"),
         ('git = "fast"\n', r"git must be a section \[git\]"),
+        ("[gui]\ndiff = 3\n", r"gui.diff must be a section \[gui.diff\]"),
+        ("[gui.diff]\nmax_file = 3\n", r"unknown setting gui.diff.max_file \(did you mean"),
+        ("[gui]\ncode_theme_dark = 3\n", "gui.code_theme_dark must be some text, not 3"),
+        ('[gui]\ncode_theme_dark = ""\n', 'gui.code_theme_dark must be some text, not ""'),
         ("time_format = \n", "cannot read"),
     ],
 )
@@ -154,6 +163,17 @@ def test_variables_are_converted(tmp_path: Path) -> None:
     settings = load(tmp_path, "laptop", env).settings
     assert (settings.git.timeout, settings.observe.workers) == (5.0, 2)
     assert config.variable("log.retention_days") == "HEPHAISTOS_LOG_RETENTION_DAYS"
+
+
+def test_sections_within_sections(tmp_path: Path) -> None:
+    (tmp_path / "config.toml").write_text(
+        '[gui]\ncode_theme_dark = "dark-plus"\n[gui.diff]\nmax_files = 5\n'
+    )
+    env = {"HEPHAISTOS_GUI_DIFF_LARGE_LINES": "10"}
+    gui = load(tmp_path, "laptop", env).settings.gui
+    assert (gui.code_theme_dark, gui.diff.max_files, gui.diff.large_lines) == ("dark-plus", 5, 10)
+    assert config.setting_type("gui.code_theme_dark") == "text"
+    assert config.value_of(DEFAULTS, "gui.diff.max_bytes") == 5_000_000
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
-`offset`.
+`offset`. A Checkout's changes, only here: in a terminal, git shows them.
 """
 
 import logging
@@ -16,15 +16,16 @@ from typing import Annotated, Literal, TypedDict, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from hephaistos.core import serialize
+from hephaistos.core import config, serialize
 from hephaistos.core.db import raw
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import Priority, PriorityName
-from hephaistos.core.registry import machines
+from hephaistos.core.registry import clones, machines
 from hephaistos.core.registry.mounts import mounts_of
 from hephaistos.core.serialize import (
     API_VERSION,
+    ChangesJson,
     CloneJson,
     ConfigJson,
     EventJson,
@@ -37,7 +38,7 @@ from hephaistos.core.serialize import (
     TablesJson,
     WorktreeJson,
 )
-from hephaistos.core.utils import logs, times
+from hephaistos.core.utils import changes, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report
@@ -69,6 +70,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/clones/{clone_id}": ("data",),
     "/api/worktrees": ("data",),
     "/api/worktrees/{worktree_id}": ("data",),
+    "/api/changes": ("data", "focus"),  # focus: files edited, which change no State
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
@@ -196,6 +198,54 @@ def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
         if worktree["id"] == str(worktree_id):
             return worktree
     raise _not_found("Worktree", worktree_id)
+
+
+def _working_tree(paths: Paths, clone: uuid.UUID | None, worktree: uuid.UUID | None) -> Path:
+    """The working tree of a Clone or a Worktree on this Machine."""
+    if (clone is None) == (worktree is None):
+        raise HTTPException(400, "give either clone or worktree")
+    what, entity_id = ("Clone", clone) if clone is not None else ("Worktree", worktree)
+    with read_session(paths) as session:
+        local = {details.clone.id for details in clones.on_this_machine(session)}
+        known = clones.details(session)
+    for details in known:
+        if details.clone.id == clone:
+            if details.state.bare:
+                raise HTTPException(400, f"{details.clone.display_path} is bare: no working tree")
+            top = details.clone.resolved_path
+        elif found := next((wt for wt in details.worktrees if wt.id == worktree), None):
+            top = found.path
+        else:
+            continue
+        if details.clone.id not in local:
+            raise HTTPException(404, f"the {what} with ID {entity_id} is on another Machine")
+        if not top.is_dir():
+            raise HTTPException(404, f"{top} doesn't exist")
+        return top
+    raise _not_found(what, cast("uuid.UUID", entity_id))
+
+
+@router.get("/changes")
+def changes_show(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: str | None = None,
+    path: str | None = None,
+) -> ChangesJson:
+    """What changed in a Clone's or Worktree's working tree, as git compares it, read now.
+
+    From one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`); without them,
+    in the groups `git status` shows. `path` limits it to a file or folder in the Checkout.
+    """
+    top = _working_tree(paths, clone, worktree)
+    limits = config.settings().gui.diff
+    found = changes.changes(
+        top, from_, to, path=path, max_files=limits.max_files, max_bytes=limits.max_bytes
+    )
+    return serialize.changes_json(found)
 
 
 @router.get("/events")

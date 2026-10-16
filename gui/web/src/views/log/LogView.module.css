@@ -26,7 +26,7 @@ pre.traceback {
 /* Narrow: the message on one line, its time and process below it, quieter. */
 .log {
   --narrow-columns: var(--square) max-content 1fr;
-  --narrow-areas: "level message message" "level time process";
+  --narrow-areas: "level message message" ". time process";
 }
 
 @container list (width < 44rem) {

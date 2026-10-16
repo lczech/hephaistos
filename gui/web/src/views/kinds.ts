@@ -3,6 +3,7 @@ import {
   Calendar,
   Database,
   FolderGit2,
+  GitCompareArrows,
   type LucideIcon,
   ScrollText,
   SlidersHorizontal,
@@ -19,6 +20,7 @@ export interface ViewKind {
 const kinds = {
   repositories: { name: "Repositories", icon: FolderGit2, suggested: true },
   events: { name: "Events", icon: Calendar, suggested: true },
+  changes: { name: "Changes", icon: GitCompareArrows },
   daemon: { name: "Daemon", icon: Activity },
   log: { name: "Log", icon: ScrollText },
   config: { name: "Config", icon: SlidersHorizontal },

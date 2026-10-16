@@ -8,13 +8,11 @@
 /* Narrow: the Repository and summary on one line, the rest below them, quieter. */
 .events {
   --narrow-columns: var(--square) max-content max-content max-content 1fr;
-  --narrow-areas: "priority repository summary summary summary"
-    "priority recorded kind machine subject";
+  --narrow-areas: "priority repository summary summary summary" ". recorded kind machine subject";
 }
 
 .events:not(:has([data-column="machine"])) {
-  --narrow-areas: "priority repository summary summary summary"
-    "priority recorded kind subject subject";
+  --narrow-areas: "priority repository summary summary summary" ". recorded kind subject subject";
 }
 
 @container list (width < 44rem) {

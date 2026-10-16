@@ -6,6 +6,7 @@ export interface ColumnLook {
   width?: string; // a CSS grid track instead of the column's size, e.g. one taking the rest
   filter?: ColumnFilterLook; // if the list can be filtered by it
   description?: string; // what it shows, if its label doesn't say: in the header's tooltip
+  end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
 }
 
 interface LaidOut {

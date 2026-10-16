@@ -30,6 +30,7 @@ interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;
   className?: string; // the View's, e.g. for its two lines per row in narrow Panels
   wide?: boolean; // scrolls sideways instead, for more columns than fit
+  oneLine?: boolean; // its rows stay in one line in narrow Panels, as high as when wide
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
@@ -39,20 +40,24 @@ interface Props<TData extends RowData> {
   squareTitle?: (row: TData) => string; // what the square says, e.g. its colour
   detailsLabel: string; // `Event details`
   details: (row: TData) => ReactNode; // shown below a row opened
+  folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
+  plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
 }
 
 /**
  * A list as a table: its columns' headers, which filter and resize; rows that open their
- * details below them, each beside a square, which a first column of `Chevron`s fills; more
+ * details below them, or the rows within them where they fold, each beside a square, which a
+ * first column of `Chevron`s fills (plain rows open nothing); more
  * rows as the end comes into view. A row opens by its first cell's button, or by a click
  * anywhere else on it but on its cells' own buttons and links. Cells cut off show their whole
- * text when hovered. Narrow Panels show each row in the View's two lines, unless the list is
- * wide: then it scrolls sideways, its details staying in view.
+ * text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
+ * height), unless the list is wide: then it scrolls sideways, its details staying in view.
  */
 export function ListTable<TData extends RowData>({
   table,
   className,
   wide,
+  oneLine,
   choices,
   message,
   stale,
@@ -62,6 +67,8 @@ export function ListTable<TData extends RowData>({
   squareTitle,
   detailsLabel,
   details,
+  folds,
+  plain,
 }: Props<TData>) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const end = useRef<HTMLParagraphElement>(null);
@@ -84,11 +91,11 @@ export function ListTable<TData extends RowData>({
     });
   // Not a click on a cell's own button or link, nor one ending a text selection; a double
   // click's second is not, so that selecting a word leaves the row as it was.
-  const clickRow = (event: MouseEvent, id: string) => {
+  const clickRow = (event: MouseEvent, opening: () => void) => {
     if ((event.target as Element).closest("button, a")) return;
     const selected = (document.getSelection()?.toString() ?? "") !== "";
     if (event.detail > 2 || (event.detail === 1 && selected)) return;
-    toggle(id);
+    opening();
   };
   const rows = table.getRowModel().rows;
   const filtered = table.state.columnFilters.length > 0;
@@ -99,6 +106,7 @@ export function ListTable<TData extends RowData>({
       className={`${styles.frame} ${className ?? ""}`}
       data-stale={stale || undefined}
       data-wide={wide || undefined}
+      data-one-line={oneLine || undefined}
     >
       <div className={styles.grid} style={grid}>
         <div className={styles.head}>
@@ -128,7 +136,10 @@ export function ListTable<TData extends RowData>({
         {rows.length > 0 && (
           <ol className={styles.rows} onPointerOver={showCutOff}>
             {rows.map((row, index) => {
-              const shown = open.has(row.id);
+              const still = plain?.(row.original) ?? false;
+              const folding = folds?.(row.original) ?? false;
+              const shown = folding ? row.getIsExpanded() : open.has(row.id);
+              const opening = folding ? () => row.toggleExpanded() : () => toggle(row.id);
               const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
               const [first, ...others] = row.getVisibleCells();
               return (
@@ -139,17 +150,27 @@ export function ListTable<TData extends RowData>({
                   data-depth={row.depth || undefined}
                 >
                   {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its button opens it by keyboard */}
-                  <div id={id} className={styles.row} onClick={(event) => clickRow(event, row.id)}>
-                    {first && (
+                  <div
+                    id={id}
+                    className={styles.row}
+                    data-plain={still || undefined}
+                    onClick={still ? undefined : (event) => clickRow(event, opening)}
+                  >
+                    {first && still && (
+                      <span data-column={first.column.id}>
+                        <FlexRender cell={first} />
+                      </span>
+                    )}
+                    {first && !still && (
                       <span data-column={first.column.id}>
                         <button
                           type="button"
                           className={styles.open}
                           aria-expanded={shown}
-                          aria-controls={shown ? `${id}-details` : undefined}
+                          aria-controls={shown && !folding ? `${id}-details` : undefined}
                           aria-labelledby={id}
                           title={squareTitle?.(row.original)}
-                          onClick={() => toggle(row.id)}
+                          onClick={opening}
                         >
                           <FlexRender cell={first} />
                         </button>
@@ -161,7 +182,7 @@ export function ListTable<TData extends RowData>({
                       </span>
                     ))}
                   </div>
-                  {shown && (
+                  {shown && !folding && !still && (
                     <section
                       id={`${id}-details`}
                       className={styles.details}

@@ -31,22 +31,30 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
     result = runner.invoke(app, ["config", "show"])
     assert result.exit_code == 0, result.output
-    assert result.stdout.splitlines()[:12] == [
-        "time_format         short  config.toml",
-        "machine.chassis     auto   default",
-        "log.level           info   default",
-        "log.retention_days  30     default",
-        "git.timeout         60.0   config.toml",
-        "observe.workers     4      HEPHAISTOS_OBSERVE_WORKERS",
-        f"scan.depth          5      config.{HOST}.toml",
-        "watcher.interval    60.0   default",
-        "server.enabled      true   default",
-        "server.port         8264   default",
+    rows = [
+        ("time_format", "short", "config.toml"),
+        ("machine.chassis", "auto", "default"),
+        ("log.level", "info", "default"),
+        ("log.retention_days", "30", "default"),
+        ("git.timeout", "60.0", "config.toml"),
+        ("observe.workers", "4", "HEPHAISTOS_OBSERVE_WORKERS"),
+        ("scan.depth", "5", f"config.{HOST}.toml"),
+        ("watcher.interval", "60.0", "default"),
+        ("server.enabled", "true", "default"),
+        ("server.port", "8264", "default"),
+        ("gui.code_theme_light", "github-light", "default"),
+        ("gui.code_theme_dark", "github-dark", "default"),
+        ("gui.diff.max_bytes", "5000000", "default"),
+        ("gui.diff.large_lines", "2000", "default"),
+        ("gui.diff.max_files", "1000", "default"),
+    ]
+    assert result.stdout.splitlines()[: len(rows) + 2] == [
+        *(f"{key:<20}  {value:<12}  {source}" for key, value, source in rows),
         "",
         f"Host: {HOST}",
     ]
     width = len(short_path(directory / f"config.{HOST}.toml"))
-    assert result.stdout.splitlines()[12:] == [
+    assert result.stdout.splitlines()[len(rows) + 2 :] == [
         f"{short_path(directory / name):<{width}}  {state}".rstrip()
         for name, state in [
             ("config.toml", "read"),
@@ -67,6 +75,11 @@ def test_show_a_section_or_one_setting() -> None:
     assert lines[:3] == ["git.timeout  30.0  default", "", f"Host: {HOST}"]
     assert runner.invoke(app, ["config", "show", "git.timeout"]).stdout == "30.0\n"
     assert runner.invoke(app, ["config", "show", "time_format"]).stdout == "auto\n"
+    nested = runner.invoke(app, ["config", "show", "gui"]).stdout.splitlines()
+    assert [line.split()[0] for line in nested[:5]] == [
+        key for key in config.KEYS if key.startswith("gui.")
+    ]
+    assert runner.invoke(app, ["config", "show", "gui.diff.max_files"]).stdout == "1000\n"
 
 
 @pytest.mark.usefixtures("directory")
@@ -86,8 +99,8 @@ def test_show_leaves_out_what_is_broken(directory: Path, monkeypatch: pytest.Mon
     result = runner.invoke(app, ["config", "show"])
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
-    assert "git.timeout         60.0  config.toml" in lines
-    assert "scan.depth          3     default" in lines
+    assert ["git.timeout", "60.0", "config.toml"] in [line.split() for line in lines]
+    assert ["scan.depth", "3", "default"] in [line.split() for line in lines]
     assert any(line.split() == [short_path(broken), "broken"] for line in lines)
     assert any(line.split() == ["HEPHAISTOS_SCAN_DEPTH", "broken"] for line in lines)
     assert result.stderr.splitlines() == [

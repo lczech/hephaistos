@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import shutil
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -233,6 +234,9 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
         ("/api/db/tables/events?column=nope", 400, "events has no column nope"),
         ("/api/log?until=soon", 400, "until: 'soon' is neither a duration like 2h"),
         ("/api/log?before=yesterday", 400, "before: 'yesterday' is not a position like"),
+        ("/api/changes", 400, "give either clone or worktree"),
+        ("/api/changes?clone={id}", 404, "no Clone with ID {id}"),
+        ("/api/changes?worktree={id}", 404, "no Worktree with ID {id}"),
     ],
 )
 def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
@@ -240,6 +244,55 @@ def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
     response = client.get(path.format(id=some_id))
     assert response.status_code == status
     assert response.json()["error"].startswith(error.format(id=some_id))
+
+
+def test_changes_of_a_clone_and_a_worktree(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    [worktree] = _cli("worktree", "list")
+    (repo / "new.txt").write_text("one\ntwo\n")
+    (repo.parent / "side" / "other.txt").write_text("x\n")
+    found = client.get("/api/changes", params={"clone": clone["id"]}).json()
+    assert found["branch"]["branch"] == "main"
+    assert found["groups"] == [
+        {
+            "name": "untracked",
+            "from": "index",
+            "to": "worktree",
+            "count": 1,
+            "changes": [
+                {
+                    "path": "new.txt",
+                    "status": "?",
+                    "original": None,
+                    "added": 2,
+                    "removed": 0,
+                    "binary": False,
+                    "size": None,
+                    "old_size": None,
+                    "files": None,
+                    "more_files": False,
+                }
+            ],
+        }
+    ]
+    side = client.get("/api/changes", params={"worktree": worktree["id"]}).json()
+    assert [change["path"] for change in side["groups"][0]["changes"]] == ["other.txt"]
+    compared = {"clone": clone["id"], "from": "HEAD", "to": "HEAD"}
+    assert client.get("/api/changes", params=compared).json() == {"branch": None, "groups": []}
+
+
+def test_changes_refused(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    nope = client.get("/api/changes", params={"clone": clone["id"], "from": "nope", "to": "HEAD"})
+    assert (nope.status_code, nope.json()["error"]) == (
+        400,
+        "'nope' is neither index, worktree nor a commit here",
+    )
+    outside = client.get("/api/changes", params={"clone": clone["id"], "path": "../x"})
+    assert outside.status_code == 400
+    shutil.rmtree(repo)
+    gone = client.get("/api/changes", params={"clone": clone["id"]})
+    assert (gone.status_code, gone.json()["error"]) == (404, f"{repo} doesn't exist")
 
 
 def test_an_unexpected_error_is_logged_not_shown(

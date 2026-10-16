@@ -3,7 +3,7 @@ import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { forgePage } from "../../forges";
 import { ago, fullTime } from "../../time";
-import type { Address } from "../address";
+import type { Address, Params } from "../address";
 import { ViewLink } from "../ViewLink";
 import {
   activeAt,
@@ -83,6 +83,30 @@ export const columns = column.columns([
         opening={{ beside: true, preview: true }}
       />
     ),
+  }),
+  column.display({
+    id: "changes",
+    enableResizing: false,
+    meta: { width: "var(--square)" },
+    cell: ({ row, table }) => {
+      const entry = row.original;
+      const state = checkout(entry);
+      if (state === undefined || state.staged === null) return ""; // a Repository, or bare
+      const params: Params =
+        entry.type === "worktree" ? { worktree: state.id } : { clone: state.id };
+      // Untracked files alone are often left there for good, so they don't call for a look.
+      const quiet = !(state.staged || state.changed || state.conflicted);
+      const untracked = state.untracked ? `; ${state.untracked} untracked` : "";
+      return (
+        <ViewLink
+          address={{ kind: "changes", params }}
+          label={`Changes in ${nameText(entry, table.options.meta?.home)}`}
+          opening={{ beside: true, preview: true }}
+          quiet={quiet}
+          note={quiet ? `no changes${untracked}` : undefined}
+        />
+      );
+    },
   }),
   column.display({
     id: "branch",

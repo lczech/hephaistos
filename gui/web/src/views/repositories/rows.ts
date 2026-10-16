@@ -5,7 +5,8 @@ import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import type { Tone } from "../../components/table/ListTable";
 import { shortPath } from "../../paths";
-import { type Params, paramValues, withParam } from "../address";
+import type { Params } from "../address";
+import { sortingOf, withSorting } from "../sorting";
 
 export type Repository = Schemas["RepositoryJson"];
 export type Clone = Schemas["CloneJson"];
@@ -81,19 +82,22 @@ export function activeAt(entry: Entry): string | null {
   return (checkout(entry) ?? entry.repository).active_at;
 }
 
-export function branchText(state: Checkout): string {
+/** What a branch's texts read of a Checkout's State, or of `git status`. */
+type Branch = Pick<Checkout, "head" | "branch" | "upstream">;
+
+export function branchText(state: Branch): string {
   return state.branch ?? "(detached)";
 }
 
-/** The status as the CLI's lists show it: `clean`, `+2 ~3 ?1 !1 ↑1 ↓2`, or a condition. */
 /** The branch and what it tracks, or the commit a detached HEAD is at. */
-export function branchTitle(state: Checkout): string {
+export function branchTitle(state: Branch): string {
   if (state.branch === null) {
     return state.head === null ? "detached" : `detached at ${state.head.slice(0, 7)}`;
   }
   return `${state.branch}, ${state.upstream === null ? "no upstream" : `tracking ${state.upstream}`}`;
 }
 
+/** The status as the CLI's lists show it: `clean`, `+2 ~3 ?1 !1 ↑1 ↓2`, or a condition. */
 export function statusText(state: Checkout): string {
   if (!state.present) return "missing";
   if (state.error !== null) return "failed";
@@ -149,19 +153,16 @@ export function tone(entry: Entry): Tone | undefined {
   return undefined;
 }
 
-// The order, as the parameter `sort`: a column, after `-` for descending; newest first if none.
+// The order, as the parameter `sort`; newest first if none.
 const DEFAULT_SORT = "-active";
-const SORTED = /^(-?)(name|active)$/;
+const SORTS = ["name", "active"];
 
 /** The order these parameters set. */
 export function sorting(params: Params): SortingState {
-  const [, minus, id = "active"] = SORTED.exec(paramValues(params.sort)[0] ?? DEFAULT_SORT) ?? [];
-  return [{ id, desc: minus === "-" || minus === undefined }];
+  return sortingOf(params, SORTS, DEFAULT_SORT);
 }
 
 /** The parameters with this order; the default one is left out. */
 export function sortParams(params: Params, sorted: SortingState): Params {
-  const [first] = sorted;
-  const sort = first === undefined ? DEFAULT_SORT : `${first.desc ? "-" : ""}${first.id}`;
-  return withParam(params, "sort", sort === DEFAULT_SORT ? [] : [sort]);
+  return withSorting(params, sorted, DEFAULT_SORT);
 }

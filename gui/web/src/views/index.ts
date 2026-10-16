@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type { Params } from "./address";
+import { ChangesView } from "./changes/ChangesView";
 import { ConfigView } from "./config/ConfigView";
 import { DaemonView } from "./daemon/DaemonView";
 import { DbView } from "./db/DbView";
@@ -22,6 +23,7 @@ export const VIEWS: Record<string, View> = {
   repositories: RepositoriesView,
   daemon: DaemonView,
   events: EventsView,
+  changes: ChangesView,
   log: LogView,
   config: ConfigView,
   db: DbView,
