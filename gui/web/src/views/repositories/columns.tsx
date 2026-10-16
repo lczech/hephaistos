@@ -80,6 +80,7 @@ export const columns = column.columns([
       <ViewLink
         address={eventsAt(row.original)}
         label={`Events of ${nameText(row.original, table.options.meta?.home)}`}
+        opening={{ beside: true, preview: true }}
       />
     ),
   }),

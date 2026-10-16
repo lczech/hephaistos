@@ -20,6 +20,10 @@
   min-width: 0;
 }
 
+.preview {
+  font-style: italic;
+}
+
 .icon {
   flex: none;
   width: 1em;

@@ -2,7 +2,7 @@ import "dockview-react/dist/styles/dockview.css";
 import "./dock.css";
 import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import { useEffect, useRef } from "react";
-import { defaultLayout, PANEL, THEME } from "./dock";
+import { defaultLayout, keep, PANEL, THEME } from "./dock";
 import { GroupActions } from "./GroupActions";
 import { PanelView } from "./PanelView";
 import { Placeholder } from "./Placeholder";
@@ -38,6 +38,13 @@ function closeByKey(api: DockviewApi): { dispose: () => void } {
   return { dispose: () => window.removeEventListener("keydown", onKey) };
 }
 
+/** A preview dragged to another Group is kept there. */
+function keepMoved(api: DockviewApi): { dispose: () => void } {
+  return api.onDidMovePanel(({ panel, from, to }) => {
+    if (from !== to) keep(panel);
+  });
+}
+
 function restore(api: DockviewApi): void {
   const saved = savedLayout();
   try {
@@ -61,7 +68,7 @@ export function Workbench() {
   );
   const ready = ({ api }: DockviewReadyEvent) => {
     for (const part of attached.current) part.dispose();
-    attached.current = [keepSaved(api), closeByKey(api)];
+    attached.current = [keepSaved(api), closeByKey(api), keepMoved(api)];
     restore(api);
     register(api);
   };
