@@ -67,11 +67,31 @@ describe("the Workbench", () => {
     );
   });
 
-  it("closes the active Panel on Ctrl+W", async () => {
+  it("closes the active Panel on Ctrl+W, then its emptied Group, but not the last", async () => {
     renderWithQueries(<Workbench />);
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
     await userEvent.keyboard("{Control>}w{/Control}");
-    expect(tabs()).toEqual(["Repositories"]);
+    expect(groups()).toEqual([["Repositories"], []]);
+    await userEvent.keyboard("{Control>}w{/Control}");
+    expect(groups()).toEqual([["Repositories"]]);
+    await userEvent.keyboard("{Control>}w{/Control}");
+    await userEvent.keyboard("{Control>}w{/Control}");
+    expect(groups()).toEqual([[]]);
+    expect(screen.queryByRole("button", { name: "Close this Group" })).toBeNull();
+  });
+
+  it("keeps a Group emptied, also once restored, until it is closed", async () => {
+    const { unmount } = renderWithQueries(<Workbench />);
+    const [, events] = screen.getAllByRole("tab");
+    await userEvent.click(within(events as HTMLElement).getByRole("button", { name: "Close tab" }));
+    expect(groups()).toEqual([["Repositories"], []]);
+    await waitFor(() => expect(savedViews()).toHaveLength(1));
+    unmount();
+    renderWithQueries(<Workbench />);
+    expect(groups()).toEqual([["Repositories"], []]);
+    await userEvent.click(screen.getByRole("button", { name: "Close this Group" }));
+    expect(groups()).toEqual([["Repositories"]]);
+    expect(screen.queryByRole("button", { name: "Close this Group" })).toBeNull();
   });
 
   it("shows each View's icon in its tab and in the lists of Views", () => {

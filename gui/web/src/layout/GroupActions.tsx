@@ -1,4 +1,5 @@
 import type { IDockviewHeaderActionsProps } from "dockview-react";
+import { Plus } from "lucide-react";
 import { useRef } from "react";
 import { placeBelow } from "../components/popover";
 import popover from "../components/popover.module.css";
@@ -20,7 +21,7 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
         title="Open a View"
         aria-label="Open a View"
       >
-        +
+        <Plus className={styles.icon} aria-hidden />
       </button>
       <div id={id} ref={menu} popover="auto" className={popover.menu}>
         <ViewList

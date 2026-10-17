@@ -27,12 +27,17 @@ function keepSaved(api: DockviewApi): { dispose: () => void } {
   };
 }
 
-/** Ctrl+W closes the active Panel; only the Desktop passes it on, as browsers close their tab. */
+/**
+ * Ctrl+W closes the active Panel, or the active Group once empty, unless it is the last; only
+ * the Desktop passes it on, as browsers close their tab.
+ */
 function closeByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== "w" || !event.ctrlKey || event.altKey || event.metaKey) return;
     event.preventDefault();
-    api.activePanel?.api.close();
+    const group = api.activeGroup;
+    if (api.activePanel) api.activePanel.api.close();
+    else if (group && group.panels.length === 0 && api.groups.length > 1) group.api.close();
   };
   window.addEventListener("keydown", onKey);
   return { dispose: () => window.removeEventListener("keydown", onKey) };
@@ -79,6 +84,7 @@ export function Workbench() {
       rightHeaderActionsComponent={GroupActions}
       watermarkComponent={Placeholder}
       noPanelsOverlay="emptyGroup"
+      closeEmptyGroups={false}
       theme={THEME}
       onReady={ready}
     />
