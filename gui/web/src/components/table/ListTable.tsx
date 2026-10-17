@@ -43,6 +43,7 @@ interface Props<TData extends RowData> {
   folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
   opens?: (row: TData) => ((keep: boolean) => void) | undefined; // another View, kept by a double click
+  showing?: (row: TData) => boolean; // whether a View it opens is shown, which marks it
 }
 
 /**
@@ -53,6 +54,7 @@ interface Props<TData extends RowData> {
  * anywhere else on it but on its cells' own buttons and links. Cells cut off show their whole
  * text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
  * height), unless the list is wide: then it scrolls sideways, its details staying in view.
+ * A row whose View is shown, in any Group, is marked.
  */
 export function ListTable<TData extends RowData>({
   table,
@@ -71,6 +73,7 @@ export function ListTable<TData extends RowData>({
   folds,
   plain,
   opens,
+  showing,
 }: Props<TData>) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const end = useRef<HTMLParagraphElement>(null);
@@ -157,6 +160,7 @@ export function ListTable<TData extends RowData>({
                     id={id}
                     className={styles.row}
                     data-plain={still || undefined}
+                    data-showing={showing?.(row.original) || undefined}
                     onClick={still ? undefined : (event) => clickRow(event, opening)}
                     onDoubleClick={view && ((event) => clickRow(event, () => view(true)))}
                   >

@@ -5,6 +5,7 @@ import { saveViews as save } from "../test/layout";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
+import { useIsShown } from "../views/opening";
 import { ViewLink } from "../views/ViewLink";
 import { savedLayout } from "./saved";
 import { Workbench } from "./Workbench";
@@ -23,16 +24,24 @@ function Probe({ params, setParams, setTitle }: ViewProps) {
   );
 }
 
-/** A View linking to Probes 1 and 2, beside it as previews. */
+/** A View linking to Probes 1 and 2, beside it as previews, and saying which are shown. */
 function Linker() {
-  return ["1", "2"].map((n) => (
-    <ViewLink
-      key={n}
-      address={{ kind: "probe", params: { n } }}
-      label={`Probe ${n}`}
-      opening={{ beside: true, preview: true }}
-    />
-  ));
+  const isShown = useIsShown();
+  const probes = ["1", "2"];
+  const shown = probes.filter((n) => isShown({ kind: "probe", params: { n } }));
+  return (
+    <>
+      {probes.map((n) => (
+        <ViewLink
+          key={n}
+          address={{ kind: "probe", params: { n } }}
+          label={`Probe ${n}`}
+          opening={{ beside: true, preview: true }}
+        />
+      ))}
+      <p>shown: {shown.join(", ")}</p>
+    </>
+  );
 }
 
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
@@ -183,6 +192,19 @@ describe("the Workbench", () => {
       await waitFor(() =>
         expect(savedViews()).toContainEqual({ kind: "probe", params: { n: "2" }, preview: true }),
       );
+    });
+
+    it("tells Views which are shown: each Group's visible Panel's", async () => {
+      renderWithQueries(<Workbench />);
+      expect(screen.getByText(/^shown:/)).toHaveTextContent(/^shown:$/);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      expect(screen.getByText(/^shown:/)).toHaveTextContent("shown: 1");
+      await userEvent.click(screen.getByRole("button", { name: "Probe 2" }));
+      expect(screen.getByText(/^shown:/)).toHaveTextContent("shown: 2");
+      await userEvent.dblClick(screen.getByRole("button", { name: "Probe 2" }));
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      expect(groups()).toEqual([["linker"], ["probe", "probe*"]]);
+      expect(screen.getByText(/^shown:/)).toHaveTextContent("shown: 1");
     });
 
     it("keeps a preview whose tab is double-clicked", async () => {

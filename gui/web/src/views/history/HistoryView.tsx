@@ -16,6 +16,7 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
+import { useIsShown } from "../opening";
 import { CommitBox } from "./CommitBox";
 import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
@@ -34,6 +35,7 @@ const GROUPS: [Ref["kind"], string][] = [
  */
 export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   const checkout = useMemo(() => checkoutOf(params), [params]); // the columns depend on it
+  const isShown = useIsShown();
   const [ref] = paramValues(params.ref);
   const [path] = paramValues(params.path);
   const query: HistoryQuery | undefined = checkout && {
@@ -165,6 +167,11 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
           checkout && <CommitBox commit={entry.commit} checkout={checkout} now={now} />
         }
         plain={(entry) => entry.type !== "commit"}
+        showing={(entry) =>
+          entry.type === "commit" &&
+          checkout !== undefined &&
+          isShown({ kind: "changes", params: { ...checkout, commit: entry.commit.hash } })
+        }
       />
     </section>
   );

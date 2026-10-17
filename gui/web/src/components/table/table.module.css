@@ -99,6 +99,11 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+/* Its View is shown, in some Group; as VS Code marks the file of the editor shown. */
+.row[data-showing] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .row[data-plain] {
   cursor: default;
 }

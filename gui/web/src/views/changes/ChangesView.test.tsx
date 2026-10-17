@@ -6,7 +6,7 @@ import type { Schemas } from "../../api/client";
 import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { type Address, addressText, type Params } from "../address";
-import { type Opening, OpenViewContext } from "../opening";
+import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { ChangesView } from "./ChangesView";
 import type { Change } from "./rows";
 
@@ -179,6 +179,23 @@ describe("the Changes View", () => {
     expect(within(row).getByRole("button")).not.toHaveAttribute("aria-expanded");
     expect(screen.queryByRole("region")).toBeNull();
     expect(screen.getByTitle("binary, modified")).toBeInTheDocument();
+  });
+
+  it("marks the file whose diff is shown", async () => {
+    serveChanges();
+    const diff = { kind: "diff", params: { clone: "clone-proj", from: "HEAD", to: "index" } };
+    renderWithQueries(
+      <ShownContext
+        value={
+          new Set([addressText({ ...diff, params: { ...diff.params, path: "src/app/main.py" } })])
+        }
+      >
+        <Changes initial={{ clone: "clone-proj" }} />
+      </ShownContext>,
+    );
+    const shown = (await screen.findByText("main.py")).closest("[data-showing]");
+    expect(shown).not.toBeNull();
+    expect(document.querySelectorAll("[data-showing]")).toHaveLength(1);
   });
 
   it("shows a commit's changes under it, opening their diffs in the commit", async () => {

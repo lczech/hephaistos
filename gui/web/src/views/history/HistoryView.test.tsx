@@ -6,7 +6,7 @@ import type { Schemas } from "../../api/client";
 import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { type Address, addressText, type Params } from "../address";
-import { type Opening, OpenViewContext } from "../opening";
+import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { HistoryView } from "./HistoryView";
 import type { Commit } from "./rows";
 
@@ -122,6 +122,19 @@ describe("the History View", () => {
       ],
     ]);
     expect(screen.queryByRole("region")).toBeNull(); // the hash opens no details
+  });
+
+  it("marks the commit whose changes are shown", async () => {
+    serveHistory(() => json(page([HEAD, commit(2)])));
+    const changes = { kind: "changes", params: { clone: "clone-proj", commit: HEAD.hash } };
+    renderWithQueries(
+      <ShownContext value={new Set([addressText(changes)])}>
+        <History initial={{ clone: "clone-proj" }} />
+      </ShownContext>,
+    );
+    const shown = (await screen.findByText("Commit 3")).closest("[data-showing]");
+    expect(shown).not.toBeNull();
+    expect(document.querySelectorAll("[data-showing]")).toHaveLength(1);
   });
 
   it("walks from a branch picked, and back from HEAD", async () => {

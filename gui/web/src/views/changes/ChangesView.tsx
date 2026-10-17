@@ -9,11 +9,11 @@ import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
-import { type Params, paramValues } from "../address";
+import { type Address, type Params, paramValues } from "../address";
 import { CommitHeader } from "../history/CommitHeader";
 import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
-import { useOpenView } from "../opening";
+import { useIsShown, useOpenView } from "../opening";
 import { branchText, branchTitle } from "../repositories/rows";
 import { sortingOf, withSorting } from "../sorting";
 import { ViewLink } from "../ViewLink";
@@ -106,13 +106,20 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const columns = useMemo(() => changesColumns(most, folds), [most, folds]);
   // A file's row opens its diff beside, as a preview, kept by a double click.
   const openView = useOpenView();
-  const opens = (entry: Entry) => {
+  const isShown = useIsShown();
+  const diffOf = (entry: Entry): Address | undefined => {
     if (entry.type !== "change" || isFolder(entry.change) || checkout === undefined) return;
     const { group, change } = entry;
     const states: Params = commit === undefined ? { from: group.from, to: group.to } : { commit };
-    const diff = { ...checkout, ...states, path: change.path };
-    return (keep: boolean) =>
-      openView({ kind: "diff", params: diff }, { beside: true, preview: !keep });
+    return { kind: "diff", params: { ...checkout, ...states, path: change.path } };
+  };
+  const opens = (entry: Entry) => {
+    const diff = diffOf(entry);
+    return diff && ((keep: boolean) => openView(diff, { beside: true, preview: !keep }));
+  };
+  const showing = (entry: Entry) => {
+    const diff = diffOf(entry);
+    return diff !== undefined && isShown(diff);
   };
   const table = useListTable({
     columns,
@@ -219,6 +226,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
         folds={folds}
         plain={(entry) => !folds(entry)}
         opens={opens}
+        showing={showing}
       />
     </section>
   );
