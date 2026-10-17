@@ -433,17 +433,23 @@ def _untracked_file(top: Path, path: str) -> bool:
     return path in listed.split("\0")
 
 
-def _patch(top: Path, arguments: list[str], change: Change, max_bytes: int) -> str | None:
-    """The patch git makes for a change; None if binary, uncounted, or above `max_bytes`."""
+def _patch(
+    top: Path, arguments: list[str], change: Change, max_bytes: int, context: int
+) -> str | None:
+    """The patch git makes for a change; None if binary, uncounted, or above `max_bytes`.
+
+    `context` unchanged lines surround each hunk.
+    """
     if change.binary or change.added is None:
         return None
+    patch = (*_PATCH, f"--unified={context}")
     if change.status == "?":
-        result = git.run(top, *_PATCH, "--no-index", "--", "/dev/null", change.path)
+        result = git.run(top, *patch, "--no-index", "--", "/dev/null", change.path)
         failed = result.returncode not in (0, 1)  # 1: they differ
     else:
         paths = [*([change.original] if change.original else []), change.path]
         # All of it: `read` drops the final newline.
-        result = git.run(top, "--literal-pathspecs", *_PATCH, "-M", *arguments, "--", *paths)
+        result = git.run(top, "--literal-pathspecs", *patch, "-M", *arguments, "--", *paths)
         failed = result.returncode != 0
     if failed:
         raise git.GitError(f"`git diff` failed in {top}: {result.stderr.strip()}")
@@ -451,11 +457,14 @@ def _patch(top: Path, arguments: list[str], change: Change, max_bytes: int) -> s
     return None if len(patch.encode()) > max_bytes else patch
 
 
-def diff(top: Path, base: str, target: str, path: str, *, max_bytes: int) -> Diff:
+def diff(  # noqa: PLR0913 - the comparison, then how
+    top: Path, base: str, target: str, path: str, *, max_bytes: int, context: int = 3
+) -> Diff:
     """A file's change from `base` to `target` in the working tree at `top`, with git's patch.
 
     A renamed file is found by its new path or its original one. An untracked file counts as
-    added to the worktree. Patches larger than `max_bytes` are left out.
+    added to the worktree. Patches larger than `max_bytes` are left out; `context` lines
+    surround each hunk, as git's `--unified`.
     """
     _file_path(path)
     arguments = diff_arguments(_resolved(top, base), _resolved(top, target))
@@ -466,7 +475,7 @@ def diff(top: Path, base: str, target: str, path: str, *, max_bytes: int) -> Dif
         change = _counted(top, path, max_bytes)
     if change is None:
         return Diff(None, None)
-    return Diff(change, _patch(top, arguments, change, max_bytes))
+    return Diff(change, _patch(top, arguments, change, max_bytes, context))
 
 
 def _contents(top: Path, state: str, path: str, max_bytes: int) -> str | None:

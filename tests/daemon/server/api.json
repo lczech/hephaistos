@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 13
+    "minor": 14
   },
   "shapes": {
     "components": {
@@ -2583,7 +2583,7 @@
       },
       "/api/diff": {
         "get": {
-          "description": "A file's change, as in `/api/changes`, with git's patch.",
+          "description": "A file's change, as in `/api/changes`, with git's patch: `context` lines around each hunk.",
           "operationId": "diff_show_api_diff_get",
           "parameters": [
             {
@@ -2675,6 +2675,17 @@
               "schema": {
                 "title": "Path",
                 "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "context",
+              "required": false,
+              "schema": {
+                "default": 3,
+                "minimum": 0,
+                "title": "Context",
+                "type": "integer"
               }
             }
           ],

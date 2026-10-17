@@ -19,15 +19,13 @@ vi.mock("../../components/diff/LazyDiff", () => ({
     patch: string;
     header: ReactNode;
     look: DiffLook;
-    versions: () => Promise<Versions>;
+    versions: Versions | undefined;
   }) => (
     <figure>
       <header>{header}</header>
       <pre>{patch}</pre>
       <figcaption>{JSON.stringify(look)}</figcaption>
-      <button type="button" onClick={() => void versions()}>
-        More
-      </button>
+      <p>{versions ? `versions: ${JSON.stringify(versions)}` : "no versions"}</p>
     </figure>
   ),
 }));
@@ -68,6 +66,7 @@ function serveDiff(
           setting("gui.code.theme_light", "github-light"),
           setting("gui.code.theme_dark", theme),
           setting("gui.diff.large_lines", 10),
+          setting("gui.diff.context", 5),
         ],
         sources: [],
         other_hosts: [],
@@ -101,8 +100,9 @@ describe("the Diff View", () => {
       <Diff initial={{ clone: "clone-proj", commit: hash, path: "src/main.py" }} />,
     );
     expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
-    expect(new URL(requests[0]?.url ?? "").search).toBe(
-      `?clone=clone-proj&commit=${hash}&path=src%2Fmain.py`,
+    const asked = requests.map((request) => new URL(request.url));
+    expect(asked.find((url) => url.pathname === "/api/diff")?.search).toBe(
+      `?clone=clone-proj&commit=${hash}&path=src%2Fmain.py&context=5`,
     );
     expect(screen.getByRole("heading")).toHaveTextContent("Diff: main.py, ccccccc");
     expect(within(screen.getByRole("figure")).getByText("ccccccc")).toBeInTheDocument();
@@ -127,11 +127,28 @@ describe("the Diff View", () => {
       wrap: true,
       whole: false,
     });
-    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    // Both versions, after the patch: where the file ends, and all of it.
+    expect(await screen.findByText(/^versions:/)).toHaveTextContent(
+      'versions: {"old":"a\\n","new":"b\\n"}',
+    );
     const asked = requests.map((request) => new URL(request.url));
-    expect(asked.map((url) => url.pathname)).toContain("/api/diff/files");
+    expect(asked.map((url) => url.pathname).filter((path) => path.startsWith("/api/diff"))).toEqual(
+      ["/api/diff", "/api/diff/files"],
+    );
     expect(asked.find((url) => url.pathname === "/api/diff")?.search).toBe(
+      "?clone=clone-proj&from=HEAD&to=index&path=src%2Fmain.py&context=5",
+    );
+    expect(asked.find((url) => url.pathname === "/api/diff/files")?.search).toBe(
       "?clone=clone-proj&from=HEAD&to=index&path=src%2Fmain.py",
+    );
+  });
+
+  it("asks no versions of an added file, all of which its patch has", async () => {
+    const requests = serveDiff({ change: change({ status: "A" }), patch: PATCH });
+    renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText("no versions")).toBeInTheDocument();
+    expect(requests.map((request) => new URL(request.url).pathname)).not.toContain(
+      "/api/diff/files",
     );
   });
 

@@ -321,6 +321,12 @@ def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
         400,
         "a diff is of a file, not of the folder src/",
     )
+    git(repo, "add", "new.txt")
+    (repo / "new.txt").write_text("one\n2\n")
+    for context, hunk in ((0, "@@ -2 +2 @@"), (3, "@@ -1,2 +1,2 @@")):
+        patch = client.get("/api/diff", params={**asked, "context": context}).json()["patch"]
+        assert hunk in patch
+    assert client.get("/api/diff", params={**asked, "context": -1}).status_code == 400
 
 
 def _commit(repo: Path, message: str, *args: str) -> str:

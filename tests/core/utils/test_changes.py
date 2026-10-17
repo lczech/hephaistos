@@ -266,6 +266,19 @@ def test_diff_of_a_file(repo: Path) -> None:
     )
 
 
+def test_diff_with_more_or_fewer_lines_around(repo: Path) -> None:
+    git(repo, "config", "diff.context", "8")  # the user's, which ours replaces
+    lines = [f"{n}\n" for n in range(1, 11)]
+    _write(repo, "a.txt", "".join(lines))
+    git(repo, "add", "a.txt")
+    _write(repo, "a.txt", "".join([*lines[:4], "five\n", *lines[5:]]))
+    hunks = [
+        _patch_lines(diff(repo, "index", "worktree", "a.txt", max_bytes=1000, context=n).patch)
+        for n in (0, 1, 3)
+    ]
+    assert [lines[0] for lines in hunks] == ["@@ -5 +5 @@", "@@ -4,3 +4,3 @@", "@@ -2,7 +2,7 @@"]
+
+
 def test_diff_ignores_the_users_config(repo: Path) -> None:
     git(repo, "config", "diff.noprefix", "true")
     git(repo, "config", "color.ui", "always")

@@ -9,9 +9,7 @@ import {
   useMutation,
   useQueries,
   useQuery,
-  useQueryClient,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { api, type Schemas, unwrap } from "./client";
 import type { paths } from "./schema";
 
@@ -101,31 +99,37 @@ export function useChangesWithin(query: ChangesQuery, folders: string[]) {
 }
 
 /** Which file's diff: `/api/diff`'s parameters, which `/api/diff/files` shares. */
-export type DiffQuery = NonNullable<paths["/api/diff"]["get"]["parameters"]["query"]>;
+/** Which file's change, compared how; the lines around each change come from the settings. */
+export type DiffQuery = NonNullable<paths["/api/diff/files"]["get"]["parameters"]["query"]>;
 
-/** A file's change and git's patch, asked again as the Checkout's changes are. */
+/**
+ * A file's change and git's patch, with `gui.diff.context` lines around each hunk, asked once
+ * the settings are known (or can't be); again as the Checkout's changes are.
+ */
 export function useDiff(query: DiffQuery | undefined) {
+  const config = useConfig();
+  const context = config.data?.settings.find(({ key }) => key === "gui.diff.context")?.applied;
+  const asked = query && { ...query, ...(typeof context === "number" && { context }) };
   return useQuery({
-    queryKey: [...KEYS.diff, "patch", query],
+    queryKey: [...KEYS.diff, "patch", asked],
     queryFn: async () =>
-      unwrap(await api.GET("/api/diff", { params: { query: query as DiffQuery } })),
+      unwrap(await api.GET("/api/diff", { params: { query: asked as DiffQuery } })),
     placeholderData: keepPreviousData,
-    enabled: query !== undefined,
+    enabled: asked !== undefined && !config.isPending,
   });
 }
 
-/** The file's two versions, asked for when needed: to show more of it than its patch has. */
-export function useDiffFiles(query: DiffQuery | undefined) {
-  const client = useQueryClient();
-  return useCallback(
-    () =>
-      client.fetchQuery({
-        queryKey: [...KEYS.diff, "files", query],
-        queryFn: async () =>
-          unwrap(await api.GET("/api/diff/files", { params: { query: query as DiffQuery } })),
-      }),
-    [client, query],
-  );
+/**
+ * The file's two versions, asked for after each patch (`patchAt`, when it came), so that they
+ * match it: they show where the file ends, and more of it than its patch has.
+ */
+export function useDiffFiles(query: DiffQuery | undefined, patchAt: number, enabled: boolean) {
+  return useQuery({
+    queryKey: [...KEYS.diff, "files", query, patchAt],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/diff/files", { params: { query: query as DiffQuery } })),
+    enabled: query !== undefined && enabled,
+  });
 }
 
 export const HISTORY_PAGE = 50;

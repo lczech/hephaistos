@@ -144,6 +144,7 @@ class Diff:
     """The section [gui.diff]."""
 
     max_bytes: Annotated[int, AtLeast(1)]
+    context: Annotated[int, AtLeast(0)]
     large_lines: Annotated[int, AtLeast(1)]
     max_files: Annotated[int, AtLeast(1)]
 

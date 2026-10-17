@@ -103,7 +103,6 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
 export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const query = diffQuery(params);
   const diff = useDiff(query);
-  const versions = useDiffFiles(query);
   const client = useQueryClient();
   const [look, setLook] = useAtom(diffLook());
   const view = useRef<HTMLElement>(null);
@@ -120,9 +119,21 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
 
-  let body: ReactNode;
   const change = diff.data?.change;
   const patch = diff.data?.patch;
+  const waiting =
+    typeof large === "number" &&
+    (change ? (changedLines(change) ?? 0) : 0) > large &&
+    shownLarge !== query?.path;
+  // Both versions, where both are and the patch shows; an added or deleted file is all patch.
+  const twoSided = change && !change.binary && !["A", "?", "D"].includes(change.status);
+  const versions = useDiffFiles(
+    query,
+    diff.dataUpdatedAt,
+    Boolean(twoSided && patch && !waiting && !diff.isPlaceholderData),
+  );
+
+  let body: ReactNode;
   if (query === undefined) {
     body = <p className={styles.note}>No file: open a Diff from a file in Changes.</p>;
   } else if (diff.data === undefined) {
@@ -148,11 +159,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         allows.
       </p>
     );
-  } else if (
-    typeof large === "number" &&
-    (changedLines(change) ?? 0) > large &&
-    shownLarge !== query.path
-  ) {
+  } else if (waiting) {
     body = (
       <p className={styles.note}>
         {(changedLines(change) ?? 0).toLocaleString("en")} lines changed: more than the setting{" "}
@@ -169,7 +176,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         header={<FileHeader change={change} compared={queryText(query)} />}
         look={{ ...look, split: look.split && !narrow }}
         themes={themes}
-        versions={versions}
+        versions={versions.data}
       />
     );
   }

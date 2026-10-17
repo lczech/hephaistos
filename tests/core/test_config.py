@@ -92,6 +92,7 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "gui.code.theme_light": config.DEFAULT,
         "gui.code.theme_dark": config.DEFAULT,
         "gui.diff.max_bytes": config.DEFAULT,
+        "gui.diff.context": config.DEFAULT,
         "gui.diff.large_lines": config.DEFAULT,
         "gui.diff.max_files": config.DEFAULT,
     }

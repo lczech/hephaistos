@@ -305,11 +305,13 @@ def diff_show(  # noqa: PLR0913 - one parameter per choice
     to: str | None = None,
     commit: str | None = None,
     path: str,
+    context: Annotated[int, Query(ge=0)] = 3,
 ) -> DiffJson:
-    """A file's change, as in `/api/changes`, with git's patch."""
+    """A file's change, as in `/api/changes`, with git's patch: `context` lines around each hunk."""
     top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
     base, target = _states(top, from_, to, commit)
-    found = changes.diff(top, base, target, path, max_bytes=config.settings().gui.diff.max_bytes)
+    max_bytes = config.settings().gui.diff.max_bytes
+    found = changes.diff(top, base, target, path, max_bytes=max_bytes, context=context)
     return serialize.diff_json(found)
 
 

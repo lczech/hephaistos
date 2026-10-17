@@ -72,6 +72,8 @@ theme_dark = "github-dark"
 [gui.diff]
 # Bytes of a file's diff or version the Server sends; it refuses larger ones.
 max_bytes = 5_000_000
+# Unchanged lines shown around each change, as `git diff --unified`.
+context = 3
 # Lines changed in a file above which its diff waits to be shown.
 large_lines = 2000
 # Files a group of changes lists, of a Checkout or a new folder in it; the rest are counted.

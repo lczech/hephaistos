@@ -49,6 +49,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("gui.code.theme_light", "github-light", "default"),
         ("gui.code.theme_dark", "github-dark", "default"),
         ("gui.diff.max_bytes", "5000000", "default"),
+        ("gui.diff.context", "3", "default"),
         ("gui.diff.large_lines", "2000", "default"),
         ("gui.diff.max_files", "1000", "default"),
     ]
