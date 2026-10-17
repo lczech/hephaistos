@@ -101,6 +101,7 @@ class CommittedPayload(ActivityPayload):
     subject: str
     how: str  # commit, initial, amend, cherry-pick, revert or am
     amends: str | None  # the commit an amend replaced
+    body: str = ""  # the message after the subject, which the reflog lacks: from the commit
 
 
 @dataclass(frozen=True)

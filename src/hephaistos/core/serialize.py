@@ -31,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import changes, git, logs
+from hephaistos.core.utils import changes, git, history, logs
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 12)
+API_VERSION = ApiVersion(0, 13)
 
 
 class Ref(TypedDict):
@@ -709,11 +709,57 @@ class BranchJson(TypedDict):
     behind: int | None
 
 
+class PersonJson(TypedDict):
+    """Who wrote or committed a commit, and when."""
+
+    name: str
+    email: str
+    at: str
+
+
+class RefJson(TypedDict):
+    """A branch, remote-tracking branch or tag, by its short name, and its commit."""
+
+    name: str
+    kind: history.RefKind
+    commit: str
+
+
+class CommitJson(TypedDict):
+    """A commit, with the refs pointing at it."""
+
+    hash: str
+    parents: list[str]  # the first is what its changes are compared with
+    subject: str
+    body: str  # the message after the subject; empty for one line
+    author: PersonJson
+    committer: PersonJson
+    refs: list[RefJson]
+    renamed_from: str | None  # in a file's history: its path before this commit
+
+
+class ShownCommitJson(TypedDict):
+    """A commit asked for by name, if git still has it.
+
+    One that no branch, tag or HEAD leads to was amended, rebased or reset away; `amended_as`
+    is where amends of it led, as the Events recorded them.
+    """
+
+    name: str
+    commit: CommitJson | None
+    reachable: bool
+    amended_as: str | None
+
+
 class ChangesJson(TypedDict):
-    """A Checkout's changes in groups; with its branch, unless only commits were compared."""
+    """A Checkout's changes in groups; with its branch, unless only commits were compared.
+
+    With the commit, when one commit's changes were asked for.
+    """
 
     branch: BranchJson | None
     groups: list[ChangeGroupJson]
+    commit: ShownCommitJson | None
 
 
 def _branch_json(status: git.Status) -> BranchJson:
@@ -742,9 +788,74 @@ def change_json(change: changes.Change) -> ChangeJson:
     )
 
 
-def changes_json(found: changes.Changes) -> ChangesJson:
+def _person_json(person: history.Person) -> PersonJson:
+    return PersonJson(name=person.name, email=person.email, at=person.at.isoformat())
+
+
+def _ref_json(ref: history.Ref) -> RefJson:
+    return RefJson(name=ref.name, kind=ref.kind, commit=ref.commit)
+
+
+def commit_json(commit: history.Commit) -> CommitJson:
+    """A commit, as the API gives it."""
+    return CommitJson(
+        hash=commit.hash,
+        parents=list(commit.parents),
+        subject=commit.subject,
+        body=commit.body,
+        author=_person_json(commit.author),
+        committer=_person_json(commit.committer),
+        refs=[_ref_json(ref) for ref in commit.refs],
+        renamed_from=commit.renamed_from,
+    )
+
+
+def shown_commit_json(name: str, shown: history.Shown, amended_as: str | None) -> ShownCommitJson:
+    """A commit asked for by `name`, as the API gives it."""
+    return ShownCommitJson(
+        name=name,
+        commit=None if shown.commit is None else commit_json(shown.commit),
+        reachable=shown.reachable,
+        amended_as=amended_as,
+    )
+
+
+class HistoryNextJson(TypedDict):
+    """Where the next page of a history goes on, as `/api/history` takes it back."""
+
+    start: str
+    path: str | None
+    skip: int
+
+
+class HistoryJson(TypedDict):
+    """A page of a Checkout's commits, newest first, with HEAD and the refs to walk from."""
+
+    head: str | None  # its commit; None before the first
+    branch: str | None  # None when detached
+    refs: list[RefJson]  # branches, remote-tracking branches, tags; the most recent first in each
+    commits: list[CommitJson]
+    next: HistoryNextJson | None  # None at the end
+
+
+def history_json(refs: history.Refs, found: history.History) -> HistoryJson:
+    """A page of a Checkout's history, as the API gives it."""
+    after = found.next
+    return HistoryJson(
+        head=refs.head,
+        branch=refs.branch,
+        refs=[_ref_json(ref) for ref in refs.refs],
+        commits=[commit_json(commit) for commit in found.commits],
+        next=None
+        if after is None
+        else HistoryNextJson(start=after.start, path=after.path, skip=after.skip),
+    )
+
+
+def changes_json(found: changes.Changes, commit: ShownCommitJson | None = None) -> ChangesJson:
     """A Checkout's changes, as the API gives them."""
     return ChangesJson(
+        commit=commit,
         branch=None if found.status is None else _branch_json(found.status),
         groups=[
             {

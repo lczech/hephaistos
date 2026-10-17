@@ -5,7 +5,7 @@ import time
 import uuid
 from collections.abc import Collection, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Self
 
@@ -18,12 +18,14 @@ from hephaistos.core.state import clones as state
 from hephaistos.core.state import worktrees as worktree_state
 from hephaistos.core.state.activity import (
     BEGINNING,
+    Activity,
     BranchOrigin,
     CheckoutActivity,
     CloneActivity,
     Cursor,
     Push,
 )
+from hephaistos.core.state.activity import CommittedPayload as Committed
 from hephaistos.core.state.checkouts import Failed, Missing, same_state
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
@@ -105,6 +107,24 @@ def _activity(entries: list[git.ReflogEntry], git_dir: Path, cursor: Cursor) -> 
     return CheckoutActivity(found, activity.cursor_after(entries[count - 1]) if count else cursor)
 
 
+def _with_bodies(top: Path, read: CheckoutActivity) -> CheckoutActivity:
+    """The activity with its commits' messages in full, as far as git still has them."""
+    commits = {
+        done.payload.head.new
+        for done in read.activities
+        if isinstance(done.payload, Committed) and isinstance(done.payload.head.new, str)
+    }
+    found = git.bodies(top, commits)
+
+    def full(done: Activity) -> Activity:
+        payload = done.payload
+        if not isinstance(payload, Committed) or payload.head.new not in found:
+            return done
+        return replace(done, payload=replace(payload, body=found[str(payload.head.new)]))
+
+    return replace(read, activities=[full(done) for done in read.activities])
+
+
 def head_activity(top: Path, git_dir: Path, cursor: Cursor | None) -> CheckoutActivity:
     """What was done in the Checkout at `top` since `cursor`; HEAD must have a commit.
 
@@ -113,7 +133,7 @@ def head_activity(top: Path, git_dir: Path, cursor: Cursor | None) -> CheckoutAc
     if cursor is None:
         return CheckoutActivity((), activity.end(git.reflog(top, limit=1)))
     entries, _ = _unread(top, cursor)
-    return _activity(entries, git_dir, cursor)
+    return _with_bodies(top, _activity(entries, git_dir, cursor))
 
 
 def continued_activity(top: Path, git_dir: Path, cursor: Cursor) -> CheckoutActivity | None:
@@ -122,7 +142,7 @@ def continued_activity(top: Path, git_dir: Path, cursor: Cursor) -> CheckoutActi
     That tells whether a Checkout's history continues from the cursor.
     """
     entries, found = _unread(top, cursor)
-    return _activity(entries, git_dir, cursor) if found else None
+    return _with_bodies(top, _activity(entries, git_dir, cursor)) if found else None
 
 
 def push_activity(

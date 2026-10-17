@@ -49,7 +49,7 @@ function noChanges(compared: Compared): string {
 }
 
 /** The file's diff the parameters name: its Checkout, the states compared, and its path. */
-function diffQuery(params: Params): DiffQuery | undefined {
+function diffQuery(params: Params): (DiffQuery & Compared) | undefined {
   const checkout = checkoutOf(params);
   const compared = comparison(params);
   const [path] = paramValues(params.path);
@@ -212,7 +212,7 @@ function textSetting(value: unknown): string | undefined {
 }
 
 interface UnchangedProps {
-  query: DiffQuery;
+  query: DiffQuery & Compared;
   params: Params;
   setParams: (params: Params) => void;
 }

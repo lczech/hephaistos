@@ -1,9 +1,10 @@
 """What changed in a working tree between two states, as git compares them; nothing is stored.
 
-A state is `index`, `worktree`, or a commit, by anything git resolves to one (`HEAD`, `main~2`).
-Without states, the changes come in the groups `git status` shows; for one file, also git's
-patch and both its versions. Only git's commands meant for scripts run, never external diff
-tools or text conversions, and none takes a lock.
+A state is `index`, `worktree`, or a commit, by anything git resolves to one (`HEAD`, `main~2`);
+a commit alone is compared with its first parent. Without states, the changes come in the
+groups `git status` shows; for one file, also git's patch and both its versions. Only git's
+commands meant for scripts run, never external diff tools or text conversions, and none takes a
+lock.
 """
 
 from dataclasses import dataclass, replace
@@ -81,7 +82,7 @@ class Changes:
     groups: tuple[Group, ...]
 
 
-def _pathspec(path: str | None) -> list[str]:
+def pathspec_for(path: str | None) -> list[str]:
     """The arguments limiting git to a path in the working tree; raises ChangesError if outside."""
     if path is None:
         return []
@@ -91,19 +92,47 @@ def _pathspec(path: str | None) -> list[str]:
     return ["--", path]
 
 
+def _empty_tree(top: Path) -> str:
+    """The empty tree's object ID, in the repository's hash."""
+    return git.read(top, "hash-object", "-t", "tree", "--stdin", stdin="")
+
+
+def _commit(top: Path, name: str) -> str | None:
+    """The commit `name` resolves to; None if it names none here."""
+    result = git.run(
+        top, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{name}^{{commit}}"
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def _resolved(top: Path, state: str) -> str:
-    """`index`, `worktree`, or the commit a state names; an unborn HEAD is the empty tree."""
+    """`index`, `worktree`, or the commit a state names.
+
+    An unborn HEAD is the empty tree, and so is the empty tree's ID, which `commit_states` gives
+    for a commit without parents.
+    """
     if state in (INDEX, WORKTREE):
         return state
     if state:
-        result = git.run(
-            top, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{state}^{{commit}}"
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
+        if commit := _commit(top, state):
+            return commit
         if state == HEAD and git.run(top, "symbolic-ref", "--quiet", HEAD).returncode == 0:
-            return git.read(top, "hash-object", "-t", "tree", "--stdin", stdin="")
+            return _empty_tree(top)
+        if state == _empty_tree(top):
+            return state
     raise ChangesError(f"{state!r} is neither index, worktree nor a commit here")
+
+
+def commit_states(top: Path, commit: str) -> tuple[str, str]:
+    """The states a commit's changes are between: its first parent, and itself.
+
+    A commit without parents is compared with the empty tree. Raises ChangesError if `commit`
+    isn't one here.
+    """
+    resolved = _commit(top, commit) if commit else None
+    if resolved is None:
+        raise ChangesError(f"{commit!r} is not a commit here")
+    return _commit(top, f"{resolved}^1") or _empty_tree(top), resolved
 
 
 def diff_arguments(base: str, target: str) -> list[str] | None:
@@ -308,7 +337,7 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
     """
     if (base is None) != (target is None):
         raise ChangesError("give both states to compare, or neither")
-    pathspec = _pathspec(path)
+    pathspec = pathspec_for(path)
     if base is None or target is None:
         return _status_groups(top, pathspec, max_files, max_bytes)
     resolved = (_resolved(top, base), _resolved(top, target))
@@ -368,7 +397,7 @@ class Versions:
     new: str | None
 
 
-def _text(output: str) -> str:
+def utf8_text(output: str) -> str:
     """Output of git as text that JSON can carry: bytes that aren't UTF-8 replaced."""
     return output.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
 
@@ -377,7 +406,7 @@ def _file_path(path: str) -> list[str]:
     """The pathspec of a file; raises ChangesError for a folder."""
     if path.endswith("/"):
         raise ChangesError(f"a diff is of a file, not of the folder {path}")
-    return _pathspec(path)
+    return pathspec_for(path)
 
 
 def _changed(top: Path, arguments: list[str], path: str) -> Change | None:
@@ -388,6 +417,12 @@ def _changed(top: Path, arguments: list[str], path: str) -> Change | None:
         return None
     paths = ["--", *([raw.original] if raw.original else []), raw.path]
     return next(iter(_diff(top, arguments, paths)), None)
+
+
+def renamed_from(top: Path, base: str, target: str, path: str) -> str | None:
+    """The path a file had in commit `base`, if `target` has it renamed to `path`; else None."""
+    raws, _ = _parse_diff(git.read(top, *_RAW, base, target))
+    return next((raw.original for raw in raws if raw.status == "R" and raw.path == path), None)
 
 
 def _untracked_file(top: Path, path: str) -> bool:
@@ -404,13 +439,15 @@ def _patch(top: Path, arguments: list[str], change: Change, max_bytes: int) -> s
         return None
     if change.status == "?":
         result = git.run(top, *_PATCH, "--no-index", "--", "/dev/null", change.path)
-        if result.returncode not in (0, 1):  # 1: they differ
-            raise git.GitError(f"`git diff --no-index` failed in {top}: {result.stderr.strip()}")
-        output = result.stdout
+        failed = result.returncode not in (0, 1)  # 1: they differ
     else:
         paths = [*([change.original] if change.original else []), change.path]
-        output = git.read(top, "--literal-pathspecs", *_PATCH, "-M", *arguments, "--", *paths)
-    patch = _text(output)
+        # All of it: `read` drops the final newline.
+        result = git.run(top, "--literal-pathspecs", *_PATCH, "-M", *arguments, "--", *paths)
+        failed = result.returncode != 0
+    if failed:
+        raise git.GitError(f"`git diff` failed in {top}: {result.stderr.strip()}")
+    patch = utf8_text(result.stdout)
     return None if len(patch.encode()) > max_bytes else patch
 
 
@@ -453,7 +490,7 @@ def _contents(top: Path, state: str, path: str, max_bytes: int) -> str | None:
     result = git.run(top, "cat-file", "blob", name)  # all of it: `read` drops a final newline
     if result.returncode != 0:
         raise git.GitError(f"`git cat-file` failed in {top}: {result.stderr.strip()}")
-    return _text(result.stdout)
+    return utf8_text(result.stdout)
 
 
 def versions(top: Path, base: str, target: str, path: str, *, max_bytes: int) -> Versions:

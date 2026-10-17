@@ -20,6 +20,7 @@ from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.watcher.worker import PassFailed
 from support import FakeWatcher, git
+from support import clone as clone_of
 
 VERSION = "0.1.0 (test)"
 
@@ -239,6 +240,8 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
         ("/api/changes?worktree={id}", 404, "no Worktree with ID {id}"),
         ("/api/diff?clone={id}&from=HEAD&to=index", 400, "query path: Field required"),
         ("/api/diff/files?clone={id}&from=HEAD&to=index&path=a", 404, "no Clone with ID {id}"),
+        ("/api/history?clone={id}", 404, "no Clone with ID {id}"),
+        ("/api/history?limit=0", 400, "query limit: Input should be greater than or equal to 1"),
     ],
 )
 def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
@@ -280,7 +283,11 @@ def test_changes_of_a_clone_and_a_worktree(client: TestClient, repo: Path) -> No
     side = client.get("/api/changes", params={"worktree": worktree["id"]}).json()
     assert [change["path"] for change in side["groups"][0]["changes"]] == ["other.txt"]
     compared = {"clone": clone["id"], "from": "HEAD", "to": "HEAD"}
-    assert client.get("/api/changes", params=compared).json() == {"branch": None, "groups": []}
+    assert client.get("/api/changes", params=compared).json() == {
+        "branch": None,
+        "groups": [],
+        "commit": None,
+    }
 
 
 def test_changes_refused(client: TestClient, repo: Path) -> None:
@@ -313,6 +320,99 @@ def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
     assert (folder.status_code, folder.json()["error"]) == (
         400,
         "a diff is of a file, not of the folder src/",
+    )
+
+
+def _commit(repo: Path, message: str, *args: str) -> str:
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", message, *args)
+    return git(repo, "rev-parse", "HEAD")
+
+
+def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    head = _commit(repo, "second", "--message", "With a body.")
+    first = client.get("/api/history", params={"clone": clone["id"], "limit": 1}).json()
+    assert (first["head"], first["branch"]) == (head, "main")
+    assert [(ref["kind"], ref["name"]) for ref in first["refs"]] == [
+        ("branch", "main"),
+        ("branch", "side"),
+        ("remote", "origin/main"),
+    ]
+    [commit] = first["commits"]
+    assert (commit["hash"], commit["subject"], commit["body"]) == (head, "second", "With a body.")
+    assert commit["author"]["name"] == "Test"
+    assert commit["refs"] == [{"name": "main", "kind": "branch", "commit": head}]
+    assert first["next"] == {"start": head, "path": None, "skip": 1}
+    after = {key: value for key, value in first["next"].items() if value is not None}
+    rest = client.get("/api/history", params={"clone": clone["id"], **after}).json()
+    assert [commit["parents"] for commit in rest["commits"]] == [[]]
+    assert rest["next"] is None
+    gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
+    assert (gone.status_code, gone.json()["error"]) == (
+        400,
+        "'gone' is no branch, tag or commit here",
+    )
+
+
+def test_a_commits_changes_and_diff(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    (repo / "new.txt").write_text("one\n")
+    git(repo, "add", "new.txt")
+    head = _commit(repo, "add new")
+    asked = {"clone": clone["id"], "commit": head[:7]}
+    found = client.get("/api/changes", params=asked).json()
+    assert found["commit"]["name"] == head[:7]
+    assert (found["commit"]["commit"]["hash"], found["commit"]["reachable"]) == (head, True)
+    assert found["commit"]["amended_as"] is None
+    [group] = found["groups"]
+    assert (group["from"], group["to"]) == (git(repo, "rev-parse", "HEAD~1"), head)
+    assert [change["path"] for change in group["changes"]] == ["new.txt"]
+    diff = client.get("/api/diff", params={**asked, "path": "new.txt"}).json()
+    assert diff["patch"].endswith("@@ -0,0 +1 @@\n+one\n")
+    files = client.get("/api/diff/files", params={**asked, "path": "new.txt"}).json()
+    assert files == {"old": None, "new": "one\n"}
+    both = client.get("/api/diff", params={**asked, "path": "new.txt", "from": "HEAD"})
+    assert (both.status_code, both.json()["error"]) == (
+        400,
+        "give commit, or from and to, not both",
+    )
+    neither = client.get("/api/diff", params={"clone": clone["id"], "path": "new.txt"})
+    assert (neither.status_code, neither.json()["error"]) == (400, "give from and to, or commit")
+
+
+def test_a_commit_amended_away(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    old = _commit(repo, "first try")
+    new = _commit(repo, "second try", "--amend")
+    assert runner.invoke(cli, ["observe"]).exit_code == 0
+    found = client.get("/api/changes", params={"clone": clone["id"], "commit": old}).json()
+    assert found["commit"]["commit"]["subject"] == "first try"  # the reflog keeps it
+    assert (found["commit"]["reachable"], found["commit"]["amended_as"]) == (False, new)
+    git(repo, "reflog", "expire", "--expire-unreachable=now", "--all")
+    git(repo, "gc", "--quiet", "--prune=now")
+    found = client.get("/api/changes", params={"clone": clone["id"], "commit": old}).json()
+    assert found == {
+        "branch": None,
+        "groups": [],
+        "commit": {"name": old, "commit": None, "reachable": False, "amended_as": new},
+    }
+
+
+def test_a_bare_clone_has_history_and_commits(
+    client: TestClient, repo: Path, tmp_path: Path
+) -> None:
+    bare = clone_of(repo, tmp_path / "bare.git", bare=True)
+    assert runner.invoke(cli, ["clone", "add", str(bare), "--repo", "proj"]).exit_code == 0
+    found = next(found for found in _cli("clone", "list") if found["path"].endswith("bare.git"))
+    history = client.get("/api/history", params={"clone": found["id"]}).json()
+    assert len(history["commits"]) == 1
+    head = history["commits"][0]["hash"]
+    commit = client.get("/api/changes", params={"clone": found["id"], "commit": head})
+    assert commit.json()["commit"]["reachable"]
+    status = client.get("/api/changes", params={"clone": found["id"]})
+    assert (status.status_code, status.json()["error"]) == (
+        400,
+        f"{found['path']} is bare: no working tree",
     )
 
 

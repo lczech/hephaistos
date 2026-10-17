@@ -436,6 +436,25 @@ def reflog(top: Path, ref: str = "HEAD", *, limit: int | None = None) -> list[Re
     return _reflog(top, *([f"--max-count={limit}"] if limit else []), ref)
 
 
+def bodies(top: Path, commits: Collection[str]) -> dict[str, str]:
+    """The messages of these commits after their subjects, by commit; missing ones left out."""
+    if not commits:
+        return {}
+    output = read(
+        top,
+        "log",
+        "--no-walk=unsorted",
+        "--ignore-missing",
+        "--no-show-signature",
+        "-z",
+        "--format=%H%x00%b",
+        "--end-of-options",
+        *commits,
+    )
+    fields = output.split("\0")
+    return {fields[index]: fields[index + 1].strip("\n") for index in range(0, len(fields) - 1, 2)}
+
+
 def remote_reflogs(top: Path) -> list[ReflogEntry]:
     """The reflogs of all remote-tracking branches, newest first for each."""
     return _reflog(top, "--remotes")

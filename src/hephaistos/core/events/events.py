@@ -237,6 +237,27 @@ def get(session: ReadSession, event_id: uuid.UUID) -> Event | None:
     return None if row is None else Event.from_row(row)
 
 
+def amended_as(session: ReadSession, commit: str) -> str | None:
+    """The commit that amends of `commit` (a hash, or its start) led to; None if none did.
+
+    By the commit Events, following a chain of amends to its end.
+    """
+    if not re.fullmatch(r"[0-9a-f]{4,64}", commit):
+        return None
+    kinds = (EventKind.CLONE_COMMITTED, EventKind.WORKTREE_COMMITTED)
+    latest, seen = None, set[str]()
+    while True:
+        row = session.conn.execute(
+            "SELECT json_extract(payload, '$.head.new') FROM events WHERE kind IN (?, ?)"
+            " AND json_extract(payload, '$.amends') LIKE ? ORDER BY recorded_at DESC LIMIT 1",
+            (*kinds, f"{latest or commit}%"),
+        ).fetchone()
+        if row is None or not isinstance(row[0], str) or row[0] in seen:
+            return latest
+        latest = row[0]
+        seen.add(latest)
+
+
 def by_short_id(session: ReadSession, short: str) -> Event:
     """The Event whose ID ends with `short` (hex, dashes ignored); it must be the only one."""
     suffix = short.replace("-", "").lower()

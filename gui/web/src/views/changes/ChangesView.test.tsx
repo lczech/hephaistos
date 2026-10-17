@@ -32,6 +32,7 @@ const BRANCH = { head: "abc", branch: "main", upstream: "origin/main", ahead: 2,
 function serveChanges(): Request[] {
   const answer: Schemas["ChangesJson"] = {
     branch: BRANCH,
+    commit: null,
     groups: [
       {
         name: "staged",
@@ -68,6 +69,7 @@ function serveChanges(): Request[] {
   };
   const inFolder: Schemas["ChangesJson"] = {
     branch: BRANCH,
+    commit: null,
     groups: [
       {
         name: "untracked",

@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 12
+    "minor": 13
   },
   "shapes": {
     "components": {
@@ -231,12 +231,22 @@
           "type": "object"
         },
         "ChangesJson": {
-          "description": "A Checkout's changes in groups; with its branch, unless only commits were compared.",
+          "description": "A Checkout's changes in groups; with its branch, unless only commits were compared.\n\nWith the commit, when one commit's changes were asked for.",
           "properties": {
             "branch": {
               "anyOf": [
                 {
                   "$ref": "#/components/schemas/BranchJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "commit": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ShownCommitJson"
                 },
                 {
                   "type": "null"
@@ -253,7 +263,8 @@
           },
           "required": [
             "branch",
-            "groups"
+            "groups",
+            "commit"
           ],
           "title": "ChangesJson",
           "type": "object"
@@ -513,6 +524,66 @@
             "type"
           ],
           "title": "ColumnJson",
+          "type": "object"
+        },
+        "CommitJson": {
+          "description": "A commit, with the refs pointing at it.",
+          "properties": {
+            "author": {
+              "$ref": "#/components/schemas/PersonJson"
+            },
+            "body": {
+              "title": "Body",
+              "type": "string"
+            },
+            "committer": {
+              "$ref": "#/components/schemas/PersonJson"
+            },
+            "hash": {
+              "title": "Hash",
+              "type": "string"
+            },
+            "parents": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Parents",
+              "type": "array"
+            },
+            "refs": {
+              "items": {
+                "$ref": "#/components/schemas/RefJson"
+              },
+              "title": "Refs",
+              "type": "array"
+            },
+            "renamed_from": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Renamed From"
+            },
+            "subject": {
+              "title": "Subject",
+              "type": "string"
+            }
+          },
+          "required": [
+            "hash",
+            "parents",
+            "subject",
+            "body",
+            "author",
+            "committer",
+            "refs",
+            "renamed_from"
+          ],
+          "title": "CommitJson",
           "type": "object"
         },
         "ConfigJson": {
@@ -832,6 +903,97 @@
           "title": "HTTPValidationError",
           "type": "object"
         },
+        "HistoryJson": {
+          "description": "A page of a Checkout's commits, newest first, with HEAD and the refs to walk from.",
+          "properties": {
+            "branch": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch"
+            },
+            "commits": {
+              "items": {
+                "$ref": "#/components/schemas/CommitJson"
+              },
+              "title": "Commits",
+              "type": "array"
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Head"
+            },
+            "next": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HistoryNextJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "refs": {
+              "items": {
+                "$ref": "#/components/schemas/RefJson"
+              },
+              "title": "Refs",
+              "type": "array"
+            }
+          },
+          "required": [
+            "head",
+            "branch",
+            "refs",
+            "commits",
+            "next"
+          ],
+          "title": "HistoryJson",
+          "type": "object"
+        },
+        "HistoryNextJson": {
+          "description": "Where the next page of a history goes on, as `/api/history` takes it back.",
+          "properties": {
+            "path": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
+            },
+            "skip": {
+              "title": "Skip",
+              "type": "integer"
+            },
+            "start": {
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          "required": [
+            "start",
+            "path",
+            "skip"
+          ],
+          "title": "HistoryNextJson",
+          "type": "object"
+        },
         "InfoJson": {
           "description": "What a client checks first: which hephaistos and API answer, on which Machine.",
           "properties": {
@@ -1086,6 +1248,30 @@
           "title": "PassJson",
           "type": "object"
         },
+        "PersonJson": {
+          "description": "Who wrote or committed a commit, and when.",
+          "properties": {
+            "at": {
+              "title": "At",
+              "type": "string"
+            },
+            "email": {
+              "title": "Email",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "email",
+            "at"
+          ],
+          "title": "PersonJson",
+          "type": "object"
+        },
         "ProcessJson": {
           "description": "The running Daemon, or else the last one.",
           "properties": {
@@ -1195,6 +1381,37 @@
           ],
           "title": "Ref",
           "type": "object"
+        },
+        "RefJson": {
+          "description": "A branch, remote-tracking branch or tag, by its short name, and its commit.",
+          "properties": {
+            "commit": {
+              "title": "Commit",
+              "type": "string"
+            },
+            "kind": {
+              "$ref": "#/components/schemas/RefKind"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "commit"
+          ],
+          "title": "RefJson",
+          "type": "object"
+        },
+        "RefKind": {
+          "enum": [
+            "branch",
+            "remote",
+            "tag"
+          ],
+          "type": "string"
         },
         "RepositoryJson": {
           "description": "A Repository with its main remotes and Clones.",
@@ -1443,6 +1660,48 @@
             "schema_version"
           ],
           "title": "SetupJson",
+          "type": "object"
+        },
+        "ShownCommitJson": {
+          "description": "A commit asked for by name, if git still has it.\n\nOne that no branch, tag or HEAD leads to was amended, rebased or reset away; `amended_as`\nis where amends of it led, as the Events recorded them.",
+          "properties": {
+            "amended_as": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Amended As"
+            },
+            "commit": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CommitJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "reachable": {
+              "title": "Reachable",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "commit",
+            "reachable",
+            "amended_as"
+          ],
+          "title": "ShownCommitJson",
           "type": "object"
         },
         "SourceJson": {
@@ -1964,7 +2223,7 @@
     "paths": {
       "/api/changes": {
         "get": {
-          "description": "What changed in a Clone's or Worktree's working tree, as git compares it, read now.\n\nFrom one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`); without them,\nin the groups `git status` shows. `path` limits it to a file or folder in the Checkout.",
+          "description": "What changed in a Clone's or Worktree's working tree, as git compares it, read now.\n\nFrom one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`), or what a\n`commit` changed, with the commit; without them, in the groups `git status` shows. `path`\nlimits it to a file or folder in the Checkout.",
           "operationId": "changes_show_api_changes_get",
           "parameters": [
             {
@@ -2031,6 +2290,22 @@
                   }
                 ],
                 "title": "To"
+              }
+            },
+            {
+              "in": "query",
+              "name": "commit",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Commit"
               }
             },
             {
@@ -2308,7 +2583,7 @@
       },
       "/api/diff": {
         "get": {
-          "description": "A file's change from one state to another, as in `/api/changes`, with git's patch.",
+          "description": "A file's change, as in `/api/changes`, with git's patch.",
           "operationId": "diff_show_api_diff_get",
           "parameters": [
             {
@@ -2348,19 +2623,49 @@
             {
               "in": "query",
               "name": "from",
-              "required": true,
+              "required": false,
               "schema": {
-                "title": "From",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "From"
               }
             },
             {
               "in": "query",
               "name": "to",
-              "required": true,
+              "required": false,
               "schema": {
-                "title": "To",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "To"
+              }
+            },
+            {
+              "in": "query",
+              "name": "commit",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Commit"
               }
             },
             {
@@ -2440,19 +2745,49 @@
             {
               "in": "query",
               "name": "from",
-              "required": true,
+              "required": false,
               "schema": {
-                "title": "From",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "From"
               }
             },
             {
               "in": "query",
               "name": "to",
-              "required": true,
+              "required": false,
               "schema": {
-                "title": "To",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "To"
+              }
+            },
+            {
+              "in": "query",
+              "name": "commit",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Commit"
               }
             },
             {
@@ -2746,6 +3081,141 @@
             }
           },
           "summary": "Event Show"
+        }
+      },
+      "/api/history": {
+        "get": {
+          "description": "A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`; with HEAD and the refs there are to walk from instead. `path` keeps those\nthat changed a file or folder, following a file's renames. A page's `next` gives `start`,\n`path` and `skip` to go on where it ended.",
+          "operationId": "history_show_api_history_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "clone",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Clone"
+              }
+            },
+            {
+              "in": "query",
+              "name": "worktree",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Worktree"
+              }
+            },
+            {
+              "in": "query",
+              "name": "ref",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Ref"
+              }
+            },
+            {
+              "in": "query",
+              "name": "path",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Path"
+              }
+            },
+            {
+              "in": "query",
+              "name": "start",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Start"
+              }
+            },
+            {
+              "in": "query",
+              "name": "skip",
+              "required": false,
+              "schema": {
+                "default": 0,
+                "minimum": 0,
+                "title": "Skip",
+                "type": "integer"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": false,
+              "schema": {
+                "default": 50,
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HistoryJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "422": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              },
+              "description": "Validation Error"
+            }
+          },
+          "summary": "History Show"
         }
       },
       "/api/info": {

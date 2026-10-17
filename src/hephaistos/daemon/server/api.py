@@ -32,6 +32,7 @@ from hephaistos.core.serialize import (
     DiffJson,
     EventJson,
     EventKindJson,
+    HistoryJson,
     LogJson,
     MachineJson,
     Ref,
@@ -40,7 +41,7 @@ from hephaistos.core.serialize import (
     TablesJson,
     WorktreeJson,
 )
-from hephaistos.core.utils import changes, logs, times
+from hephaistos.core.utils import changes, history, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report
@@ -52,6 +53,7 @@ from hephaistos.daemon.watcher.worker import Done, PassFailed
 DEFAULT_LIMIT = 20  # Events, as `event list` shows
 DEFAULT_ROWS = 20  # as `db dump` shows
 DEFAULT_RECORDS = 50  # as `log show` shows
+DEFAULT_COMMITS = 50  # a page of a history
 
 router = APIRouter(prefix="/api")
 
@@ -75,6 +77,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/changes": ("data", "focus"),  # focus: files edited, which change no State
     "/api/diff": ("data", "focus"),
     "/api/diff/files": ("data", "focus"),
+    "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
@@ -204,8 +207,13 @@ def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
     raise _not_found("Worktree", worktree_id)
 
 
-def _working_tree(paths: Paths, clone: uuid.UUID | None, worktree: uuid.UUID | None) -> Path:
-    """The working tree of a Clone or a Worktree on this Machine."""
+def _working_tree(
+    paths: Paths, clone: uuid.UUID | None, worktree: uuid.UUID | None, *, bare: bool = False
+) -> Path:
+    """The working tree of a Clone or a Worktree on this Machine.
+
+    A bare Clone's repository instead, if `bare` allows it, for what only compares commits.
+    """
     if (clone is None) == (worktree is None):
         raise HTTPException(400, "give either clone or worktree")
     what, entity_id = ("Clone", clone) if clone is not None else ("Worktree", worktree)
@@ -214,7 +222,7 @@ def _working_tree(paths: Paths, clone: uuid.UUID | None, worktree: uuid.UUID | N
         known = clones.details(session)
     for details in known:
         if details.clone.id == clone:
-            if details.state.bare:
+            if details.state.bare and not bare:
                 raise HTTPException(400, f"{details.clone.display_path} is bare: no working tree")
             top = details.clone.resolved_path
         elif found := next((wt for wt in details.worktrees if wt.id == worktree), None):
@@ -229,6 +237,23 @@ def _working_tree(paths: Paths, clone: uuid.UUID | None, worktree: uuid.UUID | N
     raise _not_found(what, cast("uuid.UUID", entity_id))
 
 
+def _commits_only(from_: str | None, to: str | None, commit: str | None) -> bool:
+    """Whether a request compares only commits, which a bare Clone has too."""
+    states = {from_, to} - {None}
+    return commit is not None or (bool(states) and not states & {changes.INDEX, changes.WORKTREE})
+
+
+def _states(top: Path, from_: str | None, to: str | None, commit: str | None) -> tuple[str, str]:
+    """The states compared: `from` and `to`, or a commit's parent and itself."""
+    if commit is not None:
+        if from_ is not None or to is not None:
+            raise HTTPException(400, "give commit, or from and to, not both")
+        return changes.commit_states(top, commit)
+    if from_ is None or to is None:
+        raise HTTPException(400, "give from and to, or commit")
+    return from_, to
+
+
 @router.get("/changes")
 def changes_show(  # noqa: PLR0913 - one parameter per choice
     paths: PathsOf,
@@ -237,19 +262,37 @@ def changes_show(  # noqa: PLR0913 - one parameter per choice
     worktree: uuid.UUID | None = None,
     from_: Annotated[str | None, Query(alias="from")] = None,
     to: str | None = None,
+    commit: str | None = None,
     path: str | None = None,
 ) -> ChangesJson:
     """What changed in a Clone's or Worktree's working tree, as git compares it, read now.
 
-    From one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`); without them,
-    in the groups `git status` shows. `path` limits it to a file or folder in the Checkout.
+    From one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`), or what a
+    `commit` changed, with the commit; without them, in the groups `git status` shows. `path`
+    limits it to a file or folder in the Checkout.
     """
-    top = _working_tree(paths, clone, worktree)
+    top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
     limits = config.settings().gui.diff
+    shown = None
+    if commit is not None:
+        shown = _shown_commit(paths, top, commit)
+        if shown["commit"] is None:
+            return serialize.changes_json(changes.Changes(None, ()), shown)
+        from_, to = _states(top, from_, to, shown["commit"]["hash"])
     found = changes.changes(
         top, from_, to, path=path, max_files=limits.max_files, max_bytes=limits.max_bytes
     )
-    return serialize.changes_json(found)
+    return serialize.changes_json(found, shown)
+
+
+def _shown_commit(paths: Paths, top: Path, name: str) -> serialize.ShownCommitJson:
+    """A commit asked for, with where amends of it led if no branch, tag or HEAD leads to it."""
+    shown = history.commit(top, name)
+    amended_as = None
+    if not shown.reachable:
+        with read_session(paths) as session:
+            amended_as = events.amended_as(session, shown.commit.hash if shown.commit else name)
+    return serialize.shown_commit_json(name, shown, amended_as)
 
 
 @router.get("/diff")
@@ -258,13 +301,15 @@ def diff_show(  # noqa: PLR0913 - one parameter per choice
     *,
     clone: uuid.UUID | None = None,
     worktree: uuid.UUID | None = None,
-    from_: Annotated[str, Query(alias="from")],
-    to: str,
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: str | None = None,
+    commit: str | None = None,
     path: str,
 ) -> DiffJson:
-    """A file's change from one state to another, as in `/api/changes`, with git's patch."""
-    top = _working_tree(paths, clone, worktree)
-    found = changes.diff(top, from_, to, path, max_bytes=config.settings().gui.diff.max_bytes)
+    """A file's change, as in `/api/changes`, with git's patch."""
+    top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
+    base, target = _states(top, from_, to, commit)
+    found = changes.diff(top, base, target, path, max_bytes=config.settings().gui.diff.max_bytes)
     return serialize.diff_json(found)
 
 
@@ -274,14 +319,42 @@ def diff_files(  # noqa: PLR0913 - one parameter per choice
     *,
     clone: uuid.UUID | None = None,
     worktree: uuid.UUID | None = None,
-    from_: Annotated[str, Query(alias="from")],
-    to: str,
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: str | None = None,
+    commit: str | None = None,
     path: str,
 ) -> DiffFilesJson:
     """A file's contents in both states, to show more of it around its changes."""
-    top = _working_tree(paths, clone, worktree)
-    found = changes.versions(top, from_, to, path, max_bytes=config.settings().gui.diff.max_bytes)
+    top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
+    base, target = _states(top, from_, to, commit)
+    found = changes.versions(
+        top, base, target, path, max_bytes=config.settings().gui.diff.max_bytes
+    )
     return DiffFilesJson(old=found.old, new=found.new)
+
+
+@router.get("/history")
+def history_show(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    ref: str | None = None,
+    path: str | None = None,
+    start: str | None = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1)] = DEFAULT_COMMITS,
+) -> HistoryJson:
+    """A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.
+
+    Or from `ref`; with HEAD and the refs there are to walk from instead. `path` keeps those
+    that changed a file or folder, following a file's renames. A page's `next` gives `start`,
+    `path` and `skip` to go on where it ended.
+    """
+    top = _working_tree(paths, clone, worktree, bare=True)
+    after = None if start is None else history.Next(start, path, skip)
+    found = history.history(top, ref, path, after=after, limit=limit)
+    return serialize.history_json(history.refs(top), found)
 
 
 @router.get("/events")

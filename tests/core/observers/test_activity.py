@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.db.sessions import read_session, write_session
-from hephaistos.core.events import subjects
+from hephaistos.core.events import events, subjects
 from hephaistos.core.events.kinds import Priority
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
@@ -153,6 +153,21 @@ def test_amend_switch_reset_and_stash(paths: Paths, repo: Path) -> None:
     assert (amended["how"], amended["amends"]) == ("amend", first)
     assert result.events[3].payload["branch"] == {"old": "main", "new": "feature"}
     assert result.events[4].payload["target"] == "HEAD~1"
+
+
+def test_commits_keep_their_messages_and_amends_lead_on(paths: Paths, repo: Path) -> None:
+    first = _commit(repo, "First", "--message", "Why it was done.\n\nAnd how.")
+    second = _commit(repo, "First, better", "--amend")
+    third = _commit(repo, "First, best", "--amend", "--message", "Now with a body.")
+    result = observer.observe(paths)
+    bodies = [event.payload["body"] for event in result.events]
+    assert bodies == ["Why it was done.\n\nAnd how.", "", "Now with a body."]
+    with read_session(paths) as session:
+        assert events.amended_as(session, first) == third
+        assert events.amended_as(session, first[:7]) == third
+        assert events.amended_as(session, second) == third
+        assert events.amended_as(session, third) is None
+        assert events.amended_as(session, "not a hash") is None
 
 
 def test_merge_push_and_pull(paths: Paths, repo: Path, origin: Path, tmp_path: Path) -> None:
