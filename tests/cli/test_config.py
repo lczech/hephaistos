@@ -42,14 +42,19 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("watcher.interval", "60.0", "default"),
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),
-        ("gui.code_theme_light", "github-light", "default"),
-        ("gui.code_theme_dark", "github-dark", "default"),
+        ("gui.text.size", "13", "default"),
+        ("gui.text.font", "system-ui, sans-serif", "default"),
+        ("gui.code.size", "13", "default"),
+        ("gui.code.font", 'ui-monospace, "DejaVu Sans Mono", monospace', "default"),
+        ("gui.code.theme_light", "github-light", "default"),
+        ("gui.code.theme_dark", "github-dark", "default"),
         ("gui.diff.max_bytes", "5000000", "default"),
         ("gui.diff.large_lines", "2000", "default"),
         ("gui.diff.max_files", "1000", "default"),
     ]
+    width = max(len(value) for _, value, _ in rows)
     assert result.stdout.splitlines()[: len(rows) + 2] == [
-        *(f"{key:<20}  {value:<12}  {source}" for key, value, source in rows),
+        *(f"{key:<20}  {value:<{width}}  {source}" for key, value, source in rows),
         "",
         f"Host: {HOST}",
     ]
@@ -76,9 +81,8 @@ def test_show_a_section_or_one_setting() -> None:
     assert runner.invoke(app, ["config", "show", "git.timeout"]).stdout == "30.0\n"
     assert runner.invoke(app, ["config", "show", "time_format"]).stdout == "auto\n"
     nested = runner.invoke(app, ["config", "show", "gui"]).stdout.splitlines()
-    assert [line.split()[0] for line in nested[:5]] == [
-        key for key in config.KEYS if key.startswith("gui.")
-    ]
+    keys = [key for key in config.KEYS if key.startswith("gui.")]
+    assert [line.split()[0] for line in nested[: len(keys)]] == keys
     assert runner.invoke(app, ["config", "show", "gui.diff.max_files"]).stdout == "1000\n"
 
 

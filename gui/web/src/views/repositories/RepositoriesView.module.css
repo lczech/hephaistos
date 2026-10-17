@@ -2,7 +2,7 @@
 .repositories li:not([data-depth], :first-child) {
   margin-top: var(--space-1);
   padding-top: var(--space-1);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 /* The name close to the forge's logo before it, as an icon's label; its header too, while the

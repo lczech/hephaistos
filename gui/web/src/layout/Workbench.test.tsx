@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { saveViews as save } from "../test/layout";
@@ -105,6 +105,20 @@ describe("the Workbench", () => {
     expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
     const [choice] = screen.getAllByRole("button", { name: "Config", hidden: true });
     expect(icons(choice as HTMLElement)).toEqual([expect.stringMatching(/lucide-sliders/)]);
+  });
+
+  it("gives a tab its whole title as a tooltip while cut off", async () => {
+    renderWithQueries(<Workbench />);
+    const [tab] = screen.getAllByRole("tab");
+    const title = tab?.querySelector(".dv-default-tab-content") as HTMLElement;
+    const ours = title.closest(".dv-default-tab")?.parentElement as HTMLElement; // around it
+    Object.defineProperty(title, "clientWidth", { value: 100 });
+    Object.defineProperty(title, "scrollWidth", { value: 30, configurable: true });
+    fireEvent.pointerEnter(ours);
+    expect(title).not.toHaveAttribute("title");
+    Object.defineProperty(title, "scrollWidth", { value: 300 });
+    fireEvent.pointerEnter(ours);
+    expect(title).toHaveAttribute("title", "Repositories");
   });
 
   it("restores the saved Layout, saying which Views no longer exist", async () => {

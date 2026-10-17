@@ -149,11 +149,29 @@ class Diff:
 
 
 @dataclass(frozen=True)
+class Text:
+    """The section [gui.text]."""
+
+    size: Annotated[int, AtLeast(6), AtMost(72)]
+    font: str
+
+
+@dataclass(frozen=True)
+class Code:
+    """The section [gui.code]."""
+
+    size: Annotated[int, AtLeast(6), AtMost(72)]
+    font: str
+    theme_light: str
+    theme_dark: str
+
+
+@dataclass(frozen=True)
 class Gui:
     """The section [gui]."""
 
-    code_theme_light: str
-    code_theme_dark: str
+    text: Text
+    code: Code
     diff: Diff
 
 

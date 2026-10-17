@@ -40,6 +40,12 @@ export function secondsAgo(value: number): string {
   return new Date(NOW - value * 1000).toISOString();
 }
 
+/** A setting as `/api/config` lists it, applied from its default. */
+export function setting(key: string, value: string | number): Schemas["SettingJson"] {
+  const type = typeof value === "number" ? "int" : "text";
+  return { key, description: "", type, value, source: "default", applied: value };
+}
+
 export function info(api = builtFor()): Schemas["InfoJson"] {
   return {
     version: "0.1.0 (abc1234)",

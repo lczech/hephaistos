@@ -1,5 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
+import {
+  Columns2,
+  ListChevronsDownUp,
+  ListChevronsUpDown,
+  Rows2,
+  TableOfContents,
+  TextWrap,
+} from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
 import {
@@ -12,7 +20,7 @@ import {
 } from "../../api/queries";
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
-import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { type Params, paramValues } from "../address";
 import { checkoutOf } from "../changes/checkout";
 import { ChangePath, Lines } from "../changes/columns";
@@ -102,8 +110,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const narrow = useNarrow(view, NARROW);
   const [shownLarge, setShownLarge] = useState<string>();
   const [themes, unknown] = codeThemes({
-    light: textSetting(useSetting("gui.code_theme_light")),
-    dark: textSetting(useSetting("gui.code_theme_dark")),
+    light: textSetting(useSetting("gui.code.theme_light")),
+    dark: textSetting(useSetting("gui.code.theme_dark")),
   });
   const large = useSetting("gui.diff.large_lines");
 
@@ -170,27 +178,41 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   return (
     <section ref={view} className={styles.view} data-stale={diff.isPlaceholderData || undefined}>
       <ViewBar>
-        <Toggle
+        <Choice
+          label="Side by side"
           on={look.split && !narrow}
           onChange={choose("split")}
-          title={
-            narrow
-              ? "Side by side where the Panel is wide enough; inline here"
-              : "Old and new side by side; else inline, one above the other"
-          }
-        >
-          Side by side
-        </Toggle>
-        <Toggle on={look.wrap} onChange={choose("wrap")} title="Wrap long lines; else scroll them">
-          Wrap
-        </Toggle>
-        <Toggle
+          ways={[
+            {
+              icon: Columns2,
+              title: narrow
+                ? "Old and new side by side where the Panel is wide enough; inline here"
+                : "Old and new side by side",
+            },
+            { icon: Rows2, title: "Inline: old lines above new ones" },
+          ]}
+        />
+        <Choice
+          label="Wrap"
+          on={look.wrap}
+          onChange={choose("wrap")}
+          ways={[
+            { icon: TextWrap, title: "Wrap long lines" },
+            { icon: TableOfContents, title: "Scroll long lines" },
+          ]}
+        />
+        <Choice
+          label="Whole file"
           on={look.whole}
           onChange={choose("whole")}
-          title="All of the file around its changes; else only some lines, which buttons show more of"
-        >
-          Whole file
-        </Toggle>
+          ways={[
+            { icon: ListChevronsUpDown, title: "All of the file around its changes" },
+            {
+              icon: ListChevronsDownUp,
+              title: "Only some lines around its changes, which buttons show more of",
+            },
+          ]}
+        />
         <BarEnd>
           {query && (
             <ViewLink
@@ -208,7 +230,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       {unknown.length > 0 && (
         <p className={styles.note}>
           Unknown code theme {unknown.join(", ")}: the default shows instead. The settings{" "}
-          <code>gui.code_theme_light</code> and <code>gui.code_theme_dark</code> name themes as
+          <code>gui.code.theme_light</code> and <code>gui.code.theme_dark</code> name themes as
           Shiki does.
         </p>
       )}

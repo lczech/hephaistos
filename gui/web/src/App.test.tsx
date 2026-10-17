@@ -5,7 +5,7 @@ import { App } from "./App";
 import { Boundary } from "./components/Boundary";
 import { saveViews } from "./test/layout";
 import { lastSocket } from "./test/live";
-import { daemon, info, json, renderWithQueries, serve } from "./test/server";
+import { daemon, info, json, renderWithQueries, serve, setting } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
 import { builtFor } from "./version";
 
@@ -59,6 +59,24 @@ describe("the GUI", () => {
     expect(health).toHaveAttribute("data-health", "good");
     await userEvent.click(health);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+  });
+
+  it("takes its fonts and sizes from the settings", async () => {
+    signIn();
+    serve({
+      ...ok,
+      "GET /api/config": () =>
+        json({
+          settings: [setting("gui.text.size", 15), setting("gui.code.font", "Monaco, monospace")],
+        }),
+    });
+    const { unmount } = renderWithQueries(<App />);
+    const style = document.documentElement.style;
+    await waitFor(() => expect(style.getPropertyValue("--text-size")).toBe("15px"));
+    expect(style.getPropertyValue("--font-mono")).toBe("Monaco, monospace");
+    expect(style.getPropertyValue("--code-size")).toBe(""); // theme.css's default
+    unmount();
+    expect(style.getPropertyValue("--text-size")).toBe("");
   });
 
   it("forgets a token the Server refuses", async () => {

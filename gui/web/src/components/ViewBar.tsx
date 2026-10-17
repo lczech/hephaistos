@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { type LucideIcon, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import styles from "./ViewBar.module.css";
 
@@ -7,24 +7,35 @@ export function ViewBar({ children }: { children: ReactNode }) {
   return <header className={styles.bar}>{children}</header>;
 }
 
-interface ToggleProps {
-  on: boolean;
-  onChange: (on: boolean) => void;
-  title: string; // what it does, at length
-  children: ReactNode; // its label
+/** One of a Choice's two ways: its icon, and what it does, at length. */
+export interface Way {
+  icon: LucideIcon;
+  title: string;
 }
 
-/** A choice on or off, pressed while on. */
-export function Toggle({ on, onChange, title, children }: ToggleProps) {
+interface ChoiceProps {
+  label: string; // the first way's name
+  on: boolean; // whether the first way is taken
+  onChange: (on: boolean) => void;
+  ways: [Way, Way]; // the first, then the other
+}
+
+/** A choice between two ways of showing something: both icons, the one taken marked; a click
+ * takes the other. */
+export function Choice({ label, on, onChange, ways }: ChoiceProps) {
   return (
     <button
       type="button"
-      className={styles.toggle}
+      className={styles.choice}
+      aria-label={label}
       aria-pressed={on}
       onClick={() => onChange(!on)}
-      title={title}
     >
-      {children}
+      {ways.map(({ icon: Icon, title }, i) => (
+        <span key={title} title={title} data-taken={(i === 0) === on || undefined}>
+          <Icon aria-hidden="true" />
+        </span>
+      ))}
     </button>
   );
 }

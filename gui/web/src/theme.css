@@ -1,12 +1,19 @@
 /* The look in one place: every component's styles use these names. */
 
 :root {
+  /* Fonts and sizes the settings [gui.text] and [gui.code] replace (`useLook`). */
   --font: system-ui, sans-serif;
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
+  --text-size: 13px; /* what Views show */
+  --code-size: 13px; /* code, e.g. in diffs */
+
   --mono-size: 0.9em; /* monospace among text, whose letters look larger at the same size */
-  --text-small: 0.8125rem;
-  --text-normal: 0.9375rem;
-  --text-large: 1.125rem;
+  --text-small: calc(var(--text-size) * 0.87);
+  --text-normal: var(--text-size);
+  --text-large: calc(var(--text-size) * 1.2);
+  /* Tabs, View bars and the status bar keep their size, whatever the text's. */
+  --chrome-size: 0.8125rem;
+  --chrome-large: 1.125rem;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -24,6 +31,8 @@
   --surface: #ffffff;
   --bar: #f8f8f8;
   --border: #e5e5e5;
+  --line: #d8d8d8; /* between a list's groups of rows */
+  --divider: #cccccc; /* between Groups */
   --text: #3b3b3b;
   --text-muted: #616161;
   --accent: #d85d3a; /* the icon's orange */
@@ -41,6 +50,8 @@
     --surface: #1e1e1e;
     --bar: #181818;
     --border: #2b2b2b;
+    --line: #383838;
+    --divider: #474747;
     --text: #cccccc;
     --text-muted: #9d9d9d;
     --accent: #e8774f;

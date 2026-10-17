@@ -59,7 +59,7 @@
 
 /* Where a file was renamed: a line, then the path it had before, which the rows below are of. */
 .history li:has(.renamed) {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 /* What is not committed, above the commits. */

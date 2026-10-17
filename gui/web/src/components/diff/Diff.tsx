@@ -29,10 +29,14 @@ interface Props {
 }
 
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
-// of lines added and removed from it. The renderer's own variables, so check them on upgrades.
-const PAGE_BACKGROUND = `:host {
+// of lines added and removed from it; and the code's font and size. The renderer's own
+// variables, so check them on upgrades.
+const PAGE_LOOK = `:host {
   --diffs-light-bg: var(--background);
   --diffs-dark-bg: var(--background);
+  --diffs-font-family: var(--font-mono);
+  --diffs-font-size: var(--code-size);
+  --diffs-line-height: calc(var(--code-size) * 1.5);
 }`;
 
 /**
@@ -65,7 +69,7 @@ export default function Diff({ patch, header, look, themes, versions }: Props) {
         diffIndicators: "bars",
         stickyHeader: true,
         loadDiffFiles: load,
-        unsafeCSS: PAGE_BACKGROUND,
+        unsafeCSS: PAGE_LOOK,
       }}
     />
   );

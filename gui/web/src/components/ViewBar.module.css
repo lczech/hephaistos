@@ -6,26 +6,36 @@
   gap: var(--space-1) var(--space-3);
   padding: var(--space-2) var(--space-3) 0;
   color: var(--text-muted);
-  font-size: var(--text-small);
+  font-size: var(--chrome-size);
 }
 
-/* A choice on or off: pressed while on. */
-.toggle {
-  padding: 1px var(--space-2);
+/* A choice between two ways: their icons side by side, the one taken marked. */
+.choice {
+  display: flex;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: none;
   color: var(--text-muted);
-  font: inherit;
   cursor: pointer;
 }
 
-.toggle:hover {
+.choice > span {
+  display: flex;
+  padding: 2px var(--space-1);
+}
+
+.choice svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.choice:hover > span {
   color: var(--text);
 }
 
-.toggle[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--text) 10%, transparent);
+.choice > [data-taken] {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
   color: var(--text);
 }
 

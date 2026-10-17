@@ -43,7 +43,7 @@
 .changes li:not([data-depth], :first-child) {
   margin-top: var(--space-1);
   padding-top: var(--space-1);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 /* A group's row: its name, and how many of each kind of change it holds. */

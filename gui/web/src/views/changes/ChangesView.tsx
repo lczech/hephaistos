@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
+import { Group as GroupIcon, List } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { KEYS, useChanges, useChangesWithin, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
-import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { CommitHeader } from "../history/CommitHeader";
@@ -161,13 +162,22 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     <section className={styles.view}>
       <ViewBar>
         {commit === undefined && (apart || together) ? (
-          <Toggle
+          <Choice
+            label="Groups"
             on={apart}
             onChange={toggleApart}
-            title="In the groups `git status` shows: staged, not staged, untracked, unmerged; else all changes since the last commit in one list, a file staged and changed again once"
-          >
-            Groups
-          </Toggle>
+            ways={[
+              {
+                icon: GroupIcon,
+                title: "In the groups `git status` shows: staged, not staged, untracked, unmerged",
+              },
+              {
+                icon: List,
+                title:
+                  "All changes since the last commit in one list, a file staged and changed again once",
+              },
+            ]}
+          />
         ) : (
           compared && (
             <span className={styles.compared}>

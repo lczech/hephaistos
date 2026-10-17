@@ -6,6 +6,7 @@ import { StatusBar } from "./components/StatusBar";
 import { TokenHint } from "./components/TokenHint";
 import { ViewOpener } from "./layout/ViewOpener";
 import { Workbench } from "./layout/Workbench";
+import { useLook } from "./look";
 import { subscribe, token } from "./token";
 import { apiFit, builtFor } from "./version";
 
@@ -17,6 +18,7 @@ export function App() {
 /** The desktop shell: Groups of Panels between the version hint and the status bar. */
 function Shell() {
   useLiveUpdates();
+  useLook();
   const info = useInfo();
   const fits = info.data ? apiFit(builtFor(), info.data.api) : null;
   return (

@@ -4,7 +4,7 @@ import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
-import { json, renderWithQueries, serve } from "../../test/server";
+import { json, renderWithQueries, serve, setting } from "../../test/server";
 import { addressText, type Params } from "../address";
 import { DiffView } from "./DiffView";
 
@@ -52,11 +52,6 @@ function change(fields: Partial<Change> = {}): Change {
 
 const PATCH = "diff --git a/src/main.py b/src/main.py\n@@ -1 +1 @@\n-a\n+b\n";
 
-function setting(key: string, value: string | number): Schemas["SettingJson"] {
-  const type = typeof value === "number" ? "int" : "text";
-  return { key, description: "", type, value, source: "default", applied: value };
-}
-
 /** The Server, answering for the diff and the settings; returns the requests asked. */
 function serveDiff(
   diff: Schemas["DiffJson"],
@@ -70,8 +65,8 @@ function serveDiff(
       json({
         host: "laptop",
         settings: [
-          setting("gui.code_theme_light", "github-light"),
-          setting("gui.code_theme_dark", theme),
+          setting("gui.code.theme_light", "github-light"),
+          setting("gui.code.theme_dark", theme),
           setting("gui.diff.large_lines", 10),
         ],
         sources: [],
