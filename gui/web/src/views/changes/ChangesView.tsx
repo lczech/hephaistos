@@ -1,23 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
-import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Schemas } from "../../api/client";
-import {
-  type ChangesQuery,
-  KEYS,
-  useChanges,
-  useChangesWithin,
-  useRepositories,
-} from "../../api/queries";
+import { KEYS, useChanges, useChangesWithin, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
-import { type Params, paramValues } from "../address";
+import { Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import type { ViewProps } from "../index";
+import { useOpenView } from "../opening";
 import { branchText, branchTitle } from "../repositories/rows";
 import { sortingOf, withSorting } from "../sorting";
 import styles from "./ChangesView.module.css";
+import { checkoutName, checkoutOf } from "./checkout";
 import { changesColumns } from "./columns";
 import {
   type Change,
@@ -35,31 +30,7 @@ import {
   type Within,
 } from "./rows";
 
-type Repository = Schemas["RepositoryJson"];
-
 const SINCE_HEAD = { from: "HEAD", to: "worktree" };
-
-/** The Checkout the parameters name: a Clone or a Worktree, by ID. */
-function checkoutOf(params: Params): ChangesQuery | undefined {
-  const [clone] = paramValues(params.clone);
-  const [worktree] = paramValues(params.worktree);
-  if (clone !== undefined) return { clone };
-  if (worktree !== undefined) return { worktree };
-  return undefined;
-}
-
-/** A Checkout's short name, for the tab: its folder's, or its Worktree's. */
-function checkoutName(
-  repositories: Repository[] | undefined,
-  query: ChangesQuery,
-): string | undefined {
-  for (const clone of repositories?.flatMap((repository) => repository.clones) ?? []) {
-    if (clone.id === query.clone) return clone.path.split("/").at(-1);
-    const worktree = clone.worktrees.find((found) => found.id === query.worktree);
-    if (worktree !== undefined) return worktree.name;
-  }
-  return undefined;
-}
 
 /**
  * What changed in a Checkout, as git reads it now: in the groups `git status` shows, or from
@@ -119,6 +90,15 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     [several],
   );
   const columns = useMemo(() => changesColumns(most, folds), [most, folds]);
+  // A file's row opens its diff beside, as a preview, kept by a double click.
+  const openView = useOpenView();
+  const opens = (entry: Entry) => {
+    if (entry.type !== "change" || isFolder(entry.change) || checkout === undefined) return;
+    const { group, change } = entry;
+    const shown = { ...checkout, from: group.from, to: group.to, path: change.path };
+    return (keep: boolean) =>
+      openView({ kind: "diff", params: shown }, { beside: true, preview: !keep });
+  };
   const table = useListTable({
     columns,
     data: listed,
@@ -163,17 +143,15 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     .size;
   return (
     <section className={styles.view}>
-      <header className={styles.bar}>
+      <ViewBar>
         {apart || together ? (
-          <button
-            type="button"
-            className={styles.toggle}
-            aria-pressed={apart}
-            onClick={toggleApart}
+          <Toggle
+            on={apart}
+            onChange={toggleApart}
             title="In the groups `git status` shows: staged, not staged, untracked, unmerged; else all changes since the last commit in one list, a file staged and changed again once"
           >
             Groups
-          </button>
+          </Toggle>
         ) : (
           compared && (
             <span className={styles.compared}>
@@ -187,17 +165,11 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             {files} {files === 1 ? "file" : "files"}, {linesText(added, removed)}
           </span>
         )}
-        <button
-          type="button"
-          className={styles.refresh}
+        <Refresh
+          busy={changes.isFetching}
           onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
-          title="Refresh"
-          aria-label="Refresh"
-          data-busy={changes.isFetching || undefined}
-        >
-          <RefreshCw aria-hidden="true" />
-        </button>
-      </header>
+        />
+      </ViewBar>
       <ListTable
         table={table}
         className={styles.changes}
@@ -210,6 +182,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
         details={() => null}
         folds={folds}
         plain={(entry) => !folds(entry)}
+        opens={opens}
       />
     </section>
   );

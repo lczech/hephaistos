@@ -9,7 +9,9 @@ import {
   useMutation,
   useQueries,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api, unwrap } from "./client";
 import type { paths } from "./schema";
 
@@ -31,6 +33,7 @@ export const KEYS = {
   machines: ["machines"],
   repositories: ["repositories"],
   changes: ["changes"],
+  diff: ["diff"],
   config: ["config"],
   eventKinds: ["events", "kinds"],
   events: ["events", "list"],
@@ -96,12 +99,47 @@ export function useChangesWithin(query: ChangesQuery, folders: string[]) {
   return useQueries({ queries: folders.map((path) => changesQuery({ ...query, path })) });
 }
 
+/** Which file's diff: `/api/diff`'s parameters, which `/api/diff/files` shares. */
+export type DiffQuery = NonNullable<paths["/api/diff"]["get"]["parameters"]["query"]>;
+
+/** A file's change and git's patch, asked again as the Checkout's changes are. */
+export function useDiff(query: DiffQuery | undefined) {
+  return useQuery({
+    queryKey: [...KEYS.diff, "patch", query],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/diff", { params: { query: query as DiffQuery } })),
+    placeholderData: keepPreviousData,
+    enabled: query !== undefined,
+  });
+}
+
+/** The file's two versions, asked for when needed: to show more of it than its patch has. */
+export function useDiffFiles(query: DiffQuery | undefined) {
+  const client = useQueryClient();
+  return useCallback(
+    () =>
+      client.fetchQuery({
+        queryKey: [...KEYS.diff, "files", query],
+        queryFn: async () =>
+          unwrap(await api.GET("/api/diff/files", { params: { query: query as DiffQuery } })),
+      }),
+    [client, query],
+  );
+}
+
 /** The settings as the Daemon finds them; they change by hand, so asked again on focus. */
 export function useConfig() {
   return useQuery({
     queryKey: KEYS.config,
     queryFn: async () => unwrap(await api.GET("/api/config")),
   });
+}
+
+/** The value the Daemon applies for a setting, by its key (`gui.diff.large_lines`); undefined
+ * until known. */
+export function useSetting(key: string) {
+  const config = useConfig();
+  return config.data?.settings.find((setting) => setting.key === key)?.applied;
 }
 
 /** The kinds of Events the Daemon records: the same until it is another version. */

@@ -1,0 +1,66 @@
+/* The bar stays; the diff scrolls below it, its header staying at its top. */
+.view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.diff {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: var(--space-2); /* not padding, which lines would scroll through above the header */
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+/* The file's header, as its row in Changes shows it, the lines at its end; in the page's size,
+ * not the renderer's smaller one for headers. */
+.header {
+  display: flex;
+  font-size: var(--text-normal);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.header > :last-child:not(:first-child) {
+  margin-left: auto;
+}
+
+/* What the header says besides the path: renamed, the states compared. */
+.aside {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+/* Dimmed while an older answer shows, until the new one is there. */
+.view[data-stale] .diff {
+  opacity: 0.6;
+}
+
+/* Why nothing shows, and what would. */
+.note {
+  margin: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+}
+
+.note code {
+  font-family: var(--font-mono);
+}
+
+.action {
+  margin-right: var(--space-2);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.action:hover,
+.action:focus-visible {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}

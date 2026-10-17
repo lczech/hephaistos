@@ -629,6 +629,71 @@
         "title": "DetailJson",
         "type": "object"
       },
+      "DiffFilesJson": {
+        "description": "A file's contents in the two states compared; None where it doesn't exist.",
+        "properties": {
+          "new": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New"
+          },
+          "old": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old"
+          }
+        },
+        "required": [
+          "old",
+          "new"
+        ],
+        "title": "DiffFilesJson",
+        "type": "object"
+      },
+      "DiffJson": {
+        "description": "A file's change, with git's patch for it, if it has one up to `gui.diff.max_bytes`.",
+        "properties": {
+          "change": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChangeJson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "patch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patch"
+          }
+        },
+        "required": [
+          "change",
+          "patch"
+        ],
+        "title": "DiffJson",
+        "type": "object"
+      },
       "EventJson": {
         "description": "An Event.",
         "properties": {
@@ -1893,7 +1958,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.11"
+    "version": "0.12"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2239,6 +2304,190 @@
           }
         },
         "summary": "Db Dump"
+      }
+    },
+    "/api/diff": {
+      "get": {
+        "description": "A file's change from one state to another, as in `/api/changes`, with git's patch.",
+        "operationId": "diff_show_api_diff_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "clone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clone"
+            }
+          },
+          {
+            "in": "query",
+            "name": "worktree",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Worktree"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffJson"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diff Show"
+      }
+    },
+    "/api/diff/files": {
+      "get": {
+        "description": "A file's contents in both states, to show more of it around its changes.",
+        "operationId": "diff_files_api_diff_files_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "clone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clone"
+            }
+          },
+          {
+            "in": "query",
+            "name": "worktree",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Worktree"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "title": "From",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffFilesJson"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diff Files"
       }
     },
     "/api/events": {

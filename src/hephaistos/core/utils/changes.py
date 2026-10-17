@@ -1,8 +1,9 @@
 """What changed in a working tree between two states, as git compares them; nothing is stored.
 
 A state is `index`, `worktree`, or a commit, by anything git resolves to one (`HEAD`, `main~2`).
-Without states, the changes come in the groups `git status` shows. Only git's commands meant for
-scripts run, never external diff tools or text conversions, and none takes a lock.
+Without states, the changes come in the groups `git status` shows; for one file, also git's
+patch and both its versions. Only git's commands meant for scripts run, never external diff
+tools or text conversions, and none takes a lock.
 """
 
 from dataclasses import dataclass, replace
@@ -22,7 +23,20 @@ BINARY_PROBE = 8000  # bytes in which a NUL makes a file binary, as git decides 
 type GroupName = Literal["staged", "unstaged", "untracked", "unmerged", "changes"]
 
 _NO_OBJECT = "0" * 40  # git's object ID for "none", or "not hashed" for the working tree
-_DIFF = ("diff", "--raw", "--numstat", "-z", "--no-abbrev", "-M", "--no-ext-diff", "--no-textconv")
+_SAFE = ("--no-ext-diff", "--no-textconv")  # git's own diff of the files' bytes
+_DIFF = ("diff", "--raw", "--numstat", "-z", "--no-abbrev", "-M", *_SAFE)
+_RAW = ("diff", "--raw", "-z", "--no-abbrev", "-M", *_SAFE)
+# A patch as any client reads it, whatever the user's git config says about colours, prefixes
+# and quoting paths.
+_PATCH = (
+    "-c",
+    "core.quotePath=false",
+    "diff",
+    "--no-color",
+    "--src-prefix=a/",
+    "--dst-prefix=b/",
+    *_SAFE,
+)
 
 
 class ChangesError(HephaistosError):
@@ -336,3 +350,124 @@ def _status_groups(top: Path, pathspec: list[str], max_files: int, max_bytes: in
         _group("untracked", INDEX, WORKTREE, untracked, max_files),
     )
     return Changes(status, tuple(group for group in groups if group.count))
+
+
+@dataclass(frozen=True)
+class Diff:
+    """A file's change from one state to another, and git's patch for it."""
+
+    change: Change | None  # None if the file doesn't differ
+    patch: str | None  # None without a change, for binary files, and those too large
+
+
+@dataclass(frozen=True)
+class Versions:
+    """A file's contents in two states; None where it doesn't exist."""
+
+    old: str | None
+    new: str | None
+
+
+def _text(output: str) -> str:
+    """Output of git as text that JSON can carry: bytes that aren't UTF-8 replaced."""
+    return output.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
+
+
+def _file_path(path: str) -> list[str]:
+    """The pathspec of a file; raises ChangesError for a folder."""
+    if path.endswith("/"):
+        raise ChangesError(f"a diff is of a file, not of the folder {path}")
+    return _pathspec(path)
+
+
+def _changed(top: Path, arguments: list[str], path: str) -> Change | None:
+    """The file's change, if any: found among all, so that a rename is seen whole."""
+    raws, _ = _parse_diff(git.read(top, *_RAW, *arguments))
+    raw = next((raw for raw in raws if path in (raw.path, raw.original)), None)
+    if raw is None:
+        return None
+    paths = ["--", *([raw.original] if raw.original else []), raw.path]
+    return next(iter(_diff(top, arguments, paths)), None)
+
+
+def _untracked_file(top: Path, path: str) -> bool:
+    """Whether git lists a file as untracked, not ignored."""
+    listed = git.read(
+        top, "--literal-pathspecs", "ls-files", "--others", "--exclude-standard", "-z", "--", path
+    )
+    return path in listed.split("\0")
+
+
+def _patch(top: Path, arguments: list[str], change: Change, max_bytes: int) -> str | None:
+    """The patch git makes for a change; None if binary, uncounted, or above `max_bytes`."""
+    if change.binary or change.added is None:
+        return None
+    if change.status == "?":
+        result = git.run(top, *_PATCH, "--no-index", "--", "/dev/null", change.path)
+        if result.returncode not in (0, 1):  # 1: they differ
+            raise git.GitError(f"`git diff --no-index` failed in {top}: {result.stderr.strip()}")
+        output = result.stdout
+    else:
+        paths = [*([change.original] if change.original else []), change.path]
+        output = git.read(top, "--literal-pathspecs", *_PATCH, "-M", *arguments, "--", *paths)
+    patch = _text(output)
+    return None if len(patch.encode()) > max_bytes else patch
+
+
+def diff(top: Path, base: str, target: str, path: str, *, max_bytes: int) -> Diff:
+    """A file's change from `base` to `target` in the working tree at `top`, with git's patch.
+
+    A renamed file is found by its new path or its original one. An untracked file counts as
+    added to the worktree. Patches larger than `max_bytes` are left out.
+    """
+    _file_path(path)
+    arguments = diff_arguments(_resolved(top, base), _resolved(top, target))
+    if arguments is None:
+        return Diff(None, None)
+    change = _changed(top, arguments, path)
+    if change is None and target == WORKTREE and _untracked_file(top, path):
+        change = _counted(top, path, max_bytes)
+    if change is None:
+        return Diff(None, None)
+    return Diff(change, _patch(top, arguments, change, max_bytes))
+
+
+def _contents(top: Path, state: str, path: str, max_bytes: int) -> str | None:
+    """A file's contents in a resolved state; None if it isn't there; raises if too large."""
+    if state == WORKTREE:
+        file = top / path
+        if file.is_symlink():
+            return str(file.readlink())  # as git shows a symlink: its target
+        size = _file_size(file)
+        if size is None or not file.is_file():
+            return None
+        if size > max_bytes:
+            raise ChangesError(f"{path} is larger than {max_bytes:,} bytes")
+        return file.read_bytes().decode("utf-8", "replace")
+    name = f":{path}" if state == INDEX else f"{state}:{path}"
+    size = git.run(top, "cat-file", "-s", name)
+    if size.returncode != 0:
+        return None
+    if int(size.stdout) > max_bytes:
+        raise ChangesError(f"{path} is larger than {max_bytes:,} bytes")
+    result = git.run(top, "cat-file", "blob", name)  # all of it: `read` drops a final newline
+    if result.returncode != 0:
+        raise git.GitError(f"`git cat-file` failed in {top}: {result.stderr.strip()}")
+    return _text(result.stdout)
+
+
+def versions(top: Path, base: str, target: str, path: str, *, max_bytes: int) -> Versions:
+    """A file's contents in `base` and `target`: before a rename, at its original path.
+
+    Raises ChangesError for a version larger than `max_bytes`.
+    """
+    _file_path(path)
+    resolved = (_resolved(top, base), _resolved(top, target))
+    arguments = diff_arguments(*resolved)
+    change = None if arguments is None else _changed(top, arguments, path)
+    old_path = change.original if change and change.original else path
+    new_path = change.path if change else path
+    return Versions(
+        _contents(top, resolved[0], old_path, max_bytes),
+        _contents(top, resolved[1], new_path, max_bytes),
+    )
