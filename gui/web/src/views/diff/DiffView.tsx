@@ -12,7 +12,7 @@ import {
 } from "../../api/queries";
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
-import { Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { type Params, paramValues } from "../address";
 import { checkoutOf } from "../changes/checkout";
 import { ChangePath, Lines } from "../changes/columns";
@@ -24,7 +24,9 @@ import {
   otherText,
   pathParts,
 } from "../changes/rows";
+import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
+import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 import { diffLook } from "./look";
 
@@ -48,13 +50,26 @@ function noChanges(compared: Compared): string {
     : `No changes ${text}.`;
 }
 
-/** The file's diff the parameters name: its Checkout, the states compared, and its path. */
-function diffQuery(params: Params): (DiffQuery & Compared) | undefined {
+/** The file's diff the parameters name: its Checkout, what is compared (a commit against its
+ * first parent, or two states), and its path. */
+function diffQuery(params: Params): DiffQuery | undefined {
   const checkout = checkoutOf(params);
-  const compared = comparison(params);
+  const [commit] = paramValues(params.commit);
+  const compared = commit === undefined ? comparison(params) : { commit };
   const [path] = paramValues(params.path);
   if (checkout === undefined || compared === undefined || path === undefined) return undefined;
   return { ...checkout, ...compared, path };
+}
+
+/** The two states a query compares, unless it is a commit's. */
+function statesOf({ from, to }: DiffQuery): Compared | undefined {
+  return from && to ? { from, to } : undefined;
+}
+
+/** What a query compares, in words: `staged`, or a commit's short hash. */
+function queryText(query: DiffQuery): string {
+  const states = statesOf(query);
+  return states ? comparedText(states) : shortHash(query.commit ?? "");
 }
 
 /** Whether the element is narrower than `rem`; false until measured. */
@@ -92,7 +107,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   });
   const large = useSetting("gui.diff.large_lines");
 
-  const title = query && `Diff: ${pathParts(query.path)[1]}, ${comparedText(query)}`;
+  const title = query && `Diff: ${pathParts(query.path)[1]}, ${queryText(query)}`;
   useEffect(() => {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
@@ -109,7 +124,12 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       </p>
     );
   } else if (change === null || change === undefined) {
-    body = <Unchanged query={query} params={params} setParams={setParams} />;
+    const states = statesOf(query);
+    body = states ? (
+      <Unchanged query={{ ...query, ...states }} params={params} setParams={setParams} />
+    ) : (
+      <p className={styles.note}>No changes to this file in {queryText(query)}.</p>
+    );
   } else if (change.binary) {
     body = <p className={styles.note}>Not shown: {otherText(change)}.</p>;
   } else if (patch === null || patch === undefined) {
@@ -138,7 +158,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     body = (
       <LazyDiff
         patch={patch}
-        header={<FileHeader change={change} compared={comparedText(query)} />}
+        header={<FileHeader change={change} compared={queryText(query)} />}
         look={{ ...look, split: look.split && !narrow }}
         themes={themes}
         versions={versions}
@@ -171,10 +191,19 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         >
           Whole file
         </Toggle>
-        <Refresh
-          busy={diff.isFetching}
-          onClick={() => void client.invalidateQueries({ queryKey: KEYS.diff })}
-        />
+        <BarEnd>
+          {query && (
+            <ViewLink
+              address={{ kind: "history", params: { ...checkoutOf(params), path: query.path } }}
+              label={`History of ${query.path}: the commits that changed it`}
+              opening={{ beside: true, preview: true }}
+            />
+          )}
+          <Refresh
+            busy={diff.isFetching}
+            onClick={() => void client.invalidateQueries({ queryKey: KEYS.diff })}
+          />
+        </BarEnd>
       </ViewBar>
       {unknown.length > 0 && (
         <p className={styles.note}>

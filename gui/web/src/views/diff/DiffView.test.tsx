@@ -99,6 +99,20 @@ function Diff({ initial }: { initial: Params }) {
 afterEach(() => localStorage.clear());
 
 describe("the Diff View", () => {
+  it("shows a file's diff in a commit", async () => {
+    const requests = serveDiff({ change: change(), patch: PATCH });
+    const hash = "c".repeat(40);
+    renderWithQueries(
+      <Diff initial={{ clone: "clone-proj", commit: hash, path: "src/main.py" }} />,
+    );
+    expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
+    expect(new URL(requests[0]?.url ?? "").search).toBe(
+      `?clone=clone-proj&commit=${hash}&path=src%2Fmain.py`,
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("Diff: main.py, ccccccc");
+    expect(within(screen.getByRole("figure")).getByText("ccccccc")).toBeInTheDocument();
+  });
+
   it("shows git's patch, as chosen to look, for all Diffs", async () => {
     const requests = serveDiff({ change: change(), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);

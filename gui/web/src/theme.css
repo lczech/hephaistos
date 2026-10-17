@@ -3,6 +3,7 @@
 :root {
   --font: system-ui, sans-serif;
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
+  --mono-size: 0.9em; /* monospace among text, whose letters look larger at the same size */
   --text-small: 0.8125rem;
   --text-normal: 0.9375rem;
   --text-large: 1.125rem;

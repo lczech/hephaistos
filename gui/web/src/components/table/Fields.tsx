@@ -22,3 +22,13 @@ export function Fields({ fields, title }: Props) {
     </>
   );
 }
+
+/** Something other than fields in a row's details, under a title as titled fields are. */
+export function Titled({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <>
+      <p className={styles.title}>{title}</p>
+      <div className={styles.titled}>{children}</div>
+    </>
+  );
+}

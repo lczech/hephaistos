@@ -17,6 +17,21 @@ export function checkoutOf(params: Params): Checkout | undefined {
   return undefined;
 }
 
+/** A Checkout's State as the Repositories list has it: a Clone's or a Worktree's. */
+export function checkoutState(
+  repositories: Repository[] | undefined,
+  checkout: Checkout,
+): Schemas["CloneJson"] | Schemas["WorktreeJson"] | undefined {
+  for (const clone of repositories?.flatMap((repository) => repository.clones) ?? []) {
+    if ("clone" in checkout && clone.id === checkout.clone) return clone;
+    const worktree = clone.worktrees.find(
+      (found) => "worktree" in checkout && found.id === checkout.worktree,
+    );
+    if (worktree !== undefined) return worktree;
+  }
+  return undefined;
+}
+
 /** A Checkout's short name, for the tab: its folder's, or its Worktree's. */
 export function checkoutName(
   repositories: Repository[] | undefined,

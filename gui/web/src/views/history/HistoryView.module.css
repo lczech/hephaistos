@@ -1,0 +1,128 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.ref {
+  max-width: 16rem;
+  padding: 1px var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--text);
+  font: inherit;
+}
+
+/* The path the commits are of, with a button to show all. */
+.only {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 0 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+}
+
+.clear {
+  display: flex;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.clear:hover,
+.clear:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.clear svg {
+  width: 1em;
+  height: 1em;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  margin-right: var(--space-1);
+  color: var(--text-muted);
+  vertical-align: var(--icon-drop);
+}
+
+/* Where a file was renamed: a line, then the path it had before, which the rows below are of. */
+.history li:has(.renamed) {
+  border-top: 1px solid var(--border);
+}
+
+/* What is not committed, above the commits. */
+.uncommitted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.renamed {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.path {
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+}
+
+/* Why nothing shows, and what would. */
+.note {
+  margin: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+}
+
+.action {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.action:hover,
+.action:focus-visible {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+/* Narrow: the hash and subject on one line; below them, quieter, who wrote it, and when, at the
+ * end, where times of any length line up. */
+@container list (width < 44rem) {
+  .history li [data-column="commit"] {
+    order: 1;
+  }
+
+  .history li [data-column="subject"] {
+    flex: 1 1 0;
+    order: 2;
+  }
+
+  .history li [data-column="author"] {
+    flex: 1 1 0;
+    order: 11;
+  }
+
+  .history li [data-column="authored"] {
+    order: 12;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .history li :is([data-column="author"], [data-column="authored"]) {
+    color: var(--text-muted);
+    font-size: var(--text-small);
+  }
+}

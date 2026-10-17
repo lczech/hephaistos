@@ -1,7 +1,7 @@
 /* A list as a table: rows share the columns, sized by TanStack Table (`--columns`). */
 .frame {
   --square: calc(1lh + 4px); /* as wide as a row is high */
-  --column-gap: var(--space-3);
+  --column-gap: var(--space-2);
   container: list / inline-size; /* the rows fit the Panel's width, not the window's */
   padding: var(--space-2) 0;
   transition: opacity 0.2s;
@@ -207,7 +207,8 @@
   color: var(--text-muted);
 }
 
-.fields[data-titled] {
+.fields[data-titled],
+.titled {
   padding-left: var(--space-4);
 }
 

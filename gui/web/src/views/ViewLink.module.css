@@ -28,6 +28,13 @@
   padding: 2px 4px;
 }
 
+/* With text of its own, as a link in a list: a commit's hash. */
+.text {
+  gap: var(--space-1);
+  margin: -2px -4px;
+  padding: 2px 4px;
+}
+
 .quiet {
   opacity: 0.4;
 }

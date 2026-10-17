@@ -29,6 +29,14 @@
   color: var(--text);
 }
 
+/* Buttons at its end, Refresh last. */
+.end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
 .refresh {
   display: flex;
   margin-left: auto;

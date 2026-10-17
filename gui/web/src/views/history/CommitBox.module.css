@@ -1,0 +1,146 @@
+.hash {
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+}
+
+/* Branches and tags, small and framed; the checked-out one stronger. */
+.refs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-right: var(--space-2);
+  vertical-align: top;
+}
+
+.ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+  line-height: 1.4;
+}
+
+.ref svg {
+  width: 0.9em;
+  height: 0.9em;
+}
+
+.ref[data-kind="branch"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.ref[data-kind="head"] {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.ref[data-kind="tag"] {
+  border-color: var(--warning);
+}
+
+.box > p {
+  margin: 0 0 var(--space-2);
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.subject {
+  font-weight: 600;
+}
+
+/* The message as written: its lines and paragraphs kept, long ones wrapped. */
+.body {
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.parents {
+  display: inline-flex;
+  gap: var(--space-3);
+}
+
+/* A commit's changes' header: one line, opening all about it below, framed as a row's details. */
+.header {
+  margin: var(--space-2) var(--space-3) 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.line:hover,
+.line:focus-visible {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.chevron,
+.icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--text-muted);
+}
+
+.line[aria-expanded="true"] .chevron {
+  rotate: 90deg;
+}
+
+.lineSubject {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.by {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.frame {
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bar);
+  font-size: var(--text-small);
+}
+
+/* That nothing leads to the commit any more, or that git has it no longer. */
+.gone {
+  margin: var(--space-2) var(--space-3) 0;
+  color: var(--warning);
+  font-size: var(--text-small);
+}
+
+.header > .gone {
+  margin: var(--space-1) 0 0;
+}

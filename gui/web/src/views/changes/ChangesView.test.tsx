@@ -181,6 +181,75 @@ describe("the Changes View", () => {
     expect(screen.getByTitle("binary, modified")).toBeInTheDocument();
   });
 
+  it("shows a commit's changes under it, opening their diffs in the commit", async () => {
+    const hash = "c".repeat(40);
+    const person = { name: "Lucas", email: "lucas@example.org", at: "2026-10-13T10:00:00Z" };
+    const answer: Schemas["ChangesJson"] = {
+      branch: null,
+      commit: {
+        name: hash,
+        commit: {
+          hash,
+          parents: ["b".repeat(40)],
+          subject: "Fix it",
+          body: "Why.",
+          author: person,
+          committer: person,
+          refs: [],
+          renamed_from: null,
+        },
+        reachable: false,
+        amended_as: "d".repeat(40),
+      },
+      groups: [
+        { name: "changes", from: "b".repeat(40), to: hash, changes: [change("a.txt")], count: 1 },
+      ],
+    };
+    const requests = serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json(answer),
+    });
+    const opened: [Address, Opening | undefined][] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address, opening) => opened.push([address, opening])}>
+        <Changes initial={{ clone: "clone-proj", commit: hash }} />
+      </OpenViewContext.Provider>,
+    );
+    await userEvent.click(await screen.findByText("a.txt"));
+    const asked = requests.map((request) => new URL(request.url));
+    expect(asked.find((url) => url.pathname === "/api/changes")?.search).toBe(
+      `?clone=clone-proj&commit=${hash}`,
+    );
+    expect(opened[0]?.[0]).toEqual({
+      kind: "diff",
+      params: { clone: "clone-proj", commit: hash, path: "a.txt" },
+    });
+    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, ccccccc Fix it");
+    expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
+    expect(screen.getByText(/^Not on any branch or tag/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Changes of ddddddd" })).toBeInTheDocument();
+    const header = screen.getByRole("button", { name: /Fix it/ });
+    await userEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Why.")).toBeInTheDocument();
+  });
+
+  it("says when git has a commit no longer", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () =>
+        json({
+          branch: null,
+          groups: [],
+          commit: { name: "abc1234", commit: null, reachable: false, amended_as: null },
+        }),
+    });
+    renderWithQueries(<Changes initial={{ clone: "clone-proj", commit: "abc1234" }} />);
+    expect(await screen.findByText("abc1234 is no longer in this Checkout.")).toBeInTheDocument();
+  });
+
   it("compares since HEAD, and sorts by lines, in its parameters", async () => {
     serveChanges();
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);

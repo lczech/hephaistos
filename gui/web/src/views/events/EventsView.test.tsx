@@ -99,6 +99,24 @@ describe("the Events View", () => {
     expect(screen.queryByText(committed.id)).not.toBeInTheDocument();
   });
 
+  it("shows a commit Event's commit, its message whole, with a link to its changes", async () => {
+    const hash = "abc1".padEnd(40, "0");
+    const withBody = event(1, {
+      details: [
+        { field: "subject", text: "Fix it" },
+        { field: "body", text: "Why." },
+      ],
+      payload: { head: { old: null, new: hash }, subject: "Fix it", body: "Why.\n\nAnd how." },
+    });
+    serveEvents([withBody]);
+    renderWithQueries(<Events />);
+    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+    const details = screen.getByRole("region", { name: "Event details" });
+    expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
+    expect(within(details).queryByText("body")).toBeNull(); // the box says it whole
+    expect(within(details).getByRole("button", { name: "Changes of abc1000" })).toBeInTheDocument();
+  });
+
   it("opens and closes with the keyboard", async () => {
     serveEvents([committed]);
     renderWithQueries(<Events />);

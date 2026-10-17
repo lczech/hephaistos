@@ -82,7 +82,7 @@ describe("the Repositories View", () => {
       undefined,
       "warning",
     ]);
-    expect(cells(rows[1] as HTMLElement).slice(4, 6)).toEqual(["main", "~2"]);
+    expect(cells(rows[1] as HTMLElement).slice(3, 5)).toEqual(["main", "~2"]);
     expect(screen.getByTitle("2 changed; up to date with origin/main")).toBeInTheDocument();
     const resizable = [...document.querySelectorAll("[data-column]:has(> hr)")];
     expect(resizable.map((header) => header.getAttribute("data-column"))).toEqual([
@@ -114,6 +114,20 @@ describe("the Repositories View", () => {
       "events?repository=repo-recent",
       "events?clone=clone-recent",
       "events?worktree=wt-recent-feature",
+    ]);
+  });
+
+  it("opens the History of a Clone or Worktree, beside as a preview", async () => {
+    serveRepositories();
+    const open = vi.fn<OpenView>();
+    renderWithQueries(<Repositories open={open} />);
+    await screen.findByText("recent");
+    expect(screen.queryByRole("button", { name: "History of recent" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "History of ~/recent" }));
+    await userEvent.click(screen.getByRole("button", { name: "History of .worktrees/feature" }));
+    expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
+      ["history?clone=clone-recent", { beside: true, preview: true }],
+      ["history?worktree=wt-recent-feature", { beside: true, preview: true }],
     ]);
   });
 

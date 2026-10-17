@@ -39,6 +39,15 @@
  * Repository row, without either, is one line. */
 .repositories {
   --narrow-indent: calc(var(--square) + var(--column-gap) + 1em + 4px);
+  --views: calc(3em + 2 * var(--space-2));
+}
+
+/* A row's Views, each icon in its place, empty where it has none. */
+.views {
+  display: grid;
+  grid-template-columns: repeat(3, 1em);
+  gap: var(--space-2);
+  align-items: center;
 }
 
 @container list (width < 44rem) {
@@ -56,12 +65,8 @@
     order: 3;
   }
 
-  .repositories li [data-column="events"] {
+  .repositories li [data-column="views"] {
     order: 4;
-  }
-
-  .repositories li [data-column="changes"] {
-    order: 5;
   }
 
   .repositories li [data-column="branch"] {
@@ -78,11 +83,6 @@
   /* A Repository's has the room of the status it lacks, on its one line. */
   .repositories li:not([data-depth]) [data-column="active"] {
     order: 3;
-  }
-
-  /* As wide when empty, so that the links line up from row to row. */
-  .repositories li :is([data-column="events"], [data-column="changes"]) {
-    width: var(--square);
   }
 
   .repositories li [data-column="observed"],

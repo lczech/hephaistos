@@ -60,6 +60,7 @@
 
 .description code {
   font-family: var(--font-mono);
+  font-size: var(--mono-size);
 }
 
 .host {

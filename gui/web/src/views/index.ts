@@ -6,6 +6,7 @@ import { DaemonView } from "./daemon/DaemonView";
 import { DbView } from "./db/DbView";
 import { DiffView } from "./diff/DiffView";
 import { EventsView } from "./events/EventsView";
+import { HistoryView } from "./history/HistoryView";
 import type { KindName } from "./kinds";
 import { LogView } from "./log/LogView";
 import { RepositoriesView } from "./repositories/RepositoriesView";
@@ -26,6 +27,7 @@ export const VIEWS: Record<string, View> = {
   events: EventsView,
   changes: ChangesView,
   diff: DiffView,
+  history: HistoryView,
   log: LogView,
   config: ConfigView,
   db: DbView,

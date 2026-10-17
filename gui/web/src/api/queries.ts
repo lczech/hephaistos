@@ -12,7 +12,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { api, unwrap } from "./client";
+import { api, type Schemas, unwrap } from "./client";
 import type { paths } from "./schema";
 
 /**
@@ -34,6 +34,7 @@ export const KEYS = {
   repositories: ["repositories"],
   changes: ["changes"],
   diff: ["diff"],
+  history: ["history"],
   config: ["config"],
   eventKinds: ["events", "kinds"],
   events: ["events", "list"],
@@ -125,6 +126,42 @@ export function useDiffFiles(query: DiffQuery | undefined) {
       }),
     [client, query],
   );
+}
+
+export const HISTORY_PAGE = 50;
+
+/** Which Checkout's commits, from where and of what: `/api/history`'s parameters but paging. */
+export type HistoryQuery = Omit<
+  NonNullable<paths["/api/history"]["get"]["parameters"]["query"]>,
+  "start" | "skip" | "limit"
+>;
+
+type HistoryNext = Schemas["HistoryNextJson"];
+
+/**
+ * A Checkout's commits, newest first, each further page going on where the one before ended:
+ * after a rename, for the file's path before. Asked again as the Checkout's changes are.
+ */
+export function useHistory(query: HistoryQuery | undefined) {
+  return useInfiniteQuery({
+    queryKey: [...KEYS.history, query],
+    queryFn: async ({ pageParam }) => {
+      const after = pageParam && {
+        start: pageParam.start,
+        skip: pageParam.skip,
+        ...(pageParam.path === null ? {} : { path: pageParam.path }),
+      };
+      return unwrap(
+        await api.GET("/api/history", {
+          params: { query: { ...(query as HistoryQuery), ...after, limit: HISTORY_PAGE } },
+        }),
+      );
+    },
+    initialPageParam: undefined as HistoryNext | undefined,
+    getNextPageParam: (page) => page.next ?? undefined,
+    placeholderData: keepPreviousData,
+    enabled: query !== undefined,
+  });
 }
 
 /** The settings as the Daemon finds them; they change by hand, so asked again on focus. */

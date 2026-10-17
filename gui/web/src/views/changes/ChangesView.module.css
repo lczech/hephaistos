@@ -7,6 +7,7 @@
 .compared {
   color: var(--text);
   font-family: var(--font-mono);
+  font-size: var(--mono-size);
 }
 
 .totals {

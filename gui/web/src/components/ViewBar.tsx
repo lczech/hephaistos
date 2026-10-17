@@ -29,6 +29,11 @@ export function Toggle({ on, onChange, title, children }: ToggleProps) {
   );
 }
 
+/** The bar's end, after what it says: its buttons, then Refresh. */
+export function BarEnd({ children }: { children: ReactNode }) {
+  return <div className={styles.end}>{children}</div>;
+}
+
 /** Asks again for what the View shows, turning while it does; at the bar's end. */
 export function Refresh({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (

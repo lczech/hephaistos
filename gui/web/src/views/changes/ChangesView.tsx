@@ -6,11 +6,16 @@ import { KEYS, useChanges, useChangesWithin, useRepositories } from "../../api/q
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
-import { Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { useNow } from "../../useNow";
+import { type Params, paramValues } from "../address";
+import { CommitHeader } from "../history/CommitHeader";
+import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
 import { useOpenView } from "../opening";
 import { branchText, branchTitle } from "../repositories/rows";
 import { sortingOf, withSorting } from "../sorting";
+import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
 import { checkoutName, checkoutOf } from "./checkout";
 import { changesColumns } from "./columns";
@@ -40,13 +45,21 @@ const SINCE_HEAD = { from: "HEAD", to: "worktree" };
  */
 export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
-  const compared = comparison(params);
-  const query = { ...checkout, ...compared };
+  const [commit] = paramValues(params.commit);
+  const compared = commit === undefined ? comparison(params) : undefined;
+  const query = { ...checkout, ...(commit === undefined ? compared : { commit }) };
   const changes = useChanges(query);
   const client = useQueryClient();
   const repositories = useRepositories();
+  const now = useNow(10_000);
   const name = checkout && checkoutName(repositories.data, checkout);
-  const title = name && `Changes: ${name}${compared ? `, ${compared.from} → ${compared.to}` : ""}`;
+  const shown = changes.data?.commit;
+  let comparing = compared ? `, ${compared.from} → ${compared.to}` : "";
+  if (commit !== undefined) {
+    const subject = shown?.commit?.subject;
+    comparing = `, ${shortHash(commit)}${subject ? ` ${subject}` : ""}`;
+  }
+  const title = name && `Changes: ${name}${comparing}`;
   useEffect(() => {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
@@ -95,9 +108,10 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const opens = (entry: Entry) => {
     if (entry.type !== "change" || isFolder(entry.change) || checkout === undefined) return;
     const { group, change } = entry;
-    const shown = { ...checkout, from: group.from, to: group.to, path: change.path };
+    const states: Params = commit === undefined ? { from: group.from, to: group.to } : { commit };
+    const diff = { ...checkout, ...states, path: change.path };
     return (keep: boolean) =>
-      openView({ kind: "diff", params: shown }, { beside: true, preview: !keep });
+      openView({ kind: "diff", params: diff }, { beside: true, preview: !keep });
   };
   const table = useListTable({
     columns,
@@ -125,6 +139,8 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     message = "No Checkout: open Changes from a Clone or Worktree in Repositories.";
   } else if (changes.data === undefined) {
     message = changes.isError ? `No answer: ${changes.error.message}` : "Asking git…";
+  } else if (commit !== undefined) {
+    if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
   } else if (groups.length === 0) {
     message = compared ? `No changes from ${compared.from} to ${compared.to}.` : "No changes.";
   }
@@ -144,7 +160,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   return (
     <section className={styles.view}>
       <ViewBar>
-        {apart || together ? (
+        {commit === undefined && (apart || together) ? (
           <Toggle
             on={apart}
             onChange={toggleApart}
@@ -165,11 +181,21 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             {files} {files === 1 ? "file" : "files"}, {linesText(added, removed)}
           </span>
         )}
-        <Refresh
-          busy={changes.isFetching}
-          onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
-        />
+        {checkout && (
+          <BarEnd>
+            <ViewLink
+              address={{ kind: "history", params: checkout }}
+              label="History: the commits before"
+              opening={{ beside: true, preview: true }}
+            />
+            <Refresh
+              busy={changes.isFetching}
+              onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
+            />
+          </BarEnd>
+        )}
       </ViewBar>
+      {shown && checkout && <CommitHeader shown={shown} checkout={checkout} now={now} />}
       <ListTable
         table={table}
         className={styles.changes}
