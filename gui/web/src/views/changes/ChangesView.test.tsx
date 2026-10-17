@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
 import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
-import { addressText, type Params } from "../address";
+import { type Address, addressText, type Params } from "../address";
+import { type Opening, OpenViewContext } from "../opening";
 import { ChangesView } from "./ChangesView";
 import type { Change } from "./rows";
 
@@ -155,15 +156,26 @@ describe("the Changes View", () => {
     expect(rows().slice(1, 3)).toEqual(["src/app/ +10 −2", "Not staged modified 3 +18 −6"]);
   });
 
-  it("opens nothing from a file's row, which shows all it has", async () => {
+  it("opens a file's diff beside, as a preview, kept by a double click", async () => {
     serveChanges();
-    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
-    const name = await screen.findByText("README.md");
-    const row = name.closest("li") as HTMLElement;
-    expect(within(row).queryByRole("button")).toBeNull();
+    const opened: [Address, Opening | undefined][] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address, opening) => opened.push([address, opening])}>
+        <Changes initial={{ clone: "clone-proj" }} />
+      </OpenViewContext.Provider>,
+    );
+    const name = await screen.findByText("main.py");
     await userEvent.click(name);
+    const diff = {
+      kind: "diff",
+      params: { clone: "clone-proj", from: "HEAD", to: "index", path: "src/app/main.py" },
+    };
+    expect(opened).toEqual([[diff, { beside: true, preview: true }]]);
+    await userEvent.dblClick(name);
+    expect(opened.at(-1)).toEqual([diff, { beside: true, preview: false }]);
+    const row = name.closest("li") as HTMLElement;
+    expect(within(row).getByRole("button")).not.toHaveAttribute("aria-expanded");
     expect(screen.queryByRole("region")).toBeNull();
-    expect(within(row).getByTitle("modified")).toBeInTheDocument();
     expect(screen.getByTitle("binary, modified")).toBeInTheDocument();
   });
 

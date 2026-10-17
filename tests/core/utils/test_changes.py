@@ -8,8 +8,11 @@ from hephaistos.core.utils.changes import (
     Change,
     Changes,
     ChangesError,
+    Versions,
     changes,
+    diff,
     diff_arguments,
+    versions,
 )
 from support import create, git
 
@@ -238,3 +241,119 @@ def test_at_most_max_files_per_group(repo: Path) -> None:
 )
 def test_diff_arguments(base: str, target: str, arguments: list[str] | None) -> None:
     assert diff_arguments(base, target) == arguments
+
+
+# One file: its patch, and both its versions
+
+
+def _patch_lines(patch: str | None) -> list[str]:
+    """A patch's lines from its first hunk on, without git's headers."""
+    assert patch is not None
+    lines = patch.splitlines()
+    return lines[next(i for i, line in enumerate(lines) if line.startswith("@@")) :]
+
+
+def test_diff_of_a_file(repo: Path) -> None:
+    _write(repo, "a.txt", "one\n2\n")
+    found = diff(repo, "index", "worktree", "a.txt", max_bytes=1000)
+    assert found.change == Change("a.txt", "M", added=1, removed=1)
+    assert found.patch is not None
+    assert found.patch.startswith("diff --git a/a.txt b/a.txt\n")
+    assert _patch_lines(found.patch) == ["@@ -1,2 +1,2 @@", " one", "-two", "+2"]
+    assert diff(repo, "HEAD", "index", "a.txt", max_bytes=1000).change is None
+    assert diff(repo, "HEAD", "HEAD", "a.txt", max_bytes=1000) == diff(
+        repo, "index", "worktree", "b.txt", max_bytes=1000
+    )
+
+
+def test_diff_ignores_the_users_config(repo: Path) -> None:
+    git(repo, "config", "diff.noprefix", "true")
+    git(repo, "config", "color.ui", "always")
+    git(repo, "config", "diff.external", "false")
+    _write(repo, "ä.txt", "x\n")
+    git(repo, "add", "ä.txt")
+    patch = diff(repo, "HEAD", "index", "ä.txt", max_bytes=1000).patch
+    assert patch is not None
+    assert patch.startswith("diff --git a/ä.txt b/ä.txt\n")
+    assert "\x1b" not in patch
+
+
+def test_diff_of_a_rename_by_either_path(repo: Path) -> None:
+    git(repo, "mv", "old.txt", "new.txt")
+    _write(repo, "new.txt", "same\n" * 5 + "more\n")
+    git(repo, "add", "new.txt")
+    renamed = Change("new.txt", "R", original="old.txt", added=1, removed=0)
+    for path in ("new.txt", "old.txt"):
+        found = diff(repo, "HEAD", "index", path, max_bytes=1000)
+        assert found.change == renamed
+        assert found.patch is not None
+        assert "rename from old.txt\nrename to new.txt\n" in found.patch
+    assert versions(repo, "HEAD", "index", "new.txt", max_bytes=1000) == Versions(
+        "same\n" * 5, "same\n" * 5 + "more\n"
+    )
+
+
+def test_diff_of_an_untracked_file(repo: Path) -> None:
+    _write(repo, "notes.md", "a\nb")
+    found = diff(repo, "index", "worktree", "notes.md", max_bytes=1000)
+    assert found.change == Change("notes.md", "?", added=2, removed=0)
+    assert _patch_lines(found.patch) == [
+        "@@ -0,0 +1,2 @@",
+        "+a",
+        "+b",
+        "\\ No newline at end of file",
+    ]
+    assert diff(repo, "HEAD", "worktree", "notes.md", max_bytes=1000).change is not None
+    assert diff(repo, "HEAD", "index", "notes.md", max_bytes=1000).change is None
+    (repo / ".gitignore").write_text("*.log\n")
+    _write(repo, "debug.log", "x\n")
+    assert diff(repo, "index", "worktree", "debug.log", max_bytes=1000).change is None
+
+
+def test_no_patch_for_binary_or_large_files(repo: Path) -> None:
+    _write(repo, "a.txt", "a\n" * 600)
+    _write(repo, "image.bin", b"\0\1\2")
+    large = diff(repo, "index", "worktree", "a.txt", max_bytes=1000)
+    assert (large.change is not None, large.patch) == (True, None)
+    binary = diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
+    assert binary == diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
+    assert (binary.change, binary.patch) == (Change("image.bin", "?", binary=True, size=3), None)
+
+
+def test_diff_is_of_a_file(repo: Path) -> None:
+    with pytest.raises(ChangesError, match="not of the folder"):
+        diff(repo, "index", "worktree", "src/", max_bytes=1000)
+    with pytest.raises(ChangesError, match="within"):
+        diff(repo, "index", "worktree", "../a.txt", max_bytes=1000)
+
+
+def test_versions_in_each_state(repo: Path) -> None:
+    _write(repo, "a.txt", "staged\n")
+    git(repo, "add", "a.txt")
+    _write(repo, "a.txt", "changed")  # no newline at the end: kept
+    assert versions(repo, "HEAD", "index", "a.txt", max_bytes=1000) == Versions(
+        "one\ntwo\n", "staged\n"
+    )
+    assert versions(repo, "index", "worktree", "a.txt", max_bytes=1000) == Versions(
+        "staged\n", "changed"
+    )
+    (repo / "gone.txt").unlink()
+    _write(repo, "new.txt", "new\n")
+    assert versions(repo, "HEAD", "worktree", "gone.txt", max_bytes=1000) == Versions("x\n", None)
+    assert versions(repo, "HEAD", "worktree", "new.txt", max_bytes=1000) == Versions(None, "new\n")
+
+
+def test_versions_larger_than_max_bytes(repo: Path) -> None:
+    _write(repo, "a.txt", "a\n" * 600)
+    with pytest.raises(ChangesError, match="larger than 1,000 bytes"):
+        versions(repo, "HEAD", "worktree", "a.txt", max_bytes=1000)
+    git(repo, "add", "a.txt")
+    with pytest.raises(ChangesError, match="larger than 1,000 bytes"):
+        versions(repo, "HEAD", "index", "a.txt", max_bytes=1000)
+
+
+def test_text_that_isnt_utf8(repo: Path) -> None:
+    _write(repo, "latin.txt", "café\n".encode("latin-1"))
+    found = diff(repo, "index", "worktree", "latin.txt", max_bytes=1000)
+    assert _patch_lines(found.patch) == ["@@ -0,0 +1 @@", "+caf\ufffd"]
+    assert versions(repo, "index", "worktree", "latin.txt", max_bytes=1000).new == "caf\ufffd\n"

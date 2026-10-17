@@ -49,7 +49,7 @@ function KindIcon({ kind, title, binary }: { kind: Kind; title?: string; binary?
 }
 
 /** Lines added and removed, each as wide as most numbers, so that they line up in a column. */
-function Lines({ added, removed }: { added: number; removed: number }) {
+export function Lines({ added, removed }: { added: number; removed: number }) {
   return (
     <span className={styles.lines}>
       <span className={styles.added}>+{added}</span>{" "}
@@ -60,7 +60,6 @@ function Lines({ added, removed }: { added: number; removed: number }) {
 
 /** A bar as long as the lines' share of the most in any file: added, then removed. */
 function Meter({ added, removed, most }: { added: number; removed: number; most: number }) {
-  // Set by script, which the Content-Security-Policy allows, unlike style attributes in markup.
   const shares = {
     "--added": most ? added / most : 0,
     "--removed": most ? removed / most : 0,
@@ -95,7 +94,7 @@ function Path({ shown, title, icon }: { shown: string; title: string; icon: Reac
 }
 
 /** A change's row: its path below what the rows around it say, after what happened to it. */
-function ChangePath({ change, base }: { change: Change; base: string }) {
+export function ChangePath({ change, base }: { change: Change; base: string }) {
   const renamed = change.original === null ? "" : `\nrenamed from ${change.original}`;
   return (
     <span data-deleted={change.status === "D" || undefined}>

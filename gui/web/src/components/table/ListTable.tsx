@@ -42,12 +42,13 @@ interface Props<TData extends RowData> {
   details: (row: TData) => ReactNode; // shown below a row opened
   folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
+  opens?: (row: TData) => ((keep: boolean) => void) | undefined; // another View, kept by a double click
 }
 
 /**
  * A list as a table: its columns' headers, which filter and resize; rows that open their
- * details below them, or the rows within them where they fold, each beside a square, which a
- * first column of `Chevron`s fills (plain rows open nothing); more
+ * details below them, or the rows within them where they fold, or another View, each beside a
+ * square, which a first column of `Chevron`s fills (plain rows open nothing); more
  * rows as the end comes into view. A row opens by its first cell's button, or by a click
  * anywhere else on it but on its cells' own buttons and links. Cells cut off show their whole
  * text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
@@ -69,6 +70,7 @@ export function ListTable<TData extends RowData>({
   details,
   folds,
   plain,
+  opens,
 }: Props<TData>) {
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const end = useRef<HTMLParagraphElement>(null);
@@ -99,7 +101,6 @@ export function ListTable<TData extends RowData>({
   };
   const rows = table.getRowModel().rows;
   const filtered = table.state.columnFilters.length > 0;
-  // Set by script, which the Content-Security-Policy allows, unlike style attributes in markup.
   const grid = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
   return (
     <div
@@ -136,10 +137,12 @@ export function ListTable<TData extends RowData>({
         {rows.length > 0 && (
           <ol className={styles.rows} onPointerOver={showCutOff}>
             {rows.map((row, index) => {
-              const still = plain?.(row.original) ?? false;
+              const view = opens?.(row.original);
+              const still = view === undefined && (plain?.(row.original) ?? false);
               const folding = folds?.(row.original) ?? false;
               const shown = folding ? row.getIsExpanded() : open.has(row.id);
-              const opening = folding ? () => row.toggleExpanded() : () => toggle(row.id);
+              let opening = folding ? () => row.toggleExpanded() : () => toggle(row.id);
+              if (view !== undefined) opening = () => view(false);
               const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
               const [first, ...others] = row.getVisibleCells();
               return (
@@ -155,6 +158,7 @@ export function ListTable<TData extends RowData>({
                     className={styles.row}
                     data-plain={still || undefined}
                     onClick={still ? undefined : (event) => clickRow(event, opening)}
+                    onDoubleClick={view && ((event) => clickRow(event, () => view(true)))}
                   >
                     {first && still && (
                       <span data-column={first.column.id}>
@@ -166,8 +170,8 @@ export function ListTable<TData extends RowData>({
                         <button
                           type="button"
                           className={styles.open}
-                          aria-expanded={shown}
-                          aria-controls={shown && !folding ? `${id}-details` : undefined}
+                          aria-expanded={view ? undefined : shown}
+                          aria-controls={shown && !folding && !view ? `${id}-details` : undefined}
                           aria-labelledby={id}
                           title={squareTitle?.(row.original)}
                           onClick={opening}
@@ -182,7 +186,7 @@ export function ListTable<TData extends RowData>({
                       </span>
                     ))}
                   </div>
-                  {shown && !folding && !still && (
+                  {shown && !folding && !still && !view && (
                     <section
                       id={`${id}-details`}
                       className={styles.details}

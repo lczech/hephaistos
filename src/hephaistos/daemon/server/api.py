@@ -2,7 +2,7 @@
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
-`offset`. A Checkout's changes, only here: in a terminal, git shows them.
+`offset`. A Checkout's changes and a file's diff, only here: in a terminal, git shows them.
 """
 
 import logging
@@ -28,6 +28,8 @@ from hephaistos.core.serialize import (
     ChangesJson,
     CloneJson,
     ConfigJson,
+    DiffFilesJson,
+    DiffJson,
     EventJson,
     EventKindJson,
     LogJson,
@@ -71,6 +73,8 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/worktrees": ("data",),
     "/api/worktrees/{worktree_id}": ("data",),
     "/api/changes": ("data", "focus"),  # focus: files edited, which change no State
+    "/api/diff": ("data", "focus"),
+    "/api/diff/files": ("data", "focus"),
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
@@ -246,6 +250,38 @@ def changes_show(  # noqa: PLR0913 - one parameter per choice
         top, from_, to, path=path, max_files=limits.max_files, max_bytes=limits.max_bytes
     )
     return serialize.changes_json(found)
+
+
+@router.get("/diff")
+def diff_show(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    from_: Annotated[str, Query(alias="from")],
+    to: str,
+    path: str,
+) -> DiffJson:
+    """A file's change from one state to another, as in `/api/changes`, with git's patch."""
+    top = _working_tree(paths, clone, worktree)
+    found = changes.diff(top, from_, to, path, max_bytes=config.settings().gui.diff.max_bytes)
+    return serialize.diff_json(found)
+
+
+@router.get("/diff/files")
+def diff_files(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    from_: Annotated[str, Query(alias="from")],
+    to: str,
+    path: str,
+) -> DiffFilesJson:
+    """A file's contents in both states, to show more of it around its changes."""
+    top = _working_tree(paths, clone, worktree)
+    found = changes.versions(top, from_, to, path, max_bytes=config.settings().gui.diff.max_bytes)
+    return DiffFilesJson(old=found.old, new=found.new)
 
 
 @router.get("/events")

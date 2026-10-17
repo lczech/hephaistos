@@ -1,0 +1,69 @@
+/* A View's bar above what it shows: what and how, small and quiet; asking again at its end. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+/* A choice on or off: pressed while on. */
+.toggle {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--text);
+}
+
+.toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.refresh {
+  display: flex;
+  margin-left: auto;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.refresh:hover,
+.refresh:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.refresh svg {
+  width: 1em;
+  height: 1em;
+}
+
+.refresh[data-busy] svg {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh[data-busy] svg {
+    animation: none;
+    opacity: 0.5;
+  }
+}

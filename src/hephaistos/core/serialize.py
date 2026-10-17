@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 11)
+API_VERSION = ApiVersion(0, 12)
 
 
 class Ref(TypedDict):
@@ -726,6 +726,22 @@ def _branch_json(status: git.Status) -> BranchJson:
     )
 
 
+def change_json(change: changes.Change) -> ChangeJson:
+    """A changed file, as the API gives it."""
+    return ChangeJson(
+        path=change.path,
+        status=change.status,
+        original=change.original,
+        added=change.added,
+        removed=change.removed,
+        binary=change.binary,
+        size=change.size,
+        old_size=change.old_size,
+        files=change.files,
+        more_files=change.more_files,
+    )
+
+
 def changes_json(found: changes.Changes) -> ChangesJson:
     """A Checkout's changes, as the API gives them."""
     return ChangesJson(
@@ -735,23 +751,31 @@ def changes_json(found: changes.Changes) -> ChangesJson:
                 "name": group.name,
                 "from": group.base,
                 "to": group.target,
-                "changes": [
-                    ChangeJson(
-                        path=change.path,
-                        status=change.status,
-                        original=change.original,
-                        added=change.added,
-                        removed=change.removed,
-                        binary=change.binary,
-                        size=change.size,
-                        old_size=change.old_size,
-                        files=change.files,
-                        more_files=change.more_files,
-                    )
-                    for change in group.changes
-                ],
+                "changes": [change_json(change) for change in group.changes],
                 "count": group.count,
             }
             for group in found.groups
         ],
     )
+
+
+class DiffJson(TypedDict):
+    """A file's change, with git's patch for it, if it has one up to `gui.diff.max_bytes`."""
+
+    change: ChangeJson | None  # None if the file doesn't differ
+    patch: str | None  # None without a change, for binary files, and those too large
+
+
+def diff_json(found: changes.Diff) -> DiffJson:
+    """A file's change, as the API gives it."""
+    return DiffJson(
+        change=None if found.change is None else change_json(found.change),
+        patch=found.patch,
+    )
+
+
+class DiffFilesJson(TypedDict):
+    """A file's contents in the two states compared; None where it doesn't exist."""
+
+    old: str | None
+    new: str | None

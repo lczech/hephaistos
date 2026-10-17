@@ -237,6 +237,8 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
         ("/api/changes", 400, "give either clone or worktree"),
         ("/api/changes?clone={id}", 404, "no Clone with ID {id}"),
         ("/api/changes?worktree={id}", 404, "no Worktree with ID {id}"),
+        ("/api/diff?clone={id}&from=HEAD&to=index", 400, "query path: Field required"),
+        ("/api/diff/files?clone={id}&from=HEAD&to=index&path=a", 404, "no Clone with ID {id}"),
     ],
 )
 def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
@@ -293,6 +295,25 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
     shutil.rmtree(repo)
     gone = client.get("/api/changes", params={"clone": clone["id"]})
     assert (gone.status_code, gone.json()["error"]) == (404, f"{repo} doesn't exist")
+
+
+def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    (repo / "new.txt").write_text("one\ntwo\n")
+    asked = {"clone": clone["id"], "from": "index", "to": "worktree", "path": "new.txt"}
+    found = client.get("/api/diff", params=asked).json()
+    assert (found["change"]["status"], found["change"]["added"]) == ("?", 2)
+    assert found["patch"].startswith("diff --git a/new.txt b/new.txt\n")
+    assert found["patch"].endswith("@@ -0,0 +1,2 @@\n+one\n+two\n")
+    files = client.get("/api/diff/files", params=asked).json()
+    assert files == {"old": None, "new": "one\ntwo\n"}
+    unchanged = client.get("/api/diff", params={**asked, "from": "HEAD", "to": "index"}).json()
+    assert unchanged == {"change": None, "patch": None}
+    folder = client.get("/api/diff", params={**asked, "path": "src/"})
+    assert (folder.status_code, folder.json()["error"]) == (
+        400,
+        "a diff is of a file, not of the folder src/",
+    )
 
 
 def test_an_unexpected_error_is_logged_not_shown(
