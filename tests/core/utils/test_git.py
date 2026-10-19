@@ -411,6 +411,24 @@ def test_remote_reflogs(tmp_path: Path) -> None:
     assert remote_reflogs(create(tmp_path / "alone")) == []
 
 
+def test_remote_reflogs_leave_out_remote_heads(tmp_path: Path) -> None:
+    origin = clone(create(tmp_path / "source"), tmp_path / "origin.git", bare=True)
+    repo = clone(origin, tmp_path / "repo")
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "ahead")
+    git(repo, "push", "--quiet", "origin", "main")
+    git(repo, "remote", "set-head", "origin", "main")
+    listed = remote_reflogs(repo)
+    assert {entry.ref for entry in listed} == {"refs/remotes/origin/main"}
+    # Emptied, a symref's reflog lists its target's entries under its own name.
+    git(repo, "reflog", "expire", "--expire=now", "refs/remotes/origin/HEAD")
+    assert remote_reflogs(repo) == listed
+    # Without one, its target's entries come a second time, under the target's name.
+    git(repo, "remote", "set-head", "origin", "--delete")
+    head = "refs/remotes/origin/HEAD"
+    git(repo, "-c", "core.logAllRefUpdates=false", "symbolic-ref", head, "refs/remotes/origin/main")
+    assert remote_reflogs(repo) == listed
+
+
 def test_git_calls_are_logged_at_debug_level(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

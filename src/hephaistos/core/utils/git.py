@@ -456,8 +456,19 @@ def bodies(top: Path, commits: Collection[str]) -> dict[str, str]:
 
 
 def remote_reflogs(top: Path) -> list[ReflogEntry]:
-    """The reflogs of all remote-tracking branches, newest first for each."""
-    return _reflog(top, "--remotes")
+    """The reflogs of all remote-tracking branches, newest first for each.
+
+    Symrefs such as `<remote>/HEAD` are left out: their reflogs hold no pushes, and git lists
+    their targets' entries in their place when they are empty, and again when they are missing.
+    """
+    listed = read(
+        top,
+        "for-each-ref",
+        "--format=%(if)%(symref)%(then)%(else)%(refname)%(end)",
+        "refs/remotes",
+    )
+    refs = [ref for ref in listed.splitlines() if ref]
+    return _reflog(top, *refs, "--") if refs else []
 
 
 def is_rebasing(git_dir: Path) -> bool:

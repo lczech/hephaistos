@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Collection, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
 
@@ -52,6 +53,7 @@ class Known:
     """What the record holds about a Clone, so that observing reads only what is new."""
 
     path: Path
+    observed_at: datetime  # last time, by this Machine's clock
     branches: frozenset[str]
     head_log: Cursor | None
     push_log: Mapping[str, Cursor] | None
@@ -63,6 +65,7 @@ class Known:
         """What the record holds about this Clone, and its `removed` Worktrees."""
         return cls(
             path=details.clone.resolved_path,
+            observed_at=details.state.observed_at.datetime,
             branches=frozenset(details.state.branches),
             head_log=details.state.head_log,
             push_log=details.state.push_log,
@@ -150,18 +153,43 @@ def push_activity(
 ) -> tuple[list[Push], dict[str, Cursor]]:
     """The pushes since `cursors` (by remote-tracking ref), and where reading stopped.
 
-    Without cursors, reading starts at the end; a ref without one is new, so all of it is.
+    Without cursors, reading starts at the end; a ref without one is new, so all of it is
+    unread, or what follows its remote's renaming.
     """
     by_ref: dict[str, list[git.ReflogEntry]] = {}
     for entry in git.remote_reflogs(top):
         by_ref.setdefault(entry.ref, []).append(entry)
     pushes: list[Push] = []
     for ref, entries in by_ref.items():
-        if cursors is not None:
-            cursor = cursors.get(ref, BEGINNING)
+        if cursors is None:
+            continue
+        cursor = cursors.get(ref)
+        if cursor is None:
+            unread = activity.since_renamed(entries)
+        else:
             found = activity.unread(entries, cursor)
-            pushes += activity.pushes(activity.newer(entries, cursor) if found is None else found)
+            unread = activity.newer(entries, cursor) if found is None else found
+        pushes += activity.pushes(unread)
     return pushes, {ref: activity.end(entries) for ref, entries in by_ref.items()}
+
+
+# Reflog times are git's, maybe on another host sharing the Filesystem, and in seconds.
+_CLOCK_SLACK = timedelta(minutes=1)
+
+
+def _warn_of_old_pushes(path: Path, pushes: Collection[Push], observed_at: datetime) -> None:
+    """Warns of pushes dated before the Clone's previous observation, which should have read them.
+
+    Unless a clock is off, git listed old entries anew, as for an emptied symref's reflog.
+    """
+    old = [push.occurred_at for push in pushes if push.occurred_at < observed_at - _CLOCK_SLACK]
+    if old:
+        log.warning(
+            "pushes in %s dated before its previous observation: %d, the oldest %s",
+            path,
+            len(old),
+            min(old),
+        )
 
 
 def branch_origins(top: Path, branches: Collection[str]) -> dict[str, BranchOrigin]:
@@ -225,6 +253,7 @@ def _observed_clone(known: Known) -> CloneObservation:
     else:
         head = head_activity(path, location.common_dir, known.head_log)
         pushes, push_cursors = push_activity(path, known.push_log)
+        _warn_of_old_pushes(path, pushes, known.observed_at)
         origins = branch_origins(path, set(snapshot.branches) - known.branches)
         read = CloneActivity(head.activities, head.cursor, pushes, push_cursors, origins)
     return CloneObservation(snapshot, listed, location.common_dir, read)

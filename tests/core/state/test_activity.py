@@ -205,6 +205,18 @@ def test_pushes_skip_fetches() -> None:
     assert (pushed.payload.branch, pushed.payload.commit) == ("origin/main", Change("a", "b"))
 
 
+def test_since_renamed() -> None:
+    entries = _entries(
+        ("a", "update by push"),
+        ("a", "remote: renamed refs/remotes/origin/main to refs/remotes/upstream/main"),
+        ("b", "update by push"),
+        ref="refs/remotes/upstream/main",
+    )[::-1]
+    assert activity.since_renamed(entries) == entries[:1]
+    assert activity.since_renamed(entries[2:]) == entries[2:]
+    assert activity.since_renamed([]) == []
+
+
 def test_branch_origin() -> None:
     created = _entries(("a", "branch: Created from HEAD"), ("b", "commit: B"))[::-1]
     origin = activity.branch_origin("feature", created)

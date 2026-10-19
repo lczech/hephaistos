@@ -315,6 +315,21 @@ def pushes(entries: Sequence[ReflogEntry]) -> list[Push]:
     ]
 
 
+_REMOTE_RENAMED = "remote: renamed "
+
+
+def since_renamed(entries: Sequence[ReflogEntry]) -> list[ReflogEntry]:
+    """A new remote-tracking ref's entries (newest first) after its remote's renaming, oldest first.
+
+    `git remote rename` keeps a ref's reflog, already read under the old name; all of it if the
+    remote was never renamed.
+    """
+    for index, entry in enumerate(entries):
+        if entry.message.startswith(_REMOTE_RENAMED):
+            return list(reversed(entries[:index]))
+    return list(reversed(entries))
+
+
 @dataclass(frozen=True)
 class BranchOrigin:
     """Where a branch came from, by its reflog; all None if it has none."""

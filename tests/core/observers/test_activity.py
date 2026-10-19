@@ -191,6 +191,167 @@ def test_merge_push_and_pull(paths: Paths, repo: Path, origin: Path, tmp_path: P
     assert (pulled.kind, pulled.payload["how"]) == ("clone.pulled", "fast-forward")
 
 
+def _pushed(result: observer.Result) -> list[tuple[str, str]]:
+    """The remote-tracking branch and commit of each push recorded."""
+    return [
+        (event.payload["branch"], event.payload["commit"]["new"])
+        for event in result.events
+        if event.kind == "clone.pushed"
+    ]
+
+
+def _push(repo: Path, remote: str, branch: str, message: str) -> str:
+    """Pushes a new commit on the current branch to `branch` of `remote`; the commit."""
+    commit = _commit(repo, message)
+    git(repo, "push", "--quiet", remote, f"HEAD:{branch}")
+    return commit
+
+
+def test_emptied_remote_head_reflog_repeats_no_pushes(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Pushed later than the clone, which named origin/HEAD's only reflog entry.
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    pushed = _push(repo, "origin", "main", "Pushed")
+    assert _pushed(observer.observe(paths)) == [("origin/main", pushed)]
+    git(repo, "reflog", "expire", "--expire=now", "refs/remotes/origin/HEAD")  # as gc may
+    assert observer.observe(paths).events == []
+    later = _push(repo, "origin", "main", "Later")
+    assert _pushed(observer.observe(paths)) == [("origin/main", later)]
+
+
+def test_push_recorded_once_without_a_remote_head_reflog(paths: Paths, repo: Path) -> None:
+    git(repo, "remote", "set-head", "origin", "--delete")
+    head = "refs/remotes/origin/HEAD"
+    git(repo, "-c", "core.logAllRefUpdates=false", "symbolic-ref", head, "refs/remotes/origin/new")
+    assert observer.observe(paths).events == []
+    pushed = _push(repo, "origin", "new", "First on a new branch")
+    assert _pushed(observer.observe(paths)) == [("origin/new", pushed)]
+
+
+def test_renamed_remote_repeats_no_pushes(paths: Paths, repo: Path) -> None:
+    pushed = _push(repo, "origin", "main", "Pushed")
+    assert _pushed(observer.observe(paths)) == [("origin/main", pushed)]
+    git(repo, "remote", "rename", "origin", "upstream")
+    assert _kinds(observer.observe(paths)) == ["clone.remotes_changed"]
+    later = _push(repo, "upstream", "main", "Later")
+    assert _pushed(observer.observe(paths)) == [("upstream/main", later)]
+    git(repo, "remote", "rename", "upstream", "origin")
+    assert _kinds(observer.observe(paths)) == ["clone.remotes_changed"]
+
+
+def test_push_cursor_entry_gone_reads_what_is_newer(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    pushed = [_push(repo, "origin", "main", f"Pushed {number}") for number in range(2)]
+    # The entry the cursor names, the clone's, as if expired.
+    git(repo, "reflog", "delete", "refs/remotes/origin/main@{2}")
+    assert _pushed(observer.observe(paths)) == [("origin/main", commit) for commit in pushed]
+    assert observer.observe(paths).events == []
+
+
+def test_pushes_to_new_deleted_and_recreated_branches(
+    paths: Paths, repo: Path, origin: Path, tmp_path: Path
+) -> None:
+    second = clone(origin, tmp_path / "second.git", bare=True)
+    git(repo, "remote", "add", "second", str(second))
+    git(repo, "fetch", "--quiet", "second")
+    assert _kinds(observer.observe(paths)) == ["clone.remotes_changed"]  # fetches are no pushes
+    first = _push(repo, "origin", "feature", "First")
+    elsewhere = _push(repo, "second", "main", "Elsewhere")
+    nested = _push(repo, "origin", "nested/HEAD", "A branch named like a remote's HEAD")
+    assert sorted(_pushed(observer.observe(paths))) == [
+        ("origin/feature", first),
+        ("origin/nested/HEAD", nested),
+        ("second/main", elsewhere),
+    ]
+    git(repo, "push", "--quiet", "origin", "--delete", "feature")
+    assert observer.observe(paths).events == []
+    again = _push(repo, "origin", "feature", "Again")
+    assert _pushed(observer.observe(paths)) == [("origin/feature", again)]
+
+
+def test_emptied_head_reflog_repeats_nothing(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    _commit(repo, "First")
+    assert _kinds(observer.observe(paths)) == ["clone.committed"]
+    # Emptied, HEAD's reflog lists its branch's entries under its own name.
+    git(repo, "reflog", "expire", "--expire=now", "HEAD")
+    assert observer.observe(paths).events == []
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-02T00:00:00Z")
+    later = _commit(repo, "Later")
+    [committed] = observer.observe(paths).events
+    assert (committed.kind, committed.payload["head"]["new"]) == ("clone.committed", later)
+
+
+def test_gc_expiring_all_reflogs_repeats_nothing(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    _push(repo, "origin", "main", "Pushed")
+    assert _kinds(observer.observe(paths)) == ["clone.committed", "clone.pushed"]
+    expire = ["-c", "gc.reflogExpire=now", "-c", "gc.reflogExpireUnreachable=now"]
+    git(repo, *expire, "gc", "--quiet")
+    assert observer.observe(paths).events == []
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-02T00:00:00Z")
+    later = _push(repo, "origin", "main", "Later")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.committed", "clone.pushed"]
+    assert _pushed(result) == [("origin/main", later)]
+
+
+def test_push_from_a_worktree(paths: Paths, repo: Path, tmp_path: Path) -> None:
+    side = tmp_path / "side"
+    git(repo, "worktree", "add", "--quiet", "-b", "side", str(side))
+    observer.observe(paths)
+    pushed = _push(side, "origin", "side", "On the side")
+    assert _pushed(observer.observe(paths)) == [("origin/side", pushed)]
+
+
+def test_force_push(paths: Paths, repo: Path) -> None:
+    replaced = _push(repo, "origin", "main", "Replaced")
+    observer.observe(paths)
+    git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+    forced = _commit(repo, "Instead")
+    git(repo, "push", "--quiet", "--force", "origin", "main")
+    [pushed] = [e for e in observer.observe(paths).events if e.kind == "clone.pushed"]
+    assert pushed.payload["commit"] == {"old": replaced, "new": forced}
+
+
+def test_remote_renamed_and_pushed_to_between_observations(paths: Paths, repo: Path) -> None:
+    _push(repo, "origin", "main", "Pushed")
+    observer.observe(paths)
+    git(repo, "remote", "rename", "origin", "upstream")
+    later = _push(repo, "upstream", "main", "Later")
+    assert _pushed(observer.observe(paths)) == [("upstream/main", later)]
+
+
+def test_remote_removed_and_added_again(paths: Paths, repo: Path, origin: Path) -> None:
+    _push(repo, "origin", "main", "Pushed")
+    observer.observe(paths)
+    git(repo, "remote", "remove", "origin")
+    assert _kinds(observer.observe(paths)) == ["clone.remotes_changed"]
+    git(repo, "remote", "add", "origin", str(origin))
+    git(repo, "fetch", "--quiet", "origin")
+    assert _kinds(observer.observe(paths)) == ["clone.remotes_changed"]
+    later = _push(repo, "origin", "main", "Later")
+    assert _pushed(observer.observe(paths)) == [("origin/main", later)]
+
+
+def test_pushes_dated_before_the_last_observation_are_recorded_with_a_warning(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    # As if git's clock were behind, e.g. on another host sharing the Filesystem.
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z")
+    pushed = _push(repo, "origin", "main", "Pushed")
+    assert _pushed(observer.observe(paths)) == [("origin/main", pushed)]
+    [warning] = [record for record in caplog.records if record.levelname == "WARNING"]
+    assert "previous observation: 1," in warning.getMessage()
+
+
 def test_rebase_waits_until_finished(paths: Paths, repo: Path) -> None:
     (repo / "file").write_text("main")
     git(repo, "add", "file")
