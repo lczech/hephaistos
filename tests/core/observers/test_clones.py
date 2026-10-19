@@ -125,6 +125,23 @@ def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
     assert _state(paths, repo).error is not None
 
 
+def test_shallow_clone_deepened(paths: Paths, tmp_path: Path) -> None:
+    machines.set_up(paths, "laptop")
+    origin = create(tmp_path / "origin", commits=3)
+    repo = clone(origin, tmp_path / "repo", depth=1)
+    with write_session(paths) as session:
+        repositories.add(session, "proj")
+        clones.add(session, "proj", clones.inspect(repo))
+    observer.observe(paths)
+    git(repo, "fetch", "--quiet", "--deepen=1")
+    assert observer.observe(paths).events == []
+    git(repo, "fetch", "--quiet", "--unshallow")
+    assert observer.observe(paths).events == []
+    found = _state(paths, repo)
+    root = git(origin, "rev-list", "--max-parents=0", "HEAD")
+    assert (found.error, found.root_commits) == (None, (root,))
+
+
 def test_timeout_fails_then_recovers(
     paths: Paths, repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

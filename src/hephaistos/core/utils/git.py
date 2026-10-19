@@ -504,18 +504,30 @@ def snapshot(location: Location) -> Snapshot:
         bare=location.bare,
         head=head,
         branch=branch,
-        root_commits=root_commits(top, include_head=head is not None),
+        root_commits=root_commits(location, include_head=head is not None),
         remotes=remotes(top),
         branches=branches(top),
         status=found,
     )
 
 
-def root_commits(top: Path, *, include_head: bool = True) -> tuple[str, ...]:
-    """The commits without parents, reachable from HEAD and all local and remote branches."""
+def root_commits(location: Location, *, include_head: bool = True) -> tuple[str, ...]:
+    """The commits without parents, reachable from HEAD and all local and remote branches.
+
+    Not the commits a shallow repository is cut off at: git shows them without parents, though
+    fetching more history gives them some.
+    """
     refs = ["HEAD"] if include_head else []
-    output = read(top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
-    return tuple(sorted(set(output.split()))) if output else ()
+    output = read(location.top, "rev-list", "--max-parents=0", *refs, "--branches", "--remotes")
+    return tuple(sorted(set(output.split()) - _shallow_commits(location.common_dir)))
+
+
+def _shallow_commits(common_dir: Path) -> set[str]:
+    """The commits a shallow repository is cut off at, as its `shallow` file lists them."""
+    try:
+        return set((common_dir / "shallow").read_text().split())
+    except FileNotFoundError:  # not shallow, or no longer
+        return set()
 
 
 def describe(top: Path) -> str | None:

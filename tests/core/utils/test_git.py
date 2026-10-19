@@ -121,6 +121,21 @@ def test_root_commits_include_other_branches(tmp_path: Path) -> None:
     )
 
 
+def test_root_commits_leave_out_where_a_shallow_repository_is_cut_off(tmp_path: Path) -> None:
+    source = create(tmp_path / "source", commits=3)
+    main_root = git(source, "rev-list", "--max-parents=0", "HEAD")
+    git(source, "checkout", "--quiet", "--orphan", "pages")
+    git(source, "commit", "--quiet", "--allow-empty", "--message", "pages")
+    pages_root = git(source, "rev-parse", "HEAD")
+    git(source, "checkout", "--quiet", "main")
+    repo = clone(source, tmp_path / "repo", depth=1)
+    assert snapshot(locate(repo)).root_commits == ()
+    git(repo, "fetch", "--quiet", "origin", "pages:refs/remotes/origin/pages")  # in full
+    assert snapshot(locate(repo)).root_commits == (pages_root,)
+    git(repo, "fetch", "--quiet", "--unshallow")
+    assert snapshot(locate(repo)).root_commits == tuple(sorted([main_root, pages_root]))
+
+
 def test_snapshot_of_bare(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     facts = snapshot(locate(clone(repo, tmp_path / "bare.git", bare=True)))

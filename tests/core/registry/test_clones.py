@@ -83,6 +83,15 @@ def test_same_remote_with_unrelated_history_does_not_match(set_up: Paths, tmp_pa
     assert matching(set_up, create(tmp_path / "recreated", origin="https://host/me/proj")) == []
 
 
+def test_shallow_clone_joins_by_remote(set_up: Paths, tmp_path: Path) -> None:
+    first = create(tmp_path / "first", commits=2, origin="https://host/me/proj.git")
+    add(set_up, first)
+    shallow = clone(first, tmp_path / "shallow", depth=1)
+    git(shallow, "remote", "set-url", "origin", "https://host/me/proj.git")
+    assert matching(set_up, shallow) == ["proj"]
+    assert add(set_up, shallow).repository.name == "proj"
+
+
 def test_add_twice_fails(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     add(set_up, repo)

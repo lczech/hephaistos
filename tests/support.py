@@ -77,9 +77,11 @@ def create(path: Path, *, commits: int = 1, origin: str | None = None) -> Path:
     return path
 
 
-def clone(source: Path, path: Path, *, bare: bool = False) -> Path:
-    """A clone of `source`, sharing its history; its origin is `source`."""
-    git(source.parent, "clone", "--quiet", *(["--bare"] if bare else []), str(source), str(path))
+def clone(source: Path, path: Path, *, bare: bool = False, depth: int | None = None) -> Path:
+    """A clone of `source`, sharing its history, shallow with `depth`; its origin is `source`."""
+    options = [*(["--bare"] if bare else []), *([f"--depth={depth}"] if depth else [])]
+    url = str(source) if depth is None else source.resolve().as_uri()  # local paths ignore --depth
+    git(source.parent, "clone", "--quiet", *options, url, str(path))
     return path
 
 
