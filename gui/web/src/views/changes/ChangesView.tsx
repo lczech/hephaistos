@@ -21,6 +21,7 @@ import styles from "./ChangesView.module.css";
 import { checkoutName, checkoutOf } from "./checkout";
 import { changesColumns } from "./columns";
 import {
+  arrowText,
   type Change,
   changedLines,
   comparison,
@@ -31,16 +32,18 @@ import {
   type Group,
   isFolder,
   linesText,
+  revisionText,
   SORTS,
   totals,
   type Within,
+  WORKING_TREE,
 } from "./rows";
 
-const SINCE_HEAD = { from: "HEAD", to: "worktree" };
+const SINCE_HEAD = { from: "HEAD", to: WORKING_TREE };
 
 /**
  * What changed in a Checkout, as git reads it now: in the groups `git status` shows, or from
- * one state to another (its parameters `from` and `to`: a commit, `index` or `worktree`).
+ * one revision to another (its parameters `from` and `to`: a commit, `index` or `working-tree`).
  * Groups and directories open and close, and so do new folders, whose files are asked for once
  * opened.
  */
@@ -55,7 +58,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const now = useNow(10_000);
   const name = checkout && checkoutName(repositories.data, checkout);
   const shown = changes.data?.commit;
-  let comparing = compared ? `, ${compared.from} → ${compared.to}` : "";
+  let comparing = compared ? `, ${arrowText(compared)}` : "";
   if (commit !== undefined) {
     const subject = shown?.commit?.subject;
     comparing = `, ${shortHash(commit)}${subject ? ` ${subject}` : ""}`;
@@ -150,10 +153,12 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   } else if (commit !== undefined) {
     if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
   } else if (groups.length === 0) {
-    message = compared ? `No changes from ${compared.from} to ${compared.to}.` : "No changes.";
+    message = compared
+      ? `No changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}.`
+      : "No changes.";
   }
   // Staged changes apart, as `git status` shows them, or all since HEAD together: a toggle,
-  // unless other states are compared.
+  // unless other revisions are compared.
   const together = compared?.from === SINCE_HEAD.from && compared.to === SINCE_HEAD.to;
   const apart = compared === undefined;
   const toggleApart = () => {
@@ -186,11 +191,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             ]}
           />
         ) : (
-          compared && (
-            <span className={styles.compared}>
-              {compared.from} → {compared.to}
-            </span>
-          )
+          compared && <span className={styles.compared}>{arrowText(compared)}</span>
         )}
         {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}
         {changes.data !== undefined && groups.length > 0 && (

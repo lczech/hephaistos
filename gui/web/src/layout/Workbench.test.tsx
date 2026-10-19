@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { saveViews as save } from "../test/layout";
@@ -42,6 +42,15 @@ function Linker() {
       <p>shown: {shown.join(", ")}</p>
     </>
   );
+}
+
+/** Ctrl+F, as the window gets it; returns the event, to tell whether it was taken. */
+function pressCtrlF(): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key: "f", ctrlKey: true, cancelable: true });
+  act(() => {
+    window.dispatchEvent(event);
+  });
+  return event;
 }
 
 const tabs = () => screen.queryAllByRole("tab").map((tab) => tab.getAttribute("aria-label"));
@@ -251,6 +260,30 @@ describe("the Workbench", () => {
         expect(savedViews()).toEqual([{ kind: "probe", params: { since: "1h" } }]),
       );
     } finally {
+      delete VIEWS.probe;
+    }
+  });
+
+  it("goes to the active Panel's search field on Ctrl+F, if its View has one", async () => {
+    VIEWS.searcher = () => <input type="search" aria-label="Find" defaultValue="old" />;
+    VIEWS.probe = Probe;
+    try {
+      save("searcher", "probe");
+      const { unmount } = renderWithQueries(<Workbench />);
+      const field = (await screen.findByRole("searchbox", { name: "Find" })) as HTMLInputElement;
+      await userEvent.click(screen.getByRole("tab", { name: "searcher" }));
+      field.blur();
+      expect(pressCtrlF().defaultPrevented).toBe(true); // taken from the browser
+      expect(field).toHaveFocus();
+      expect([field.selectionStart, field.selectionEnd]).toEqual([0, 3]);
+      unmount();
+      // The search field's View behind another: Ctrl+F is the browser's.
+      save("probe", "searcher");
+      renderWithQueries(<Workbench />);
+      await userEvent.click(await screen.findByRole("tab", { name: "probe" }));
+      expect(pressCtrlF().defaultPrevented).toBe(false);
+    } finally {
+      delete VIEWS.searcher;
       delete VIEWS.probe;
     }
   });

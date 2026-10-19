@@ -45,6 +45,25 @@ function closeByKey(api: DockviewApi): { dispose: () => void } {
   return { dispose: () => window.removeEventListener("keydown", onKey) };
 }
 
+/**
+ * Ctrl+F goes to the active Panel's search field, its text selected to type over; without one,
+ * the browser finds in the page as usual.
+ */
+function searchByKey(api: DockviewApi): { dispose: () => void } {
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== "f" || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
+      return;
+    // The active Group holds only its visible Panel's View.
+    const field = api.activeGroup?.element.querySelector<HTMLInputElement>("input[type=search]");
+    if (!field) return;
+    event.preventDefault();
+    field.focus();
+    field.select();
+  };
+  window.addEventListener("keydown", onKey);
+  return { dispose: () => window.removeEventListener("keydown", onKey) };
+}
+
 /** A preview dragged to another Group is kept there. */
 function keepMoved(api: DockviewApi): { dispose: () => void } {
   return api.onDidMovePanel(({ panel, from, to }) => {
@@ -106,7 +125,13 @@ export function Workbench() {
   );
   const ready = ({ api }: DockviewReadyEvent) => {
     for (const part of attached.current) part.dispose();
-    attached.current = [keepSaved(api), closeByKey(api), keepMoved(api), keepShown(api, setShown)];
+    attached.current = [
+      keepSaved(api),
+      closeByKey(api),
+      searchByKey(api),
+      keepMoved(api),
+      keepShown(api, setShown),
+    ];
     restore(api);
     register(api);
   };

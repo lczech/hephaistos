@@ -44,7 +44,7 @@ function serveChanges(): Request[] {
       {
         name: "unstaged",
         from: "index",
-        to: "worktree",
+        to: "working-tree",
         changes: [
           change("README.md", { added: 3, removed: 1 }),
           change("a.txt", { added: 15, removed: 5 }),
@@ -61,7 +61,7 @@ function serveChanges(): Request[] {
       {
         name: "untracked",
         from: "index",
-        to: "worktree",
+        to: "working-tree",
         changes: [change("new/", { status: "?", added: null, removed: null, files: 2, size: 30 })],
         count: 1,
       },
@@ -74,7 +74,7 @@ function serveChanges(): Request[] {
       {
         name: "untracked",
         from: "index",
-        to: "worktree",
+        to: "working-tree",
         changes: [
           change("new/b.txt", { status: "?" }),
           change("new/a.txt", { status: "?", added: 4 }),
@@ -273,9 +273,9 @@ describe("the Changes View", () => {
     await screen.findByText("Staged");
     await userEvent.click(screen.getByRole("button", { name: "Groups" }));
     expect(screen.getByRole("status")).toHaveTextContent(
-      "changes?clone=clone-proj&from=HEAD&to=worktree",
+      "changes?clone=clone-proj&from=HEAD&to=working-tree",
     );
-    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, HEAD → worktree");
+    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, HEAD → working tree");
     expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(screen.getByRole("button", { name: "Groups" }));
     expect(screen.getByRole("status")).toHaveTextContent("changes?clone=clone-proj");
@@ -289,14 +289,16 @@ describe("the Changes View", () => {
   });
 
   it("shows one group as a header, which doesn't close", async () => {
-    const group = { name: "changes" as const, from: "HEAD", to: "worktree", count: 1 };
+    const group = { name: "changes" as const, from: "HEAD", to: "working-tree", count: 1 };
     serve({
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
       "GET /api/changes": () =>
         json({ branch: BRANCH, groups: [{ ...group, changes: [change("a.txt")] }] }),
     });
-    renderWithQueries(<Changes initial={{ clone: "clone-proj", from: "HEAD", to: "worktree" }} />);
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
+    );
     const header = (await screen.findByText("Changes")).closest("li") as HTMLElement;
     expect(within(header).queryByRole("button")).toBeNull();
     await userEvent.click(header);

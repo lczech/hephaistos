@@ -3,12 +3,13 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.utils import git as git_facts
-from hephaistos.core.utils.changes import ChangesError, changes, commit_states
+from hephaistos.core.utils.changes import ChangesError, changes, commit_revisions
 from hephaistos.core.utils.history import (
     History,
     HistoryError,
     Next,
     Ref,
+    by_hash,
     commit,
     history,
     refs,
@@ -98,6 +99,90 @@ def test_a_path_and_its_renames(repo: Path) -> None:
         history(repo, path="../outside", limit=10)
 
 
+def test_a_search_keeps_messages_with_all_its_words(repo: Path) -> None:
+    _commit(repo, "Mark rows whose View is shown")
+    _commit(repo, "Fix the row height")
+    git(repo, "commit", "--quiet", "--allow-empty", "-m", "Tabs", "-m", "Rows of each view.")
+    _commit(repo, "a.c")
+
+    def found(search: str, limit: int = 100) -> list[str]:
+        return [commit.subject for commit in history(repo, search=search, limit=limit).commits]
+
+    assert found("row view") == ["Tabs", "Mark rows whose View is shown"]  # also in a body
+    assert found("VIEW rows") == found("row view")
+    assert found("a.c") == ["a.c"]  # as typed, not a pattern
+    assert found("  ") == found("")
+    assert len(found("")) == 7
+    # Pages go on through those kept.
+    first = history(repo, search="row", limit=2)
+    rest = history(repo, search="row", after=first.next, limit=2)
+    assert [commit.subject for commit in first.commits + rest.commits] == [
+        "Tabs",
+        "Fix the row height",
+        "Mark rows whose View is shown",
+    ]
+    assert rest.next is None
+
+
+def test_a_search_follows_renames_it_leaves_out(repo: Path) -> None:
+    git(repo, "mv", "a.txt", "c.txt")
+    _commit(repo, "renamed")
+    found = history(repo, path="c.txt", search="one", limit=100)
+    assert [commit.subject for commit in found.commits] == ["one"]
+
+
+def test_everywhere_walks_all_branches_and_tags(repo: Path) -> None:
+    git(repo, "switch", "--quiet", "--create", "side", "HEAD~1")
+    _commit(repo, "aside")
+    git(repo, "switch", "--quiet", "--detach", "HEAD~1")
+    _commit(repo, "detached")
+    found = history(repo, everywhere=True, limit=100)
+    assert sorted(commit.subject for commit in found.commits) == [
+        "aside",
+        "detached",
+        "one",
+        "three",
+        "two",
+    ]
+    first = history(repo, everywhere=True, search="a", limit=1)  # aside, detached
+    assert first.next == Next(None, None, 1)
+    rest = history(repo, everywhere=True, search="a", after=first.next, limit=10)
+    assert {commit.subject for commit in first.commits + rest.commits} == {"aside", "detached"}
+    with pytest.raises(HistoryError, match="give a ref or everywhere, not both"):
+        history(repo, "main", everywhere=True, limit=10)
+    assert history(create(repo.parent / "empty", commits=0), everywhere=True, limit=10) == History(
+        (), None
+    )
+
+
+def test_a_hash_and_where_its_commit_is(repo: Path) -> None:
+    one, two, three = (git(repo, "rev-parse", f"HEAD~{n}") for n in (2, 1, 0))
+    git(repo, "switch", "--quiet", "--create", "side", two)
+    aside = _commit(repo, "aside")
+    git(repo, "tag", "v2", aside)
+    git(repo, "switch", "--quiet", "main")
+    git(repo, "commit", "--quiet", "--amend", "--message", "three, amended")
+
+    def where(
+        search: str, ref: str | None = None, path: str | None = None, *, everywhere: bool = False
+    ) -> tuple[str, str, tuple[str, ...]] | None:
+        found = by_hash(repo, search, ref, path, everywhere=everywhere)
+        if found is None:
+            return None
+        return found.commit.hash, found.where, tuple(ref.name for ref in found.refs)
+
+    assert where(two[:7]) == (two, "listed", ())
+    assert where(f" {two.upper()} ") == (two, "listed", ())
+    assert where(one[:7], path="b.txt") == (one, "path", ())
+    assert where(aside[:7]) == (aside, "refs", ("side", "v2"))
+    assert where(aside[:7], ref="side") == (aside, "listed", ())
+    assert where(aside[:7], everywhere=True) == (aside, "listed", ())
+    assert where(three[:7]) == (three, "none", ())
+    assert where(three[:7], everywhere=True) == (three, "none", ())
+    for search in ("two", "abc", f"{two[:7]} two", "0000000", ""):
+        assert where(search) is None
+
+
 def test_refs_of_a_clone(repo: Path, tmp_path: Path) -> None:
     copy = clone(repo, tmp_path / "copy")
     git(copy, "switch", "--quiet", "--create", "feature")
@@ -130,7 +215,7 @@ def test_a_commit_and_whether_anything_leads_to_it(repo: Path) -> None:
 
 def test_a_commits_changes_against_its_first_parent(repo: Path) -> None:
     root = git(repo, "rev-list", "--max-parents=0", "HEAD")
-    base, target = commit_states(repo, root)  # against the empty tree
+    base, target = commit_revisions(repo, root)  # against the empty tree
     found = changes(repo, base, target, max_files=10, max_bytes=1000)
     assert [change.path for change in found.groups[0].changes] == ["a.txt"]
     git(repo, "switch", "--quiet", "--create", "side", "HEAD~1")
@@ -138,11 +223,11 @@ def test_a_commits_changes_against_its_first_parent(repo: Path) -> None:
     git(repo, "switch", "--quiet", "main")
     git(repo, "merge", "--quiet", "--no-edit", "side")
     merge = git(repo, "rev-parse", "HEAD")
-    assert commit_states(repo, merge) == (git(repo, "rev-parse", "HEAD^1"), merge)
-    found = changes(repo, *commit_states(repo, merge), max_files=10, max_bytes=1000)
+    assert commit_revisions(repo, merge) == (git(repo, "rev-parse", "HEAD^1"), merge)
+    found = changes(repo, *commit_revisions(repo, merge), max_files=10, max_bytes=1000)
     assert [change.path for change in found.groups[0].changes] == ["d.txt"]
     with pytest.raises(ChangesError, match="'nothing' is not a commit here"):
-        commit_states(repo, "nothing")
+        commit_revisions(repo, "nothing")
 
 
 def test_bodies_of_commits_git_still_has(repo: Path) -> None:

@@ -28,7 +28,7 @@
   margin-left: auto;
 }
 
-/* What the header says besides the path: renamed, the states compared. */
+/* What the header says besides the path: renamed, the revisions compared. */
 .aside {
   color: var(--text-muted);
   font-size: var(--text-small);

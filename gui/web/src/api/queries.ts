@@ -151,8 +151,8 @@ export function useHistory(query: HistoryQuery | undefined) {
     queryKey: [...KEYS.history, query],
     queryFn: async ({ pageParam }) => {
       const after = pageParam && {
-        start: pageParam.start,
         skip: pageParam.skip,
+        ...(pageParam.start === null ? {} : { start: pageParam.start }), // none: everywhere
         ...(pageParam.path === null ? {} : { path: pageParam.path }),
       };
       return unwrap(

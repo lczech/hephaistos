@@ -1,10 +1,10 @@
-"""What changed in a working tree between two states, as git compares them; nothing is stored.
+"""What changed in a working tree between two revisions, as git compares them; nothing stored.
 
-A state is `index`, `worktree`, or a commit, by anything git resolves to one (`HEAD`, `main~2`);
-a commit alone is compared with its first parent. Without states, the changes come in the
-groups `git status` shows; for one file, also git's patch and both its versions. Only git's
-commands meant for scripts run, never external diff tools or text conversions, and none takes a
-lock.
+A revision is `index`, `working-tree`, or a commit, by anything git resolves to one (`HEAD`,
+`main~2`); a commit alone is compared with its first parent. Without revisions, the changes come
+in the groups `git status` shows; for one file, also git's patch and both its versions. Only
+git's commands meant for scripts run, never external diff tools or text conversions, and none
+takes a lock.
 """
 
 import functools
@@ -16,7 +16,7 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 
 INDEX = "index"
-WORKTREE = "worktree"
+WORKING_TREE = "working-tree"
 HEAD = "HEAD"
 
 FOLDER_FILES = 10_000  # files of a new folder counted; beyond, it says that there are more
@@ -42,7 +42,7 @@ _PATCH = (
 
 
 class ChangesError(HephaistosError):
-    """A state or path that can't be compared here."""
+    """A revision or path that can't be compared here."""
 
 
 @dataclass(frozen=True)
@@ -66,10 +66,10 @@ class Change:
 
 @dataclass(frozen=True)
 class Group:
-    """Changes from one state to another, sorted by path; at most a limit of them."""
+    """Changes from one revision to another, sorted by path; at most a limit of them."""
 
     name: GroupName
-    base: str  # the state compared from
+    base: str  # the revision compared from
     target: str  # and to
     changes: tuple[Change, ...]
     count: int  # all of them, also those beyond the limit
@@ -106,26 +106,26 @@ def _commit(top: Path, name: str) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
-def _resolved(top: Path, state: str) -> str:
-    """`index`, `worktree`, or the commit a state names.
+def _resolved(top: Path, revision: str) -> str:
+    """`index`, `working-tree`, or the commit a revision names.
 
-    An unborn HEAD is the empty tree, and so is the empty tree's ID, which `commit_states` gives
+    An unborn HEAD is the empty tree, and so is the empty tree's ID, which `commit_revisions` gives
     for a commit without parents.
     """
-    if state in (INDEX, WORKTREE):
-        return state
-    if state:
-        if commit := _commit(top, state):
+    if revision in (INDEX, WORKING_TREE):
+        return revision
+    if revision:
+        if commit := _commit(top, revision):
             return commit
-        if state == HEAD and git.run(top, "symbolic-ref", "--quiet", HEAD).returncode == 0:
+        if revision == HEAD and git.run(top, "symbolic-ref", "--quiet", HEAD).returncode == 0:
             return _empty_tree(top)
-        if state == _empty_tree(top):
-            return state
-    raise ChangesError(f"{state!r} is neither index, worktree nor a commit here")
+        if revision == _empty_tree(top):
+            return revision
+    raise ChangesError(f"{revision!r} is neither index, working-tree nor a commit here")
 
 
-def commit_states(top: Path, commit: str) -> tuple[str, str]:
-    """The states a commit's changes are between: its first parent, and itself.
+def commit_revisions(top: Path, commit: str) -> tuple[str, str]:
+    """The revisions a commit's changes are between: its first parent, and itself.
 
     A commit without parents is compared with the empty tree. Raises ChangesError if `commit`
     isn't one here.
@@ -137,17 +137,17 @@ def commit_states(top: Path, commit: str) -> tuple[str, str]:
 
 
 def diff_arguments(base: str, target: str) -> list[str] | None:
-    """What `git diff` compares two resolved states with; None for a state with itself."""
+    """What `git diff` compares two resolved revisions with; None for one with itself."""
     if base == target:
         return None
-    if base == INDEX and target == WORKTREE:
+    if base == INDEX and target == WORKING_TREE:
         return []
-    if base == WORKTREE and target == INDEX:
+    if base == WORKING_TREE and target == INDEX:
         return ["-R"]
-    reverse = base in (INDEX, WORKTREE)  # git compares a commit only to the index or worktree
-    commit, state = (target, base) if reverse else (base, target)
-    cached = ["--cached"] if state == INDEX else []
-    commits = [commit] if state in (INDEX, WORKTREE) else [base, target]
+    reverse = base in (INDEX, WORKING_TREE)  # git compares a commit only to them
+    commit, other = (target, base) if reverse else (base, target)
+    cached = ["--cached"] if other == INDEX else []
+    commits = [commit] if other in (INDEX, WORKING_TREE) else [base, target]
     return [*cached, *(["-R"] if reverse else []), *commits]
 
 
@@ -349,14 +349,14 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
 ) -> Changes:
     """The changes in the working tree at `top`, or below `path` in it.
 
-    Between two states; without them, as `git status` groups them: staged (HEAD to index), not
-    staged and untracked (index to worktree), and unmerged (HEAD to worktree, with git's
+    Between two revisions; without them, as `git status` groups them: staged (HEAD to index), not
+    staged and untracked (index to working tree), and unmerged (HEAD to working tree, with git's
     conflict markers). A file staged and changed again is in two groups. Groups without changes
     are left out. Up to `max_files` per group; untracked files larger than `max_bytes` aren't
     counted.
     """
     if (base is None) != (target is None):
-        raise ChangesError("give both states to compare, or neither")
+        raise ChangesError("give both revisions to compare, or neither")
     pathspec = pathspec_for(path)
     if base is None or target is None:
         return _status_groups(top, pathspec, max_files, max_bytes)
@@ -364,9 +364,9 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
     arguments = diff_arguments(*resolved)
     found = [] if arguments is None else _diff(top, arguments, pathspec)
     status = None
-    if target == WORKTREE:  # untracked files are part of it
+    if target == WORKING_TREE:  # untracked files are part of it
         status = _status(top, pathspec)
-        if base != WORKTREE:
+        if base != WORKING_TREE:
             found += _untracked(status)
     group = _group(top, "changes", base, target, found, limit=max_files, max_bytes=max_bytes)
     return Changes(status, (group,) if group.count else ())
@@ -390,17 +390,17 @@ def _status_groups(top: Path, pathspec: list[str], max_files: int, max_bytes: in
         conflicts = [Change(path, "U", None, *counts.get(path, (None, None))) for path in unmerged]
     group = functools.partial(_group, top, limit=max_files, max_bytes=max_bytes)
     groups = (
-        group("unmerged", HEAD, WORKTREE, conflicts),
+        group("unmerged", HEAD, WORKING_TREE, conflicts),
         group("staged", HEAD, INDEX, staged),
-        group("unstaged", INDEX, WORKTREE, unstaged),
-        group("untracked", INDEX, WORKTREE, _untracked(status)),
+        group("unstaged", INDEX, WORKING_TREE, unstaged),
+        group("untracked", INDEX, WORKING_TREE, _untracked(status)),
     )
     return Changes(status, tuple(group for group in groups if group.count))
 
 
 @dataclass(frozen=True)
 class Diff:
-    """A file's change from one state to another, and git's patch for it."""
+    """A file's change from one revision to another, and git's patch for it."""
 
     change: Change | None  # None if the file doesn't differ
     patch: str | None  # None without a change, for binary files, and those too large
@@ -408,7 +408,7 @@ class Diff:
 
 @dataclass(frozen=True)
 class Versions:
-    """A file's contents in two states; None where it doesn't exist."""
+    """A file's contents in two revisions; None where it doesn't exist."""
 
     old: str | None
     new: str | None
@@ -486,7 +486,7 @@ def diff(  # noqa: PLR0913 - the comparison, then how
     """A file's change from `base` to `target` in the working tree at `top`, with git's patch.
 
     A renamed file is found by its new path or its original one. An untracked file counts as
-    added to the worktree. Patches larger than `max_bytes` are left out; `context` lines
+    added to the working tree. Patches larger than `max_bytes` are left out; `context` lines
     surround each hunk, as git's `--unified`.
     """
     _file_path(path)
@@ -494,16 +494,16 @@ def diff(  # noqa: PLR0913 - the comparison, then how
     if arguments is None:
         return Diff(None, None)
     change = _changed(top, arguments, path)
-    if change is None and target == WORKTREE and _untracked_file(top, path):
+    if change is None and target == WORKING_TREE and _untracked_file(top, path):
         change = _counted(top, path, max_bytes)
     if change is None:
         return Diff(None, None)
     return Diff(change, _patch(top, arguments, change, max_bytes, context))
 
 
-def _contents(top: Path, state: str, path: str, max_bytes: int) -> str | None:
-    """A file's contents in a resolved state; None if it isn't there; raises if too large."""
-    if state == WORKTREE:
+def _contents(top: Path, revision: str, path: str, max_bytes: int) -> str | None:
+    """A file's contents in a resolved revision; None if it isn't there; raises if too large."""
+    if revision == WORKING_TREE:
         file = top / path
         if file.is_symlink():
             return str(file.readlink())  # as git shows a symlink: its target
@@ -513,7 +513,7 @@ def _contents(top: Path, state: str, path: str, max_bytes: int) -> str | None:
         if size > max_bytes:
             raise ChangesError(f"{path} is larger than {max_bytes:,} bytes")
         return file.read_bytes().decode("utf-8", "replace")
-    name = f":{path}" if state == INDEX else f"{state}:{path}"
+    name = f":{path}" if revision == INDEX else f"{revision}:{path}"
     size = git.run(top, "cat-file", "-s", name)
     if size.returncode != 0:
         return None

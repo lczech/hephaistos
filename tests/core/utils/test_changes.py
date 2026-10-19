@@ -72,8 +72,8 @@ def test_groups_as_git_status(repo: Path) -> None:
     assert found.status.branch == "main"
     assert [(group.name, group.base, group.target) for group in found.groups] == [
         ("staged", "HEAD", "index"),
-        ("unstaged", "index", "worktree"),
-        ("untracked", "index", "worktree"),
+        ("unstaged", "index", "working-tree"),
+        ("untracked", "index", "working-tree"),
     ]
     assert _groups(found) == {
         "staged": [
@@ -165,7 +165,7 @@ def test_unmerged_files(repo: Path) -> None:
         git(repo, "merge", "--quiet", "other")
     found = _changes(repo)
     assert [(group.name, group.base, group.target) for group in found.groups] == [
-        ("unmerged", "HEAD", "worktree")
+        ("unmerged", "HEAD", "working-tree")
     ]
     [conflict] = _groups(found)["unmerged"]
     assert (conflict.path, conflict.status, conflict.removed) == ("a.txt", "U", 0)
@@ -191,7 +191,7 @@ def test_since_head_includes_staged_unstaged_and_untracked(repo: Path) -> None:
     git(repo, "add", "a.txt")
     _write(repo, "b.txt", "changed\n")
     _write(repo, "new.txt", "new\n")
-    found = _changes(repo, "HEAD", "worktree")
+    found = _changes(repo, "HEAD", "working-tree")
     assert found.status is not None
     assert [change.path for change in found.groups[0].changes] == ["a.txt", "b.txt", "new.txt"]
 
@@ -207,10 +207,10 @@ def test_unborn_head_is_empty(tmp_path: Path) -> None:
     assert _changes(repo, "HEAD", "index").groups[0].changes == tuple(staged)
 
 
-@pytest.mark.parametrize("state", ["nope", "--output=x", "", "HEAD~5"])
-def test_unknown_states(repo: Path, state: str) -> None:
-    with pytest.raises(ChangesError, match="neither index, worktree nor a commit"):
-        _changes(repo, state, "worktree")
+@pytest.mark.parametrize("revision", ["nope", "--output=x", "", "HEAD~5"])
+def test_unknown_revisions(repo: Path, revision: str) -> None:
+    with pytest.raises(ChangesError, match="neither index, working-tree nor a commit"):
+        _changes(repo, revision, "working-tree")
     assert not (repo / "x").exists()
 
 
@@ -244,7 +244,7 @@ def test_untracked_files_beyond_the_limit_are_not_read(
     assert read == ["new00.txt", "new01.txt"]
     read.clear()
     _write(repo, "a.txt", "changed\n")  # sorts first, among the untracked files
-    [group] = _changes(repo, "HEAD", "worktree", max_files=2).groups
+    [group] = _changes(repo, "HEAD", "working-tree", max_files=2).groups
     assert [change.path for change in group.changes] == ["a.txt", "new00.txt"]
     assert read == ["new00.txt"]
 
@@ -252,12 +252,12 @@ def test_untracked_files_beyond_the_limit_are_not_read(
 @pytest.mark.parametrize(
     ("base", "target", "arguments"),
     [
-        ("index", "worktree", []),
-        ("worktree", "index", ["-R"]),
+        ("index", "working-tree", []),
+        ("working-tree", "index", ["-R"]),
         ("c1", "index", ["--cached", "c1"]),
         ("index", "c1", ["--cached", "-R", "c1"]),
-        ("c1", "worktree", ["c1"]),
-        ("worktree", "c1", ["-R", "c1"]),
+        ("c1", "working-tree", ["c1"]),
+        ("working-tree", "c1", ["-R", "c1"]),
         ("c1", "c2", ["c1", "c2"]),
         ("c1", "c1", None),
         ("index", "index", None),
@@ -279,14 +279,14 @@ def _patch_lines(patch: str | None) -> list[str]:
 
 def test_diff_of_a_file(repo: Path) -> None:
     _write(repo, "a.txt", "one\n2\n")
-    found = diff(repo, "index", "worktree", "a.txt", max_bytes=1000)
+    found = diff(repo, "index", "working-tree", "a.txt", max_bytes=1000)
     assert found.change == Change("a.txt", "M", added=1, removed=1)
     assert found.patch is not None
     assert found.patch.startswith("diff --git a/a.txt b/a.txt\n")
     assert _patch_lines(found.patch) == ["@@ -1,2 +1,2 @@", " one", "-two", "+2"]
     assert diff(repo, "HEAD", "index", "a.txt", max_bytes=1000).change is None
     assert diff(repo, "HEAD", "HEAD", "a.txt", max_bytes=1000) == diff(
-        repo, "index", "worktree", "b.txt", max_bytes=1000
+        repo, "index", "working-tree", "b.txt", max_bytes=1000
     )
 
 
@@ -297,7 +297,7 @@ def test_diff_with_more_or_fewer_lines_around(repo: Path) -> None:
     git(repo, "add", "a.txt")
     _write(repo, "a.txt", "".join([*lines[:4], "five\n", *lines[5:]]))
     hunks = [
-        _patch_lines(diff(repo, "index", "worktree", "a.txt", max_bytes=1000, context=n).patch)
+        _patch_lines(diff(repo, "index", "working-tree", "a.txt", max_bytes=1000, context=n).patch)
         for n in (0, 1, 3)
     ]
     assert [lines[0] for lines in hunks] == ["@@ -5 +5 @@", "@@ -4,3 +4,3 @@", "@@ -2,7 +2,7 @@"]
@@ -332,7 +332,7 @@ def test_diff_of_a_rename_by_either_path(repo: Path) -> None:
 
 def test_diff_of_an_untracked_file(repo: Path) -> None:
     _write(repo, "notes.md", "a\nb")
-    found = diff(repo, "index", "worktree", "notes.md", max_bytes=1000)
+    found = diff(repo, "index", "working-tree", "notes.md", max_bytes=1000)
     assert found.change == Change("notes.md", "?", added=2, removed=0)
     assert _patch_lines(found.patch) == [
         "@@ -0,0 +1,2 @@",
@@ -340,20 +340,20 @@ def test_diff_of_an_untracked_file(repo: Path) -> None:
         "+b",
         "\\ No newline at end of file",
     ]
-    assert diff(repo, "HEAD", "worktree", "notes.md", max_bytes=1000).change is not None
+    assert diff(repo, "HEAD", "working-tree", "notes.md", max_bytes=1000).change is not None
     assert diff(repo, "HEAD", "index", "notes.md", max_bytes=1000).change is None
     (repo / ".gitignore").write_text("*.log\n")
     _write(repo, "debug.log", "x\n")
-    assert diff(repo, "index", "worktree", "debug.log", max_bytes=1000).change is None
+    assert diff(repo, "index", "working-tree", "debug.log", max_bytes=1000).change is None
 
 
 def test_no_patch_for_binary_or_large_files(repo: Path) -> None:
     _write(repo, "a.txt", "a\n" * 600)
     _write(repo, "image.bin", b"\0\1\2")
-    large = diff(repo, "index", "worktree", "a.txt", max_bytes=1000)
+    large = diff(repo, "index", "working-tree", "a.txt", max_bytes=1000)
     assert (large.change is not None, large.patch) == (True, None)
-    binary = diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
-    assert binary == diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
+    binary = diff(repo, "index", "working-tree", "image.bin", max_bytes=1000)
+    assert binary == diff(repo, "index", "working-tree", "image.bin", max_bytes=1000)
     assert (binary.change, binary.patch) == (Change("image.bin", "?", binary=True, size=3), None)
 
 
@@ -362,7 +362,7 @@ def test_a_patch_above_max_bytes_is_not_held(repo: Path) -> None:
     _write(repo, "data.txt", "new\n" * 1_250_000)
     tracemalloc.start()
     try:
-        found = diff(repo, "HEAD", "worktree", "data.txt", max_bytes=1000)
+        found = diff(repo, "HEAD", "working-tree", "data.txt", max_bytes=1000)
         _, peak = tracemalloc.get_traced_memory()
     finally:
         tracemalloc.stop()
@@ -372,9 +372,9 @@ def test_a_patch_above_max_bytes_is_not_held(repo: Path) -> None:
 
 def test_diff_is_of_a_file(repo: Path) -> None:
     with pytest.raises(ChangesError, match="not of the folder"):
-        diff(repo, "index", "worktree", "src/", max_bytes=1000)
+        diff(repo, "index", "working-tree", "src/", max_bytes=1000)
     with pytest.raises(ChangesError, match="within"):
-        diff(repo, "index", "worktree", "../a.txt", max_bytes=1000)
+        diff(repo, "index", "working-tree", "../a.txt", max_bytes=1000)
 
 
 def test_versions_in_each_state(repo: Path) -> None:
@@ -384,19 +384,23 @@ def test_versions_in_each_state(repo: Path) -> None:
     assert versions(repo, "HEAD", "index", "a.txt", max_bytes=1000) == Versions(
         "one\ntwo\n", "staged\n"
     )
-    assert versions(repo, "index", "worktree", "a.txt", max_bytes=1000) == Versions(
+    assert versions(repo, "index", "working-tree", "a.txt", max_bytes=1000) == Versions(
         "staged\n", "changed"
     )
     (repo / "gone.txt").unlink()
     _write(repo, "new.txt", "new\n")
-    assert versions(repo, "HEAD", "worktree", "gone.txt", max_bytes=1000) == Versions("x\n", None)
-    assert versions(repo, "HEAD", "worktree", "new.txt", max_bytes=1000) == Versions(None, "new\n")
+    assert versions(repo, "HEAD", "working-tree", "gone.txt", max_bytes=1000) == Versions(
+        "x\n", None
+    )
+    assert versions(repo, "HEAD", "working-tree", "new.txt", max_bytes=1000) == Versions(
+        None, "new\n"
+    )
 
 
 def test_versions_larger_than_max_bytes(repo: Path) -> None:
     _write(repo, "a.txt", "a\n" * 600)
     with pytest.raises(ChangesError, match="larger than 1,000 bytes"):
-        versions(repo, "HEAD", "worktree", "a.txt", max_bytes=1000)
+        versions(repo, "HEAD", "working-tree", "a.txt", max_bytes=1000)
     git(repo, "add", "a.txt")
     with pytest.raises(ChangesError, match="larger than 1,000 bytes"):
         versions(repo, "HEAD", "index", "a.txt", max_bytes=1000)
@@ -404,6 +408,6 @@ def test_versions_larger_than_max_bytes(repo: Path) -> None:
 
 def test_text_that_isnt_utf8(repo: Path) -> None:
     _write(repo, "latin.txt", "café\n".encode("latin-1"))
-    found = diff(repo, "index", "worktree", "latin.txt", max_bytes=1000)
+    found = diff(repo, "index", "working-tree", "latin.txt", max_bytes=1000)
     assert _patch_lines(found.patch) == ["@@ -0,0 +1 @@", "+caf\ufffd"]
-    assert versions(repo, "index", "worktree", "latin.txt", max_bytes=1000).new == "caf\ufffd\n"
+    assert versions(repo, "index", "working-tree", "latin.txt", max_bytes=1000).new == "caf\ufffd\n"

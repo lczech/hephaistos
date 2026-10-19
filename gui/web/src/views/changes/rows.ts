@@ -225,11 +225,28 @@ export function entries(groups: Group[], within: WithinOf, sorted: SortingState)
   });
 }
 
-/** The changes compared, if the parameters say: from one state to another. */
-export function comparison(params: Params): { from: string; to: string } | undefined {
+/** The two revisions git has no name for, as the Server names them. */
+export const INDEX = "index";
+export const WORKING_TREE = "working-tree";
+
+/** Two revisions compared: a commit as git names it, `index` or `working-tree`. */
+export type Compared = { from: string; to: string };
+
+/** The changes compared, if the parameters say: from one revision to another. */
+export function comparison(params: Params): Compared | undefined {
   const [from] = paramValues(params.from);
   const [to] = paramValues(params.to);
   return from !== undefined && to !== undefined ? { from, to } : undefined;
+}
+
+/** A revision in words: `working tree`; others as named. */
+export function revisionText(revision: string): string {
+  return revision === WORKING_TREE ? "working tree" : revision;
+}
+
+/** Two revisions compared, in words: `HEAD → working tree`. */
+export function arrowText({ from, to }: Compared): string {
+  return `${revisionText(from)} → ${revisionText(to)}`;
 }
 
 /** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`. */

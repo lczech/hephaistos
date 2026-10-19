@@ -5,9 +5,11 @@ import { pathParts } from "../changes/rows";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
+export type Found = Schemas["FoundCommitJson"];
 
 export type Entry =
   | { type: "uncommitted"; text: string } // above the commits, when HEAD's are shown
+  | { type: "found"; found: Found } // a commit searched for by its hash, not among them
   | { type: "commit"; commit: Commit }
   | { type: "renamed"; commit: string; from: string }; // below the commit that renamed it
 
@@ -30,8 +32,24 @@ export function entries(commits: Commit[]): Entry[] {
   });
 }
 
+/** The rows of commits searched for, with the commit a hash searched for named first: as one
+ * of them if listed, else saying where it is. */
+export function searchedEntries(found: Found | null | undefined, commits: Commit[]): Entry[] {
+  if (!found) return entries(commits);
+  if (found.where === "listed") return entries([found.commit, ...commits]);
+  return [{ type: "found", found }, ...entries(commits)];
+}
+
+/** Where a commit searched for by its hash is, if not listed: `not on main, but on:`. */
+export function whereText(found: Found, walked: string, path: string | undefined): string {
+  if (found.where === "path") return `doesn't change ${path}`;
+  if (found.where === "refs") return `not on ${walked}, but on:`;
+  return "no branch or tag leads to it any more";
+}
+
 export function entryId(entry: Entry): string {
   if (entry.type === "uncommitted") return "uncommitted";
+  if (entry.type === "found") return `found:${entry.found.commit.hash}`;
   return entry.type === "commit" ? entry.commit.hash : `renamed:${entry.commit}`;
 }
 
@@ -65,10 +83,24 @@ export function historyTitle(
   name: string | undefined,
   ref: string | undefined,
   path: string | undefined,
+  search: string[] = [],
 ): string | undefined {
   const shown = path === undefined ? name : pathParts(path)[1];
   if (shown === undefined) return undefined;
-  return `History: ${shown}${ref === undefined ? "" : `, ${ref}`}`;
+  const searched = search.length > 0 ? `, “${search.join(" ")}”` : "";
+  return `History: ${shown}${ref === undefined ? "" : `, ${ref}`}${searched}`;
+}
+
+/** The words of a search: what is typed, apart at spaces. */
+export function searchWords(search: string | undefined): string[] {
+  return search?.split(/\s+/).filter(Boolean) ?? [];
+}
+
+/** That no commits have all the words searched for: `No commits mention row and view.` */
+export function noneFoundText(words: string[], path: string | undefined): string {
+  const listed =
+    words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0];
+  return `No commits ${path === undefined ? "" : `that changed ${path} `}mention ${listed}.`;
 }
 
 /** Whether someone else committed it than wrote it: only then is the committer worth showing. */

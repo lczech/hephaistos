@@ -1,9 +1,11 @@
 """A Checkout's commits, as `git log` walks them back from a commit; nothing is stored.
 
 A path's history goes on past renames of a file: where it ends, the oldest commit is checked
-for having renamed it, and the walk continues with the path before.
+for having renamed it, and the walk continues with the path before. A search keeps the commits
+whose message has all of its words, in any order and case.
 """
 
+import re
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +25,8 @@ _KINDS: tuple[tuple[str, RefKind], ...] = (
 _FORMAT = "%H%x00%P%x00%aN%x00%aE%x00%aI%x00%cN%x00%cE%x00%cI%x00%s%x00%b"
 _FIELDS = 10
 _LOG = ("log", "--no-color", "--no-show-signature", "-z", f"--format={_FORMAT}")
+_EVERYWHERE = ("--branches", "--remotes", "--tags")  # `--all` would add stashes and notes
+_HASH = re.compile(r"[0-9a-fA-F]{4,40}")
 
 
 class HistoryError(HephaistosError):
@@ -76,9 +80,12 @@ class Refs:
 
 @dataclass(frozen=True)
 class Next:
-    """Where the next page goes on: from a commit, skipping some, for a path or all."""
+    """Where the next page goes on: from a commit, skipping some, for a path or all.
 
-    start: str
+    From every branch, remote-tracking branch and tag, and HEAD, without a commit.
+    """
+
+    start: str | None
     path: str | None
     skip: int
 
@@ -107,16 +114,22 @@ def refs(top: Path) -> Refs:
         name, target, peeled, symref = line.split("\0")
         if symref:  # `origin/HEAD`, naming another
             continue
-        for prefix, kind in _KINDS:
-            if name.startswith(prefix):
-                short = changes.utf8_text(name.removeprefix(prefix))
-                found.append(Ref(short, kind, peeled or target))
+        if kind_name := _kind_name(name):
+            found.append(Ref(kind_name[1], kind_name[0], peeled or target))
     found.sort(key=lambda ref: [kind for _, kind in _KINDS].index(ref.kind))  # stable: by date
     return Refs(
         head.stdout.strip() if head.returncode == 0 else None,
         branch.stdout.strip() if branch.returncode == 0 and head.returncode == 0 else None,
         tuple(found),
     )
+
+
+def _kind_name(name: str) -> tuple[RefKind, str] | None:
+    """A ref's kind and short name, by its full name; None for others, e.g. a stash."""
+    for prefix, kind in _KINDS:
+        if name.startswith(prefix):
+            return kind, changes.utf8_text(name.removeprefix(prefix))
+    return None
 
 
 def _commits(output: str, known: Refs) -> list[Commit]:
@@ -141,26 +154,62 @@ def _commits(output: str, known: Refs) -> list[Commit]:
     return found
 
 
-def _log(top: Path, walk: Next, count: int, known: Refs) -> list[Commit]:
-    """Up to `count` commits of a walk."""
+def _matching(search: str | None) -> list[str]:
+    """`git log`'s options keeping the commits whose message has each word of `search`."""
+    words = search.split() if search else []
+    if not words:
+        return []
+    options = ["--regexp-ignore-case", "--fixed-strings", "--all-match"]
+    return options + [f"--grep={word}" for word in words]
+
+
+def _starts(walk: Next, known: Refs) -> list[str]:
+    """Where `git log` walks from: a commit, or all branches and tags, and HEAD."""
+    if walk.start is not None:
+        return ["--end-of-options", walk.start]
+    return [*_EVERYWHERE, "--end-of-options", *([known.head] if known.head else [])]
+
+
+def _log(top: Path, walk: Next, count: int, known: Refs, matching: list[str]) -> list[Commit]:
+    """Up to `count` commits of a walk, of those `matching` keeps."""
     output = git.read(
         top,
         "--literal-pathspecs",
         *_LOG,
+        *matching,
         f"--skip={walk.skip}",
         f"--max-count={count}",
-        "--end-of-options",
-        walk.start,
+        *_starts(walk, known),
         *changes.pathspec_for(walk.path),
     )
     return _commits(output, known)
 
 
-def _renamed_from(top: Path, commit: Commit, path: str) -> str | None:
-    """The path that `commit` renamed to `path`, compared with its first parent; None if none."""
-    if not commit.parents:
+def _oldest(
+    top: Path, walk: Next, page: list[Commit], matching: list[str], known: Refs
+) -> tuple[str, ...]:
+    """The oldest commit of a path's walk, with its parents; () if none.
+
+    Its last page ends with it, unless a search left it out.
+    """
+    if not matching:
+        return (page[-1].hash, *page[-1].parents) if page else ()
+    listed = git.read(
+        top,
+        "--literal-pathspecs",
+        "log",
+        "--format=%H %P",  # its own parents, which `rev-list --parents` would rewrite
+        *_starts(walk, known),
+        *changes.pathspec_for(walk.path),
+    )
+    return tuple(listed.splitlines()[-1].split()) if listed else ()
+
+
+def _renamed_from(top: Path, commit: tuple[str, ...], path: str) -> str | None:
+    """The path that a commit (with its parents) renamed to `path`, against its first one."""
+    if len(commit) < 2:  # noqa: PLR2004 - the commit and a parent
         return None
-    return changes.renamed_from(top, commit.parents[0], commit.hash, path)
+    return changes.renamed_from(top, commit[1], commit[0], path)
 
 
 def _start(top: Path, ref: str | None) -> str | None:
@@ -175,37 +224,53 @@ def _start(top: Path, ref: str | None) -> str | None:
     raise HistoryError(f"{ref!r} is not a branch, tag or commit here")
 
 
-def history(
+def history(  # noqa: PLR0913 - the optional ones are keyword-only
     top: Path,
     ref: str | None = None,
     path: str | None = None,
     *,
+    search: str | None = None,
+    everywhere: bool = False,
     after: Next | None = None,
     limit: int,
 ) -> History:
     """Up to `limit` commits of the Checkout at `top`, from `ref` (or HEAD) back.
 
-    In `git log`'s order; only those that changed `path`, if given, following a file's renames.
-    `after` goes on where a page ended.
+    Or, `everywhere`, from all branches, remote-tracking branches and tags. In `git log`'s
+    order; only those that changed `path`, if given, following a file's renames, and whose
+    message has the words of `search`. `after` goes on where a page ended, for the same search.
     """
-    if after is None:
-        start = _start(top, ref)
-        if start is None:
-            return History((), None)
-        after = Next(start, path, 0)
-    changes.pathspec_for(after.path)  # checked before git runs
+    if everywhere and ref is not None:
+        raise HistoryError("give a ref or everywhere, not both")
     known = refs(top)
+    if after is None:
+        if everywhere:
+            if known.head is None and not known.refs:
+                return History((), None)
+            after = Next(None, path, 0)
+        else:
+            start = _start(top, ref)
+            if start is None:
+                return History((), None)
+            after = Next(start, path, 0)
+    changes.pathspec_for(after.path)  # checked before git runs
+    matching = _matching(search)
     found: list[Commit] = []
     walk: Next | None = after
     while walk is not None and len(found) < limit:
         wanted = limit - len(found)
-        page = _log(top, walk, wanted + 1, known)
+        page = _log(top, walk, wanted + 1, known, matching)
         found += page[:wanted]
         if len(page) > wanted:
             walk = replace(walk, skip=walk.skip + wanted)
-        elif walk.path is not None and page and (old := _renamed_from(top, page[-1], walk.path)):
-            found[-1] = replace(found[-1], renamed_from=old)
-            walk = Next(page[-1].parents[0], old, 0)
+        elif (
+            walk.path is not None
+            and (oldest := _oldest(top, walk, page, matching, known))
+            and (old := _renamed_from(top, oldest, walk.path))
+        ):
+            if page and page[-1].hash == oldest[0]:
+                found[-1] = replace(found[-1], renamed_from=old)
+            walk = Next(oldest[1], old, 0)
         else:
             walk = None
     return History(tuple(found), walk)
@@ -222,22 +287,112 @@ class Shown:
     reachable: bool
 
 
-def commit(top: Path, name: str) -> Shown:
-    """The commit `name` resolves to in the Checkout at `top`."""
+def _read(top: Path, name: str, known: Refs) -> Commit | None:
+    """The commit `name` resolves to; None if none."""
     result = git.run(top, *_LOG, "--max-count=1", "--end-of-options", f"{name}^{{commit}}", "--")
     if result.returncode != 0 or not result.stdout:
-        return Shown(None, reachable=False)
-    known = refs(top)
-    found = _commits(result.stdout, known)[0]
-    contains = git.run(
+        return None
+    return _commits(result.stdout, known)[0]
+
+
+def _ancestor(top: Path, commit: str, of: str | None) -> bool:
+    """Whether `of` leads to `commit`, or is it."""
+    return of is not None and (
+        git.run(top, "merge-base", "--is-ancestor", commit, of).returncode == 0
+    )
+
+
+def _leading(top: Path, commit: str, known: Refs, *, count: int | None = None) -> tuple[Ref, ...]:
+    """The branches, remote-tracking branches and tags leading to a commit, up to `count`.
+
+    In the order `refs` has them. Slow in a large repository without git's commit-graph file.
+    """
+    listed = git.read(
         top,
         "for-each-ref",
-        "--count=1",
-        "--format=x",
-        f"--contains={found.hash}",
+        *([] if count is None else [f"--count={count}"]),
+        "--format=%(refname)",
+        f"--contains={commit}",
         *(prefix for prefix, _ in _KINDS),
     )
-    on_head = known.head is not None and (
-        git.run(top, "merge-base", "--is-ancestor", found.hash, known.head).returncode == 0
+    names = {_kind_name(name) for name in listed.splitlines()}
+    return tuple(ref for ref in known.refs if (ref.kind, ref.name) in names)
+
+
+def commit(top: Path, name: str) -> Shown:
+    """The commit `name` resolves to in the Checkout at `top`."""
+    known = refs(top)
+    found = _read(top, name, known)
+    if found is None:
+        return Shown(None, reachable=False)
+    reachable = _ancestor(top, found.hash, known.head) or bool(
+        _leading(top, found.hash, known, count=1)
     )
-    return Shown(found, reachable=bool(contains.stdout.strip()) or on_head)
+    return Shown(found, reachable=reachable)
+
+
+type Where = Literal["listed", "path", "refs", "none"]
+
+
+@dataclass(frozen=True)
+class Found:
+    """The commit a search names by its hash, and where it is, against the commits searched.
+
+    `listed` among them; `path` where they walk, but not changing their path (by its name
+    there); `refs` only on other branches or tags, which `refs` gives; `none` if nothing leads
+    to it any more: amended, rebased or reset away.
+    """
+
+    commit: Commit
+    where: Where
+    refs: tuple[Ref, ...] = ()
+
+
+def _changes_path(top: Path, commit: str, path: str) -> bool:
+    """Whether a commit changed a file or folder, against its first parent."""
+    base, target = changes.commit_revisions(top, commit)
+    result = git.run(
+        top,
+        "--literal-pathspecs",
+        "diff",
+        "--quiet",
+        "--no-ext-diff",
+        base,
+        target,
+        *changes.pathspec_for(path),
+    )
+    return result.returncode == 1
+
+
+def by_hash(
+    top: Path,
+    search: str | None,
+    ref: str | None = None,
+    path: str | None = None,
+    *,
+    everywhere: bool = False,
+) -> Found | None:
+    """The commit whose hash starts with `search`, if that is one word of 4 to 40 hex digits.
+
+    Where it is, against the commits `history` walks with the same `ref`, `path` and
+    `everywhere`. None if no commit, or several, have such a hash.
+    """
+    words = search.split() if search else []
+    if len(words) != 1 or not _HASH.fullmatch(words[0]):
+        return None
+    prefix = words[0].lower()
+    known = refs(top)
+    found = _read(top, prefix, known)
+    if found is None or not found.hash.startswith(prefix):  # none, or a branch of that name
+        return None
+    if everywhere:
+        walked = _ancestor(top, found.hash, known.head) or bool(
+            _leading(top, found.hash, known, count=1)
+        )
+    else:
+        walked = _ancestor(top, found.hash, _start(top, ref))
+    if walked:
+        listed = path is None or _changes_path(top, found.hash, path)
+        return Found(found, "listed" if listed else "path")
+    leading = _leading(top, found.hash, known)
+    return Found(found, "refs" if leading else "none", leading)

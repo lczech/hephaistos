@@ -875,6 +875,31 @@
         "title": "EventKindJson",
         "type": "object"
       },
+      "FoundCommitJson": {
+        "description": "The commit a search names by its hash, and where it is, against the commits searched.",
+        "properties": {
+          "commit": {
+            "$ref": "#/components/schemas/CommitJson"
+          },
+          "refs": {
+            "items": {
+              "$ref": "#/components/schemas/RefJson"
+            },
+            "title": "Refs",
+            "type": "array"
+          },
+          "where": {
+            "$ref": "#/components/schemas/Where"
+          }
+        },
+        "required": [
+          "commit",
+          "where",
+          "refs"
+        ],
+        "title": "FoundCommitJson",
+        "type": "object"
+      },
       "GroupName": {
         "enum": [
           "staged",
@@ -919,6 +944,16 @@
             "title": "Commits",
             "type": "array"
           },
+          "found": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FoundCommitJson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "head": {
             "anyOf": [
               {
@@ -953,7 +988,8 @@
           "branch",
           "refs",
           "commits",
-          "next"
+          "next",
+          "found"
         ],
         "title": "HistoryJson",
         "type": "object"
@@ -977,8 +1013,15 @@
             "type": "integer"
           },
           "start": {
-            "title": "Start",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
           }
         },
         "required": [
@@ -2022,6 +2065,15 @@
         "title": "WatcherJson",
         "type": "object"
       },
+      "Where": {
+        "enum": [
+          "listed",
+          "path",
+          "refs",
+          "none"
+        ],
+        "type": "string"
+      },
       "WorktreeJson": {
         "description": "A Worktree with its State.",
         "properties": {
@@ -2217,13 +2269,13 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.14"
+    "version": "0.15"
   },
   "openapi": "3.1.0",
   "paths": {
     "/api/changes": {
       "get": {
-        "description": "What changed in a Clone's or Worktree's working tree, as git compares it, read now.\n\nFrom one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`), or what a\n`commit` changed, with the commit; without them, in the groups `git status` shows. `path`\nlimits it to a file or folder in the Checkout.",
+        "description": "What changed in a Clone's or Worktree's working tree, as git compares it, read now.\n\nFrom one revision to another (`index`, `working-tree`, or a commit, e.g. `HEAD`), or what a\n`commit` changed, with the commit; without them, in the groups `git status` shows. `path`\nlimits it to a file or folder in the Checkout.",
         "operationId": "changes_show_api_changes_get",
         "parameters": [
           {
@@ -2716,7 +2768,7 @@
     },
     "/api/diff/files": {
       "get": {
-        "description": "A file's contents in both states, to show more of it around its changes.",
+        "description": "A file's contents in both revisions, to show more of it around its changes.",
         "operationId": "diff_files_api_diff_files_get",
         "parameters": [
           {
@@ -3096,7 +3148,7 @@
     },
     "/api/history": {
       "get": {
-        "description": "A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`; with HEAD and the refs there are to walk from instead. `path` keeps those\nthat changed a file or folder, following a file's renames. A page's `next` gives `start`,\n`path` and `skip` to go on where it ended.",
+        "description": "A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. `path` keeps those that changed a file or folder, following a\nfile's renames; `search`, those whose message has all of its words. A search for one hash\n(4 to 40 hex digits) also finds its commit, wherever it is, on the first page. A page's\n`next` gives `start`, `path` and `skip` to go on where it ended, with the same `search`\nand `everywhere`.",
         "operationId": "history_show_api_history_get",
         "parameters": [
           {
@@ -3163,6 +3215,32 @@
                 }
               ],
               "title": "Path"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "everywhere",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Everywhere",
+              "type": "boolean"
             }
           },
           {

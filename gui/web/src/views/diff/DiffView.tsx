@@ -25,12 +25,17 @@ import { type Params, paramValues } from "../address";
 import { checkoutOf } from "../changes/checkout";
 import { ChangePath, Lines } from "../changes/columns";
 import {
+  arrowText,
   type Change,
+  type Compared,
   changedLines,
   comparison,
   groupName,
+  INDEX,
   otherText,
   pathParts,
+  revisionText,
+  WORKING_TREE,
 } from "../changes/rows";
 import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
@@ -38,16 +43,15 @@ import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 import { diffLook } from "./look";
 
-type Compared = { from: string; to: string };
-
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
 
-/** What two states compared are, in words where git's status has them: `staged`. */
-export function comparedText({ from, to }: Compared): string {
-  if (from === "HEAD" && to === "index") return "staged";
-  if (from === "index" && to === "worktree") return "not staged";
-  if (from === "HEAD" && to === "worktree") return "since HEAD";
-  return `${from} → ${to}`;
+/** Two revisions compared, in words where git's status has them: `staged`. */
+export function comparedText(compared: Compared): string {
+  const { from, to } = compared;
+  if (from === "HEAD" && to === INDEX) return "staged";
+  if (from === INDEX && to === WORKING_TREE) return "not staged";
+  if (from === "HEAD" && to === WORKING_TREE) return "since HEAD";
+  return arrowText(compared);
 }
 
 /** That there are no changes so: `No staged changes.`, `No changes from main to HEAD.` */
@@ -56,12 +60,12 @@ function noChanges(compared: Compared): string {
   if (text === "staged") return "No staged changes.";
   if (text === "not staged") return "No unstaged changes.";
   return text.includes("→")
-    ? `No changes from ${compared.from} to ${compared.to}.`
+    ? `No changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}.`
     : `No changes ${text}.`;
 }
 
 /** The file's diff the parameters name: its Checkout, what is compared (a commit against its
- * first parent, or two states), and its path. */
+ * first parent, or two revisions), and its path. */
 function diffQuery(params: Params): DiffQuery | undefined {
   const checkout = checkoutOf(params);
   const [commit] = paramValues(params.commit);
@@ -71,15 +75,15 @@ function diffQuery(params: Params): DiffQuery | undefined {
   return { ...checkout, ...compared, path };
 }
 
-/** The two states a query compares, unless it is a commit's. */
-function statesOf({ from, to }: DiffQuery): Compared | undefined {
+/** The two revisions a query compares, unless it is a commit's. */
+function revisionsOf({ from, to }: DiffQuery): Compared | undefined {
   return from && to ? { from, to } : undefined;
 }
 
 /** What a query compares, in words: `staged`, or a commit's short hash. */
 function queryText(query: DiffQuery): string {
-  const states = statesOf(query);
-  return states ? comparedText(states) : shortHash(query.commit ?? "");
+  const revisions = revisionsOf(query);
+  return revisions ? comparedText(revisions) : shortHash(query.commit ?? "");
 }
 
 /** Whether the element is narrower than `rem`; false until measured. */
@@ -98,8 +102,8 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
 }
 
 /**
- * A file's diff from one state to another (its parameters `from` and `to`: a commit, `index`
- * or `worktree`), as git's patch has it, highlighted. More of the file shows on asking. Large
+ * A file's diff from one revision to another (its parameters `from` and `to`: a commit, `index`
+ * or `working-tree`), as git's patch has it, highlighted. More of the file shows on asking. Large
  * diffs wait to be shown; one that is empty says where the file's changes are now.
  */
 export function DiffView({ params, setParams, setTitle }: ViewProps) {
@@ -145,9 +149,9 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       </p>
     );
   } else if (change === null || change === undefined) {
-    const states = statesOf(query);
-    body = states ? (
-      <Unchanged query={{ ...query, ...states }} params={params} setParams={setParams} />
+    const revisions = revisionsOf(query);
+    body = revisions ? (
+      <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
     ) : (
       <p className={styles.note}>No changes to this file in {queryText(query)}.</p>
     );
@@ -246,7 +250,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
 }
 
 /**
- * Above the diff: what happened to the file, its path, the states compared, and its lines added
+ * Above the diff: what happened to the file, its path, the revisions compared, and its lines added
  * and removed.
  */
 function FileHeader({ change, compared }: { change: Change; compared: string }) {
@@ -288,7 +292,7 @@ function Unchanged({ query, params, setParams }: UnchangedProps) {
     groupName(group),
     { from: group.from, to: group.to },
   ]);
-  if (groups.length > 0) options.push(["Since HEAD", { from: "HEAD", to: "worktree" }]);
+  if (groups.length > 0) options.push(["Since HEAD", { from: "HEAD", to: WORKING_TREE }]);
   const offered = options.filter(
     ([, compared], index) =>
       !(compared.from === query.from && compared.to === query.to) &&

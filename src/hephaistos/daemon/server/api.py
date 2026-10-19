@@ -239,16 +239,17 @@ def _working_tree(
 
 def _commits_only(from_: str | None, to: str | None, commit: str | None) -> bool:
     """Whether a request compares only commits, which a bare Clone has too."""
-    states = {from_, to} - {None}
-    return commit is not None or (bool(states) and not states & {changes.INDEX, changes.WORKTREE})
+    revisions = {from_, to} - {None}
+    uncommitted = {changes.INDEX, changes.WORKING_TREE}
+    return commit is not None or (bool(revisions) and not revisions & uncommitted)
 
 
-def _states(top: Path, from_: str | None, to: str | None, commit: str | None) -> tuple[str, str]:
-    """The states compared: `from` and `to`, or a commit's parent and itself."""
+def _revisions(top: Path, from_: str | None, to: str | None, commit: str | None) -> tuple[str, str]:
+    """The revisions compared: `from` and `to`, or a commit's parent and itself."""
     if commit is not None:
         if from_ is not None or to is not None:
             raise HTTPException(400, "give commit, or from and to, not both")
-        return changes.commit_states(top, commit)
+        return changes.commit_revisions(top, commit)
     if from_ is None or to is None:
         raise HTTPException(400, "give from and to, or commit")
     return from_, to
@@ -267,7 +268,7 @@ def changes_show(  # noqa: PLR0913 - one parameter per choice
 ) -> ChangesJson:
     """What changed in a Clone's or Worktree's working tree, as git compares it, read now.
 
-    From one state to another (`index`, `worktree`, or a commit, e.g. `HEAD`), or what a
+    From one revision to another (`index`, `working-tree`, or a commit, e.g. `HEAD`), or what a
     `commit` changed, with the commit; without them, in the groups `git status` shows. `path`
     limits it to a file or folder in the Checkout.
     """
@@ -278,7 +279,7 @@ def changes_show(  # noqa: PLR0913 - one parameter per choice
         shown = _shown_commit(paths, top, commit)
         if shown["commit"] is None:
             return serialize.changes_json(changes.Changes(None, ()), shown)
-        from_, to = _states(top, from_, to, shown["commit"]["hash"])
+        from_, to = _revisions(top, from_, to, shown["commit"]["hash"])
     found = changes.changes(
         top, from_, to, path=path, max_files=limits.max_files, max_bytes=limits.max_bytes
     )
@@ -309,7 +310,7 @@ def diff_show(  # noqa: PLR0913 - one parameter per choice
 ) -> DiffJson:
     """A file's change, as in `/api/changes`, with git's patch: `context` lines around each hunk."""
     top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
-    base, target = _states(top, from_, to, commit)
+    base, target = _revisions(top, from_, to, commit)
     max_bytes = config.settings().gui.diff.max_bytes
     found = changes.diff(top, base, target, path, max_bytes=max_bytes, context=context)
     return serialize.diff_json(found)
@@ -326,9 +327,9 @@ def diff_files(  # noqa: PLR0913 - one parameter per choice
     commit: str | None = None,
     path: str,
 ) -> DiffFilesJson:
-    """A file's contents in both states, to show more of it around its changes."""
+    """A file's contents in both revisions, to show more of it around its changes."""
     top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
-    base, target = _states(top, from_, to, commit)
+    base, target = _revisions(top, from_, to, commit)
     found = changes.versions(
         top, base, target, path, max_bytes=config.settings().gui.diff.max_bytes
     )
@@ -343,20 +344,31 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     worktree: uuid.UUID | None = None,
     ref: str | None = None,
     path: str | None = None,
+    search: str | None = None,
+    everywhere: bool = False,
     start: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = DEFAULT_COMMITS,
 ) -> HistoryJson:
     """A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.
 
-    Or from `ref`; with HEAD and the refs there are to walk from instead. `path` keeps those
-    that changed a file or folder, following a file's renames. A page's `next` gives `start`,
-    `path` and `skip` to go on where it ended.
+    Or from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there
+    are to walk from instead. `path` keeps those that changed a file or folder, following a
+    file's renames; `search`, those whose message has all of its words. A search for one hash
+    (4 to 40 hex digits) also finds its commit, wherever it is, on the first page. A page's
+    `next` gives `start`, `path` and `skip` to go on where it ended, with the same `search`
+    and `everywhere`.
     """
     top = _working_tree(paths, clone, worktree, bare=True)
-    after = None if start is None else history.Next(start, path, skip)
-    found = history.history(top, ref, path, after=after, limit=limit)
-    return serialize.history_json(history.refs(top), found)
+    first = start is None and skip == 0
+    if not first and start is None and not everywhere:
+        raise HTTPException(400, "give start to go on, unless everywhere")
+    after = None if first else history.Next(start, path, skip)
+    found = history.history(
+        top, ref, path, search=search, everywhere=everywhere, after=after, limit=limit
+    )
+    named = history.by_hash(top, search, ref, path, everywhere=everywhere) if first else None
+    return serialize.history_json(history.refs(top), found, named)
 
 
 @router.get("/events")

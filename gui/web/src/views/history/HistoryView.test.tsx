@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -37,6 +37,7 @@ const HEAD = commit(3, {
 function page(
   commits: Commit[],
   next: Schemas["HistoryNextJson"] | null = null,
+  found: Schemas["FoundCommitJson"] | null = null,
 ): Schemas["HistoryJson"] {
   return {
     head: HEAD.hash,
@@ -49,6 +50,7 @@ function page(
     ],
     commits,
     next,
+    found,
   };
 }
 
@@ -219,7 +221,7 @@ describe("the History View", () => {
         json({
           branch: null,
           commit: null,
-          groups: [{ name: "unstaged", from: "index", to: "worktree", changes: [], count: 1 }],
+          groups: [{ name: "unstaged", from: "index", to: "working-tree", changes: [], count: 1 }],
         }),
     });
     const opened: Address[] = [];
@@ -237,6 +239,90 @@ describe("the History View", () => {
     expect(screen.queryByText(/^Uncommitted/)).toBeNull(); // not what is checked out
   });
 
+  it("searches the messages for all words typed, without what is not committed", async () => {
+    const found = commit(2, { subject: "Mark rows whose View is shown" });
+    const requests = serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj", { changed: 1 })])]),
+      "GET /api/history": (request) => {
+        const search = new URL(request.url).searchParams.get("search");
+        if (search === null) return json(page([HEAD]));
+        return json(page(search === "row view" ? [found] : []));
+      },
+    });
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
+    const field = screen.getByRole("searchbox", { name: "Search messages" });
+    await userEvent.type(field, "row");
+    await act(() => new Promise((resolve) => setTimeout(resolve, 350))); // a pause: asked
+    await userEvent.type(field, "  view");
+    expect(field).toHaveValue("row  view"); // no key lost
+    expect(await screen.findByText("Mark rows whose View is shown")).toBeInTheDocument();
+    expect(screen.queryByText(/^Uncommitted/)).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("history?clone=clone-proj&search=row");
+    expect(screen.getByRole("heading")).toHaveTextContent("History: proj, “row view”");
+    const asked = requests.map((request) => new URL(request.url));
+    expect(
+      asked
+        .filter((url) => url.pathname === "/api/history")
+        .map((url) => url.searchParams.get("search")),
+    ).toEqual([null, "row", "row view"]); // each time typing paused
+    await userEvent.clear(field);
+    await userEvent.type(field, "zebra yak{Enter}");
+    // Enter asks at once, without waiting for a pause.
+    expect(
+      await screen.findByText("No commits mention zebra and yak.", {}, { timeout: 200 }),
+    ).toBeInTheDocument();
+    await userEvent.type(field, "{Escape}");
+    expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
+  });
+
+  it("finds a commit by its hash: listed first, or where it is, to show it there", async () => {
+    const aside = commit(7, { subject: "Aside" });
+    const feature = { name: "feature", kind: "branch" as const, commit: aside.hash };
+    serveHistory((url) => {
+      const search = url.searchParams.get("search");
+      if (search === null) return json(page([HEAD]));
+      if (url.searchParams.get("ref") === "feature") {
+        return json(page([], null, { commit: aside, where: "listed", refs: [] }));
+      }
+      if (url.searchParams.get("path") !== null) {
+        return json(page([], null, { commit: aside, where: "path", refs: [] }));
+      }
+      return json(page([], null, { commit: aside, where: "refs", refs: [feature] }));
+    });
+    renderWithQueries(<History initial={{ clone: "clone-proj", search: "ccccccc7" }} />);
+    expect(await screen.findByText("not on main, but on:")).toBeInTheDocument();
+    expect(screen.getByText("Aside")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "feature" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "history?clone=clone-proj&ref=feature&search=ccccccc7",
+    );
+    // There, listed: as one of its commits.
+    await waitFor(() => expect(screen.queryByText("not on main, but on:")).toBeNull());
+    expect(rows()).toEqual(["ccccccc Aside Lucas 2h ago"]);
+  });
+
+  it("offers all files for a commit found by its hash that doesn't change the path", async () => {
+    const aside = commit(7, { subject: "Aside" });
+    serveHistory((url) =>
+      json(
+        url.searchParams.get("path") === null
+          ? page([], null, { commit: aside, where: "listed", refs: [] })
+          : page([], null, { commit: aside, where: "path", refs: [] }),
+      ),
+    );
+    renderWithQueries(
+      <History initial={{ clone: "clone-proj", path: "a.txt", search: "ccccccc7" }} />,
+    );
+    expect(await screen.findByText("doesn't change a.txt")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "All files" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^history\?clone=clone-proj&search=ccccccc7$/,
+    );
+  });
+
   it("says what is not committed of the path", async () => {
     serve({
       "GET /api/info": () => json(info()),
@@ -246,7 +332,7 @@ describe("the History View", () => {
         json({
           branch: null,
           commit: null,
-          groups: [{ name: "unstaged", from: "index", to: "worktree", changes: [], count: 1 }],
+          groups: [{ name: "unstaged", from: "index", to: "working-tree", changes: [], count: 1 }],
         }),
     });
     renderWithQueries(<History initial={{ clone: "clone-proj", path: "a.txt" }} />);

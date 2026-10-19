@@ -4,8 +4,13 @@
   min-height: 100%;
 }
 
+/* The branch picked and the search: as wide as each other, so they line up when the bar wraps. */
+.control {
+  width: 16rem;
+  max-width: 100%;
+}
+
 .ref {
-  max-width: 16rem;
   padding: 1px var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -64,6 +69,19 @@
 
 /* What is not committed, above the commits. */
 .uncommitted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* A commit searched for by its hash that isn't listed: where it is, and buttons to show it. */
+.found {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.where {
   color: var(--text-muted);
   font-style: italic;
 }

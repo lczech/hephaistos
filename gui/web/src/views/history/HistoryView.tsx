@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   type HistoryQuery,
   KEYS,
@@ -8,10 +8,12 @@ import {
   useHistory,
   useRepositories,
 } from "../../api/queries";
+import { SearchField } from "../../components/SearchField";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { BarEnd, Refresh, ViewBar } from "../../components/ViewBar";
+import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
@@ -20,7 +22,18 @@ import { useIsShown } from "../opening";
 import { CommitBox } from "./CommitBox";
 import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
-import { entries, entryId, headText, historyTitle, type Ref, uncommittedText } from "./rows";
+import {
+  entryId,
+  headText,
+  historyTitle,
+  noneFoundText,
+  type Ref,
+  searchedEntries,
+  searchWords,
+  uncommittedText,
+} from "./rows";
+
+const SEARCH_DELAY = 300; // ms after the last key typed
 
 const GROUPS: [Ref["kind"], string][] = [
   ["branch", "Branches"],
@@ -31,38 +44,62 @@ const GROUPS: [Ref["kind"], string][] = [
 /**
  * A Checkout's commits, newest first, as `git log` walks back from HEAD, or from the branch or
  * tag its parameter `ref` names; with `path`, only those that changed a file or folder,
- * following a file's renames. A commit's row opens all about it; its hash, its changes.
+ * following a file's renames; with `search`, only those whose message has all its words, in
+ * any order and case. A commit's row opens all about it; its hash, its changes.
  */
 export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   const checkout = useMemo(() => checkoutOf(params), [params]); // the columns depend on it
   const isShown = useIsShown();
   const [ref] = paramValues(params.ref);
   const [path] = paramValues(params.path);
+  const [search = ""] = paramValues(params.search);
+  // Asked for once typing pauses, or at once on Enter.
+  const [searched, searchNow] = useDebounced(search, SEARCH_DELAY);
+  const words = searchWords(searched);
   const query: HistoryQuery | undefined = checkout && {
     ...checkout,
     ...(ref === undefined ? {} : { ref }),
     ...(path === undefined ? {} : { path }),
+    ...(words.length === 0 ? {} : { search: words.join(" ") }),
   };
   const history = useHistory(query);
   const client = useQueryClient();
   const repositories = useRepositories();
   const name = checkout && checkoutName(repositories.data, checkout);
-  const title = historyTitle(name, ref, path);
+  const title = historyTitle(name, ref, path, words);
   useEffect(() => {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
   const now = useNow(10_000);
 
   const first = history.data?.pages[0];
-  const uncommitted = useUncommitted(checkout, path, ref === undefined && first !== undefined);
+  // What isn't committed shows above HEAD's commits, but has no message to search.
+  const uncommitted = useUncommitted(
+    checkout,
+    path,
+    ref === undefined && words.length === 0 && first !== undefined,
+  );
   const listed = useMemo(
     () => [
       ...(uncommitted ? [{ type: "uncommitted" as const, text: uncommitted }] : []),
-      ...entries(history.data?.pages.flatMap((page) => page.commits) ?? []),
+      ...searchedEntries(first?.found, history.data?.pages.flatMap((page) => page.commits) ?? []),
     ],
-    [history.data, uncommitted],
+    [history.data, first, uncommitted],
   );
-  const columns = useMemo(() => historyColumns(checkout, first?.head), [checkout, first?.head]);
+  // A commit searched for by its hash, not listed, shows on its branch, or among all files.
+  const walked = ref ?? first?.branch ?? "HEAD";
+  const showOn = useCallback(
+    (other: string) => setParams({ ...params, ref: other }),
+    [params, setParams],
+  );
+  const allFiles = useCallback(() => {
+    const { path: _, ...others } = params;
+    setParams(others);
+  }, [params, setParams]);
+  const columns = useMemo(
+    () => historyColumns(checkout, first?.head, { walked, path, showOn, allFiles }),
+    [checkout, first?.head, walked, path, showOn, allFiles],
+  );
   const table = useListTable({
     columns,
     data: listed,
@@ -81,14 +118,15 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   } else if (history.data === undefined && !history.isError) {
     message = "Loading commits…";
   } else if (history.data !== undefined && listed.length === 0) {
-    message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
+    if (words.length > 0) message = noneFoundText(words, path);
+    else message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
   }
   return (
     <section className={styles.view}>
       <ViewBar>
         {checkout && (
           <select
-            className={styles.ref}
+            className={`${styles.control} ${styles.ref}`}
             aria-label="Branch or tag"
             title="Show the commits of a branch or tag; HEAD is what is checked out"
             value={ref ?? ""}
@@ -131,6 +169,21 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
               <X aria-hidden="true" />
             </button>
           </span>
+        )}
+        {checkout && (
+          <SearchField
+            className={styles.control}
+            label="Search messages"
+            placeholder="Search messages"
+            title="Only commits whose message has all these words, in any order and case"
+            value={search}
+            onSubmit={searchNow}
+            onChange={(text) =>
+              setParams(
+                searchWords(text).length > 0 ? { ...params, search: text } : without("search"),
+              )
+            }
+          />
         )}
         <BarEnd>
           <Refresh

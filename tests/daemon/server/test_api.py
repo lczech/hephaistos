@@ -262,7 +262,7 @@ def test_changes_of_a_clone_and_a_worktree(client: TestClient, repo: Path) -> No
         {
             "name": "untracked",
             "from": "index",
-            "to": "worktree",
+            "to": "working-tree",
             "count": 1,
             "changes": [
                 {
@@ -295,7 +295,7 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
     nope = client.get("/api/changes", params={"clone": clone["id"], "from": "nope", "to": "HEAD"})
     assert (nope.status_code, nope.json()["error"]) == (
         400,
-        "'nope' is neither index, worktree nor a commit here",
+        "'nope' is neither index, working-tree nor a commit here",
     )
     outside = client.get("/api/changes", params={"clone": clone["id"], "path": "../x"})
     assert outside.status_code == 400
@@ -307,7 +307,7 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
 def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
     [clone] = _cli("clone", "list")
     (repo / "new.txt").write_text("one\ntwo\n")
-    asked = {"clone": clone["id"], "from": "index", "to": "worktree", "path": "new.txt"}
+    asked = {"clone": clone["id"], "from": "index", "to": "working-tree", "path": "new.txt"}
     found = client.get("/api/diff", params=asked).json()
     assert (found["change"]["status"], found["change"]["added"]) == ("?", 2)
     assert found["patch"].startswith("diff --git a/new.txt b/new.txt\n")
@@ -353,6 +353,28 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     rest = client.get("/api/history", params={"clone": clone["id"], **after}).json()
     assert [commit["parents"] for commit in rest["commits"]] == [[]]
     assert rest["next"] is None
+    found = client.get("/api/history", params={"clone": clone["id"], "search": "BODY with"})
+    assert [commit["hash"] for commit in found.json()["commits"]] == [head]
+    assert found.json()["found"] is None
+    # A hash, on another branch: found, with the branch leading to it.
+    git(repo, "switch", "--quiet", "--create", "other", "HEAD~1")
+    aside = _commit(repo, "aside")
+    git(repo, "switch", "--quiet", "main")
+    named = client.get("/api/history", params={"clone": clone["id"], "search": aside[:7]}).json()
+    assert named["commits"] == []
+    assert (named["found"]["commit"]["hash"], named["found"]["where"]) == (aside, "refs")
+    assert [ref["name"] for ref in named["found"]["refs"]] == ["other"]
+    asked = {"clone": clone["id"], "everywhere": True, "limit": 1}
+    everywhere = client.get("/api/history", params=asked).json()
+    assert everywhere["next"] == {"start": None, "path": None, "skip": 1}
+    rest = client.get("/api/history", params={**asked, "skip": 1}).json()
+    newest = [commit["hash"] for commit in everywhere["commits"] + rest["commits"]]
+    assert sorted(newest) == sorted([aside, head])  # by date: in either order within a second
+    refused = client.get("/api/history", params={"clone": clone["id"], "skip": 1})
+    assert (refused.status_code, refused.json()["error"]) == (
+        400,
+        "give start to go on, unless everywhere",
+    )
     gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
     assert (gone.status_code, gone.json()["error"]) == (
         400,

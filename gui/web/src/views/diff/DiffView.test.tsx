@@ -179,7 +179,7 @@ describe("the Diff View", () => {
       { name: "staged", from: "HEAD", to: "index", changes: [change()], count: 1 },
     ];
     serveDiff({ change: null, patch: null }, { changes: groups });
-    renderWithQueries(<Diff initial={{ ...STAGED, from: "index", to: "worktree" }} />);
+    renderWithQueries(<Diff initial={{ ...STAGED, from: "index", to: "working-tree" }} />);
     expect(await screen.findByText(/The changes are now in/)).toHaveTextContent(
       /^No unstaged changes\. The changes are now in:/,
     );

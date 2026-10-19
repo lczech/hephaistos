@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 14)
+API_VERSION = ApiVersion(0, 15)
 
 
 class Ref(TypedDict):
@@ -823,9 +823,17 @@ def shown_commit_json(name: str, shown: history.Shown, amended_as: str | None) -
 class HistoryNextJson(TypedDict):
     """Where the next page of a history goes on, as `/api/history` takes it back."""
 
-    start: str
+    start: str | None  # None: from all branches and tags
     path: str | None
     skip: int
+
+
+class FoundCommitJson(TypedDict):
+    """The commit a search names by its hash, and where it is, against the commits searched."""
+
+    commit: CommitJson
+    where: history.Where  # listed, path (where they walk, not changing it), refs, or none
+    refs: list[RefJson]  # for `refs`: the branches and tags leading to it
 
 
 class HistoryJson(TypedDict):
@@ -836,16 +844,26 @@ class HistoryJson(TypedDict):
     refs: list[RefJson]  # branches, remote-tracking branches, tags; the most recent first in each
     commits: list[CommitJson]
     next: HistoryNextJson | None  # None at the end
+    found: FoundCommitJson | None  # on the first page of a search for a hash
 
 
-def history_json(refs: history.Refs, found: history.History) -> HistoryJson:
-    """A page of a Checkout's history, as the API gives it."""
+def history_json(
+    refs: history.Refs, found: history.History, named: history.Found | None = None
+) -> HistoryJson:
+    """A page of a Checkout's history, as the API gives it, with a commit a search named."""
     after = found.next
     return HistoryJson(
         head=refs.head,
         branch=refs.branch,
         refs=[_ref_json(ref) for ref in refs.refs],
         commits=[commit_json(commit) for commit in found.commits],
+        found=None
+        if named is None
+        else FoundCommitJson(
+            commit=commit_json(named.commit),
+            where=named.where,
+            refs=[_ref_json(ref) for ref in named.refs],
+        ),
         next=None
         if after is None
         else HistoryNextJson(start=after.start, path=after.path, skip=after.skip),

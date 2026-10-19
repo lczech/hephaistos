@@ -27,7 +27,7 @@ function change(path: string, fields: Partial<Change> = {}): Change {
 }
 
 function group(name: Group["name"], changes: Change[], count = changes.length): Group {
-  return { name, from: "index", to: "worktree", changes, count };
+  return { name, from: "index", to: "working-tree", changes, count };
 }
 
 describe("a change's texts", () => {
