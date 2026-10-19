@@ -3,13 +3,17 @@
 Knows nothing about our records. Paths passed in must be existing directories.
 """
 
+import contextlib
 import functools
 import logging
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
+import tempfile
+import threading
 import time
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
@@ -84,8 +88,8 @@ def installation() -> Installation:
     return Installation(Path(executable), result.stdout.strip())
 
 
-def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
-    """Runs git in `path`, given `stdin`; the caller checks the exit code."""
+def _command(path: Path, args: tuple[str, ...]) -> tuple[list[str], dict[str, str]]:
+    """The command that runs git in `path` with `args`, and its environment."""
     executable = shutil.which("git")
     if executable is None:
         raise GitError("git is not installed")
@@ -93,11 +97,24 @@ def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.Complete
     # whose index stat data is stale is rehashed on every run, until the user's git refreshes it.
     env = {key: value for key, value in os.environ.items() if key not in LOCAL_VARIABLES}
     env["GIT_OPTIONAL_LOCKS"] = "0"
+    return [executable, "-C", str(path), *args], env
+
+
+def _timed_out(path: Path, args: tuple[str, ...], started: float, timeout: float) -> GitError:
+    """The error for git timing out, logged."""
+    _log_call(path, args, started, None, None)
+    command = next((arg for arg in args if not arg.startswith("-")), args[0])
+    return GitTimeoutError(f"`git {command}` timed out after {timeout:g} s in {path}")
+
+
+def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Runs git in `path`, given `stdin`; the caller checks the exit code."""
+    command, env = _command(path, args)
     timeout = config.settings().git.timeout  # a hung network filesystem must not block us
     started = time.monotonic()
     try:
         result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-            [executable, "-C", str(path), *args],
+            command,
             input=stdin,
             capture_output=True,
             encoding="utf-8",
@@ -107,11 +124,59 @@ def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.Complete
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        _log_call(path, args, started, None, None)
-        command = next((arg for arg in args if not arg.startswith("-")), args[0])
-        raise GitTimeoutError(f"`git {command}` timed out after {timeout:g} s in {path}") from None
+        raise _timed_out(path, args, started, timeout) from None
     _log_call(path, args, started, result.returncode, result.stderr)
     return result
+
+
+def run_bounded(path: Path, *args: str, max_bytes: int) -> subprocess.CompletedProcess[str] | None:
+    """Like `run` without input; None as soon as git writes more than `max_bytes`, stopping it.
+
+    So output too large to use is never held in full.
+    """
+    command, env = _command(path, args)
+    timeout = config.settings().git.timeout
+    started = time.monotonic()
+    expired = threading.Event()
+
+    def stop(process: subprocess.Popen[bytes]) -> None:
+        with contextlib.suppress(ProcessLookupError):  # ended meanwhile
+            os.killpg(process.pid, signal.SIGKILL)  # with what git started
+
+    def expire(process: subprocess.Popen[bytes]) -> None:
+        expired.set()
+        stop(process)
+
+    with (
+        tempfile.TemporaryFile() as errors,
+        subprocess.Popen(  # noqa: S603 - arguments are a list, never passed through a shell
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=errors,
+            env=env,
+            start_new_session=True,
+        ) as process,
+    ):
+        timer = threading.Timer(timeout, expire, (process,))
+        timer.start()
+        try:
+            output = process.stdout.read(max_bytes + 1) if process.stdout else b""
+            if too_large := len(output) > max_bytes:
+                stop(process)
+        finally:
+            timer.cancel()
+        returncode = process.wait()
+        errors.seek(0)
+        stderr = errors.read().decode("utf-8", "surrogateescape")
+    if expired.is_set() and not too_large:
+        raise _timed_out(path, args, started, timeout)
+    _log_call(path, args, started, returncode, stderr)
+    if too_large:
+        return None
+    return subprocess.CompletedProcess(
+        command, returncode, output.decode("utf-8", "surrogateescape"), stderr
+    )
 
 
 def _log_call(

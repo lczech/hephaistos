@@ -1,4 +1,5 @@
 import subprocess
+import tracemalloc
 from pathlib import Path
 
 import pytest
@@ -225,6 +226,29 @@ def test_at_most_max_files_per_group(repo: Path) -> None:
     assert ([change.path for change in group.changes], group.count) == (["a.new", "b.new"], 3)
 
 
+def test_untracked_files_beyond_the_limit_are_not_read(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for number in range(20):
+        _write(repo, f"new{number:02}.txt", "x\n")
+    read: list[str] = []
+    real = Path.read_bytes
+
+    def spied(self: Path) -> bytes:
+        read.append(self.name)
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", spied)
+    [group] = _changes(repo, max_files=2).groups
+    assert (group.count, [change.added for change in group.changes]) == (20, [1, 1])
+    assert read == ["new00.txt", "new01.txt"]
+    read.clear()
+    _write(repo, "a.txt", "changed\n")  # sorts first, among the untracked files
+    [group] = _changes(repo, "HEAD", "worktree", max_files=2).groups
+    assert [change.path for change in group.changes] == ["a.txt", "new00.txt"]
+    assert read == ["new00.txt"]
+
+
 @pytest.mark.parametrize(
     ("base", "target", "arguments"),
     [
@@ -331,6 +355,19 @@ def test_no_patch_for_binary_or_large_files(repo: Path) -> None:
     binary = diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
     assert binary == diff(repo, "index", "worktree", "image.bin", max_bytes=1000)
     assert (binary.change, binary.patch) == (Change("image.bin", "?", binary=True, size=3), None)
+
+
+def test_a_patch_above_max_bytes_is_not_held(repo: Path) -> None:
+    _commit(repo, {"data.txt": "old\n" * 1_250_000})  # 5 MB
+    _write(repo, "data.txt", "new\n" * 1_250_000)
+    tracemalloc.start()
+    try:
+        found = diff(repo, "HEAD", "worktree", "data.txt", max_bytes=1000)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert (found.change is not None, found.patch) == (True, None)
+    assert peak < 1_000_000
 
 
 def test_diff_is_of_a_file(repo: Path) -> None:

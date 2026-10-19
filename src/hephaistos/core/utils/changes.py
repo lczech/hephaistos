@@ -7,6 +7,7 @@ commands meant for scripts run, never external diff tools or text conversions, a
 lock.
 """
 
+import functools
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -281,18 +282,37 @@ def _folder(top: Path, path: str) -> Change:
     )
 
 
-def _untracked(top: Path, paths: list[str], max_bytes: int) -> list[Change]:
-    """Untracked files with their lines counted, and new folders with their files."""
-    return [
-        _folder(top, path) if path.endswith("/") else _counted(top, path, max_bytes)
-        for path in paths
-    ]
+def _untracked(status: git.Status) -> list[Change]:
+    """The untracked files and new folders, not counted yet."""
+    return [Change(entry.path, "?") for entry in status.entries if entry.index == "?"]
 
 
-def _group(name: GroupName, base: str, target: str, changes: list[Change], limit: int) -> Group:
-    """A group of these changes, sorted, and cut to `limit`."""
+def _untracked_counted(top: Path, path: str, max_bytes: int) -> Change:
+    """An untracked file with its lines counted, or a new folder with its files."""
+    return _folder(top, path) if path.endswith("/") else _counted(top, path, max_bytes)
+
+
+def _group(  # noqa: PLR0913 - the group, then how to cut and count it
+    top: Path,
+    name: GroupName,
+    base: str,
+    target: str,
+    changes: list[Change],
+    *,
+    limit: int,
+    max_bytes: int,
+) -> Group:
+    """A group of these changes, sorted, and cut to `limit`.
+
+    Only the untracked files and new folders within it are counted, so that those beyond the
+    limit cost nothing.
+    """
     ordered = sorted(changes, key=lambda change: change.path)
-    return Group(name, base, target, tuple(ordered[:limit]), len(ordered))
+    shown = tuple(
+        _untracked_counted(top, change.path, max_bytes) if change.status == "?" else change
+        for change in ordered[:limit]
+    )
+    return Group(name, base, target, shown, len(ordered))
 
 
 def _status(top: Path, pathspec: list[str]) -> git.Status:
@@ -347,9 +367,8 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
     if target == WORKTREE:  # untracked files are part of it
         status = _status(top, pathspec)
         if base != WORKTREE:
-            untracked = [entry.path for entry in status.entries if entry.index == "?"]
-            found += _untracked(top, untracked, max_bytes)
-    group = _group("changes", base, target, found, max_files)
+            found += _untracked(status)
+    group = _group(top, "changes", base, target, found, limit=max_files, max_bytes=max_bytes)
     return Changes(status, (group,) if group.count else ())
 
 
@@ -361,9 +380,6 @@ def _status_groups(top: Path, pathspec: list[str], max_files: int, max_bytes: in
         change for change in _diff(top, ["--cached"], pathspec) if change.path not in unmerged
     ]
     unstaged = [change for change in _diff(top, [], pathspec) if change.path not in unmerged]
-    untracked = _untracked(
-        top, [entry.path for entry in status.entries if entry.index == "?"], max_bytes
-    )
     conflicts: list[Change] = []
     if unmerged:
         counts = {}
@@ -372,11 +388,12 @@ def _status_groups(top: Path, pathspec: list[str], max_files: int, max_bytes: in
                 git.read(top, "--literal-pathspecs", *_DIFF, HEAD, "--", *sorted(unmerged))
             )
         conflicts = [Change(path, "U", None, *counts.get(path, (None, None))) for path in unmerged]
+    group = functools.partial(_group, top, limit=max_files, max_bytes=max_bytes)
     groups = (
-        _group("unmerged", HEAD, WORKTREE, conflicts, max_files),
-        _group("staged", HEAD, INDEX, staged, max_files),
-        _group("unstaged", INDEX, WORKTREE, unstaged, max_files),
-        _group("untracked", INDEX, WORKTREE, untracked, max_files),
+        group("unmerged", HEAD, WORKTREE, conflicts),
+        group("staged", HEAD, INDEX, staged),
+        group("unstaged", INDEX, WORKTREE, unstaged),
+        group("untracked", INDEX, WORKTREE, _untracked(status)),
     )
     return Changes(status, tuple(group for group in groups if group.count))
 
@@ -444,14 +461,20 @@ def _patch(
         return None
     patch = (*_PATCH, f"--unified={context}")
     if change.status == "?":
-        result = git.run(top, *patch, "--no-index", "--", "/dev/null", change.path)
-        failed = result.returncode not in (0, 1)  # 1: they differ
+        result = git.run_bounded(
+            top, *patch, "--no-index", "--", "/dev/null", change.path, max_bytes=max_bytes
+        )
+        succeeded = (0, 1)  # 1: they differ
     else:
         paths = [*([change.original] if change.original else []), change.path]
         # All of it: `read` drops the final newline.
-        result = git.run(top, "--literal-pathspecs", *patch, "-M", *arguments, "--", *paths)
-        failed = result.returncode != 0
-    if failed:
+        result = git.run_bounded(
+            top, "--literal-pathspecs", *patch, "-M", *arguments, "--", *paths, max_bytes=max_bytes
+        )
+        succeeded = (0,)
+    if result is None:  # above max_bytes
+        return None
+    if result.returncode not in succeeded:
         raise git.GitError(f"`git diff` failed in {top}: {result.stderr.strip()}")
     patch = utf8_text(result.stdout)
     return None if len(patch.encode()) > max_bytes else patch

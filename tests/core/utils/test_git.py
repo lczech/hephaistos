@@ -1,4 +1,5 @@
 import dataclasses
+import time
 from pathlib import Path
 
 import pytest
@@ -278,6 +279,28 @@ def test_timeout(tmp_path: Path) -> None:
     config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=1e-6)))
     with pytest.raises(GitTimeoutError, match="timed out after 1e-06 s"):
         status(repo)
+
+
+def test_run_bounded(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    head = git_facts.run(repo, "rev-parse", "HEAD")
+    bounded = git_facts.run_bounded(repo, "rev-parse", "HEAD", max_bytes=100)
+    assert bounded is not None
+    assert (bounded.returncode, bounded.stdout) == (0, head.stdout)
+    assert git_facts.run_bounded(repo, "rev-parse", "HEAD", max_bytes=10) is None
+    # Output without end: stopped once above the limit, rather than at the timeout.
+    started = time.monotonic()
+    assert git_facts.run_bounded(repo, "-c", "alias.forever=!yes", "forever", max_bytes=100) is None
+    assert time.monotonic() - started < 5
+
+
+def test_run_bounded_times_out(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=0.2)))
+    started = time.monotonic()
+    with pytest.raises(GitTimeoutError, match=r"timed out after 0\.2 s"):
+        git_facts.run_bounded(repo, "-c", "alias.wait=!sleep 30", "wait", max_bytes=100)
+    assert time.monotonic() - started < 5  # what git started was stopped too
 
 
 def test_not_in_repository(tmp_path: Path) -> None:
