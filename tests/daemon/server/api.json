@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 15
+    "minor": 16
   },
   "shapes": {
     "components": {
@@ -1426,10 +1426,14 @@
           "type": "object"
         },
         "RefJson": {
-          "description": "A branch, remote-tracking branch or tag, by its short name, and its commit.",
+          "description": "A branch, remote-tracking branch or tag, by its short and full names, and its commit.",
           "properties": {
             "commit": {
               "title": "Commit",
+              "type": "string"
+            },
+            "full": {
+              "title": "Full",
               "type": "string"
             },
             "kind": {
@@ -1442,6 +1446,7 @@
           },
           "required": [
             "name",
+            "full",
             "kind",
             "commit"
           ],

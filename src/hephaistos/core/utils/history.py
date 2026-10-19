@@ -44,9 +44,10 @@ class Person:
 
 @dataclass(frozen=True)
 class Ref:
-    """A branch, remote-tracking branch or tag, by its short name, and its commit."""
+    """A branch, remote-tracking branch or tag, by its short and full names, and its commit."""
 
-    name: str  # `main`, `origin/main`, `v1.0`
+    name: str  # `main`, `origin/main`, `v1.0`: to show
+    full: str  # `refs/heads/main`: to name it, never mistaken for another ref or a Revision
     kind: RefKind
     commit: str
 
@@ -115,7 +116,7 @@ def refs(top: Path) -> Refs:
         if symref:  # `origin/HEAD`, naming another
             continue
         if kind_name := _kind_name(name):
-            found.append(Ref(kind_name[1], kind_name[0], peeled or target))
+            found.append(Ref(kind_name[1], changes.utf8_text(name), kind_name[0], peeled or target))
     found.sort(key=lambda ref: [kind for _, kind in _KINDS].index(ref.kind))  # stable: by date
     return Refs(
         head.stdout.strip() if head.returncode == 0 else None,
@@ -315,8 +316,8 @@ def _leading(top: Path, commit: str, known: Refs, *, count: int | None = None) -
         f"--contains={commit}",
         *(prefix for prefix, _ in _KINDS),
     )
-    names = {_kind_name(name) for name in listed.splitlines()}
-    return tuple(ref for ref in known.refs if (ref.kind, ref.name) in names)
+    names = {changes.utf8_text(name) for name in listed.splitlines()}
+    return tuple(ref for ref in known.refs if ref.full in names)
 
 
 def commit(top: Path, name: str) -> Shown:

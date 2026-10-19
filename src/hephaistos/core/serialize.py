@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 15)
+API_VERSION = ApiVersion(0, 16)
 
 
 class Ref(TypedDict):
@@ -718,9 +718,10 @@ class PersonJson(TypedDict):
 
 
 class RefJson(TypedDict):
-    """A branch, remote-tracking branch or tag, by its short name, and its commit."""
+    """A branch, remote-tracking branch or tag, by its short and full names, and its commit."""
 
-    name: str
+    name: str  # to show: `main`
+    full: str  # to name it: `refs/heads/main`
     kind: history.RefKind
     commit: str
 
@@ -793,7 +794,7 @@ def _person_json(person: history.Person) -> PersonJson:
 
 
 def _ref_json(ref: history.Ref) -> RefJson:
-    return RefJson(name=ref.name, kind=ref.kind, commit=ref.commit)
+    return RefJson(name=ref.name, full=ref.full, kind=ref.kind, commit=ref.commit)
 
 
 def commit_json(commit: history.Commit) -> CommitJson:

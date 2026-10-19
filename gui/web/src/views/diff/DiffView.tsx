@@ -21,6 +21,7 @@ import {
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { type Params, paramValues } from "../address";
 import { checkoutOf } from "../changes/checkout";
 import { ChangePath, Lines } from "../changes/columns";
@@ -31,13 +32,9 @@ import {
   changedLines,
   comparison,
   groupName,
-  INDEX,
   otherText,
   pathParts,
-  revisionText,
-  WORKING_TREE,
 } from "../changes/rows";
-import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";

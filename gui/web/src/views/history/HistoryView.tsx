@@ -8,11 +8,13 @@ import {
   useHistory,
   useRepositories,
 } from "../../api/queries";
+import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { SearchField } from "../../components/SearchField";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { BarEnd, Refresh, ViewBar } from "../../components/ViewBar";
+import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -24,10 +26,8 @@ import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
 import {
   entryId,
-  headText,
   historyTitle,
   noneFoundText,
-  type Ref,
   searchedEntries,
   searchWords,
   uncommittedText,
@@ -35,15 +35,9 @@ import {
 
 const SEARCH_DELAY = 300; // ms after the last key typed
 
-const GROUPS: [Ref["kind"], string][] = [
-  ["branch", "Branches"],
-  ["remote", "Remote branches"],
-  ["tag", "Tags"],
-];
-
 /**
- * A Checkout's commits, newest first, as `git log` walks back from HEAD, or from the branch or
- * tag its parameter `ref` names; with `path`, only those that changed a file or folder,
+ * A Checkout's commits, newest first, as `git log` walks back from HEAD, or from the branch,
+ * tag or commit its parameter `ref` names; with `path`, only those that changed a file or folder,
  * following a file's renames; with `search`, only those whose message has all its words, in
  * any order and case. A commit's row opens all about it; its hash, its changes.
  */
@@ -87,7 +81,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     [history.data, first, uncommitted],
   );
   // A commit searched for by its hash, not listed, shows on its branch, or among all files.
-  const walked = ref ?? first?.branch ?? "HEAD";
+  const walked = revisionText(ref ?? first?.branch ?? HEAD);
   const showOn = useCallback(
     (other: string) => setParams({ ...params, ref: other }),
     [params, setParams],
@@ -125,36 +119,21 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     <section className={styles.view}>
       <ViewBar>
         {checkout && (
-          <select
-            className={`${styles.control} ${styles.ref}`}
-            aria-label="Branch or tag"
-            title="Show the commits of a branch or tag; HEAD is what is checked out"
-            value={ref ?? ""}
-            onChange={(event) =>
-              setParams(
-                event.target.value ? { ...params, ref: event.target.value } : without("ref"),
-              )
+          <GitRevisionPicker
+            className={styles.control}
+            checkout={checkout}
+            label="Branch, tag or commit"
+            title="Show the commits of a branch, tag or commit, and those before; HEAD is what is checked out"
+            value={ref ?? HEAD}
+            // HEAD as no `ref`: the commits of whatever is checked out, as that changes.
+            onChange={(revision) =>
+              setParams(revision === HEAD ? without("ref") : { ...params, ref: revision })
             }
-          >
-            <option value="">{headText(first?.head, first?.branch)}</option>
-            {ref !== undefined && !first?.refs.some((known) => known.name === ref) && (
-              <option value={ref}>{ref}</option>
-            )}
-            {GROUPS.map(([kind, label]) => {
-              const refs = first?.refs.filter((known) => known.kind === kind) ?? [];
-              return (
-                refs.length > 0 && (
-                  <optgroup key={kind} label={label}>
-                    {refs.map((known) => (
-                      <option key={known.name} value={known.name}>
-                        {known.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              );
-            })}
-          </select>
+            rows={[HEAD]}
+            tabs={["branches", "tags", "commits"]}
+            commitsFrom="everywhere"
+            known={first}
+          />
         )}
         {path !== undefined && (
           <span className={styles.only} title={`Only commits that changed ${path}`}>
@@ -173,9 +152,9 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
         {checkout && (
           <SearchField
             className={styles.control}
-            label="Search messages"
-            placeholder="Search messages"
-            title="Only commits whose message has all these words, in any order and case"
+            label="Search hashes or messages"
+            placeholder="Hash or message"
+            title="Only commits whose message has all these words, in any order and case; or for a hash, its commit"
             value={search}
             onSubmit={searchNow}
             onChange={(text) =>

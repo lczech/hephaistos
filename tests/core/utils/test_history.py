@@ -49,8 +49,8 @@ def test_commits_newest_first_with_their_refs(repo: Path) -> None:
         git(repo, "log", "-1", "--format=%aN"),
         (found.commits[1].hash,),
     )
-    assert newest.refs == (Ref("main", "branch", newest.hash),)
-    assert oldest.refs == (Ref("v1", "tag", oldest.hash),)  # peeled to its commit
+    assert newest.refs == (Ref("main", "refs/heads/main", "branch", newest.hash),)
+    assert oldest.refs == (Ref("v1", "refs/tags/v1", "tag", oldest.hash),)  # peeled to its commit
     assert (oldest.parents, found.next) == ((), None)
 
 

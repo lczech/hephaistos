@@ -169,6 +169,16 @@ export function useHistory(query: HistoryQuery | undefined) {
 }
 
 /** The settings as the Daemon finds them; they change by hand, so asked again on focus. */
+/** The commit a revision names in a Checkout, as git resolves it: `HEAD~3`, `v1.0^`, a hash. */
+export async function resolveRevision(checkout: HistoryQuery, revision: string): Promise<string> {
+  const page = unwrap(
+    await api.GET("/api/history", { params: { query: { ...checkout, ref: revision, limit: 1 } } }),
+  );
+  const [commit] = page.commits;
+  if (commit === undefined) throw new Error(`${revision} has no commits`);
+  return commit.hash;
+}
+
 export function useConfig() {
   return useQuery({
     queryKey: KEYS.config,

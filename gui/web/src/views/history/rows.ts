@@ -1,6 +1,7 @@
 // What the History list holds: commits, and where a file was renamed, the path it had before.
 
 import type { Schemas } from "../../api/client";
+import { revisionText, shortHash } from "../../revisions";
 import { pathParts } from "../changes/rows";
 
 export type Commit = Schemas["CommitJson"];
@@ -12,11 +13,6 @@ export type Entry =
   | { type: "found"; found: Found } // a commit searched for by its hash, not among them
   | { type: "commit"; commit: Commit }
   | { type: "renamed"; commit: string; from: string }; // below the commit that renamed it
-
-/** A commit's hash as git shortens it at least: `abc1234`. */
-export function shortHash(hash: string): string {
-  return hash.slice(0, 7);
-}
 
 /** The rows of these commits, newest first: each once, and below one that renamed the file,
  * where it was before. */
@@ -78,7 +74,8 @@ export function headText(head: string | null | undefined, branch: string | null 
   return head ? `HEAD (detached at ${shortHash(head)})` : "HEAD";
 }
 
-/** The tab's title: `History: proj`, `History: proj, origin/main`, `History: rows.ts`. */
+/** The tab's title: `History: proj`, `History: proj, origin/main`, `History: rows.ts`; refs and
+ * hashes shortened. */
 export function historyTitle(
   name: string | undefined,
   ref: string | undefined,
@@ -88,7 +85,7 @@ export function historyTitle(
   const shown = path === undefined ? name : pathParts(path)[1];
   if (shown === undefined) return undefined;
   const searched = search.length > 0 ? `, “${search.join(" ")}”` : "";
-  return `History: ${shown}${ref === undefined ? "" : `, ${ref}`}${searched}`;
+  return `History: ${shown}${ref === undefined ? "" : `, ${revisionText(ref)}`}${searched}`;
 }
 
 /** The words of a search: what is typed, apart at spaces. */

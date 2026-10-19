@@ -1,11 +1,12 @@
 import { GitCommitVertical, Tag } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fields } from "../../components/table/Fields";
+import { shortHash } from "../../revisions";
 import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { ViewLink } from "../ViewLink";
 import styles from "./CommitBox.module.css";
-import { type Commit, committedApart, type Ref, shortHash } from "./rows";
+import { type Commit, committedApart, type Ref } from "./rows";
 
 /** A commit's hash, as a link to its changes, opened beside as a preview. */
 export function CommitLink({ hash, checkout }: { hash: string; checkout: Checkout }) {

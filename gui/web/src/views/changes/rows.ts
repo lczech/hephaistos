@@ -4,6 +4,7 @@
 
 import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
+import { revisionText } from "../../revisions";
 import { type Params, paramValues } from "../address";
 
 export type Group = Schemas["ChangeGroupJson"];
@@ -226,9 +227,6 @@ export function entries(groups: Group[], within: WithinOf, sorted: SortingState)
 }
 
 /** The two revisions git has no name for, as the Server names them. */
-export const INDEX = "index";
-export const WORKING_TREE = "working-tree";
-
 /** Two revisions compared: a commit as git names it, `index` or `working-tree`. */
 export type Compared = { from: string; to: string };
 
@@ -237,11 +235,6 @@ export function comparison(params: Params): Compared | undefined {
   const [from] = paramValues(params.from);
   const [to] = paramValues(params.to);
   return from !== undefined && to !== undefined ? { from, to } : undefined;
-}
-
-/** A revision in words: `working tree`; others as named. */
-export function revisionText(revision: string): string {
-  return revision === WORKING_TREE ? "working tree" : revision;
 }
 
 /** Two revisions compared, in words: `HEAD → working tree`. */

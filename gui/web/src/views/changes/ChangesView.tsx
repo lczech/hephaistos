@@ -8,10 +8,10 @@ import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { CommitHeader } from "../history/CommitHeader";
-import { shortHash } from "../history/rows";
 import type { ViewProps } from "../index";
 import { useIsShown, useOpenView } from "../opening";
 import { branchText, branchTitle } from "../repositories/rows";
@@ -32,11 +32,9 @@ import {
   type Group,
   isFolder,
   linesText,
-  revisionText,
   SORTS,
   totals,
   type Within,
-  WORKING_TREE,
 } from "./rows";
 
 const SINCE_HEAD = { from: "HEAD", to: WORKING_TREE };

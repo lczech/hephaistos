@@ -1,11 +1,11 @@
 import { ChevronRight, GitCommitVertical, GitMerge } from "lucide-react";
 import { useState } from "react";
 import type { Schemas } from "../../api/client";
+import { shortHash } from "../../revisions";
 import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, CommitLink, RefLabels } from "./CommitBox";
 import styles from "./CommitBox.module.css";
-import { shortHash } from "./rows";
 
 interface Props {
   shown: Schemas["ShownCommitJson"];

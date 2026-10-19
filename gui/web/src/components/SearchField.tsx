@@ -1,4 +1,5 @@
 import { Search, X } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { Button, SearchField as Field, Input } from "react-aria-components";
 import styles from "./SearchField.module.css";
 
@@ -12,6 +13,8 @@ interface SearchFieldProps {
   onChange: (value: string) => void;
   /** Enter: to search at once. */
   onSubmit?: () => void;
+  onKeyDown?: (event: KeyboardEvent) => void;
+  autoFocus?: boolean;
 }
 
 /** A field to type a search into, with a button and Escape to clear it. */
@@ -23,6 +26,8 @@ export function SearchField({
   value,
   onChange,
   onSubmit,
+  onKeyDown,
+  autoFocus,
 }: SearchFieldProps) {
   return (
     <Field
@@ -31,6 +36,8 @@ export function SearchField({
       value={value}
       onChange={onChange}
       onSubmit={onSubmit}
+      onKeyDown={onKeyDown}
+      autoFocus={autoFocus}
     >
       <Search className={styles.icon} aria-hidden="true" />
       <Input className={styles.input} placeholder={placeholder} title={title} />

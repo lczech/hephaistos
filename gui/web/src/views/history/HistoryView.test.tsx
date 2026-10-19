@@ -29,8 +29,8 @@ function commit(n: number, fields: Partial<Commit> = {}): Commit {
 
 const HEAD = commit(3, {
   refs: [
-    { name: "main", kind: "branch", commit: "".padStart(40, "c") },
-    { name: "v1", kind: "tag", commit: "".padStart(40, "c") },
+    { name: "main", full: "refs/heads/main", kind: "branch", commit: "".padStart(40, "c") },
+    { name: "v1", full: "refs/tags/v1", kind: "tag", commit: "".padStart(40, "c") },
   ],
 });
 
@@ -43,10 +43,10 @@ function page(
     head: HEAD.hash,
     branch: "main",
     refs: [
-      { name: "main", kind: "branch", commit: HEAD.hash },
-      { name: "feature", kind: "branch", commit: "f".repeat(40) },
-      { name: "origin/main", kind: "remote", commit: HEAD.hash },
-      { name: "v1", kind: "tag", commit: HEAD.hash },
+      { name: "main", full: "refs/heads/main", kind: "branch", commit: HEAD.hash },
+      { name: "feature", full: "refs/heads/feature", kind: "branch", commit: "f".repeat(40) },
+      { name: "origin/main", full: "refs/remotes/origin/main", kind: "remote", commit: HEAD.hash },
+      { name: "v1", full: "refs/tags/v1", kind: "tag", commit: HEAD.hash },
     ],
     commits,
     next,
@@ -96,9 +96,9 @@ describe("the History View", () => {
     ]);
     expect(screen.getByLabelText("merge")).toBeInTheDocument();
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj");
-    expect(screen.getByRole("combobox", { name: "Branch or tag" })).toHaveDisplayValue(
-      "HEAD (main)",
-    );
+    expect(
+      screen.getByRole("button", { name: "Branch, tag or commit: HEAD (main)" }),
+    ).toBeInTheDocument();
     await userEvent.click(screen.getByText("Commit 2"));
     const details = screen.getByRole("region", { name: "Commit details" });
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
@@ -142,20 +142,20 @@ describe("the History View", () => {
   it("walks from a branch picked, and back from HEAD", async () => {
     const requests = serveHistory(() => json(page([HEAD])));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
-    const choice = await screen.findByRole("combobox", { name: "Branch or tag" });
     await screen.findByText("Commit 3");
-    expect(
-      within(choice)
-        .getAllByRole("group")
-        .map((group) => group.getAttribute("label")),
-    ).toEqual(["Branches", "Remote branches", "Tags"]);
-    await userEvent.selectOptions(choice, "origin/main");
+    const pick = async (name: string) => {
+      await userEvent.click(screen.getByRole("button", { name: /^Branch, tag or commit: / }));
+      await userEvent.click(await screen.findByRole("option", { name }));
+    };
+    await pick("origin/main");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "history?clone=clone-proj&ref=origin%2Fmain",
+      "history?clone=clone-proj&ref=refs%2Fremotes%2Forigin%2Fmain",
     );
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj, origin/main");
-    expect(new URL(requests.at(-1)?.url ?? "").searchParams.get("ref")).toBe("origin/main");
-    await userEvent.selectOptions(choice, "");
+    expect(new URL(requests.at(-1)?.url ?? "").searchParams.get("ref")).toBe(
+      "refs/remotes/origin/main",
+    );
+    await pick("HEAD (main)");
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });
 
@@ -235,7 +235,8 @@ describe("the History View", () => {
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes" }));
     expect(opened).toEqual([{ kind: "changes", params: { clone: "clone-proj" } }]);
-    await userEvent.selectOptions(screen.getByRole("combobox"), "feature");
+    await userEvent.click(screen.getByRole("button", { name: /^Branch, tag or commit: / }));
+    await userEvent.click(await screen.findByRole("option", { name: "feature" }));
     expect(screen.queryByText(/^Uncommitted/)).toBeNull(); // not what is checked out
   });
 
@@ -252,7 +253,7 @@ describe("the History View", () => {
     });
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
     expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
-    const field = screen.getByRole("searchbox", { name: "Search messages" });
+    const field = screen.getByRole("searchbox", { name: "Search hashes or messages" });
     await userEvent.type(field, "row");
     await act(() => new Promise((resolve) => setTimeout(resolve, 350))); // a pause: asked
     await userEvent.type(field, "  view");
@@ -280,11 +281,16 @@ describe("the History View", () => {
 
   it("finds a commit by its hash: listed first, or where it is, to show it there", async () => {
     const aside = commit(7, { subject: "Aside" });
-    const feature = { name: "feature", kind: "branch" as const, commit: aside.hash };
+    const feature = {
+      name: "feature",
+      full: "refs/heads/feature",
+      kind: "branch" as const,
+      commit: aside.hash,
+    };
     serveHistory((url) => {
       const search = url.searchParams.get("search");
       if (search === null) return json(page([HEAD]));
-      if (url.searchParams.get("ref") === "feature") {
+      if (url.searchParams.get("ref") === "refs/heads/feature") {
         return json(page([], null, { commit: aside, where: "listed", refs: [] }));
       }
       if (url.searchParams.get("path") !== null) {
@@ -297,7 +303,7 @@ describe("the History View", () => {
     expect(screen.getByText("Aside")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "feature" }));
     expect(screen.getByRole("status")).toHaveTextContent(
-      "history?clone=clone-proj&ref=feature&search=ccccccc7",
+      "history?clone=clone-proj&ref=refs%2Fheads%2Ffeature&search=ccccccc7",
     );
     // There, listed: as one of its commits.
     await waitFor(() => expect(screen.queryByText("not on main, but on:")).toBeNull());
@@ -343,6 +349,6 @@ describe("the History View", () => {
     serveHistory(() => json({ head: null, branch: null, refs: [], commits: [], next: null }));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
     expect(await screen.findByText("No commits yet.")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Branch or tag" })).toHaveDisplayValue("HEAD");
+    expect(screen.getByRole("button", { name: "Branch, tag or commit: HEAD" })).toBeInTheDocument();
   });
 });

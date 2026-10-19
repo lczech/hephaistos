@@ -10,15 +10,6 @@
   max-width: 100%;
 }
 
-.ref {
-  padding: 1px var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--background);
-  color: var(--text);
-  font: inherit;
-}
-
 /* The path the commits are of, with a button to show all. */
 .only {
   display: inline-flex;

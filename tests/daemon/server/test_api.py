@@ -347,7 +347,9 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     [commit] = first["commits"]
     assert (commit["hash"], commit["subject"], commit["body"]) == (head, "second", "With a body.")
     assert commit["author"]["name"] == "Test"
-    assert commit["refs"] == [{"name": "main", "kind": "branch", "commit": head}]
+    assert commit["refs"] == [
+        {"name": "main", "full": "refs/heads/main", "kind": "branch", "commit": head}
+    ]
     assert first["next"] == {"start": head, "path": None, "skip": 1}
     after = {key: value for key, value in first["next"].items() if value is not None}
     rest = client.get("/api/history", params={"clone": clone["id"], **after}).json()

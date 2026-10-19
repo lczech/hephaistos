@@ -1,0 +1,182 @@
+/* The button: the Revision picked, as wide as the place gives it, its name cut short. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 1px var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger[data-focus-visible],
+.trigger[data-pressed] {
+  border-color: var(--accent);
+}
+
+.picked {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon,
+.chevron {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--text-muted);
+}
+
+/* The list opened: a field, the tabs, and one tab's rows, scrolling. */
+.popover {
+  width: min(28rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  outline: none;
+}
+
+.search {
+  width: 100%;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.tabList {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--divider);
+}
+
+.tab {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+}
+
+.tab[data-hovered],
+.tab[data-focus-visible] {
+  color: var(--text);
+}
+
+.tab[data-selected] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.count {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.panel {
+  outline: none;
+}
+
+.list {
+  max-height: min(20rem, 50vh);
+  overflow: auto;
+  outline: none;
+}
+
+.header {
+  padding: var(--space-1) var(--space-1) 0;
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+  outline: none;
+}
+
+.row[data-hovered] {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.row[data-focused] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Lines between groups: within a row or heading, as the Virtualizer places them itself,
+   ignoring margins. */
+.row[data-line="below"] {
+  box-shadow: inset 0 -1px var(--divider);
+  border-radius: 0;
+  padding-bottom: var(--space-1);
+}
+
+.row[data-line="above"] {
+  box-shadow: inset 0 1px var(--divider);
+  border-radius: 0;
+  padding-top: var(--space-1);
+}
+
+.header[data-lined] {
+  border-top: 1px solid var(--divider);
+  padding-top: var(--space-1);
+}
+
+/* The Revision picked now. */
+.row[data-current] {
+  font-weight: 600;
+}
+
+/* Of an earlier search, until this one's come. */
+.row[data-disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* A row leading to a tab with more of a kind. */
+.moreText {
+  color: var(--text-muted);
+}
+
+.hash {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+  color: var(--text-muted);
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty,
+.more {
+  margin: 0;
+  padding: var(--space-1);
+  color: var(--text-muted);
+}

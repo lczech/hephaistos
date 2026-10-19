@@ -139,7 +139,7 @@ function FoundWhere({ found, actions }: { found: Found; actions: FoundActions })
           type="button"
           className={styles.action}
           title={`Show the commits of ${ref.name}`}
-          onClick={() => actions.showOn(ref.name)}
+          onClick={() => actions.showOn(ref.full)}
         >
           {ref.name}
         </button>

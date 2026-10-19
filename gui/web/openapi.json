@@ -1421,10 +1421,14 @@
         "type": "object"
       },
       "RefJson": {
-        "description": "A branch, remote-tracking branch or tag, by its short name, and its commit.",
+        "description": "A branch, remote-tracking branch or tag, by its short and full names, and its commit.",
         "properties": {
           "commit": {
             "title": "Commit",
+            "type": "string"
+          },
+          "full": {
+            "title": "Full",
             "type": "string"
           },
           "kind": {
@@ -1437,6 +1441,7 @@
         },
         "required": [
           "name",
+          "full",
           "kind",
           "commit"
         ],
@@ -2269,7 +2274,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.15"
+    "version": "0.16"
   },
   "openapi": "3.1.0",
   "paths": {
