@@ -60,7 +60,11 @@ def end(entries: Sequence[ReflogEntry]) -> Cursor:
 
 
 def unread(entries: Sequence[ReflogEntry], cursor: Cursor) -> list[ReflogEntry] | None:
-    """The entries (newest first) after `cursor`, oldest first; None if it isn't among them."""
+    """The entries (newest first) after `cursor`, oldest first; None if it isn't among them.
+
+    Identical entries within one second look alike: the newest is taken as the cursor's, so
+    the entries between them are skipped. Rare enough to accept.
+    """
     for index, entry in enumerate(entries):
         if _digest(entry) == cursor.digest:
             return list(reversed(entries[:index]))
