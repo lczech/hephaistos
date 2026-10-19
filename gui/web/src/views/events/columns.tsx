@@ -27,7 +27,7 @@ export const columns = column.columns([
     size: 88,
     meta: {
       filter: { param: "since" },
-      description: "When the Event was recorded; its details say when it happened, if known",
+      description: "When the Event was recorded; its details show when it happened, if known",
     },
     cell: ({ row, table }) => (
       <span title={fullTime(row.original.recorded_at)}>

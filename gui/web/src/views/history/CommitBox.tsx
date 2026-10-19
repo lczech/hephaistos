@@ -12,7 +12,7 @@ export function CommitLink({ hash, checkout }: { hash: string; checkout: Checkou
   return (
     <ViewLink
       address={{ kind: "changes", params: { ...checkout, commit: hash } }}
-      label={`Changes of ${shortHash(hash)}`}
+      label={`Changes in commit ${shortHash(hash)}`}
       opening={{ beside: true, preview: true }}
       icon={GitCommitVertical}
     >
@@ -27,7 +27,7 @@ export function RefLabels({ refs, head }: { refs: Ref[]; head?: boolean }) {
   return (
     <span className={styles.refs}>
       {head && (
-        <span className={styles.ref} data-kind="head" title="HEAD: checked out">
+        <span className={styles.ref} data-kind="head" title="HEAD: the commit checked out">
           HEAD
         </span>
       )}

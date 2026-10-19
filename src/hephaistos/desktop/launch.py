@@ -125,7 +125,7 @@ def open_desktop(
             if code == 0:
                 return None
             raise DesktopError(
-                f"the Desktop ended at start (exit code {code}); in {shell_path(log)}:\n"
+                f"the Desktop exited on start (exit code {code}); in {shell_path(log)}:\n"
                 + _ending(log)
             )
         time.sleep(POLL)

@@ -177,8 +177,8 @@ function changeRows(
 /** The rows within a folder opened: its files, or that they are asked for, or why not. */
 function withinRows(group: Group, folder: Change, within: Within, sorted: SortingState): Entry[] {
   const id = `${group.name}:${folder.path}:`;
-  if (within === undefined) return [note(`${id}asking`, "Asking git…")];
-  if ("error" in within) return [note(`${id}error`, `No answer: ${within.error}`)];
+  if (within === undefined) return [note(`${id}loading`, "Loading files…")];
+  if ("error" in within) return [note(`${id}error`, `Couldn't load: ${within.error}`)];
   const rows = changeRows(group, within.changes, folder.path, () => undefined, sorted);
   if (within.count > within.changes.length) {
     rows.push(note(`${id}more`, moreText(within.changes.length, within.count)));

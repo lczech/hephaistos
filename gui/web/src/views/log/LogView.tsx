@@ -43,7 +43,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   useEffect(() => setTitle(title), [title, setTitle]);
   let message: string | null = null;
   if (pages === undefined) {
-    message = log.isError ? `No answer: ${log.error.message}` : "Asking for the log…";
+    message = log.isError ? `Couldn't load: ${log.error.message}` : "Loading the log…";
   } else if (listed.length === 0) {
     message = columnFilters.length > 0 ? "No records match." : "No records yet.";
   } else if (pages.some((page) => page.skipped > 0)) {

@@ -16,7 +16,7 @@ export function ConfigView() {
   const config = useConfig();
   const home = useInfo().data?.home;
   if (config.data === undefined) {
-    const text = config.isError ? `No answer: ${config.error.message}` : "Asking for the settings…";
+    const text = config.isError ? `Couldn't load: ${config.error.message}` : "Loading settings…";
     return (
       <section className={styles.view}>
         <p className={styles.quiet}>{text}</p>

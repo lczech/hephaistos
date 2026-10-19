@@ -56,7 +56,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
       {params ? (
         <ViewLink
           address={{ kind: "history", params }}
-          label={`History of ${name}`}
+          label={`Commit history of ${name}`}
           opening={beside}
         />
       ) : (

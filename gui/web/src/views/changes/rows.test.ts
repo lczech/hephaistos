@@ -143,7 +143,9 @@ describe("the rows", () => {
     const folder = change("new/", { status: "?", added: null, removed: null, files: 2 });
     const untracked = group("untracked", [folder]);
     const asking = entries([untracked], nothingWithin, []);
-    expect(asking[0]?.subRows[0]?.subRows).toMatchObject([{ type: "note", text: "Asking git…" }]);
+    expect(asking[0]?.subRows[0]?.subRows).toMatchObject([
+      { type: "note", text: "Loading files…" },
+    ]);
     const found = { changes: [change("new/b"), change("new/a")], count: 2 };
     const listed = entries([untracked], () => found, []);
     expect(listed[0]?.subRows[0]?.subRows.map(entryId)).toEqual([

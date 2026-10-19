@@ -73,7 +73,7 @@ function Warnings({ warnings }: { warnings: string[] }) {
 function Tables({ show }: { show: (table: string) => void }) {
   const tables = useDbTables();
   if (tables.data === undefined) {
-    const text = tables.isError ? `No answer: ${tables.error.message}` : "Asking for the tables…";
+    const text = tables.isError ? `Couldn't load: ${tables.error.message}` : "Loading tables…";
     return <p className={styles.quiet}>{text}</p>;
   }
   return (
@@ -130,7 +130,7 @@ function Rows({ table, show }: RowsProps) {
   });
   let message: string | null = null;
   if (pages === undefined) {
-    message = rows.isError ? `No answer: ${rows.error.message}` : "Asking for the rows…";
+    message = rows.isError ? `Couldn't load: ${rows.error.message}` : "Loading rows…";
   } else if (listed.length === 0) {
     message = "No rows.";
   }

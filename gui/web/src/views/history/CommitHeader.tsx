@@ -40,14 +40,14 @@ export function CommitHeader({ shown, checkout, now }: Props) {
         className={styles.line}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        title="All about the commit"
+        title="Show commit details"
       >
         <ChevronRight className={styles.chevron} aria-hidden="true" />
         <GitCommitVertical className={styles.icon} aria-hidden="true" />
         <span className={styles.hash}>{shortHash(commit.hash)}</span>
         <RefLabels refs={commit.refs} />
         {commit.parents.length > 1 && (
-          <GitMerge className={styles.icon} aria-label="merge: against its first parent" />
+          <GitMerge className={styles.icon} aria-label="Merge commit" />
         )}
         <span className={styles.lineSubject}>{commit.subject}</span>
         <span className={styles.by} title={fullTime(commit.author.at)}>

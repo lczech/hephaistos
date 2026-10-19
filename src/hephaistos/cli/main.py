@@ -206,7 +206,7 @@ def _install(part: str, install: Callable[[], None], later: str) -> None:
     try:
         install()
     except HephaistosError as error:
-        typer.echo(f"warning: skipped {part}: {error}; later: `{later}`", err=True)
+        typer.echo(f"warning: skipped {part}: {error}; to do it later: `{later}`", err=True)
 
 
 @app.command()
@@ -256,6 +256,6 @@ def setup(
     if no_desktop:
         return
     if not any(os.environ.get(variable) for variable in browse.SESSION_VARIABLES):
-        typer.echo("No graphical session here, so no Desktop")
+        typer.echo("No graphical session here; skipped the Desktop")
         return
     _install("the Desktop", desktop.install, "hephaistos desktop install")

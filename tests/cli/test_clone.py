@@ -107,7 +107,7 @@ def test_remove(repo: Path) -> None:
     assert repo.exists()
     assert json.loads(runner.invoke(app, ["clone", "list", "--json"]).output) == []
     assert result.output.splitlines()[-1] == (
-        "proj has no Clones left; `hephaistos repo remove proj` removes it"
+        "proj has no Clones left; remove it with `hephaistos repo remove proj`"
     )
 
 

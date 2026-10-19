@@ -197,7 +197,7 @@ def test_setup_sets_up_everything_again_keeping_the_database(
     monkeypatch.setattr(daemon, "install", lambda: installed.append("daemon"))
     monkeypatch.setattr(desktop, "install", lambda: installed.append("desktop"))
     first = runner.invoke(app, ["setup", "--name", "laptop"])
-    assert first.output.splitlines()[1:] == ["No graphical session here, so no Desktop"]
+    assert first.output.splitlines()[1:] == ["No graphical session here; skipped the Desktop"]
     machine_id = _this_id()
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
     again = runner.invoke(app, ["setup", "--name", "other"])
@@ -213,7 +213,7 @@ def test_setup_skips_a_part_that_fails_saying_how_to_do_it_later() -> None:
     result = runner.invoke(app, ["setup", "--name", "laptop"])  # systemd isn't available
     assert result.exit_code == 0
     assert "warning: skipped the Daemon: " in result.output
-    assert "; later: `hephaistos daemon install`\n" in result.output
+    assert "; to do it later: `hephaistos daemon install`\n" in result.output
     assert _this_id()
 
 

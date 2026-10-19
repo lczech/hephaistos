@@ -36,7 +36,9 @@ export function DaemonView() {
     <Disconnected connection={connection} now={now} />
   );
   if (daemon.data === undefined) {
-    const text = daemon.isError ? `No answer: ${daemon.error.message}` : "Asking the Daemon…";
+    const text = daemon.isError
+      ? `Couldn't load: ${daemon.error.message}`
+      : "Loading the Daemon's status…";
     return (
       <section className={styles.view}>
         {notice}

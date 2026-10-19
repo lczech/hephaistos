@@ -78,7 +78,7 @@ describe("the Database View", () => {
     await screen.findByText("two");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Table" }), "old_things");
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
-    expect(await screen.findByText(/No answer/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");
   });

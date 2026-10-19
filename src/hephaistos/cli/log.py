@@ -123,7 +123,7 @@ def prune(
     *,
     yes: Annotated[bool, typer.Option("--yes", help="Delete without asking.")] = False,
 ) -> None:
-    """Delete old log files, whole days at a time; each day deletes those past retention anyway."""
+    """Delete old log files, by whole days; those past retention are deleted daily anyway."""
     days = config.settings().log.retention_days if keep is None else _keep_days(keep)
     before = datetime.now(UTC).date() - timedelta(days=days)
     directory = _directory()

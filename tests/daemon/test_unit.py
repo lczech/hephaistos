@@ -56,7 +56,7 @@ def test_install_start_stop_uninstall(
     first = _pid(paths)
     assert out.splitlines() == [
         f"Installed {UNIT}",
-        f"The Daemon runs (pid {first})",
+        f"The Daemon is running (pid {first})",
         (
             "Linger is off: the Daemon starts at login and stops at logout;"
             " `hephaistos daemon install --linger` keeps it running."
@@ -80,7 +80,7 @@ def test_install_start_stop_uninstall(
     assert run("install") == 0
     assert capsys.readouterr().out.splitlines()[:2] == [
         f"Already installed: {UNIT}",
-        f"The Daemon runs (pid {first})",
+        f"The Daemon is running (pid {first})",
     ]
 
     monkeypatch.setenv("XDG_DATA_HOME", "/elsewhere")
@@ -90,7 +90,7 @@ def test_install_start_stop_uninstall(
     assert capsys.readouterr().out.splitlines()[:3] == [
         f"Updated {UNIT}:",
         '  + Environment="XDG_DATA_HOME=/elsewhere"',
-        f"The Daemon restarted (pid {second})",
+        f"Restarted the Daemon (pid {second})",
     ]
 
     assert run("stop") == 0
@@ -102,9 +102,9 @@ def test_install_start_stop_uninstall(
 
     assert run("start") == 0
     third = _pid(paths)
-    assert capsys.readouterr().out == f"The Daemon runs (pid {third})\n"
+    assert capsys.readouterr().out == f"The Daemon is running (pid {third})\n"
     assert run("restart") == 0
-    assert capsys.readouterr().out == f"The Daemon runs again (pid {_pid(paths)})\n"
+    assert capsys.readouterr().out == f"Restarted the Daemon (pid {_pid(paths)})\n"
     with monkeypatch.context() as scratch:
         scratch.setenv("HEPHAISTOS_HOME", str(tmp_path / "scratch"))
         assert run("restart") == 1
@@ -138,7 +138,8 @@ def test_linger(
     assert "loginctl enable-linger" in _calls()
     assert run_cli(monkeypatch, "daemon", "uninstall", program=str(systemd)) == 0
     assert capsys.readouterr().out.splitlines()[-1] == (
-        "Linger stays on, for all your user services; `loginctl disable-linger` ends it."
+        "Linger stays enabled for all your user services;"
+        " turn it off with `loginctl disable-linger`."
     )
 
 

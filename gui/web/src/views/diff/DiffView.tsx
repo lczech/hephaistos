@@ -1,10 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import {
-  Columns2,
   ListChevronsDownUp,
   ListChevronsUpDown,
-  Rows2,
+  StretchHorizontal,
+  StretchVertical,
   TableOfContents,
   TextWrap,
 } from "lucide-react";
@@ -50,9 +50,11 @@ export function comparedText({ from, to }: Compared): string {
   return `${from} → ${to}`;
 }
 
-/** That there are no changes so: `No changes staged.`, `No changes from main to HEAD.` */
+/** That there are no changes so: `No staged changes.`, `No changes from main to HEAD.` */
 function noChanges(compared: Compared): string {
   const text = comparedText(compared);
+  if (text === "staged") return "No staged changes.";
+  if (text === "not staged") return "No unstaged changes.";
   return text.includes("→")
     ? `No changes from ${compared.from} to ${compared.to}.`
     : `No changes ${text}.`;
@@ -139,7 +141,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   } else if (diff.data === undefined) {
     body = (
       <p className={styles.note}>
-        {diff.isError ? `No answer: ${diff.error.message}` : "Asking git…"}
+        {diff.isError ? `Couldn't load: ${diff.error.message}` : "Loading the diff…"}
       </p>
     );
   } else if (change === null || change === undefined) {
@@ -191,12 +193,12 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           onChange={choose("split")}
           ways={[
             {
-              icon: Columns2,
+              icon: StretchVertical,
               title: narrow
-                ? "Old and new side by side where the Panel is wide enough; inline here"
-                : "Old and new side by side",
+                ? "Show old and new side by side, once the Panel is wide enough"
+                : "Show old and new side by side",
             },
-            { icon: Rows2, title: "Inline: old lines above new ones" },
+            { icon: StretchHorizontal, title: "Show old and new inline" },
           ]}
         />
         <Choice
@@ -213,18 +215,15 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           on={look.whole}
           onChange={choose("whole")}
           ways={[
-            { icon: ListChevronsUpDown, title: "All of the file around its changes" },
-            {
-              icon: ListChevronsDownUp,
-              title: "Only some lines around its changes, which buttons show more of",
-            },
+            { icon: ListChevronsUpDown, title: "Show complete file" },
+            { icon: ListChevronsDownUp, title: "Show context around changes only" },
           ]}
         />
         <BarEnd>
           {query && (
             <ViewLink
               address={{ kind: "history", params: { ...checkoutOf(params), path: query.path } }}
-              label={`History of ${query.path}: the commits that changed it`}
+              label={`Commit history of ${query.path}`}
               opening={{ beside: true, preview: true }}
             />
           )}
@@ -299,7 +298,7 @@ function Unchanged({ query, params, setParams }: UnchangedProps) {
   return (
     <p className={styles.note}>
       {noChanges(query)}{" "}
-      {offered.length > 0 ? "Its changes are now:" : "None left: committed, or undone."}{" "}
+      {offered.length > 0 ? "The changes are now in:" : "Nothing left: committed or undone."}{" "}
       {offered.map(([name, compared]) => (
         <button
           key={name}

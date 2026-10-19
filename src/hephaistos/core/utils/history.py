@@ -172,7 +172,7 @@ def _start(top: Path, ref: str | None) -> str | None:
         return result.stdout.strip()
     if ref is None:
         return None  # no commits yet
-    raise HistoryError(f"{ref!r} is no branch, tag or commit here")
+    raise HistoryError(f"{ref!r} is not a branch, tag or commit here")
 
 
 def history(

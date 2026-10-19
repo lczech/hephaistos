@@ -289,7 +289,7 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
         return value
     if kind is str:
         if not isinstance(value, str) or not value:
-            raise ConfigError(f"{where} must be some text, not {_value_text(value)}")
+            raise ConfigError(f"{where} must be text, not {_value_text(value)}")
         return value
     number = isinstance(value, int | float) and not isinstance(value, bool)
     if kind is float and number:

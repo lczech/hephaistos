@@ -79,7 +79,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   if (checkout === undefined) {
     message = "No Checkout: open History from a Clone or Worktree in Repositories.";
   } else if (history.data === undefined && !history.isError) {
-    message = "Asking git…";
+    message = "Loading commits…";
   } else if (history.data !== undefined && listed.length === 0) {
     message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
   }
@@ -89,8 +89,8 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
         {checkout && (
           <select
             className={styles.ref}
-            aria-label="Commits from"
-            title="The branch or tag whose commits show; HEAD follows what is checked out"
+            aria-label="Branch or tag"
+            title="Show the commits of a branch or tag; HEAD is what is checked out"
             value={ref ?? ""}
             onChange={(event) =>
               setParams(
@@ -119,14 +119,14 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
           </select>
         )}
         {path !== undefined && (
-          <span className={styles.only} title={`Only the commits that changed ${path}`}>
+          <span className={styles.only} title={`Only commits that changed ${path}`}>
             {path}
             <button
               type="button"
               className={styles.clear}
               onClick={() => setParams(without("path"))}
-              aria-label={`All commits, not only those that changed ${path}`}
-              title="All commits"
+              aria-label="Show all commits"
+              title="Show all commits"
             >
               <X aria-hidden="true" />
             </button>
@@ -141,7 +141,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
       </ViewBar>
       {history.isError && (
         <p className={styles.note}>
-          No answer: {history.error.message}{" "}
+          Couldn't load: {history.error.message}{" "}
           {ref !== undefined && (
             <button
               type="button"

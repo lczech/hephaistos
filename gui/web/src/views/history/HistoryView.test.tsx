@@ -94,7 +94,7 @@ describe("the History View", () => {
     ]);
     expect(screen.getByLabelText("merge")).toBeInTheDocument();
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj");
-    expect(screen.getByRole("combobox", { name: "Commits from" })).toHaveDisplayValue(
+    expect(screen.getByRole("combobox", { name: "Branch or tag" })).toHaveDisplayValue(
       "HEAD (main)",
     );
     await userEvent.click(screen.getByText("Commit 2"));
@@ -103,7 +103,7 @@ describe("the History View", () => {
     expect(within(details).getByText("Someone <else@example.org>")).toBeInTheDocument();
     expect(within(details).getByText("parents")).toBeInTheDocument();
     // The parents' hashes; its own is in the row above.
-    expect(within(details).getAllByRole("button", { name: /^Changes of / })).toHaveLength(2);
+    expect(within(details).getAllByRole("button", { name: /^Changes in commit / })).toHaveLength(2);
   });
 
   it("opens a commit's changes from its hash, beside as a preview", async () => {
@@ -114,7 +114,7 @@ describe("the History View", () => {
         <History initial={{ clone: "clone-proj" }} />
       </OpenViewContext.Provider>,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Changes of ccccccc" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Changes in commit ccccccc" }));
     expect(opened).toEqual([
       [
         { kind: "changes", params: { clone: "clone-proj", commit: HEAD.hash } },
@@ -140,7 +140,7 @@ describe("the History View", () => {
   it("walks from a branch picked, and back from HEAD", async () => {
     const requests = serveHistory(() => json(page([HEAD])));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
-    const choice = await screen.findByRole("combobox", { name: "Commits from" });
+    const choice = await screen.findByRole("combobox", { name: "Branch or tag" });
     await screen.findByText("Commit 3");
     expect(
       within(choice)
@@ -158,9 +158,9 @@ describe("the History View", () => {
   });
 
   it("offers HEAD when the branch is gone", async () => {
-    serveHistory(() => json({ error: "'gone' is no branch, tag or commit here" }, 400));
+    serveHistory(() => json({ error: "'gone' is not a branch, tag or commit here" }, 400));
     renderWithQueries(<History initial={{ clone: "clone-proj", ref: "gone" }} />);
-    expect(await screen.findByText(/No answer: 'gone' is no branch/)).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load: 'gone' is not a branch/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "From HEAD" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });
@@ -176,9 +176,7 @@ describe("the History View", () => {
       expect.stringContaining("Commit 1"),
     ]);
     expect(screen.getByRole("heading")).toHaveTextContent("History: rows.ts");
-    await userEvent.click(
-      screen.getByRole("button", { name: "All commits, not only those that changed src/rows.ts" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Show all commits" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });
 
@@ -233,7 +231,7 @@ describe("the History View", () => {
     expect(
       await screen.findByText("Uncommitted: 2 staged, 1 changed, 3 untracked"),
     ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Changes not committed" }));
+    await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes" }));
     expect(opened).toEqual([{ kind: "changes", params: { clone: "clone-proj" } }]);
     await userEvent.selectOptions(screen.getByRole("combobox"), "feature");
     expect(screen.queryByText(/^Uncommitted/)).toBeNull(); // not what is checked out
@@ -259,6 +257,6 @@ describe("the History View", () => {
     serveHistory(() => json({ head: null, branch: null, refs: [], commits: [], next: null }));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
     expect(await screen.findByText("No commits yet.")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Commits from" })).toHaveDisplayValue("HEAD");
+    expect(screen.getByRole("combobox", { name: "Branch or tag" })).toHaveDisplayValue("HEAD");
   });
 });

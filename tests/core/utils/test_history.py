@@ -67,7 +67,7 @@ def test_from_a_ref(repo: Path) -> None:
     _commit(repo, "aside")
     assert _subjects(repo) == ["aside", "two", "one"]
     assert _subjects(repo, ref="main") == ["three", "two", "one"]
-    with pytest.raises(HistoryError, match="'gone' is no branch, tag or commit here"):
+    with pytest.raises(HistoryError, match="'gone' is not a branch, tag or commit here"):
         history(repo, "gone", limit=10)
 
 

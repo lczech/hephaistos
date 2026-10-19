@@ -114,7 +114,9 @@ describe("the Events View", () => {
     const details = screen.getByRole("region", { name: "Event details" });
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
     expect(within(details).queryByText("body")).toBeNull(); // the box says it whole
-    expect(within(details).getByRole("button", { name: "Changes of abc1000" })).toBeInTheDocument();
+    expect(
+      within(details).getByRole("button", { name: "Changes in commit abc1000" }),
+    ).toBeInTheDocument();
   });
 
   it("opens and closes with the keyboard", async () => {
@@ -295,7 +297,7 @@ describe("the Events View's filters", () => {
   it("keep other parameters, and say what the Server refuses", async () => {
     serve({ "GET /api/events": () => json({ error: "since: 'soon' is no time" }, 400) });
     renderWithQueries(<Events at={{ since: "soon", other: "kept" }} />);
-    expect(await screen.findByText("No answer: since: 'soon' is no time")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn't load: since: 'soon' is no time")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
     expect(address()).toBe("events?other=kept");
   });

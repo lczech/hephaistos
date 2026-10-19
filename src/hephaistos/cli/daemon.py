@@ -101,7 +101,7 @@ def install(
         typer.Option("--linger", help="Also start it at boot and keep it after logout (loginctl)."),
     ] = False,
 ) -> None:
-    """Install the Daemon as a systemd user service, and start it; again to update it.
+    """Install the Daemon as a systemd user service and start it; run it again to update it.
 
     The service runs this hephaistos, by the path it was run as, with this shell's
     HEPHAISTOS_HOME and XDG directories. It starts at login, or with --linger at boot.
@@ -122,7 +122,11 @@ def install(
     else:
         typer.echo(f"Already installed: {where}")
     pid = unit.wait_started(paths, running if done.restarted else None)
-    typer.echo(f"The Daemon {'restarted' if done.restarted else 'runs'} (pid {pid})")
+    typer.echo(
+        f"Restarted the Daemon (pid {pid})"
+        if done.restarted
+        else f"The Daemon is running (pid {pid})"
+    )
     for name in unit.settings_variables(os.environ):
         typer.echo(f"warning: the Daemon won't see {name}; put it in config.toml", err=True)
     if linger:
@@ -139,7 +143,8 @@ def uninstall() -> None:
     typer.echo(f"Stopped the Daemon and deleted {short_path(unit.unit_file())}")
     if unit.has_linger():
         typer.echo(
-            "Linger stays on, for all your user services; `loginctl disable-linger` ends it."
+            "Linger stays enabled for all your user services;"
+            " turn it off with `loginctl disable-linger`."
         )
 
 
@@ -147,7 +152,7 @@ def uninstall() -> None:
 def start() -> None:
     """Start the installed Daemon through systemd."""
     pid = unit.start(Paths.from_environment())
-    typer.echo(f"The Daemon runs (pid {pid})")
+    typer.echo(f"The Daemon is running (pid {pid})")
 
 
 @app.command()
@@ -161,7 +166,7 @@ def stop() -> None:
 def restart() -> None:
     """Restart the installed Daemon, e.g. to apply new code or settings."""
     pid = unit.restart(Paths.from_environment())
-    typer.echo(f"The Daemon runs again (pid {pid})")
+    typer.echo(f"Restarted the Daemon (pid {pid})")
 
 
 def _unit_text(found: Report) -> str:
@@ -237,7 +242,7 @@ def _server_text(server: ServerStatus, when: Callable[[datetime], str]) -> str:
 
 @app.command()
 def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False) -> None:
-    """Show whether the Daemon runs, how it is installed, and how its parts are doing.
+    """Show whether the Daemon is running, how it is installed, and how its parts are doing.
 
     Exits with 0 if it runs, 3 if not.
     """

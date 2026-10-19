@@ -33,7 +33,7 @@ export function historyColumns(checkout: Checkout | undefined, head: string | nu
           return (
             <ViewLink
               address={{ kind: "changes", params: checkout }}
-              label="Changes not committed"
+              label="Uncommitted changes"
               opening={{ beside: true, preview: true }}
             />
           );
@@ -66,7 +66,7 @@ export function historyColumns(checkout: Checkout | undefined, head: string | nu
           <span title={commit.subject}>
             <RefLabels refs={commit.refs} head={commit.hash === head} />
             {commit.parents.length > 1 && (
-              <span title="A merge: its changes are those against its first parent">
+              <span title="Merge commit: changes shown against its first parent">
                 <GitMerge className={styles.icon} aria-label="merge" />
               </span>
             )}
@@ -90,7 +90,9 @@ export function historyColumns(checkout: Checkout | undefined, head: string | nu
       id: "authored",
       header: "authored",
       size: 88,
-      meta: { description: "When it was written; its details say when it was committed too" },
+      meta: {
+        description: "When the commit was authored; its details also show when it was committed",
+      },
       cell: ({ row, table }) => {
         if (row.original.type !== "commit") return "";
         const at = row.original.commit.author.at;

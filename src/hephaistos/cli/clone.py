@@ -53,7 +53,7 @@ RefreshOption = Annotated[
 def note_observed(result: observer.Result, reason: str) -> None:
     """Says on stderr that a command observed first, unasked, and why."""
     events = number_text(len(result.events), "Event")
-    typer.echo(f"Observed first, as {reason} ({events})", err=True)
+    typer.echo(f"Observed first, because {reason} ({events})", err=True)
 
 
 def observe_checkout(paths: Paths, path: Path, *, refresh: bool) -> None:
@@ -275,7 +275,8 @@ def remove(path: PathArgument = HERE) -> None:
     )
     if not summary.clones:
         typer.echo(
-            f"{name} has no Clones left; `hephaistos repo remove {shlex.quote(name)}` removes it"
+            f"{name} has no Clones left;"
+            f" remove it with `hephaistos repo remove {shlex.quote(name)}`"
         )
 
 

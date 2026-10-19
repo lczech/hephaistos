@@ -245,7 +245,7 @@ describe("the Changes View", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, ccccccc Fix it");
     expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
     expect(screen.getByText(/^Not on any branch or tag/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Changes of ddddddd" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Changes in commit ddddddd" })).toBeInTheDocument();
     const header = screen.getByRole("button", { name: /Fix it/ });
     await userEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");

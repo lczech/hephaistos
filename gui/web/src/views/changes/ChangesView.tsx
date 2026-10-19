@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
-import { Group as GroupIcon, List } from "lucide-react";
+import { LayoutList, List } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { KEYS, useChanges, useChangesWithin, useRepositories } from "../../api/queries";
@@ -146,7 +146,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   if (checkout === undefined) {
     message = "No Checkout: open Changes from a Clone or Worktree in Repositories.";
   } else if (changes.data === undefined) {
-    message = changes.isError ? `No answer: ${changes.error.message}` : "Asking git…";
+    message = changes.isError ? `Couldn't load: ${changes.error.message}` : "Loading changes…";
   } else if (commit !== undefined) {
     if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
   } else if (groups.length === 0) {
@@ -175,13 +175,13 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             onChange={toggleApart}
             ways={[
               {
-                icon: GroupIcon,
-                title: "In the groups `git status` shows: staged, not staged, untracked, unmerged",
+                icon: LayoutList,
+                title:
+                  "Show changes grouped like `git status`: staged, not staged, untracked, unmerged",
               },
               {
                 icon: List,
-                title:
-                  "All changes since the last commit in one list, a file staged and changed again once",
+                title: "Show all changes since the last commit in one list, each file once",
               },
             ]}
           />
@@ -194,7 +194,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
         )}
         {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}
         {changes.data !== undefined && groups.length > 0 && (
-          <span className={styles.totals} title="Lines added and removed in all groups">
+          <span className={styles.totals} title="Total lines added and removed">
             {files} {files === 1 ? "file" : "files"}, {linesText(added, removed)}
           </span>
         )}
@@ -202,7 +202,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
           <BarEnd>
             <ViewLink
               address={{ kind: "history", params: checkout }}
-              label="History: the commits before"
+              label="Commit history of this Checkout"
               opening={{ beside: true, preview: true }}
             />
             <Refresh

@@ -356,7 +356,7 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
     assert (gone.status_code, gone.json()["error"]) == (
         400,
-        "'gone' is no branch, tag or commit here",
+        "'gone' is not a branch, tag or commit here",
     )
 
 

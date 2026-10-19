@@ -179,7 +179,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean) {
       meta: {
         width: "max-content",
         end: true,
-        description: "Lines added and removed; sizes for binary files and those too large",
+        description: "Lines added and removed; the size for binary or very large files",
       },
       cell: ({ row }) => {
         const entry = row.original;

@@ -180,8 +180,8 @@ describe("the Diff View", () => {
     ];
     serveDiff({ change: null, patch: null }, { changes: groups });
     renderWithQueries(<Diff initial={{ ...STAGED, from: "index", to: "worktree" }} />);
-    expect(await screen.findByText(/Its changes are now/)).toHaveTextContent(
-      /^No changes not staged\. Its changes are now:/,
+    expect(await screen.findByText(/The changes are now in/)).toHaveTextContent(
+      /^No unstaged changes\. The changes are now in:/,
     );
     const offered = screen.getAllByRole("button").map((button) => button.textContent);
     expect(offered.slice(-2)).toEqual(["Staged", "Since HEAD"]);
@@ -194,8 +194,8 @@ describe("the Diff View", () => {
   it("says when nothing is left to show", async () => {
     serveDiff({ change: null, patch: null });
     renderWithQueries(<Diff initial={STAGED} />);
-    expect(await screen.findByText(/None left/)).toHaveTextContent(
-      "No changes staged. None left: committed, or undone.",
+    expect(await screen.findByText(/Nothing left/)).toHaveTextContent(
+      "No staged changes. Nothing left: committed or undone.",
     );
   });
 

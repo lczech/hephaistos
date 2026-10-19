@@ -97,14 +97,14 @@ def test_new_worktrees_are_observed_first(repo: Path, tmp_path: Path) -> None:
     result = runner.invoke(app, ["worktree", "show", str(repo / ".worktrees" / "inside")])
     assert result.exit_code == 0, result.output
     # Three branches created, three Worktrees added.
-    assert result.stderr == "Observed first, as git knows more than the record (6 Events)\n"
+    assert result.stderr == "Observed first, because git knows more than the record (6 Events)\n"
     assert _branch(result.stdout) == "inside"
     result = runner.invoke(app, ["worktree", "show", str(tmp_path / "outside")])
     assert (result.stderr, _branch(result.stdout)) == ("", "outside")
     git(repo, "worktree", "add", "--quiet", "-b", "later", str(tmp_path / "later"))
     result = runner.invoke(app, ["worktree", "show", "later"])
     assert result.exit_code == 0, result.output
-    assert result.stderr == "Observed first, as no Worktree named later was known (2 Events)\n"
+    assert result.stderr == "Observed first, because no Worktree named later was known (2 Events)\n"
     assert _branch(result.stdout) == "later"
     assert runner.invoke(app, ["worktree", "show", "later"]).stderr == ""
 

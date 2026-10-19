@@ -50,7 +50,7 @@ export function StatusBar() {
           data-health={health}
           onClick={() => open({ kind: "daemon", params: {} })}
           title={title}
-          aria-label={`Daemon: ${reasons.join("; ")}; show it`}
+          aria-label={`Daemon: ${reasons.join("; ")}; open the Daemon View`}
         >
           <Icon aria-hidden="true" />
         </button>

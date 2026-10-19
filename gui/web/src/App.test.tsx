@@ -55,7 +55,9 @@ describe("the GUI", () => {
     renderWithQueries(<App />);
     await waitFor(() => lastSocket());
     act(() => lastSocket().open());
-    const health = await screen.findByRole("button", { name: "Daemon: running; show it" });
+    const health = await screen.findByRole("button", {
+      name: "Daemon: running; open the Daemon View",
+    });
     expect(health).toHaveAttribute("data-health", "good");
     await userEvent.click(health);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
@@ -95,10 +97,9 @@ describe("the GUI", () => {
     act(() => lastSocket().open());
     act(() => lastSocket().drop());
     expect(screen.getByText("disconnected")).toHaveAttribute("data-state", "disconnected");
-    expect(screen.getByRole("button", { name: "Daemon: disconnected; show it" })).toHaveAttribute(
-      "data-health",
-      "lost",
-    );
+    expect(
+      screen.getByRole("button", { name: "Daemon: disconnected; open the Daemon View" }),
+    ).toHaveAttribute("data-health", "lost");
   });
 
   it("tells in the Daemon View what to check while disconnected", async () => {

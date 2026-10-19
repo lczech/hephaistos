@@ -132,8 +132,8 @@ def test_files_for() -> None:
         ('git = "fast"\n', r"git must be a section \[git\]"),
         ("[gui]\ndiff = 3\n", r"gui.diff must be a section \[gui.diff\]"),
         ("[gui.diff]\nmax_file = 3\n", r"unknown setting gui.diff.max_file \(did you mean"),
-        ("[gui.code]\ntheme_dark = 3\n", "gui.code.theme_dark must be some text, not 3"),
-        ('[gui.code]\ntheme_dark = ""\n', 'gui.code.theme_dark must be some text, not ""'),
+        ("[gui.code]\ntheme_dark = 3\n", "gui.code.theme_dark must be text, not 3"),
+        ('[gui.code]\ntheme_dark = ""\n', 'gui.code.theme_dark must be text, not ""'),
         ("time_format = \n", "cannot read"),
     ],
 )

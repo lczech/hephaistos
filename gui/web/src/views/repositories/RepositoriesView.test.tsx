@@ -122,9 +122,11 @@ describe("the Repositories View", () => {
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
     await screen.findByText("recent");
-    expect(screen.queryByRole("button", { name: "History of recent" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "History of ~/recent" }));
-    await userEvent.click(screen.getByRole("button", { name: "History of .worktrees/feature" }));
+    expect(screen.queryByRole("button", { name: "Commit history of recent" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Commit history of ~/recent" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Commit history of .worktrees/feature" }),
+    );
     expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
       ["history?clone=clone-recent", { beside: true, preview: true }],
       ["history?worktree=wt-recent-feature", { beside: true, preview: true }],

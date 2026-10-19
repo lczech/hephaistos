@@ -28,7 +28,9 @@ def open_desktop() -> None:
         )
     pid = launch.open_desktop(desktop, Paths.from_environment(), executable(), os.environ)
     typer.echo(
-        "The Desktop was open; it comes to the front" if pid is None else "Opened the Desktop"
+        "The Desktop is already open; brought it to the front"
+        if pid is None
+        else "Opened the Desktop"
     )
 
 

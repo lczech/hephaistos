@@ -38,7 +38,7 @@ export function waitingPage(waiting: Waiting): string {
     waiting.state === "starting"
       ? "<h1>Starting the Daemon…</h1>"
       : `<h1>Can't reach the Daemon</h1><p>${withCode(sentence(waiting.reason))}</p>` +
-        `<p>Trying again every ${RETRY / 1000} s; Ctrl+R tries now, starting it if needed.</p>`;
+        `<p>Trying again every ${RETRY / 1000} s; Press Ctrl+R to try now; that also starts the Daemon if needed.</p>`;
   const html =
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
     `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">` +

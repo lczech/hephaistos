@@ -56,7 +56,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   }, [title, setTitle]);
   let message: string | null = null;
   if (events.data === undefined) {
-    message = events.isError ? `No answer: ${events.error.message}` : "Asking for Events…";
+    message = events.isError ? `Couldn't load: ${events.error.message}` : "Loading Events…";
   } else if (listed.length === 0) {
     message = filters.length > 0 ? "No Events match." : "No Events yet.";
   }
