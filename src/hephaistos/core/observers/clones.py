@@ -338,7 +338,8 @@ def observe(
     """Observes this Machine's Clones and their Worktrees, or those of the Clones in `clone_ids`.
 
     git runs outside any transaction: first for the Clones, then for all their Worktrees. A
-    Clone that another process observed after we started keeps that fresher State. The
+    Clone that another process observed after we started keeps that fresher State; one moved
+    meanwhile is left to the next observation, as its old path was observed. The
     Worktrees of a missing or failed Clone stay as last known.
     """
     with read_session(paths) as session:
@@ -374,12 +375,17 @@ def observe(
     recorded: list[Event] = []
     skipped = counted = updated = 0
     with write_session(paths) as session:
-        current = {existing.clone.id: existing.state for existing in clones.details(session)}
-        for index, (clone_id, _) in enumerate(targets):
-            known = current.get(clone_id)
-            if known is None or known.observed_at > started:
+        current = {existing.clone.id: existing for existing in clones.details(session)}
+        for index, (clone_id, target) in enumerate(targets):
+            existing = current.get(clone_id)
+            if (
+                existing is None
+                or existing.state.observed_at > started
+                or existing.clone.resolved_path != target.path
+            ):
                 skipped += 1
                 continue
+            known = existing.state
             observed = looked[index]
             recorded += state.update(session, clone_id, observed.observation, observed.read)
             new = state.get(session, clone_id)

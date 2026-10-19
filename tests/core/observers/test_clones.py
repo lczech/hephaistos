@@ -205,6 +205,29 @@ def test_fresher_observation_is_kept(
     assert kinds.count("clone.branch_created") == 1
 
 
+def test_clone_moved_meanwhile_is_left_alone(
+    paths: Paths, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observer.observe(paths)
+    real = observer.clone_observation
+    moved = tmp_path / "moved"
+
+    def observe_while_the_clone_moves(known: observer.Known) -> observer.CloneObservation:
+        repo.rename(moved)
+        with read_session(paths) as session:
+            planned = clones.moves(session, repo, moved)
+        with write_session(paths) as session:
+            clones.move(session, planned)
+        return real(known)  # at the old path
+
+    monkeypatch.setattr(observer, "clone_observation", observe_while_the_clone_moves)
+    result = observer.observe(paths)
+    assert (result.events, result.observed, result.skipped) == ([], 0, 1)
+    monkeypatch.undo()
+    assert observer.observe(paths).events == []
+    assert _state(paths, moved).present
+
+
 def _worktree(paths: Paths, path: Path) -> WorktreeState:
     with read_session(paths) as session:
         worktree = clones.find_checkout(session, path).worktree
