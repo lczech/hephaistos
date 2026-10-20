@@ -24,6 +24,19 @@ globalThis.IntersectionObserver ??= class {
 // Nor does it animate.
 Element.prototype.animate ??= () => ({}) as Animation;
 
+// Nor has it `checkVisibility`, so React Aria asks for the computed style of each list item and
+// of all above it instead, which jsdom works out slowly: hundreds of milliseconds to open a list.
+// Tests load no style sheets: only `hidden` or an element's own style hides it.
+Element.prototype.checkVisibility ??= function (this: Element, options?: CheckVisibilityOptions) {
+  let visibility = "";
+  for (let element: Element | null = this; element; element = element.parentElement) {
+    const style = (element as HTMLElement).style as CSSStyleDeclaration | undefined;
+    if (element.hasAttribute("hidden") || style?.display === "none") return false;
+    visibility ||= style?.visibility ?? ""; // inherited: the nearest one set counts
+  }
+  return !(options?.visibilityProperty && ["hidden", "collapse"].includes(visibility));
+};
+
 // Live connections stay connecting, unless a test opens them.
 beforeEach(() => {
   FakeSocket.opened = [];
