@@ -2,10 +2,18 @@
 // git's patch and options in its own terms, so that another renderer could take its place.
 // Large, with its highlighter: loaded only once a diff shows (`LazyDiff`).
 
-import { getSingularPatch, hydratePartialDiff } from "@pierre/diffs";
+import { DEFAULT_VIRTUAL_FILE_METRICS, getSingularPatch, hydratePartialDiff } from "@pierre/diffs";
 import type { FileDiffMetadata } from "@pierre/diffs/react";
 import { FileDiff, Virtualizer } from "@pierre/diffs/react";
-import { type ReactNode, useMemo } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { CodeThemes } from "./themes";
 
 /** How a diff shows: side by side, long lines wrapped, the whole file around its changes. */
@@ -28,6 +36,9 @@ interface Props {
   versions: Versions | undefined; // once known: to show where the file ends, and more of it
 }
 
+// A line of code's height: the renderer's, and ours to hold diffs' places (`height.ts`).
+const LINE_HEIGHT = "calc(var(--code-size) * 1.5)";
+
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
 // of lines added and removed from it; and the code's font and size. The lines left out between
 // changes as gaps between two lines, rather than bars: quieter than the files' headers. The renderer's
@@ -38,7 +49,7 @@ const PAGE_LOOK = `:host {
   --diffs-bg-separator: var(--background);
   --diffs-font-family: var(--font-mono);
   --diffs-font-size: var(--code-size);
-  --diffs-line-height: calc(var(--code-size) * 1.5);
+  --diffs-line-height: ${LINE_HEIGHT};
 }
 [data-separator=line-info] {
   box-shadow: inset 0 1px var(--line), inset 0 -1px var(--line);
@@ -63,12 +74,35 @@ export function withVersions(partial: FileDiffMetadata, versions: Versions): Fil
   }
 }
 
+/** A line's height in pixels, as measured within a `DiffScroll`; 0 until known. */
+const LineHeight = createContext(0);
+
 /**
  * Where diffs scroll, one or many: the renderer draws only their lines in view. Diffs within it
- * come with headers of their own.
+ * come with headers of their own. The renderer places lines by their height, which it is told:
+ * guessing it, it draws the lines for another place than the one in view, and may keep drawing
+ * others while the view stays (with lines of 15px, e.g.). So a line's height is measured, and
+ * again when the code's size changes.
  */
 export function DiffScroll({ className, children }: { className?: string; children: ReactNode }) {
-  return <Virtualizer className={className}>{children}</Virtualizer>;
+  const line = useRef<HTMLDivElement>(null);
+  const [lineHeight, setLineHeight] = useState(0);
+  useLayoutEffect(() => {
+    const element = line.current;
+    if (element === null) return;
+    setLineHeight(element.getBoundingClientRect().height);
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setLineHeight(entry.contentRect.height);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <Virtualizer className={className}>
+      <div ref={line} style={{ position: "absolute", height: LINE_HEIGHT }} aria-hidden />
+      <LineHeight.Provider value={lineHeight}>{children}</LineHeight.Provider>
+    </Virtualizer>
+  );
 }
 
 /**
@@ -78,6 +112,7 @@ export function DiffScroll({ className, children }: { className?: string; childr
  * starts anew. Within a `DiffScroll`.
  */
 export default function Diff({ patch, look, themes, versions }: Props) {
+  const lineHeight = useContext(LineHeight);
   const partial = useMemo(() => getSingularPatch(patch), [patch]);
   // By their text: versions asked for again, unchanged, leave the diff as it is.
   const known = versions !== undefined;
@@ -86,10 +121,12 @@ export default function Diff({ patch, look, themes, versions }: Props) {
     () => (known ? withVersions(partial, { old: oldText, new: newText }) : partial),
     [partial, known, oldText, newText],
   );
+  // The renderer takes its line height once: a new one starts it anew.
   return (
     <FileDiff
-      key={look.whole ? "whole" : "changes"}
+      key={`${look.whole ? "whole" : "changes"} ${lineHeight}`}
       fileDiff={fileDiff}
+      metrics={lineHeight > 0 ? { ...DEFAULT_VIRTUAL_FILE_METRICS, lineHeight } : undefined}
       options={{
         theme: themes,
         themeType: "system", // as the page: the system's
