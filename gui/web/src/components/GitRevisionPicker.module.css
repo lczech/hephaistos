@@ -121,8 +121,18 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
+/* The row the keys or the pointer are on: grey, as menus mark it; the accent marks the
+   Revision picked now. */
 .row[data-focused] {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.row[data-current] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.row[data-current][data-focused] {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
 /* Lines between groups: within a row or heading, as the Virtualizer places them itself,
@@ -142,11 +152,6 @@
 .header[data-lined] {
   border-top: 1px solid var(--divider);
   padding-top: var(--space-1);
-}
-
-/* The Revision picked now. */
-.row[data-current] {
-  font-weight: 600;
 }
 
 /* Of an earlier search, until this one's come. */
