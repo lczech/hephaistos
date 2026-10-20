@@ -40,6 +40,7 @@ interface Props<TData extends RowData> {
   squareTitle?: (row: TData) => string; // what the square says, e.g. its colour
   detailsLabel: string; // `Event details`
   details: (row: TData) => ReactNode; // shown below a row opened
+  bareDetails?: boolean; // as wide as the list, without a box: e.g. diffs, which have their own
   folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
   opens?: (row: TData) => ((click: MouseEvent) => void) | undefined; // another View, as clicked
@@ -73,6 +74,7 @@ export function ListTable<TData extends RowData>({
   squareTitle,
   detailsLabel,
   details,
+  bareDetails,
   folds,
   plain,
   opens,
@@ -204,6 +206,7 @@ export function ListTable<TData extends RowData>({
                       id={`${id}-details`}
                       className={styles.details}
                       aria-label={detailsLabel}
+                      data-bare={bareDetails || undefined}
                     >
                       {details(row.original)}
                     </section>

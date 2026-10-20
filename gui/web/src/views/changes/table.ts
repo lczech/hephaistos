@@ -21,22 +21,20 @@ interface Options {
   sorted: SortingState;
   onSortedChange: (sorted: SortingState) => void;
   ungrouped?: boolean; // the groups' rows without a row for each group
+  nested?: boolean; // directories in their parents, not each by its path
 }
 
 /**
  * The changes as a list's rows (`entries`), for a `ListTable`: groups and directories open until
  * closed; new folders closed until opened, their files asked for then. Also how to open all.
  */
-export function useChangesTable({ query, groups, sorted, onSortedChange, ungrouped }: Options) {
+export function useChangesTable(options: Options) {
+  const { query, groups, sorted, onSortedChange, ungrouped, nested } = options;
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const opened = useMemo(
-    () => openedRows(entries(groups, () => undefined, sorted)),
-    [groups, sorted],
-  );
-  const expanded = { ...opened, ...toggled };
+  // New folders are closed until opened, so only those toggled are asked about.
   const paths = groups.flatMap((group) =>
     group.changes
-      .filter((change) => isFolder(change) && expanded[`${group.name}:${change.path}`])
+      .filter((change) => isFolder(change) && toggled[`${group.name}:${change.path}`])
       .map((change) => change.path),
   );
   const answers = useChangesWithin(query, paths);
@@ -51,19 +49,22 @@ export function useChangesTable({ query, groups, sorted, onSortedChange, ungroup
       count: found.reduce((sum, other) => sum + other.count, 0),
     };
   };
-  const grouped = entries(groups, within, sorted);
+  const grouped = entries(groups, within, sorted, nested);
+  // Directories in new folders too, once their files are there.
+  const opened = openedRows(grouped);
+  const expanded = { ...opened, ...toggled };
   const listed = ungrouped ? grouped.flatMap((group) => group.subRows) : grouped;
-  const most = Math.max(
-    0,
-    ...groups.flatMap((group) => group.changes.map((change) => changedLines(change) ?? 0)),
-  );
+  const most = Math.max(0, ...linesListed(grouped));
   // A group folds where there are several; one is just their header, always open.
   const several = groups.length > 1;
   const folds = useCallback(
     (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry)),
     [several],
   );
-  const columns = useMemo(() => changesColumns(most, folds), [most, folds]);
+  const columns = useMemo(
+    () => changesColumns(most, folds, ungrouped ? 0 : 1),
+    [most, folds, ungrouped],
+  );
   const table = useListTable({
     columns,
     data: listed,
@@ -88,20 +89,26 @@ export function useChangesTable({ query, groups, sorted, onSortedChange, ungroup
   return { table, folds, listed, openAll };
 }
 
+/** Each file's lines changed, as far as known, those in new folders opened too. */
+function linesListed(rows: Entry[]): number[] {
+  return rows.flatMap((row) => [
+    ...(row.type === "change" ? [changedLines(row.change) ?? 0] : []),
+    ...linesListed(row.subRows),
+  ]);
+}
+
 /** Whether a row other than a group holds rows: a directory, a new folder; files show all
  * they have. */
 function foldsWithin(entry: Entry): boolean {
   return entry.type === "change" ? isFolder(entry.change) : entry.type === "directory";
 }
 
-/** The rows open unless closed: groups and directories, by their IDs. */
+/** The rows open unless closed: groups and directories, by their IDs, those in new folders too. */
 function openedRows(rows: Entry[]): Record<string, boolean> {
   const opened: Record<string, boolean> = {};
   for (const row of rows) {
-    if (row.type === "group" || row.type === "directory") {
-      opened[entryId(row)] = true;
-      Object.assign(opened, openedRows(row.subRows));
-    }
+    if (row.type === "group" || row.type === "directory") opened[entryId(row)] = true;
+    Object.assign(opened, openedRows(row.subRows));
   }
   return opened;
 }

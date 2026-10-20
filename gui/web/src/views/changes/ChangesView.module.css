@@ -95,13 +95,16 @@
   color: var(--text-muted);
 }
 
-/* Files within a directory or a new folder, below it. */
-.changes li[data-depth="2"] [data-column="path"] {
-  padding-left: var(--space-4);
+/* Rows within a directory or a new folder, below it, a step further in for each. */
+.indented {
+  display: block;
+  min-width: 0;
+  padding-left: calc(var(--indent) * var(--space-4));
 }
 
-.changes li[data-depth="3"] [data-column="path"] {
-  padding-left: calc(2 * var(--space-4));
+.moved {
+  display: block;
+  translate: calc(var(--indent) * var(--space-4)) 0;
 }
 
 /* Lines added and removed, each as wide as most counts, in a column ending at the bars. */

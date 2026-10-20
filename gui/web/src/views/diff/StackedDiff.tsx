@@ -32,18 +32,19 @@ interface Props {
   query: ChangesQuery; // which, to ask for the files in new folders
   base: Omit<DiffQuery, "path">; // each file's diff, but its path
   show: DiffShow;
+  nested: boolean; // directories in their parents, as Changes lists them
 }
 
 /**
  * All files' diffs of a comparison or commit, one under the other in the order Changes lists
  * them, each asked for as it comes near; untracked files last, listed, each shown on asking.
  */
-export function StackedDiff({ groups, query, base, show }: Props) {
+export function StackedDiff({ groups, query, base, show, nested }: Props) {
   const tracked = groups.map((group) => ({
     ...group,
     changes: group.changes.filter((change) => !isUntracked(change)),
   }));
-  const files = filesOf(entries(tracked, () => undefined, BY_PATH));
+  const files = filesOf(entries(tracked, () => undefined, BY_PATH, nested));
   const untracked = groups.flatMap((group) => {
     const changes = group.changes.filter(isUntracked);
     return changes.length > 0 ? [{ ...group, changes, count: changes.length }] : [];
@@ -74,7 +75,7 @@ export function StackedDiff({ groups, query, base, show }: Props) {
         />
       ))}
       {untracked.length > 0 && (
-        <Untracked groups={untracked} query={query} base={base} show={show} />
+        <Untracked groups={untracked} query={query} base={base} show={show} nested={nested} />
       )}
       {more > 0 && (
         <p className={styles.note}>
@@ -93,7 +94,7 @@ interface UntrackedProps extends Omit<Props, "groups"> {
  * Untracked files and new folders, which may be anything left lying about: listed as Changes
  * lists them, a file's diff shown below its row once opened, or all of them at once.
  */
-function Untracked({ groups, query, base, show }: UntrackedProps) {
+function Untracked({ groups, query, base, show, nested }: UntrackedProps) {
   const [sorted, setSorted] = useState(BY_PATH);
   const { table, folds, listed, openAll } = useChangesTable({
     query,
@@ -101,6 +102,7 @@ function Untracked({ groups, query, base, show }: UntrackedProps) {
     sorted,
     onSortedChange: setSorted,
     ungrouped: true,
+    nested,
   });
   // All shown: every file's row open, those found in new folders too, but those closed again.
   const [all, setAll] = useState(false);
@@ -135,6 +137,7 @@ function Untracked({ groups, query, base, show }: UntrackedProps) {
         message={null}
         older="files"
         detailsLabel="Diff"
+        bareDetails // across the list's width, as the files' diffs above
         details={(entry) =>
           entry.type === "change" && (
             <FileBody

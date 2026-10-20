@@ -26,6 +26,7 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
+import { changesLook, NestedChoice } from "../changes/look";
 import {
   arrowText,
   type Compared,
@@ -131,6 +132,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const client = useQueryClient();
   const repositories = useRepositories();
   const [look, setLook] = useAtom(diffLook());
+  const [{ nested }] = useAtom(changesLook());
   const view = useRef<HTMLElement>(null);
   const narrow = useNarrow(view, NARROW);
   const [themes, unknown] = codeThemes({
@@ -192,6 +194,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         query={listQuery}
         base={{ ...checkout, ...base }}
         show={show}
+        nested={nested}
       />
     );
   }
@@ -245,6 +248,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
               { icon: ListChevronsDownUp, title: "Show context around changes only" },
             ]}
           />
+          {/* All files: in Changes' order, which directories nested change. */}
+          {!query && <NestedChoice />}
           {/* One file: all files compared so, and its history; all files: the same links as
               Changes has, the other way to see them, and the Checkout's history. */}
           {query && checkout && base && (

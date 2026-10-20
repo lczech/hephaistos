@@ -113,6 +113,28 @@ export function ChangePath({ change, base }: { change: Change; base: string }) {
   );
 }
 
+/** What a row below a group shows as its path. */
+function pathCell(entry: Exclude<Entry, { type: "group" }>): ReactNode {
+  switch (entry.type) {
+    case "note":
+      return <span className={styles.note}>{entry.text}</span>;
+    case "directory":
+      return (
+        <Path
+          shown={entry.path.slice(entry.base.length)}
+          title={entry.path}
+          icon={
+            <span className={styles.kind}>
+              <Folder aria-hidden="true" />
+            </span>
+          }
+        />
+      );
+    default:
+      return <ChangePath change={entry.change} base={entry.base} />;
+  }
+}
+
 /** A group's name, and how many of each kind of change it holds. */
 function GroupName({ entry }: { entry: Extract<Entry, { type: "group" }> }) {
   return (
@@ -129,14 +151,44 @@ function GroupName({ entry }: { entry: Extract<Entry, { type: "group" }> }) {
 }
 
 /**
- * The Changes list's columns: the path takes what the others leave, then the lines, then their
- * bars, as long as their share of `most`. Rows that `fold` have a chevron.
+ * A row's path, a step further in for each level of `depth`; or its chevron, moved as far, out
+ * of its narrow square into the room the path leaves.
  */
-export function changesColumns(most: number, folds: (entry: Entry) => boolean) {
+function Indented({
+  depth,
+  moved,
+  children,
+}: {
+  depth: number;
+  moved?: boolean;
+  children: ReactNode;
+}) {
+  const indent = { "--indent": Math.max(0, depth) } as CSSProperties;
+  return (
+    <span className={moved ? styles.moved : styles.indented} style={indent}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * The Changes list's columns: the path takes what the others leave, then the lines, then their
+ * bars, as long as their share of `most`. Rows that `fold` have a chevron; rows below those at
+ * depth `top`, the groups' own, are indented.
+ */
+export function changesColumns(most: number, folds: (entry: Entry) => boolean, top: number) {
   return column.columns([
     column.display({
       id: "square",
-      cell: ({ row }) => (folds(row.original) ? <Chevron /> : ""),
+      // In line with the row's path: a tree's chevrons stand before their folders.
+      cell: ({ row }) =>
+        folds(row.original) ? (
+          <Indented depth={row.depth - top} moved>
+            <Chevron />
+          </Indented>
+        ) : (
+          ""
+        ),
       enableResizing: false,
       meta: { width: "var(--square)" },
     }),
@@ -148,26 +200,8 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean) {
       meta: { width: "minmax(10rem, 1fr)" },
       cell: ({ row }) => {
         const entry = row.original;
-        switch (entry.type) {
-          case "note":
-            return <span className={styles.note}>{entry.text}</span>;
-          case "group":
-            return <GroupName entry={entry} />;
-          case "directory":
-            return (
-              <Path
-                shown={entry.path}
-                title={entry.path}
-                icon={
-                  <span className={styles.kind}>
-                    <Folder aria-hidden="true" />
-                  </span>
-                }
-              />
-            );
-          default:
-            return <ChangePath change={entry.change} base={entry.base} />;
-        }
+        if (entry.type === "group") return <GroupName entry={entry} />;
+        return <Indented depth={row.depth - top}>{pathCell(entry)}</Indented>;
       },
     }),
     column.accessor((entry) => (entry.type === "change" ? changedLines(entry.change) : undefined), {

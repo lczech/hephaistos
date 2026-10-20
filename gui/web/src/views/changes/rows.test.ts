@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type Change,
+  type Entry,
   entries,
   entryId,
   type Group,
@@ -150,6 +151,88 @@ describe("the rows", () => {
       type: "note",
       text: "1,000 more not listed, as the setting gui.diff.max_files allows 1 per list",
     });
+  });
+
+  /** The rows as they read, each path as shown, two spaces further in for each level. */
+  function outline(rows: Entry[], depth = 0): string[] {
+    return rows.flatMap((row) => {
+      let text = row.type === "note" ? row.text : "";
+      if (row.type === "directory") text = row.path.slice(row.base.length);
+      if (row.type === "change") text = row.change.path.slice(row.base.length);
+      return [`${"  ".repeat(depth)}${text}`, ...outline(row.subRows, depth + 1)];
+    });
+  }
+
+  const SPREAD = [
+    change("src/top.py"),
+    change("README.md"),
+    change("src/b/c/z.py", { added: 30 }),
+    change("src/a/y.py"),
+    change("doc/deep/er/r.md"),
+    change("new/", { status: "?", added: null, removed: null, files: 2 }),
+    change("src/a/x.py"),
+  ];
+
+  it("show each directory by its path, flat", () => {
+    const [row] = entries([group("unstaged", SPREAD)], nothingWithin, []);
+    expect(outline(row?.subRows ?? [])).toEqual([
+      "doc/deep/er/",
+      "  r.md",
+      "src/",
+      "  top.py",
+      "src/a/",
+      "  x.py",
+      "  y.py",
+      "src/b/c/",
+      "  z.py",
+      "new/",
+      "  Loading files…",
+      "README.md",
+    ]);
+  });
+
+  it("nest directories, one holding just one directory joined with it", () => {
+    const [row] = entries([group("unstaged", SPREAD)], nothingWithin, [], true);
+    expect(outline(row?.subRows ?? [])).toEqual([
+      "doc/deep/er/",
+      "  r.md",
+      "src/",
+      "  a/",
+      "    x.py",
+      "    y.py",
+      "  b/c/",
+      "    z.py",
+      "  top.py",
+      "new/",
+      "  Loading files…",
+      "README.md",
+    ]);
+    const src = row?.subRows[1];
+    expect(src).toMatchObject({ type: "directory", path: "src/", base: "" });
+    expect(src?.type === "directory" && src.changes).toHaveLength(4); // all below it
+    expect(src?.subRows[1]).toMatchObject({ path: "src/b/c/", base: "src/" });
+  });
+
+  it("nest directories sorted by their lines, all below them counted", () => {
+    const [row] = entries(
+      [group("unstaged", SPREAD)],
+      nothingWithin,
+      [{ id: "lines", desc: true }],
+      true,
+    );
+    expect(outline(row?.subRows ?? []).filter((line) => line.endsWith("/"))).toEqual([
+      "src/", // 33 lines
+      "  b/c/",
+      "  a/",
+      "doc/deep/er/",
+      "new/",
+    ]);
+  });
+
+  it("nest a new folder's files in its directories", () => {
+    const found = { changes: [change("new/2.txt"), change("new/x/1.txt")], count: 2 };
+    const [row] = entries([group("untracked", [SPREAD[5] as Change])], () => found, [], true);
+    expect(outline(row?.subRows ?? [])).toEqual(["new/", "  x/", "    1.txt", "  2.txt"]);
   });
 
   it("hold a folder's files once asked, and say so meanwhile", () => {

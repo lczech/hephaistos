@@ -328,6 +328,7 @@ describe("the Changes View", () => {
     expect(groups()).toHaveAttribute("aria-pressed", "false");
     expect(JSON.parse(localStorage.getItem("hephaistos.changes") ?? "")).toEqual({
       grouped: false,
+      nested: false,
     });
     const asked = () =>
       requests.filter((request) => new URL(request.url).pathname === "/api/changes").at(-1)?.url;
@@ -347,6 +348,75 @@ describe("the Changes View", () => {
       "modified README.md +3 −1",
       "modified logo.png binary, 1.0 kB → 2.0 kB",
     ]);
+  });
+
+  it("nests directories, as chosen in this browser", async () => {
+    const group = { name: "changes" as const, from: "HEAD", to: "working-tree", count: 3 };
+    const changes = [change("src/a.py"), change("src/app/main.py"), change("b.txt")];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ branch: BRANCH, groups: [{ ...group, changes }] }),
+    });
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
+    );
+    await screen.findByText("Changes");
+    expect(rows().slice(1)).toEqual([
+      "src/ +1 −0",
+      "modified a.py +1 −0",
+      "src/app/ +1 −0",
+      "modified main.py +1 −0",
+      "modified b.txt +1 −0",
+    ]);
+    const nested = () => screen.getByRole("button", { name: "Directories as a tree" });
+    expect(nested()).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(nested());
+    expect(rows().slice(1)).toEqual([
+      "src/ +2 −0",
+      "app/ +1 −0",
+      "modified main.py +1 −0",
+      "modified a.py +1 −0",
+      "modified b.txt +1 −0",
+    ]);
+    // Each level a step further in, a directory's chevron with it.
+    const main = screen.getByText("main.py").closest("[style]");
+    expect(main).toHaveStyle({ "--indent": "2" });
+    const app = screen.getByText("app/").closest("li") as HTMLElement;
+    expect(app.querySelector("[data-column=square] [style]")).toHaveStyle({ "--indent": "1" });
+    expect(JSON.parse(localStorage.getItem("hephaistos.changes") ?? "")).toMatchObject({
+      nested: true,
+    });
+    await userEvent.click(nested()); // as it was, for the other tests
+  });
+
+  it("scales the bars to the most lines of any file listed, in new folders too", async () => {
+    const group = { name: "untracked" as const, from: "index", to: "working-tree", count: 1 };
+    const folder = change("new/", { status: "?", added: null, removed: null, files: 2 });
+    const files = [change("new/a.txt", { added: 4 }), change("new/b.txt", { added: 1 })];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": (request) =>
+        json({
+          branch: BRANCH,
+          groups: [
+            new URL(request.url).searchParams.get("path") === "new/"
+              ? { ...group, changes: files, count: 2 }
+              : { ...group, changes: [folder] },
+          ],
+        }),
+    });
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "index", to: "working-tree" }} />,
+    );
+    await userEvent.click(await screen.findByText("new/"));
+    const meter = async (name: string) =>
+      ((await screen.findByText(name)).closest("li") as HTMLElement).querySelector(
+        '[style*="--added"]',
+      );
+    expect(await meter("a.txt")).toHaveStyle({ "--added": "1" });
+    expect(await meter("b.txt")).toHaveStyle({ "--added": "0.25" });
   });
 
   it("shows one group as a header, which doesn't close", async () => {

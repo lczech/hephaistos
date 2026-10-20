@@ -74,6 +74,16 @@ export function withVersions(partial: FileDiffMetadata, versions: Versions): Fil
   }
 }
 
+/**
+ * A new or deleted file as a change: the renderer shows their lines across both sides when side
+ * by side, so they would look unlike other files' lines added and removed, on their own side.
+ */
+export function bothSides(fileDiff: FileDiffMetadata): FileDiffMetadata {
+  return fileDiff.type === "new" || fileDiff.type === "deleted"
+    ? { ...fileDiff, type: "change" }
+    : fileDiff;
+}
+
 /** A line's height in pixels, as measured within a `DiffScroll`; 0 until known. */
 const LineHeight = createContext(0);
 
@@ -118,7 +128,7 @@ export default function Diff({ patch, look, themes, versions }: Props) {
   const known = versions !== undefined;
   const { old: oldText = null, new: newText = null } = versions ?? {};
   const fileDiff = useMemo(
-    () => (known ? withVersions(partial, { old: oldText, new: newText }) : partial),
+    () => bothSides(known ? withVersions(partial, { old: oldText, new: newText }) : partial),
     [partial, known, oldText, newText],
   );
   // The renderer takes its line height once: a new one starts it anew.

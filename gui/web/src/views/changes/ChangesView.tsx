@@ -18,7 +18,7 @@ import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
 import { ComparedPickers } from "./ComparedPickers";
 import { checkoutName, checkoutOf } from "./checkout";
-import { changesLook } from "./look";
+import { changesLook, NestedChoice } from "./look";
 import {
   arrowText,
   type Compared,
@@ -74,6 +74,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     groups,
     sorted,
     onSortedChange: (next) => setParams(withSorting(params, next, DEFAULT_SORT)),
+    nested: look.nested,
   });
   // A file's row opens its diff, as a link does.
   const openView = useOpenView();
@@ -141,7 +142,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
               <Choice
                 label="Groups"
                 on={look.grouped}
-                onChange={(on) => setLook({ grouped: on })}
+                onChange={(on) => setLook({ ...look, grouped: on })}
                 ways={[
                   {
                     icon: LayoutList,
@@ -155,6 +156,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
                 ]}
               />
             )}
+            <NestedChoice />
             <ViewLink
               address={{
                 kind: "diff",

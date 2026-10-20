@@ -263,6 +263,8 @@ describe("the Diff View", () => {
       </OpenViewContext.Provider>,
     );
     const { path, ...staged } = STAGED;
+    // How directories show matters to all files' order only.
+    expect(screen.queryByRole("button", { name: "Directories as a tree" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "All changed files as one Diff" }));
     await userEvent.click(screen.getByRole("button", { name: `Commit history of ${path}` }));
     // All files: the list of them, and the Checkout's history.
@@ -273,6 +275,7 @@ describe("the Diff View", () => {
         </OpenViewContext.Provider>
       </QueryClientProvider>,
     );
+    expect(screen.getByRole("button", { name: "Directories as a tree" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "These changes as a list" }));
     await userEvent.click(screen.getByRole("button", { name: "Commit history of this Checkout" }));
     expect(opened).toEqual([
