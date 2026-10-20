@@ -1,0 +1,7 @@
+// dockview's elements don't say which Panel or Group something belongs to: it draws Views over
+// their Groups, not in them. Its API and the Panel's React context do (ADR 005).
+language js
+
+`$object.element` where {
+  register_diagnostic(span=$object, message="Don't read dockview's elements: find Panels and Groups through dockview's API, or a View's Panel through its context (`views/keys.ts`, `layout/visits.ts`).")
+}

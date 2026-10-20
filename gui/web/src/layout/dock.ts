@@ -7,6 +7,7 @@ import {
   themeLight,
 } from "dockview-react";
 import { type Address, addressText, asAddress } from "../views/address";
+import type { KeyTarget } from "../views/keys";
 import { viewTitle } from "../views/kinds";
 import type { Opening } from "../views/opening";
 import { besideOf } from "./beside";
@@ -46,8 +47,26 @@ const FLASH: Keyframe[] = [
 
 /** Marks a Panel's tab for a moment, to show where a View already open is. */
 function flash(panel: IDockviewPanel): void {
+  // biome-ignore lint/plugin: dockview's tab around our own, which alone has its colours
   const tab = panel.view.tab.element;
   (tab.closest(".dv-tab") ?? tab).animate(FLASH, { duration: 900, easing: "ease-out" });
+}
+
+// Where keys go in each Panel's View, by the Panel's ID; see `views/keys.ts`.
+const keyTargets = new Map<string, Map<KeyTarget, HTMLElement>>();
+
+/** Notes where a key goes in a Panel's View, or that it no longer goes there. */
+export function noteKeyTarget(panel: string, target: KeyTarget, element: HTMLElement | null) {
+  const targets = keyTargets.get(panel) ?? new Map<KeyTarget, HTMLElement>();
+  if (element === null) targets.delete(target);
+  else targets.set(target, element);
+  if (targets.size === 0) keyTargets.delete(panel);
+  else keyTargets.set(panel, targets);
+}
+
+/** Where a key goes in a Panel's View, if it says. */
+export function keyTarget(panel: IDockviewPanel | undefined, target: KeyTarget) {
+  return panel && keyTargets.get(panel.id)?.get(target);
 }
 
 // The Panels whose View was last changed by a key, e.g. typing a search; see `layout/visits.ts`.

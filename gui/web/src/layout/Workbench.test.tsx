@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchField } from "../components/SearchField";
 import { saveViews as save } from "../test/layout";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
@@ -334,13 +335,16 @@ describe("the Workbench", () => {
       renderWithQueries(<Workbench />);
       await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
       await userEvent.click(screen.getByRole("button", { name: "probe?n=1" })); // narrowed, kept
-      // Over the View shown, which is drawn over its Group, not in it.
-      const side = (button: number) =>
-        fireEvent.mouseUp(document.querySelector(".dv-render-overlay > *") as Element, { button });
+      // Over the View shown, which is drawn over its Group, not in it, or over its tab.
+      const over = (element: Element, button: number) => fireEvent.mouseUp(element, { button });
+      const side = (button: number) => {
+        const tab = screen.getByRole("tab", { selected: true });
+        return over(within(tab).getByText(tab.getAttribute("aria-label") ?? ""), button);
+      };
       expect(side(3)).toBe(false); // the browser's back prevented
       expect(screen.getByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
       expect(groups()).toEqual([["linker", "probe"]]);
-      side(3);
+      over(screen.getByRole("button", { name: "probe?n=1" }), 3);
       expect(screen.getByRole("button", { name: "Probe 1" })).toBeInTheDocument();
       side(4);
       expect(side(4)).toBe(false);
@@ -398,7 +402,13 @@ describe("the Workbench", () => {
   });
 
   it("goes to the active Panel's search field on Ctrl+F, if its View has one", async () => {
-    VIEWS.searcher = () => <input type="search" aria-label="Find" defaultValue="old" />;
+    // Its search field says so; another, e.g. a picker's, doesn't take Ctrl+F.
+    VIEWS.searcher = () => (
+      <>
+        <SearchField label="Pick" value="" onChange={() => {}} />
+        <SearchField label="Find" value="old" onChange={() => {}} byCtrlF />
+      </>
+    );
     VIEWS.probe = Probe;
     try {
       save("searcher", "probe");

@@ -3,6 +3,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
 import { ViewList } from "./ViewList";
+import { useSideButtons } from "./visits";
 
 /** How many Groups there are, following them as they come and go. */
 function useGroupCount(api: DockviewApi): number {
@@ -23,8 +24,10 @@ function useGroupCount(api: DockviewApi): number {
 /** What an empty Group shows: Views to open in it, and, unless it is the last, closing it. */
 export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
   const groups = useGroupCount(containerApi);
+  const sideButtons = useSideButtons(group);
   return (
-    <div className={styles.placeholder}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
+    <div className={styles.placeholder} onMouseUp={sideButtons}>
       <p>Open a View:</p>
       <ViewList
         suggested

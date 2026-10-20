@@ -1,4 +1,5 @@
 import type { DockviewApi, IDockviewGroupPanel } from "dockview-react";
+import { createContext, type MouseEvent, type RefObject, useContext } from "react";
 import { type Address, addressText, asAddress } from "../views/address";
 import { noteTyped, openView, showIn, wasTyped } from "./dock";
 
@@ -30,15 +31,37 @@ function visitOf(group: IDockviewGroupPanel): Visit | undefined {
 const same = (a: Visit | undefined, b: Visit | undefined) =>
   a?.panel === b?.panel && (a && addressText(a.address)) === (b && addressText(b.address));
 
+/** Going back or forward in a Group, as the mouse's side buttons over it do. */
+export interface Visits {
+  go: (group: IDockviewGroupPanel, back: boolean) => void;
+  dispose: () => void;
+}
+
+/** The Workbench's `Visits`, once its Views are restored; for the parts of its Groups. */
+export const VisitsContext = createContext<RefObject<Visits | null> | null>(null);
+
+/**
+ * The mouse's side buttons over a part of a Group, its tabs, its View, or its placeholder: back
+ * and forward there. The Group is the part's own, as dockview gives it, not found by where its
+ * elements are: dockview draws Views over their Groups, not in them.
+ */
+export function useSideButtons(group: IDockviewGroupPanel | undefined) {
+  const visits = useContext(VisitsContext);
+  return (event: MouseEvent) => {
+    if (group === undefined || (event.button !== BACK && event.button !== FORWARD)) return;
+    visits?.current?.go(group, event.button === BACK);
+  };
+}
+
 /**
  * Back and forward through the Views each Group showed, as in a browser tab: by the mouse's side
- * buttons, in the Group under the pointer, or Alt+←/→, in the active one. Each address a Group
+ * buttons, in the Group under the pointer (`useSideButtons`), or Alt+←/→, in the active one. Each address a Group
  * shows is a step: another Panel's, or another one in the same Panel (a link replacing a preview,
  * a filter, another Revision compared), but for keys typed in a row, e.g. a search, which are one.
  * Going back shows a Panel's View again, in that Panel, or as a preview where the Panel is gone.
  * Kept until the page is left.
  */
-export function keepVisits(api: DockviewApi): { dispose: () => void } {
+export function keepVisits(api: DockviewApi): Visits {
   const trails = new Map<string, Trail>();
   let moving = false;
 
@@ -99,19 +122,9 @@ export function keepVisits(api: DockviewApi): { dispose: () => void } {
     if (was && same(trail.now, was)) to.pop(); // shown in another Group instead
   };
 
-  // The side buttons: the browser's own back and forward would leave the page.
-  const onMouse = (event: MouseEvent) => {
-    if (event.button !== BACK && event.button !== FORWARD) return;
-    event.preventDefault();
-    if (event.type !== "mouseup") return;
-    const target = event.target instanceof Node ? event.target : null;
-    // Its tabs, or its Views, which are drawn over it, not in it.
-    const group = api.groups.find(
-      (group) =>
-        group.element.contains(target) ||
-        group.panels.some((panel) => panel.view.content.element.contains(target)),
-    );
-    if (group) go(group, event.button === BACK);
+  // The side buttons anywhere: the browser's own back and forward would leave the page.
+  const onMouse = (event: globalThis.MouseEvent) => {
+    if (event.button === BACK || event.button === FORWARD) event.preventDefault();
   };
   const onKey = (event: KeyboardEvent) => {
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -128,6 +141,7 @@ export function keepVisits(api: DockviewApi): { dispose: () => void } {
   window.addEventListener("mouseup", onMouse);
   window.addEventListener("keydown", onKey);
   return {
+    go,
     dispose: () => {
       for (const change of changes) change.dispose();
       window.removeEventListener("mousedown", onMouse);

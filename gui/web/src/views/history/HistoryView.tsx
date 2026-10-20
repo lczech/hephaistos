@@ -142,6 +142,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
             className={styles.control}
             label="Search hashes or messages"
             placeholder="Hash or message"
+            byCtrlF
             title="Only commits whose message has all these words, in any order and case; or for a hash, its commit"
             value={search}
             onSubmit={searchNow}
