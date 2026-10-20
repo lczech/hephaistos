@@ -4,6 +4,7 @@ import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import changesStyles from "../changes/ChangesView.module.css";
 import { Lines } from "../changes/columns";
+import { type Folds, foldedBy, withFolded } from "../changes/folds";
 import {
   type Change,
   type Entry,
@@ -37,8 +38,8 @@ interface Props {
   base: Omit<DiffQuery, "path">; // each file's diff, but its path
   show: DiffShow;
   nested: boolean; // directories in their parents, as Changes lists them
-  collapsed: ReadonlySet<string>; // files and directories (`dir/`) only their headers show of
-  onCollapsedChange: (collapsed: ReadonlySet<string>) => void;
+  folded: Folds; // files and directories only their headers show of, kept per Checkout
+  onFoldedChange: (folded: Folds) => void;
 }
 
 /**
@@ -47,7 +48,7 @@ interface Props {
  * untracked files last, listed, each shown on asking. Files and directories collapse.
  */
 export function StackedDiff(props: Props) {
-  const { groups, query, base, show, nested, collapsed, onCollapsedChange } = props;
+  const { groups, query, base, show, nested, folded, onFoldedChange } = props;
   const tracked = groups.map((group) => ({
     ...group,
     changes: group.changes.filter((change) => !isUntracked(change)),
@@ -61,20 +62,19 @@ export function StackedDiff(props: Props) {
   // Groups cut at the setting's cap, which their lists reached.
   const cut = groups.filter((group) => group.count > group.changes.length);
   const more = cut.reduce((sum, group) => sum + group.count - group.changes.length, 0);
-  const collapse = (path: string) => (on: boolean) => {
-    const next = new Set(collapsed);
-    if (on) next.add(path);
-    else next.delete(path);
-    onCollapsedChange(next);
-  };
+  const collapse = (path: string) => (on: boolean) =>
+    onFoldedChange({ ...folded, paths: withFolded(folded.paths, path, on) });
   const stacked = (within: Entry[]): ReactNode =>
     within.map((row) => {
       if (row.type === "directory") {
+        // Folded by a directory above it, where each shows by its path.
+        const by = foldedBy(folded.paths, row.path);
         return (
           <DirectorySection
             key={row.path}
             entry={row}
-            collapsed={collapsed.has(row.path)}
+            collapsed={by !== undefined}
+            foldedWith={by === row.path ? undefined : by}
             onCollapsedChange={collapse(row.path)}
           >
             {stacked(row.subRows)}
@@ -89,7 +89,7 @@ export function StackedDiff(props: Props) {
           query={{ ...base, path: row.change.path }}
           known={row.change}
           show={show}
-          collapsed={collapsed.has(row.change.path)}
+          collapsed={folded.paths.has(row.change.path)}
           onCollapsedChange={collapse(row.change.path)}
         />
       );
@@ -99,7 +99,15 @@ export function StackedDiff(props: Props) {
       <Totals groups={groups} />
       {stacked(rows)}
       {untracked.length > 0 && (
-        <Untracked groups={untracked} query={query} base={base} show={show} nested={nested} />
+        <Untracked
+          groups={untracked}
+          query={query}
+          base={base}
+          show={show}
+          nested={nested}
+          folded={folded}
+          onFoldedChange={onFoldedChange}
+        />
       )}
       {more > 0 && (
         <p className={styles.note}>
@@ -123,7 +131,7 @@ function Totals({ groups }: { groups: Group[] }) {
   );
 }
 
-interface UntrackedProps extends Omit<Props, "groups" | "collapsed" | "onCollapsedChange"> {
+interface UntrackedProps extends Omit<Props, "groups"> {
   groups: Group[]; // with only the untracked files and new folders
 }
 
@@ -131,11 +139,14 @@ interface UntrackedProps extends Omit<Props, "groups" | "collapsed" | "onCollaps
  * Untracked files and new folders, which may be anything left lying about: listed as Changes
  * lists them, a file's diff shown below its row once opened, or all of them at once.
  */
-function Untracked({ groups, query, base, show, nested }: UntrackedProps) {
+function Untracked(props: UntrackedProps) {
+  const { groups, query, base, show, nested, folded, onFoldedChange } = props;
   const [sorted, setSorted] = useState(BY_PATH);
   const { table, folds, listed, openAll } = useChangesTable({
     query,
     groups,
+    folded,
+    onFoldedChange,
     sorted,
     onSortedChange: setSorted,
     ungrouped: true,

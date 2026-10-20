@@ -478,7 +478,63 @@ describe("the Diff View", () => {
       await userEvent.click(all);
       expect(all).toHaveAttribute("aria-pressed", "false");
       expect(expanded().every(([, open]) => open === "true")).toBe(true);
-      await userEvent.click(screen.getByRole("button", { name: "Directories as a tree" })); // as it was
+    });
+
+    it("keeps folds per Checkout, in every comparison, a directory's for all below it", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      const changes = [
+        change({ path: "src/a.py" }),
+        change({ path: "src/app/main.py" }),
+        change({ path: "top.txt" }),
+      ];
+      serve({
+        "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 3 }] }),
+        "GET /api/diff": (request) => {
+          const path = new URL(request.url).searchParams.get("path") ?? "";
+          return json({ change: change({ path }), patch: `diff --git a/${path} b/${path}\n` });
+        },
+      });
+      const first = renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      await userEvent.click(await screen.findByRole("button", { name: "Files in src/" }));
+      await userEvent.click(screen.getByRole("button", { name: "Diff of top.txt" }));
+      first.unmount();
+      // Another comparison: folded as before; each directory by its path, src/app/ with src/.
+      const staged = { clone: "clone-proj", from: "HEAD", to: "index" };
+      const second = renderWithQueries(<Diff initial={staged} />);
+      const chevron = (name: string) => screen.getByRole("button", { name });
+      await screen.findByRole("region", { name: "src/app/" });
+      expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "false");
+      expect(chevron("Diff of top.txt")).toHaveAttribute("aria-expanded", "false");
+      const app = screen.getByRole("region", { name: "src/app/" });
+      expect(app).toHaveTextContent("folded with src/");
+      expect(within(app).getByRole("button", { name: "Files in src/app/" })).toHaveAttribute(
+        "title",
+        "Show src/ and all in it",
+      );
+      // Shown, src/app/ shows src/ too; all files shown at once, top.txt too.
+      await userEvent.click(within(app).getByText("1 file"));
+      expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("region", { name: "src/app/main.py" })).toBeInTheDocument();
+      await userEvent.click(chevron("Files in src/"));
+      // Every file folded, by its own or its directory's: all collapsed, until all are shown.
+      const all = screen.getByRole("button", { name: "All files collapsed" });
+      expect(all).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "false");
+      expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "true");
+      expect(chevron("Diff of top.txt")).toHaveAttribute("aria-expanded", "true");
+      await userEvent.click(chevron("Diff of top.txt"));
+      second.unmount();
+      // Another Checkout's are its own; Changes', apart.
+      renderWithQueries(<Diff initial={{ ...SINCE_HEAD, clone: "clone-other" }} />);
+      expect(await screen.findByRole("button", { name: "Diff of top.txt" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(JSON.parse(localStorage.getItem("hephaistos.folds.diff") ?? "")).toEqual({
+        "clone:clone-proj": { paths: ["top.txt"], groups: [], opened: [] },
+      });
+      expect(localStorage.getItem("hephaistos.folds.changes")).toBeNull();
     });
 
     it("asks for a file's diff only as it comes near", async () => {

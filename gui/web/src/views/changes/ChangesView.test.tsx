@@ -171,9 +171,9 @@ describe("the Changes View", () => {
     expect(new URL(asked.at(-1)?.url ?? "").searchParams.get("to")).toBe("refs/tags/v1");
   });
 
-  it("opens a new folder, asking for the files in it, and closes a group", async () => {
+  it("opens a new folder, asking for the files in it, and closes a group, kept so", async () => {
     const requests = serveChanges();
-    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    const first = renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     const folder = await screen.findByText("new/");
     await userEvent.click(folder);
     await screen.findByTitle("new/a.txt");
@@ -190,6 +190,16 @@ describe("the Changes View", () => {
     await userEvent.click(screen.getByText("Staged")); // open again
     await userEvent.click(screen.getByTitle("src/app/"));
     expect(rows().slice(2, 4)).toEqual(["src/app/ +10 −2", "Not staged modified 3 +18 −6"]);
+    const before = rows();
+    first.unmount();
+    // Again: as it was left, for the Checkout's Changes Views, the Diff's apart.
+    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    await screen.findByTitle("new/a.txt");
+    expect(rows()).toEqual(before);
+    expect(JSON.parse(localStorage.getItem("hephaistos.folds.changes") ?? "")).toEqual({
+      "clone:clone-proj": { paths: ["src/app/"], groups: [], opened: ["new/"] },
+    });
+    expect(localStorage.getItem("hephaistos.folds.diff")).toBeNull();
   });
 
   it("opens a file's diff as a preview, in its Group or beside it by the middle button", async () => {
@@ -386,7 +396,6 @@ describe("the Changes View", () => {
     expect(JSON.parse(localStorage.getItem("hephaistos.changes") ?? "")).toMatchObject({
       nested: true,
     });
-    await userEvent.click(nested()); // as it was, for the other tests
   });
 
   it("scales the bars to the most lines of any file listed, in new folders too", async () => {

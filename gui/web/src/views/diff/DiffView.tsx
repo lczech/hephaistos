@@ -28,6 +28,7 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
+import { foldedBy, unfolding, useFolds } from "../changes/folds";
 import { changesLook, NestedChoice } from "../changes/look";
 import {
   arrowText,
@@ -46,8 +47,6 @@ import { diffLook } from "./look";
 import { StackedDiff } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
-
-const NONE: ReadonlySet<string> = new Set();
 
 /** Two revisions compared, in words where git's status has them: `staged`. */
 export function comparedText(compared: Compared): string {
@@ -158,18 +157,16 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
   const groups = path === undefined ? (listed.data?.groups ?? []) : [];
-  // Files and directories (their paths ending in `/`) collapsed in the stack, while this
-  // comparison shows; a directory's files keep theirs. All files, to collapse at once: not
+  // Files and directories (their paths ending in `/`) collapsed in the Checkout's stacks, in
+  // every comparison; a directory's files keep theirs. All files, to collapse at once: not
   // untracked ones, which are listed.
-  const [folds, setFolds] = useState({ of: "", collapsed: NONE });
+  const [folded, setFolded] = useFolds("diff", checkout);
   const of = JSON.stringify(listQuery);
-  const collapsed = folds.of === of ? folds.collapsed : NONE;
-  const setCollapsed = (next: ReadonlySet<string>) => setFolds({ of, collapsed: next });
   const stackedFiles = groups
     .flatMap((group) => group.changes)
     .filter((change) => change.status !== "?" && !isFolder(change))
     .map((change) => change.path);
-  const allCollapsed = stackedFiles.every((file) => collapsed.has(file));
+  const hidden = stackedFiles.filter((file) => foldedBy(folded.paths, file) !== undefined);
 
   let body: ReactNode;
   if (checkout === undefined || base === undefined) {
@@ -211,8 +208,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         base={{ ...checkout, ...base }}
         show={show}
         nested={nested}
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
+        folded={folded}
+        onFoldedChange={setFolded}
       />
     );
   }
@@ -271,8 +268,21 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           {!query && stackedFiles.length > 0 && (
             <Choice
               label="All files collapsed"
-              on={allCollapsed ? true : collapsed.size === 0 ? false : undefined}
-              onChange={(on) => setCollapsed(on ? new Set(stackedFiles) : NONE)}
+              on={
+                hidden.length === stackedFiles.length
+                  ? true
+                  : hidden.length === 0
+                    ? false
+                    : undefined
+              }
+              onChange={(on) =>
+                setFolded({
+                  ...folded,
+                  paths: on
+                    ? new Set([...folded.paths, ...stackedFiles])
+                    : unfolding(folded.paths, stackedFiles),
+                })
+              }
               ways={[
                 { icon: ChevronsDownUp, title: "Collapse all files to their headers" },
                 { icon: ChevronsUpDown, title: "Expand all files and directories" },

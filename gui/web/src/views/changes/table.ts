@@ -1,9 +1,9 @@
 import { type ExpandedState, functionalUpdate, type SortingState } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
 import { type ChangesQuery, useChangesWithin } from "../../api/queries";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { changesColumns } from "./columns";
+import { type Folds, foldedBy, unfolding, withFolded } from "./folds";
 import {
   type Change,
   changedLines,
@@ -23,19 +23,22 @@ interface Options {
   ungrouped?: boolean; // the groups' rows without a row for each group
   nested?: boolean; // directories in their parents, not each by its path
   totalled?: boolean; // all groups' totals in a first row
+  folded: Folds; // what is folded and opened, kept per Checkout
+  onFoldedChange: (folded: Folds) => void;
 }
 
 /**
  * The changes as a list's rows (`entries`), for a `ListTable`: groups and directories open until
- * closed; new folders closed until opened, their files asked for then. Also how to open all.
+ * folded; new folders closed until opened, their files asked for then; both as `folded` keeps
+ * them. Also how to open all.
  */
 export function useChangesTable(options: Options) {
   const { query, groups, sorted, onSortedChange, ungrouped, nested, totalled } = options;
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  // New folders are closed until opened, so only those toggled are asked about.
+  const { folded, onFoldedChange } = options;
+  // New folders are closed until opened, so only those opened are asked about.
   const paths = groups.flatMap((group) =>
     group.changes
-      .filter((change) => isFolder(change) && toggled[`${group.name}:${change.path}`])
+      .filter((change) => isFolder(change) && folded.opened.has(change.path))
       .map((change) => change.path),
   );
   const answers = useChangesWithin(query, paths);
@@ -52,22 +55,20 @@ export function useChangesTable(options: Options) {
   };
   const grouped = entries(groups, within, sorted, nested);
   // Directories in new folders too, once their files are there.
-  const opened = openedRows(grouped);
-  const expanded = { ...opened, ...toggled };
+  const holding = holdingRows(grouped);
+  const expanded = Object.fromEntries(
+    [...holding].map(([id, entry]) => [id, isOpen(entry, folded)]),
+  );
   const total: Entry[] =
     totalled && groups.length > 0 ? [{ type: "total", groups, subRows: [] }] : [];
   const listed = [...total, ...(ungrouped ? grouped.flatMap((group) => group.subRows) : grouped)];
   const most = Math.max(0, ...linesListed(grouped));
   // A group folds where there are several; one is just their header, always open.
   const several = groups.length > 1;
-  const folds = useCallback(
-    (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry)),
-    [several],
-  );
-  const columns = useMemo(
-    () => changesColumns(most, folds, ungrouped ? 0 : 1),
-    [most, folds, ungrouped],
-  );
+  const folds = (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry));
+  const columns = changesColumns(most, folds, ungrouped ? 0 : 1);
+  // Every row that holds rows open, new folders too.
+  const openAll = () => onFoldedChange(opening(folded, [...holding.values()]));
   const table = useListTable({
     columns,
     data: listed,
@@ -81,15 +82,56 @@ export function useChangesTable(options: Options) {
     autoResetExpanded: false, // what is open stays so when git is asked again
     onExpandedChange: (change) => {
       const next: ExpandedState = functionalUpdate(change, expanded);
-      if (next === true) return;
-      // A row closed is left out, so it would open again as groups and directories do.
-      const closed = Object.fromEntries(Object.keys(opened).map((id) => [id, false]));
-      setToggled({ ...closed, ...next });
+      if (next === true) return openAll();
+      let changed = folded;
+      for (const [id, entry] of holding) {
+        const open = next[id] === true;
+        if (open !== expanded[id]) changed = toggled(changed, entry, open);
+      }
+      onFoldedChange(changed);
     },
   });
-  // Opens every row that holds rows, new folders too.
-  const openAll = () => setToggled(allOpen(listed));
   return { table, folds, listed, openAll };
+}
+
+/** Whether a row that holds rows is open: a group or directory unless folded, a new folder if
+ * opened. */
+function isOpen(entry: Entry, folded: Folds): boolean {
+  if (entry.type === "group") return !folded.groups.has(entry.group.name);
+  if (entry.type === "directory") return foldedBy(folded.paths, entry.path) === undefined;
+  return entry.type === "change" && folded.opened.has(entry.change.path);
+}
+
+/** The folds with a row that holds rows opened or closed. */
+function toggled(folded: Folds, entry: Entry, open: boolean): Folds {
+  if (entry.type === "group") {
+    const groups = new Set(folded.groups);
+    if (open) groups.delete(entry.group.name);
+    else groups.add(entry.group.name);
+    return { ...folded, groups };
+  }
+  if (entry.type === "directory") {
+    return { ...folded, paths: withFolded(folded.paths, entry.path, !open) };
+  }
+  if (entry.type !== "change") return folded;
+  const opened = new Set(folded.opened);
+  if (open) opened.add(entry.change.path);
+  else opened.delete(entry.change.path);
+  return { ...folded, opened };
+}
+
+/** The folds with all these rows open: groups and directories unfolded, new folders opened. */
+function opening(folded: Folds, rows: Entry[]): Folds {
+  const names = new Set<string>(
+    rows.flatMap((row) => (row.type === "group" ? [row.group.name] : [])),
+  );
+  const folders = rows.flatMap((row) => (row.type === "change" ? [row.change.path] : []));
+  const directories = rows.flatMap((row) => (row.type === "directory" ? [row.path] : []));
+  return {
+    paths: unfolding(folded.paths, directories),
+    groups: new Set([...folded.groups].filter((name) => !names.has(name))),
+    opened: new Set([...folded.opened, ...folders]),
+  };
 }
 
 /** Each file's lines changed, as far as known, those in new folders opened too. */
@@ -106,23 +148,14 @@ function foldsWithin(entry: Entry): boolean {
   return entry.type === "change" ? isFolder(entry.change) : entry.type === "directory";
 }
 
-/** The rows open unless closed: groups and directories, by their IDs, those in new folders too. */
-function openedRows(rows: Entry[]): Record<string, boolean> {
-  const opened: Record<string, boolean> = {};
-  for (const row of rows) {
-    if (row.type === "group" || row.type === "directory") opened[entryId(row)] = true;
-    Object.assign(opened, openedRows(row.subRows));
-  }
-  return opened;
-}
-
-/** Every row that holds rows, open, by their IDs. */
-function allOpen(rows: Entry[]): Record<string, boolean> {
-  const open: Record<string, boolean> = {};
+/** The rows that hold rows, by their IDs: groups, directories, new folders, those in new folders
+ * too. */
+function holdingRows(rows: Entry[]): Map<string, Entry> {
+  const holding = new Map<string, Entry>();
   for (const row of rows) {
     if (row.type === "note" || row.type === "total") continue;
-    if (row.type !== "change" || isFolder(row.change)) open[entryId(row)] = true;
-    Object.assign(open, allOpen(row.subRows));
+    if (row.type !== "change" || isFolder(row.change)) holding.set(entryId(row), row);
+    for (const [id, entry] of holdingRows(row.subRows)) holding.set(id, entry);
   }
-  return open;
+  return holding;
 }

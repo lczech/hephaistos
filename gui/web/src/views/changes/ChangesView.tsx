@@ -16,6 +16,7 @@ import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
 import { ComparedPickers } from "./ComparedPickers";
 import { checkoutName, checkoutOf } from "./checkout";
+import { useFolds } from "./folds";
 import { changesLook, NestedChoice } from "./look";
 import {
   arrowText,
@@ -66,9 +67,12 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const groups = changes.data?.groups ?? [];
 
   const sorted = useMemo(() => sortingOf(params, SORTS, DEFAULT_SORT), [params]);
+  const [folded, setFolded] = useFolds("changes", checkout);
   const { table, folds } = useChangesTable({
     query,
     groups,
+    folded,
+    onFoldedChange: setFolded,
     sorted,
     onSortedChange: (next) => setParams(withSorting(params, next, DEFAULT_SORT)),
     nested: look.nested,

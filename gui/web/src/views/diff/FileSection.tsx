@@ -276,17 +276,20 @@ function useFolding(
 interface DirectoryProps {
   entry: Extract<Entry, { type: "directory" }>;
   collapsed: boolean;
+  foldedWith?: string | undefined; // the directory above it whose fold collapses it
   onCollapsedChange: (collapsed: boolean) => void;
   children: ReactNode; // its files' sections, and nested, its directories'
 }
 
 /**
  * A directory's files, nested its directories too, under its header, which stays in view above
- * theirs while they show: its path, how many files and lines changed. Collapses to its header.
+ * theirs while they show: its path, how many files and lines changed. Collapses to its header;
+ * folded with a directory above it, it shows with that.
  */
 export function DirectorySection({
   entry,
   collapsed,
+  foldedWith,
   onCollapsedChange,
   children,
 }: DirectoryProps) {
@@ -303,11 +306,12 @@ export function DirectorySection({
       <FoldHeader
         className={styles.folder}
         label={`Files in ${entry.path}`}
-        what="the files in this directory"
+        what={foldedWith ? `${foldedWith} and all in it` : "the files in this directory"}
         collapsed={collapsed}
         onToggle={toggle}
         end={
           <>
+            {foldedWith && <span className={styles.aside}>folded with {foldedWith}</span>}
             <span className={styles.aside}>
               {files.toLocaleString("en")} {files === 1 ? "file" : "files"}
             </span>

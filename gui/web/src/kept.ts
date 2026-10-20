@@ -16,6 +16,11 @@ export function keptAtom<T>(key: string, valid: (saved: unknown) => T): Atom<T> 
   return atom;
 }
 
+/** Forgets the values asked for, to read them again from what is kept: for tests. */
+export function forgetKept(): void {
+  kept.clear();
+}
+
 function read(key: string): unknown {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null");

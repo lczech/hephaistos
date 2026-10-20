@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { forgetKept } from "../kept";
 import { forgetToken } from "../token";
 import { FakeSocket } from "./live";
 
@@ -47,5 +48,6 @@ afterEach(() => {
   cleanup();
   forgetToken();
   localStorage.clear();
+  forgetKept();
   vi.unstubAllGlobals();
 });
