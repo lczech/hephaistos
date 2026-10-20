@@ -15,11 +15,12 @@ type GroupName = Group["name"];
 export type Within = { changes: Change[]; count: number } | { error: string } | undefined;
 
 /**
- * A row: a group of changes; a directory with changes in it, all below it in `changes`; a
- * changed file or new folder; or a note, e.g. about more. Paths show without `base`, which the
- * rows around them say.
+ * A row: all groups' totals; a group of changes; a directory with changes in it, all below it in
+ * `changes`; a changed file or new folder; or a note, e.g. about more. Paths show without
+ * `base`, which the rows around them say.
  */
 export type Entry =
+  | { type: "total"; groups: Group[]; subRows: [] }
   | { type: "group"; group: Group; subRows: Entry[] }
   | {
       type: "directory";
@@ -103,6 +104,7 @@ export function isFolder(change: Change): boolean {
 
 /** What the row is about, by its ID, unique among all rows: a file may be in two groups. */
 export function entryId(entry: Entry): string {
+  if (entry.type === "total") return "total";
   if (entry.type === "group") return entry.group.name;
   if (entry.type === "directory") return `${entry.group.name}/${entry.path}`;
   if (entry.type === "change") return `${entry.group.name}:${entry.change.path}`;
@@ -314,11 +316,6 @@ export function sizeText(bytes: number): string {
   return `${bytes} B`;
 }
 
-/** Lines added and removed: `+12 −3`. */
-export function linesText(added: number, removed: number): string {
-  return `+${added.toLocaleString("en")} −${removed.toLocaleString("en")}`;
-}
-
 /** What changed in a file, if not its lines: `binary, 1.2 → 1.4 MB`, `12 MB, not counted`. */
 export function otherText(change: Change): string | undefined {
   const { size, old_size: old } = change;
@@ -339,15 +336,14 @@ export function otherText(change: Change): string | undefined {
 }
 
 /**
- * How many files the groups list, and their lines added and removed: `3 files, +12 −3`; and how
- * many more they have than listed, whose lines are unknown: `(649 more not listed)`.
+ * How many files the groups list, a file in two once: `3 files`; and how many more they have
+ * than listed, whose lines are unknown: `(649 more not listed)`.
  */
-export function totalsText(groups: Group[]): string {
+export function filesText(groups: Group[]): string {
   const changes = groups.flatMap((group) => group.changes);
   const files = new Set(changes.filter((change) => !isFolder(change)).map((change) => change.path))
     .size;
-  const { added, removed } = totals(changes);
-  const text = `${files.toLocaleString("en")} ${files === 1 ? "file" : "files"}, ${linesText(added, removed)}`;
+  const text = `${files.toLocaleString("en")} ${files === 1 ? "file" : "files"}`;
   const more = groups.reduce((sum, group) => sum + group.count - group.changes.length, 0);
   return more > 0 ? `${text} (${more.toLocaleString("en")} more not listed)` : text;
 }

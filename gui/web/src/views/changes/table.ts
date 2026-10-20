@@ -22,6 +22,7 @@ interface Options {
   onSortedChange: (sorted: SortingState) => void;
   ungrouped?: boolean; // the groups' rows without a row for each group
   nested?: boolean; // directories in their parents, not each by its path
+  totalled?: boolean; // all groups' totals in a first row
 }
 
 /**
@@ -29,7 +30,7 @@ interface Options {
  * closed; new folders closed until opened, their files asked for then. Also how to open all.
  */
 export function useChangesTable(options: Options) {
-  const { query, groups, sorted, onSortedChange, ungrouped, nested } = options;
+  const { query, groups, sorted, onSortedChange, ungrouped, nested, totalled } = options;
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   // New folders are closed until opened, so only those toggled are asked about.
   const paths = groups.flatMap((group) =>
@@ -53,7 +54,9 @@ export function useChangesTable(options: Options) {
   // Directories in new folders too, once their files are there.
   const opened = openedRows(grouped);
   const expanded = { ...opened, ...toggled };
-  const listed = ungrouped ? grouped.flatMap((group) => group.subRows) : grouped;
+  const total: Entry[] =
+    totalled && groups.length > 0 ? [{ type: "total", groups, subRows: [] }] : [];
+  const listed = [...total, ...(ungrouped ? grouped.flatMap((group) => group.subRows) : grouped)];
   const most = Math.max(0, ...linesListed(grouped));
   // A group folds where there are several; one is just their header, always open.
   const several = groups.length > 1;
@@ -117,7 +120,7 @@ function openedRows(rows: Entry[]): Record<string, boolean> {
 function allOpen(rows: Entry[]): Record<string, boolean> {
   const open: Record<string, boolean> = {};
   for (const row of rows) {
-    if (row.type === "note") continue;
+    if (row.type === "note" || row.type === "total") continue;
     if (row.type !== "change" || isFolder(row.change)) open[entryId(row)] = true;
     Object.assign(open, allOpen(row.subRows));
   }

@@ -4,12 +4,12 @@ import {
   type Entry,
   entries,
   entryId,
+  filesText,
   type Group,
   kindCounts,
   otherText,
   pathParts,
   sizeText,
-  totalsText,
 } from "./rows";
 
 function change(path: string, fields: Partial<Change> = {}): Change {
@@ -72,12 +72,12 @@ describe("a change's texts", () => {
     expect(otherText(change("a.py"))).toBeUndefined();
   });
 
-  it("totals the files listed, a file in two groups once, and how many more there are", () => {
-    const staged = group("staged", [change("a", { added: 2 }), change("b")]);
+  it("counts the files listed, a file in two groups once, and how many more there are", () => {
+    const staged = group("staged", [change("a", { added: 2 }), change("b"), change("new/")]);
     const unstaged = group("unstaged", [change("a", { added: 1_500, removed: 3 })]);
-    expect(totalsText([staged, unstaged])).toBe("2 files, +1,503 −3");
-    expect(totalsText([staged, { ...unstaged, count: 1_650 }])).toBe(
-      "2 files, +1,503 −3 (1,649 more not listed)",
+    expect(filesText([staged, unstaged])).toBe("2 files");
+    expect(filesText([staged, { ...unstaged, count: 1_650 }])).toBe(
+      "2 files (1,649 more not listed)",
     );
   });
 });

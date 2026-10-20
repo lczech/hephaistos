@@ -17,6 +17,7 @@ import {
   type Change,
   changedLines,
   type Entry,
+  filesText,
   groupName,
   type Kind,
   kindCounts,
@@ -114,7 +115,7 @@ export function ChangePath({ change, base }: { change: Change; base: string }) {
 }
 
 /** What a row below a group shows as its path. */
-function pathCell(entry: Exclude<Entry, { type: "group" }>): ReactNode {
+function pathCell(entry: Exclude<Entry, { type: "group" | "total" }>): ReactNode {
   switch (entry.type) {
     case "note":
       return <span className={styles.note}>{entry.text}</span>;
@@ -123,6 +124,12 @@ function pathCell(entry: Exclude<Entry, { type: "group" }>): ReactNode {
     default:
       return <ChangePath change={entry.change} base={entry.base} />;
   }
+}
+
+/** All the changes a row other than a file's sums up. */
+function changesOf(entry: Exclude<Entry, { type: "change" | "note" }>): Change[] {
+  if (entry.type === "total") return entry.groups.flatMap((group) => group.changes);
+  return entry.type === "group" ? entry.group.changes : entry.changes;
 }
 
 /** A directory's path, or the end of it that is `shown`, after a folder's icon. */
@@ -205,6 +212,8 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
       meta: { width: "minmax(10rem, 1fr)" },
       cell: ({ row }) => {
         const entry = row.original;
+        if (entry.type === "total")
+          return <span className={styles.group}>Total: {filesText(entry.groups)}</span>;
         if (entry.type === "group") return <GroupName entry={entry} />;
         return <Indented depth={row.depth - top}>{pathCell(entry)}</Indented>;
       },
@@ -224,7 +233,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
         const entry = row.original;
         if (entry.type === "note") return "";
         if (entry.type !== "change") {
-          const sum = totals(entry.type === "group" ? entry.group.changes : entry.changes);
+          const sum = totals(changesOf(entry));
           return (
             <span className={styles.total}>
               <Lines {...sum} />

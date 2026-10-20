@@ -39,15 +39,6 @@
   color: var(--text);
 }
 
-/* A line of its own below the rest. */
-.line {
-  display: flex;
-  flex-basis: 100%;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-}
-
 /* Buttons at its end, Refresh last. */
 .end {
   display: flex;

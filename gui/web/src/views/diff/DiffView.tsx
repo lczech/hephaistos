@@ -1,6 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import {
+  ChevronsDownUp,
+  ChevronsUpDown,
   ListChevronsDownUp,
   ListChevronsUpDown,
   StretchHorizontal,
@@ -20,7 +22,7 @@ import {
 } from "../../api/queries";
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
-import { BarEnd, BarLine, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -32,8 +34,8 @@ import {
   type Compared,
   comparison,
   groupName,
+  isFolder,
   pathParts,
-  totalsText,
 } from "../changes/rows";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
@@ -44,6 +46,8 @@ import { diffLook } from "./look";
 import { StackedDiff } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
+
+const NONE: ReadonlySet<string> = new Set();
 
 /** Two revisions compared, in words where git's status has them: `staged`. */
 export function comparedText(compared: Compared): string {
@@ -154,6 +158,18 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
   const groups = path === undefined ? (listed.data?.groups ?? []) : [];
+  // Files and directories (their paths ending in `/`) collapsed in the stack, while this
+  // comparison shows; a directory's files keep theirs. All files, to collapse at once: not
+  // untracked ones, which are listed.
+  const [folds, setFolds] = useState({ of: "", collapsed: NONE });
+  const of = JSON.stringify(listQuery);
+  const collapsed = folds.of === of ? folds.collapsed : NONE;
+  const setCollapsed = (next: ReadonlySet<string>) => setFolds({ of, collapsed: next });
+  const stackedFiles = groups
+    .flatMap((group) => group.changes)
+    .filter((change) => change.status !== "?" && !isFolder(change))
+    .map((change) => change.path);
+  const allCollapsed = stackedFiles.every((file) => collapsed.has(file));
 
   let body: ReactNode;
   if (checkout === undefined || base === undefined) {
@@ -189,12 +205,14 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   } else {
     body = (
       <StackedDiff
-        key={JSON.stringify(listQuery)} // files collapsed for this comparison only
+        key={of} // untracked files opened for this comparison only
         groups={groups}
         query={listQuery}
         base={{ ...checkout, ...base }}
         show={show}
         nested={nested}
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
       />
     );
   }
@@ -248,7 +266,19 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
               { icon: ListChevronsDownUp, title: "Show context around changes only" },
             ]}
           />
-          {/* All files: in Changes' order, which directories nested change. */}
+          {/* All files: collapsed at once, to their headers; in Changes' order, which
+              directories nested change. */}
+          {!query && stackedFiles.length > 0 && (
+            <Choice
+              label="All files collapsed"
+              on={allCollapsed ? true : collapsed.size === 0 ? false : undefined}
+              onChange={(on) => setCollapsed(on ? new Set(stackedFiles) : NONE)}
+              ways={[
+                { icon: ChevronsDownUp, title: "Collapse all files to their headers" },
+                { icon: ChevronsUpDown, title: "Expand all files and directories" },
+              ]}
+            />
+          )}
           {!query && <NestedChoice />}
           {/* One file: all files compared so, and its history; all files: the same links as
               Changes has, the other way to see them, and the Checkout's history. */}
@@ -283,13 +313,6 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
             }
           />
         </BarEnd>
-        {groups.length > 0 && (
-          <BarLine>
-            <span className={styles.totals} title="Total lines added and removed">
-              {totalsText(groups)}
-            </span>
-          </BarLine>
-        )}
       </ViewBar>
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />

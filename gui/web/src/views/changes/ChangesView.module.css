@@ -4,12 +4,6 @@
   min-height: 100%;
 }
 
-/* At the line's end, as the rows have their lines. */
-.totals {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
-
 /* What happened to a file, by its icon's colour; directories grey. */
 .kind {
   display: inline-flex;
@@ -153,34 +147,36 @@
     color-mix(in srgb, var(--text) 8%, transparent);
 }
 
-/* Narrow: still one line, as high as when wide, the path taking what the others leave. */
+/* Narrow: still one line, as high as when wide, the path taking what the others leave; the
+ * bars' room kept in rows without, so that all lines line up. In any list of changes. */
 @container list (width < 44rem) {
-  .changes li [data-column="path"] {
+  .columns li [data-column="path"] {
     flex: 1 1 0;
     order: 1;
   }
 
-  .changes li [data-column="lines"] {
+  .columns li [data-column="lines"] {
     order: 2;
   }
 
-  .changes li [data-column="meter"] {
+  .columns li [data-column="meter"] {
     order: 3;
+    width: 3rem;
   }
 
   /* Over the lines, before the bars. */
-  .changes [data-column="lines"]:not(li *) {
+  .columns [data-column="lines"]:not(li *) {
     margin-right: calc(3rem + var(--column-gap));
   }
 }
 
 /* Very narrow: no bars, as the names need the room more. */
 @container list (width < 30rem) {
-  .changes li [data-column="meter"] {
+  .columns li [data-column="meter"] {
     display: none;
   }
 
-  .changes [data-column="lines"]:not(li *) {
+  .columns [data-column="lines"]:not(li *) {
     margin-right: 0;
   }
 }

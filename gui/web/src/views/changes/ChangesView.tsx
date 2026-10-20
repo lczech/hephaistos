@@ -2,17 +2,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List } from "lucide-react";
 import { type MouseEvent, useEffect, useMemo, useState } from "react";
-import type { Schemas } from "../../api/client";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
-import { BarEnd, BarLine, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { HEAD, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
-import { branchText, branchTitle } from "../repositories/rows";
 import { sortingOf, withSorting } from "../sorting";
 import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
@@ -27,7 +25,6 @@ import {
   type Entry,
   isFolder,
   SORTS,
-  totalsText,
 } from "./rows";
 import { useChangesTable } from "./table";
 
@@ -75,6 +72,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     sorted,
     onSortedChange: (next) => setParams(withSorting(params, next, DEFAULT_SORT)),
     nested: look.nested,
+    totalled: true,
   });
   // A file's row opens its diff, as a link does.
   const openView = useOpenView();
@@ -175,23 +173,13 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             />
           </BarEnd>
         )}
-        {changes.data !== undefined && (groups.length > 0 || branch) && (
-          <BarLine>
-            {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}
-            {groups.length > 0 && (
-              <span className={styles.totals} title="Total lines added and removed">
-                {totalsText(groups)}
-              </span>
-            )}
-          </BarLine>
-        )}
       </ViewBar>
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
       )}
       <ListTable
         table={table}
-        className={styles.changes}
+        className={`${styles.changes} ${styles.columns}`}
         oneLine
         choices={{}}
         message={message}
@@ -206,10 +194,4 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
       />
     </section>
   );
-}
-
-/** The branch, and how far it is ahead of and behind its upstream: `main ↑2 ↓1`. */
-function branchMoves(branch: Schemas["BranchJson"]): string {
-  const moves = [branch.ahead ? `↑${branch.ahead}` : "", branch.behind ? `↓${branch.behind}` : ""];
-  return [branchText(branch), ...moves].filter(Boolean).join(" ");
 }

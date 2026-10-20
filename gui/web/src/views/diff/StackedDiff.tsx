@@ -2,15 +2,19 @@ import type { SortingState } from "@tanstack/react-table";
 import { type ReactNode, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
+import changesStyles from "../changes/ChangesView.module.css";
+import { Lines } from "../changes/columns";
 import {
   type Change,
   type Entry,
   entries,
   entryId,
+  filesText,
   type Group,
   isFolder,
   kindCounts,
   moreText,
+  totals,
 } from "../changes/rows";
 import { useChangesTable } from "../changes/table";
 import styles from "./DiffView.module.css";
@@ -33,6 +37,8 @@ interface Props {
   base: Omit<DiffQuery, "path">; // each file's diff, but its path
   show: DiffShow;
   nested: boolean; // directories in their parents, as Changes lists them
+  collapsed: ReadonlySet<string>; // files and directories (`dir/`) only their headers show of
+  onCollapsedChange: (collapsed: ReadonlySet<string>) => void;
 }
 
 /**
@@ -40,7 +46,8 @@ interface Props {
  * them, under their directories' headers (nested, theirs too), each asked for as it comes near;
  * untracked files last, listed, each shown on asking. Files and directories collapse.
  */
-export function StackedDiff({ groups, query, base, show, nested }: Props) {
+export function StackedDiff(props: Props) {
+  const { groups, query, base, show, nested, collapsed, onCollapsedChange } = props;
   const tracked = groups.map((group) => ({
     ...group,
     changes: group.changes.filter((change) => !isUntracked(change)),
@@ -54,16 +61,12 @@ export function StackedDiff({ groups, query, base, show, nested }: Props) {
   // Groups cut at the setting's cap, which their lists reached.
   const cut = groups.filter((group) => group.count > group.changes.length);
   const more = cut.reduce((sum, group) => sum + group.count - group.changes.length, 0);
-  // Files and directories (their paths ending in `/`) collapsed to their headers, while this
-  // comparison shows; a directory's files keep theirs.
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const collapse = (path: string) => (on: boolean) =>
-    setCollapsed((was) => {
-      const next = new Set(was);
-      if (on) next.add(path);
-      else next.delete(path);
-      return next;
-    });
+  const collapse = (path: string) => (on: boolean) => {
+    const next = new Set(collapsed);
+    if (on) next.add(path);
+    else next.delete(path);
+    onCollapsedChange(next);
+  };
   const stacked = (within: Entry[]): ReactNode =>
     within.map((row) => {
       if (row.type === "directory") {
@@ -93,6 +96,7 @@ export function StackedDiff({ groups, query, base, show, nested }: Props) {
     });
   return (
     <>
+      <Totals groups={groups} />
       {stacked(rows)}
       {untracked.length > 0 && (
         <Untracked groups={untracked} query={query} base={base} show={show} nested={nested} />
@@ -106,7 +110,20 @@ export function StackedDiff({ groups, query, base, show, nested }: Props) {
   );
 }
 
-interface UntrackedProps extends Omit<Props, "groups"> {
+/** All files' totals, lined up with their headers' lines, above them. */
+function Totals({ groups }: { groups: Group[] }) {
+  return (
+    <div className={styles.totals}>
+      <span className={styles.end}>
+        <span className={styles.aside}>Total: {filesText(groups)}</span>
+        <Lines {...totals(groups.flatMap((group) => group.changes))} />
+        <span className={styles.linkRoom} /> {/* as the files' links take */}
+      </span>
+    </div>
+  );
+}
+
+interface UntrackedProps extends Omit<Props, "groups" | "collapsed" | "onCollapsedChange"> {
   groups: Group[]; // with only the untracked files and new folders
 }
 
@@ -152,6 +169,7 @@ function Untracked({ groups, query, base, show, nested }: UntrackedProps) {
       </p>
       <ListTable
         table={table}
+        className={changesStyles.columns}
         oneLine
         choices={{}}
         message={null}

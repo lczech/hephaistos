@@ -354,7 +354,7 @@ describe("the Diff View", () => {
       vi.stubGlobal("IntersectionObserver", Near);
       const asked = serveAll();
       renderWithQueries(<Diff initial={SINCE_HEAD} />);
-      expect(await screen.findByText("3 files, +7 −1")).toBeInTheDocument();
+      expect(await screen.findByText("Total: 3 files")).toBeInTheDocument(); // above all
       const files = await screen.findAllByRole("region", { name: /^(src|README)/ });
       // A directory holds its files, under its header.
       expect(files.map((file) => file.getAttribute("aria-label"))).toEqual([
@@ -410,7 +410,7 @@ describe("the Diff View", () => {
     it("says that more aren't listed, past a setting, not at their end", async () => {
       serveAll(1_004);
       renderWithQueries(<Diff initial={SINCE_HEAD} />);
-      expect(await screen.findByText("3 files, +7 −1 (1,000 more not listed)")).toBeInTheDocument();
+      expect(await screen.findByText("Total: 3 files (1,000 more not listed)")).toBeInTheDocument();
       expect(
         screen.getByText(
           "1,000 more not listed, as the setting gui.diff.max_files allows 4 per list.",
@@ -454,6 +454,30 @@ describe("the Diff View", () => {
         "aria-expanded",
         "false",
       );
+      // All at once: one file collapsed is neither all nor none; a click collapses all files,
+      // directories shown; another shows all again.
+      const all = screen.getByRole("button", { name: "All files collapsed" });
+      expect(all).toHaveAttribute("aria-pressed", "mixed");
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "true");
+      const expanded = () =>
+        screen
+          .getAllByRole("button", { name: /^(Diff of|Files in) / })
+          .filter((button) => button.hasAttribute("aria-expanded")) // not the links
+          .map((button) => [
+            button.getAttribute("aria-label"),
+            button.getAttribute("aria-expanded"),
+          ]);
+      expect(expanded()).toEqual([
+        ["Files in src/", "true"],
+        ["Files in src/app/", "true"],
+        ["Diff of src/app/main.py", "false"],
+        ["Diff of src/a.py", "false"],
+        ["Diff of top.txt", "false"],
+      ]);
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "false");
+      expect(expanded().every(([, open]) => open === "true")).toBe(true);
       await userEvent.click(screen.getByRole("button", { name: "Directories as a tree" })); // as it was
     });
 

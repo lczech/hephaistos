@@ -15,20 +15,20 @@ export interface Way {
 
 interface ChoiceProps {
   label: string; // the first way's name
-  on: boolean; // whether the first way is taken
+  on: boolean | undefined; // whether the first way is taken; neither, where things are mixed
   onChange: (on: boolean) => void;
   ways: [Way, Way]; // the first, then the other
 }
 
 /** A choice between two ways of showing something: both icons, the one taken marked; a click
- * takes the other. */
+ * takes the other, or where neither is, the first. */
 export function Choice({ label, on, onChange, ways }: ChoiceProps) {
   return (
     <button
       type="button"
       className={styles.choice}
       aria-label={label}
-      aria-pressed={on}
+      aria-pressed={on ?? "mixed"}
       onClick={() => onChange(!on)}
     >
       {ways.map(({ icon: Icon, title }, i) => (
@@ -38,11 +38,6 @@ export function Choice({ label, on, onChange, ways }: ChoiceProps) {
       ))}
     </button>
   );
-}
-
-/** A line of its own at the bar's foot: what the View shows holds, e.g. how many files. */
-export function BarLine({ children }: { children: ReactNode }) {
-  return <div className={styles.line}>{children}</div>;
 }
 
 /** The bar's end, after what it says: its buttons, then Refresh. */

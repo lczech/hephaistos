@@ -7,6 +7,7 @@
 }
 
 .diff {
+  --folder-height: calc(1lh + 2 * var(--space-1) + 2px); /* a directory's header, as high */
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -21,23 +22,21 @@
 
 /* A directory's files below its header, which stays at the top while they show, theirs below
  * it; nested, an inner one's over its parent's, as high, so that one shows, saying its path. */
-.directory {
-  --folder-height: calc(1lh + 2 * var(--space-1) + 2px);
-}
-
-/* Below a directory's header, its first file or directory; collapsed, the next directory, as
- * close, so that collapsing it moves nothing below it but what it held, and collapsed ones
- * read as a list. A file after it stays apart: it isn't in the directory. */
+/* Below a directory's header or the totals, its first file or directory. A collapsed directory
+ * keeps the next directory as close, so that collapsing it moves nothing below but what it held,
+ * and collapsed ones read as a list; a file after it stays apart, as it isn't in it. Collapsed
+ * files after each other read as a list too. */
 .folder + *,
-.directory[data-collapsed] + .directory {
+.totals + *,
+.directory[data-collapsed] + .directory,
+.file[data-collapsed] + .file[data-collapsed] {
   margin-top: var(--space-2);
 }
 
-/* As a file's header is, so that their paths line up, but quieter: a line below, no box. */
-.folder {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+/* As a file's header is, so that their paths and lines line up, but quieter: no box; a
+ * directory's with a line below, staying at the top; the totals above all, scrolling away. */
+.folder,
+.totals {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -45,9 +44,15 @@
   height: var(--folder-height);
   padding: var(--space-1) var(--space-2);
   border: 1px solid transparent;
+  font-size: var(--text-normal);
+}
+
+.folder {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   border-bottom-color: var(--line);
   background: var(--background);
-  font-size: var(--text-normal);
 }
 
 .folder[data-collapsible] {
@@ -141,12 +146,6 @@
   margin: 0;
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--line);
-}
-
-/* The files' and lines' totals, at the end as each header has them. */
-.totals {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
 }
 
 /* What the header says besides the path: renamed, the revisions compared. */

@@ -213,7 +213,12 @@ export function FileSection({
   const waiting = heightOf(guessed(change, body.show));
   const toggle = useFolding(section, collapsed, onCollapsedChange);
   return (
-    <section ref={section} className={styles.file} aria-label={body.query.path}>
+    <section
+      ref={section}
+      className={styles.file}
+      aria-label={body.query.path}
+      data-collapsed={collapsed || undefined}
+    >
       <FileHeader
         change={change}
         path={body.query.path}

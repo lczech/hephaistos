@@ -121,6 +121,7 @@ describe("the Changes View", () => {
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Staged");
     expect(rows()).toEqual([
+      "Total: 4 files +28 −8",
       "Staged modified 1 +10 −2",
       "src/app/ +10 −2",
       "modified main.py +10 −2",
@@ -131,8 +132,6 @@ describe("the Changes View", () => {
       "Untracked new folder 1 +0 −0",
       "new folder new/ 2 files, 30 B",
     ]);
-    expect(screen.getByText("main ↑2")).toHaveAttribute("title", "main, tracking origin/main");
-    expect(screen.getByText("4 files, +28 −8")).toBeInTheDocument();
     expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj");
     expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Compare from: HEAD (main)" })).toBeInTheDocument();
@@ -187,10 +186,10 @@ describe("the Changes View", () => {
     expect(asked).toContain("?clone=clone-proj&path=new%2F");
     await userEvent.click(screen.getByText("Staged"));
     expect(screen.queryByText("main.py")).toBeNull();
-    expect(rows()[0]).toBe("Staged modified 1 +10 −2");
+    expect(rows()[1]).toBe("Staged modified 1 +10 −2");
     await userEvent.click(screen.getByText("Staged")); // open again
     await userEvent.click(screen.getByTitle("src/app/"));
-    expect(rows().slice(1, 3)).toEqual(["src/app/ +10 −2", "Not staged modified 3 +18 −6"]);
+    expect(rows().slice(2, 4)).toEqual(["src/app/ +10 −2", "Not staged modified 3 +18 −6"]);
   });
 
   it("opens a file's diff as a preview, in its Group or beside it by the middle button", async () => {
@@ -343,7 +342,7 @@ describe("the Changes View", () => {
     expect(await screen.findByText("Staged")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "lines" }));
     expect(screen.getByRole("status")).toHaveTextContent("sort=-lines");
-    expect(rows().slice(4, 7)).toEqual([
+    expect(rows().slice(5, 8)).toEqual([
       "modified a.txt +15 −5",
       "modified README.md +3 −1",
       "modified logo.png binary, 1.0 kB → 2.0 kB",
@@ -362,7 +361,7 @@ describe("the Changes View", () => {
       <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
     );
     await screen.findByText("Changes");
-    expect(rows().slice(1)).toEqual([
+    expect(rows().slice(2)).toEqual([
       "src/ +1 −0",
       "modified a.py +1 −0",
       "src/app/ +1 −0",
@@ -372,7 +371,7 @@ describe("the Changes View", () => {
     const nested = () => screen.getByRole("button", { name: "Directories as a tree" });
     expect(nested()).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(nested());
-    expect(rows().slice(1)).toEqual([
+    expect(rows().slice(2)).toEqual([
       "src/ +2 −0",
       "app/ +1 −0",
       "modified main.py +1 −0",
@@ -433,7 +432,11 @@ describe("the Changes View", () => {
     const header = (await screen.findByText("Changes")).closest("li") as HTMLElement;
     expect(within(header).queryByRole("button")).toBeNull();
     await userEvent.click(header);
-    expect(rows()).toEqual(["Changes modified 1 +1 −0", "modified a.txt +1 −0"]);
+    expect(rows()).toEqual([
+      "Total: 1 file +1 −0",
+      "Changes modified 1 +1 −0",
+      "modified a.txt +1 −0",
+    ]);
   });
 
   it("says when a Checkout isn't named", () => {
