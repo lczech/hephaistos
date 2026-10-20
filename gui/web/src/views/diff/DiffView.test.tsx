@@ -356,13 +356,17 @@ describe("the Diff View", () => {
       renderWithQueries(<Diff initial={SINCE_HEAD} />);
       expect(await screen.findByText("3 files, +7 −1")).toBeInTheDocument();
       const files = await screen.findAllByRole("region", { name: /^(src|README)/ });
+      // A directory holds its files, under its header.
       expect(files.map((file) => file.getAttribute("aria-label"))).toEqual([
+        "src/",
         "src/b.py",
         "README.md",
       ]);
+      expect(files[0]).toContainElement(files[1] as HTMLElement);
+      expect(files[0]).toHaveTextContent("1 file");
       await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
       expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
-      const first = files[0] as HTMLElement;
+      const first = files[1] as HTMLElement;
       expect(
         within(first).getByRole("button", { name: "Diff of src/b.py alone" }),
       ).toBeInTheDocument();
@@ -412,6 +416,45 @@ describe("the Diff View", () => {
           "1,000 more not listed, as the setting gui.diff.max_files allows 4 per list.",
         ),
       ).toBeInTheDocument();
+    });
+
+    it("folds a directory's files, nested its directories too, each file keeping its own", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      const changes = [
+        change({ path: "src/a.py" }),
+        change({ path: "src/app/main.py" }),
+        change({ path: "top.txt" }),
+      ];
+      serve({
+        "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 3 }] }),
+        "GET /api/diff": (request) => {
+          const path = new URL(request.url).searchParams.get("path") ?? "";
+          return json({ change: change({ path }), patch: `diff --git a/${path} b/${path}\n` });
+        },
+      });
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      const region = (name: string) => screen.getByRole("region", { name });
+      await screen.findByRole("region", { name: "src/" });
+      const shown = () =>
+        screen.queryAllByRole("region").map((section) => section.getAttribute("aria-label"));
+      // Flat: each directory by its path, apart; top.txt at the top level, last.
+      expect(shown()).toEqual(["src/", "src/a.py", "src/app/", "src/app/main.py", "top.txt"]);
+      await userEvent.click(screen.getByRole("button", { name: "Directories as a tree" }));
+      expect(shown()).toEqual(["src/", "src/app/", "src/app/main.py", "src/a.py", "top.txt"]);
+      // A file collapsed, then its directory's parent: all below it gone, but its header.
+      await userEvent.click(within(region("src/app/main.py")).getByText("main.py"));
+      const folder = screen.getByRole("button", { name: "Files in src/" });
+      await userEvent.click(folder);
+      expect(folder).toHaveAttribute("aria-expanded", "false");
+      expect(shown()).toEqual(["src/", "top.txt"]);
+      // Shown again, the file stays collapsed as it was.
+      await userEvent.click(within(region("src/")).getByText("2 files"));
+      expect(shown()).toEqual(["src/", "src/app/", "src/app/main.py", "src/a.py", "top.txt"]);
+      expect(screen.getByRole("button", { name: "Diff of src/app/main.py" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Directories as a tree" })); // as it was
     });
 
     it("asks for a file's diff only as it comes near", async () => {

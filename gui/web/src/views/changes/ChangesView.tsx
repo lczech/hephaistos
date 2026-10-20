@@ -177,12 +177,12 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
         )}
         {changes.data !== undefined && (groups.length > 0 || branch) && (
           <BarLine>
+            {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}
             {groups.length > 0 && (
               <span className={styles.totals} title="Total lines added and removed">
                 {totalsText(groups)}
               </span>
             )}
-            {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}
           </BarLine>
         )}
       </ViewBar>

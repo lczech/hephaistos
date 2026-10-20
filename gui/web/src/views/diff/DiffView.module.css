@@ -14,10 +14,49 @@
   padding: 0 var(--space-3) var(--space-2);
 }
 
-/* One file's diff; files apart, so that where one starts stands out. */
-.file + .file,
-.file + .untracked {
+/* One file's diff; files and directories apart, so that where one starts stands out. */
+:is(.file, .directory) + :is(.file, .directory, .untracked) {
   margin-top: var(--space-4);
+}
+
+/* A directory's files below its header, which stays at the top while they show, theirs below
+ * it; nested, an inner one's over its parent's, as high, so that one shows, saying its path. */
+.directory {
+  --folder-height: calc(1lh + 2 * var(--space-1) + 2px);
+}
+
+/* Below a directory's header, its first file or directory; collapsed, the next directory, as
+ * close, so that collapsing it moves nothing below it but what it held, and collapsed ones
+ * read as a list. A file after it stays apart: it isn't in the directory. */
+.folder + *,
+.directory[data-collapsed] + .directory {
+  margin-top: var(--space-2);
+}
+
+/* As a file's header is, so that their paths line up, but quieter: a line below, no box. */
+.folder {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  height: var(--folder-height);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  background: var(--background);
+  font-size: var(--text-normal);
+}
+
+.folder[data-collapsible] {
+  cursor: pointer;
+}
+
+/* Where a file's header has its link, so that the lines line up. */
+.linkRoom {
+  width: 1em;
 }
 
 .file > .header + * {
@@ -39,6 +78,11 @@
   border: 1px solid var(--divider);
   border-radius: var(--radius);
   background: var(--raised);
+}
+
+/* In a directory, below its header. */
+.directory .header {
+  top: var(--folder-height);
 }
 
 /* One of many: a click on it collapses its diff, or shows it again. */
@@ -97,6 +141,12 @@
   margin: 0;
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--line);
+}
+
+/* The files' and lines' totals, at the end as each header has them. */
+.totals {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* What the header says besides the path: renamed, the revisions compared. */

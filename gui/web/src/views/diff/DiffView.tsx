@@ -285,7 +285,9 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
         </BarEnd>
         {groups.length > 0 && (
           <BarLine>
-            <span title="Total lines added and removed">{totalsText(groups)}</span>
+            <span className={styles.totals} title="Total lines added and removed">
+              {totalsText(groups)}
+            </span>
           </BarLine>
         )}
       </ViewBar>

@@ -15,8 +15,15 @@ import { type DiffRows, diffRows, lineCount } from "../../components/diff/height
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import type { CodeThemes } from "../../components/diff/themes";
 import type { Params } from "../address";
-import { ChangePath, Lines } from "../changes/columns";
-import { type Change, changedLines, otherText } from "../changes/rows";
+import { ChangePath, DirectoryPath, Lines } from "../changes/columns";
+import {
+  type Change,
+  changedLines,
+  type Entry,
+  isFolder,
+  otherText,
+  totals,
+} from "../changes/rows";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 
@@ -204,29 +211,7 @@ export function FileSection({
   const diff = useDiff(asked ? body.query : undefined);
   const change = diff.data ? (diff.data.change ?? undefined) : body.known;
   const waiting = heightOf(guessed(change, body.show));
-  // Collapsing a file scrolled past its top keeps its header where it was, stuck at the top.
-  const stuck = useRef(false);
-  useLayoutEffect(() => {
-    const element = section.current;
-    if (!collapsed || !stuck.current || element === null) return;
-    stuck.current = false;
-    const scroller = scrollerOf(element);
-    if (scroller === null) return;
-    scroller.scrollTop +=
-      element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-  }, [collapsed]);
-  const toggle =
-    onCollapsedChange &&
-    (() => {
-      const element = section.current;
-      const scroller = element && scrollerOf(element);
-      stuck.current = Boolean(
-        element &&
-          scroller &&
-          element.getBoundingClientRect().top < scroller.getBoundingClientRect().top,
-      );
-      onCollapsedChange(!collapsed);
-    });
+  const toggle = useFolding(section, collapsed, onCollapsedChange);
   return (
     <section ref={section} className={styles.file} aria-label={body.query.path}>
       <FileHeader
@@ -241,6 +226,88 @@ export function FileSection({
       ) : (
         <div className={styles.waiting} style={waiting} />
       )}
+    </section>
+  );
+}
+
+/**
+ * How a section collapses: a toggle, if it can. Collapsing one scrolled past its top keeps its
+ * header where it was, stuck at the top.
+ */
+function useFolding(
+  section: RefObject<HTMLElement | null>,
+  collapsed: boolean,
+  onCollapsedChange: ((collapsed: boolean) => void) | undefined,
+): (() => void) | undefined {
+  const stuck = useRef(false);
+  useLayoutEffect(() => {
+    const element = section.current;
+    if (!collapsed || !stuck.current || element === null) return;
+    stuck.current = false;
+    const scroller = scrollerOf(element);
+    if (scroller === null) return;
+    scroller.scrollTop +=
+      element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  }, [section, collapsed]);
+  if (onCollapsedChange === undefined) return undefined;
+  return () => {
+    const element = section.current;
+    const scroller = element && scrollerOf(element);
+    stuck.current = Boolean(
+      element &&
+        scroller &&
+        element.getBoundingClientRect().top < scroller.getBoundingClientRect().top,
+    );
+    onCollapsedChange(!collapsed);
+  };
+}
+
+interface DirectoryProps {
+  entry: Extract<Entry, { type: "directory" }>;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  children: ReactNode; // its files' sections, and nested, its directories'
+}
+
+/**
+ * A directory's files, nested its directories too, under its header, which stays in view above
+ * theirs while they show: its path, how many files and lines changed. Collapses to its header.
+ */
+export function DirectorySection({
+  entry,
+  collapsed,
+  onCollapsedChange,
+  children,
+}: DirectoryProps) {
+  const section = useRef<HTMLElement>(null);
+  const toggle = useFolding(section, collapsed, onCollapsedChange);
+  const files = entry.changes.filter((change) => !isFolder(change)).length;
+  return (
+    <section
+      ref={section}
+      className={styles.directory}
+      aria-label={entry.path}
+      data-collapsed={collapsed || undefined}
+    >
+      <FoldHeader
+        className={styles.folder}
+        label={`Files in ${entry.path}`}
+        what="the files in this directory"
+        collapsed={collapsed}
+        onToggle={toggle}
+        end={
+          <>
+            <span className={styles.aside}>
+              {files.toLocaleString("en")} {files === 1 ? "file" : "files"}
+            </span>
+            <Lines {...totals(entry.changes)} />
+            <span className={styles.linkRoom} /> {/* as the files' links take */}
+          </>
+        }
+      >
+        <DirectoryPath shown={entry.path} path={entry.path} />
+      </FoldHeader>
+      {!collapsed && children}
     </section>
   );
 }
@@ -267,6 +334,55 @@ interface HeaderProps {
  * many, a chevron that collapses it, and a link to its own Diff. What is compared, the bar says.
  */
 function FileHeader({ change, path, query, collapsed, onToggle }: HeaderProps) {
+  return (
+    <FoldHeader
+      className={styles.header}
+      label={`Diff of ${path}`}
+      what="this file's diff"
+      collapsed={collapsed}
+      onToggle={onToggle}
+      end={
+        <>
+          {change && change.added !== null && change.removed !== null && (
+            <Lines added={change.added} removed={change.removed} />
+          )}
+          {query && (
+            <ViewLink
+              address={{ kind: "diff", params: defined(query) }}
+              label={`Diff of ${path} alone`}
+            />
+          )}
+        </>
+      }
+    >
+      {change ? <ChangePath change={change} base="" /> : <span>{path}</span>}
+      {change?.original != null && (
+        <span className={styles.aside}>renamed from {change.original}</span>
+      )}
+    </FoldHeader>
+  );
+}
+
+interface FoldHeaderProps {
+  className: string | undefined;
+  label: string; // its chevron's: `Diff of src/a.py`
+  what: string; // what it collapses: `this file's diff`
+  collapsed: boolean;
+  onToggle?: () => void; // collapses or shows, by the chevron or a click on the header
+  end: ReactNode; // at its end: numbers, links
+  children: ReactNode; // what it is about
+}
+
+/** A header that collapses what is below it: by its chevron, or a click anywhere else on it. */
+function FoldHeader({
+  className,
+  label,
+  what,
+  collapsed,
+  onToggle,
+  end,
+  children,
+}: FoldHeaderProps) {
   // Anywhere on the header but its links, and not a click ending a text selection.
   const click = (event: MouseEvent) => {
     if ((event.target as Element).closest("button, a")) return;
@@ -276,7 +392,7 @@ function FileHeader({ change, path, query, collapsed, onToggle }: HeaderProps) {
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its chevron collapses it by keyboard
     <div
-      className={styles.header}
+      className={className}
       data-collapsible={onToggle ? true : undefined}
       onClick={onToggle && click}
     >
@@ -285,28 +401,15 @@ function FileHeader({ change, path, query, collapsed, onToggle }: HeaderProps) {
           type="button"
           className={styles.collapse}
           aria-expanded={!collapsed}
-          aria-label={`Diff of ${path}`}
-          title={collapsed ? "Show this file's diff" : "Collapse this file's diff"}
+          aria-label={label}
+          title={collapsed ? `Show ${what}` : `Collapse ${what}`}
           onClick={onToggle}
         >
           <ChevronRight aria-hidden="true" />
         </button>
       )}
-      {change ? <ChangePath change={change} base="" /> : <span>{path}</span>}
-      {change?.original != null && (
-        <span className={styles.aside}>renamed from {change.original}</span>
-      )}
-      <span className={styles.end}>
-        {change && change.added !== null && change.removed !== null && (
-          <Lines added={change.added} removed={change.removed} />
-        )}
-        {query && (
-          <ViewLink
-            address={{ kind: "diff", params: defined(query) }}
-            label={`Diff of ${path} alone`}
-          />
-        )}
-      </span>
+      {children}
+      <span className={styles.end}>{end}</span>
     </div>
   );
 }

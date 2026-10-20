@@ -119,20 +119,25 @@ function pathCell(entry: Exclude<Entry, { type: "group" }>): ReactNode {
     case "note":
       return <span className={styles.note}>{entry.text}</span>;
     case "directory":
-      return (
-        <Path
-          shown={entry.path.slice(entry.base.length)}
-          title={entry.path}
-          icon={
-            <span className={styles.kind}>
-              <Folder aria-hidden="true" />
-            </span>
-          }
-        />
-      );
+      return <DirectoryPath shown={entry.path.slice(entry.base.length)} path={entry.path} />;
     default:
       return <ChangePath change={entry.change} base={entry.base} />;
   }
+}
+
+/** A directory's path, or the end of it that is `shown`, after a folder's icon. */
+export function DirectoryPath({ shown, path }: { shown: string; path: string }) {
+  return (
+    <Path
+      shown={shown}
+      title={path}
+      icon={
+        <span className={styles.kind}>
+          <Folder aria-hidden="true" />
+        </span>
+      }
+    />
+  );
 }
 
 /** A group's name, and how many of each kind of change it holds. */

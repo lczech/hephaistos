@@ -4,7 +4,9 @@
   min-height: 100%;
 }
 
+/* At the line's end, as the rows have their lines. */
 .totals {
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
 }
 
