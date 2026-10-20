@@ -83,13 +83,15 @@ function changesQuery(query: ChangesQuery) {
 
 /**
  * A Checkout's changes, which git reads anew each time: asked again on a hint, as files
- * changed by hand change no State, on focus too. Others keep showing until theirs arrive.
+ * changed by hand change no State, on focus too. Others keep showing until theirs arrive, but
+ * not when none are asked for: a disabled query never replaces them, so they'd stay stale.
  */
 export function useChanges(query: ChangesQuery) {
+  const enabled = query.clone !== undefined || query.worktree !== undefined;
   return useQuery({
     ...changesQuery(query),
-    placeholderData: keepPreviousData,
-    enabled: query.clone !== undefined || query.worktree !== undefined,
+    placeholderData: (previous) => (enabled ? previous : undefined),
+    enabled,
   });
 }
 

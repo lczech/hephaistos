@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
@@ -346,6 +347,23 @@ describe("the Diff View", () => {
       expect(asked.within).toEqual(["tmp/"]);
       expect(asked.diffs).toContain("tmp/a.log");
       expect(screen.getByRole("button", { name: "These changes as a list" })).toBeInTheDocument();
+    });
+
+    it("isn't dimmed once one file shows in its place", async () => {
+      serveAll();
+      const view = (params: Params) => (
+        <DiffView params={params} setParams={() => {}} setTitle={() => {}} />
+      );
+      const { container, client, rerender } = renderWithQueries(view(SINCE_HEAD));
+      expect(await screen.findByRole("region", { name: "src/b.py" })).toBeInTheDocument();
+      // Back to one file, as its Panel goes: the list of all files no longer asked for.
+      rerender(
+        <QueryClientProvider client={client}>
+          {view({ ...SINCE_HEAD, path: "src/b.py" })}
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByRole("figure")).toBeInTheDocument();
+      expect(container.querySelector("[data-stale]")).toBeNull();
     });
 
     it("asks for a file's diff only as it comes near", async () => {
