@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { json, renderWithQueries, serve, setting } from "../../test/server";
-import { addressText, type Params } from "../address";
+import { type Address, addressText, type Params } from "../address";
+import { OpenViewContext } from "../opening";
 import { DiffView } from "./DiffView";
 
 // The renderer draws in a way jsdom can't show; this stand-in shows what it was given.
@@ -251,6 +252,35 @@ describe("the Diff View", () => {
     serveDiff({ change: change(), patch: PATCH }, { theme: "no-such-theme" });
     renderWithQueries(<Diff initial={STAGED} />);
     expect(await screen.findByText(/Unknown code theme no-such-theme/)).toBeInTheDocument();
+  });
+
+  it("leads from one file to all files compared so, and back to the list", async () => {
+    serveDiff({ change: change(), patch: PATCH }, { changes: [] });
+    const opened: Address[] = [];
+    const { client, rerender } = renderWithQueries(
+      <OpenViewContext.Provider value={(address) => opened.push(address)}>
+        <Diff initial={STAGED} />
+      </OpenViewContext.Provider>,
+    );
+    const { path, ...staged } = STAGED;
+    await userEvent.click(screen.getByRole("button", { name: "All changed files as one Diff" }));
+    await userEvent.click(screen.getByRole("button", { name: `Commit history of ${path}` }));
+    // All files: the list of them, and the Checkout's history.
+    rerender(
+      <QueryClientProvider client={client}>
+        <OpenViewContext.Provider value={(address) => opened.push(address)}>
+          <Diff key="all" initial={staged} />
+        </OpenViewContext.Provider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "These changes as a list" }));
+    await userEvent.click(screen.getByRole("button", { name: "Commit history of this Checkout" }));
+    expect(opened).toEqual([
+      { kind: "diff", params: staged },
+      { kind: "history", params: { clone: "clone-proj", path } },
+      { kind: "changes", params: staged },
+      { kind: "history", params: { clone: "clone-proj" } },
+    ]);
   });
 
   it("says when nothing is compared", () => {

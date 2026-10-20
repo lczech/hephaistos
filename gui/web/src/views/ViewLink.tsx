@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Address } from "./address";
-import { viewKind } from "./kinds";
+import { viewIcon, viewKind } from "./kinds";
 import { clickOpening, useOpenView } from "./opening";
 import styles from "./ViewLink.module.css";
 
@@ -22,7 +22,7 @@ interface Props {
 export function ViewLink({ address, label, named = false, icon, children, quiet, note }: Props) {
   const open = useOpenView();
   const kind = viewKind(address.kind);
-  const Icon = icon ?? kind?.icon;
+  const Icon = icon ?? viewIcon(address);
   return (
     <button
       type="button"

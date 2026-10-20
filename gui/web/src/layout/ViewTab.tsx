@@ -1,7 +1,7 @@
 import { DockviewDefaultTab, type IDockviewPanelHeaderProps } from "dockview-react";
 import type { PointerEvent } from "react";
 import { asAddress } from "../views/address";
-import { viewKind } from "../views/kinds";
+import { viewIcon } from "../views/kinds";
 import { isPreview, keep } from "./dock";
 import styles from "./layout.module.css";
 
@@ -19,7 +19,7 @@ function showCutOff(event: PointerEvent<HTMLElement>) {
  */
 export function ViewTab(props: IDockviewPanelHeaderProps) {
   const address = asAddress(props.params);
-  const Icon = address && viewKind(address.kind)?.icon;
+  const Icon = address && viewIcon(address);
   const preview = isPreview(props.params);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: a shortcut for the mouse; changing the View keeps it too

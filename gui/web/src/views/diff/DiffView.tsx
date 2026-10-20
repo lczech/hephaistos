@@ -245,17 +245,31 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
               { icon: ListChevronsDownUp, title: "Show context around changes only" },
             ]}
           />
-          {query && (
-            <ViewLink
-              address={{ kind: "history", params: { ...checkoutOf(params), path: query.path } }}
-              label={`Commit history of ${query.path}`}
-            />
+          {/* One file: all files compared so, and its history; all files: the same links as
+              Changes has, the other way to see them, and the Checkout's history. */}
+          {query && checkout && base && (
+            <>
+              <ViewLink
+                address={{ kind: "diff", params: { ...checkout, ...base } }}
+                label="All changed files as one Diff"
+              />
+              <ViewLink
+                address={{ kind: "history", params: { ...checkout, path: query.path } }}
+                label={`Commit history of ${query.path}`}
+              />
+            </>
           )}
           {!query && checkout && base && (
-            <ViewLink
-              address={{ kind: "changes", params: { ...checkout, ...base } }}
-              label="These changes as a list"
-            />
+            <>
+              <ViewLink
+                address={{ kind: "changes", params: { ...checkout, ...base } }}
+                label="These changes as a list"
+              />
+              <ViewLink
+                address={{ kind: "history", params: checkout }}
+                label="Commit history of this Checkout"
+              />
+            </>
           )}
           <Refresh
             busy={listed.isFetching}
