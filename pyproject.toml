@@ -69,6 +69,10 @@ ignore = [
 [tool.pyright]
 include = ["src", "tests", "scripts"]
 extraPaths = ["src", "tests"]
+# The project's environment, however Pyright is started; otherwise it uses the `python` on PATH,
+# which is the system's outside `uv run`.
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 reportImplicitOverride = "error"
