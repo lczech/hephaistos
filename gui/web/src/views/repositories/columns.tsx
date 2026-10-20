@@ -49,16 +49,11 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   // Untracked files alone are often left there for good, so they don't call for a look.
   const quiet = state && !(state.staged || state.changed || state.conflicted);
   const untracked = state?.untracked ? `; ${state.untracked} untracked` : "";
-  const beside = { beside: true, preview: true };
   return (
     <span className={styles.views}>
-      <ViewLink address={eventsAt(entry)} label={`Events of ${name}`} opening={beside} />
+      <ViewLink address={eventsAt(entry)} label={`Events of ${name}`} />
       {params ? (
-        <ViewLink
-          address={{ kind: "history", params }}
-          label={`Commit history of ${name}`}
-          opening={beside}
-        />
+        <ViewLink address={{ kind: "history", params }} label={`Commit history of ${name}`} />
       ) : (
         <span />
       )}
@@ -66,7 +61,6 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
         <ViewLink
           address={{ kind: "changes", params }}
           label={`Changes in ${name}`}
-          opening={beside}
           quiet={quiet}
           note={quiet ? `no changes${untracked}` : undefined}
         />

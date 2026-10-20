@@ -21,6 +21,9 @@ globalThis.IntersectionObserver ??= class {
   }
 } as unknown as typeof IntersectionObserver;
 
+// Nor does it animate.
+Element.prototype.animate ??= () => ({}) as Animation;
+
 // Live connections stay connecting, unless a test opens them.
 beforeEach(() => {
   FakeSocket.opened = [];

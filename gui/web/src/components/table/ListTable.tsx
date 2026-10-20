@@ -42,7 +42,7 @@ interface Props<TData extends RowData> {
   details: (row: TData) => ReactNode; // shown below a row opened
   folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
-  opens?: (row: TData) => ((keep: boolean) => void) | undefined; // another View, kept by a double click
+  opens?: (row: TData) => ((click: MouseEvent) => void) | undefined; // another View, as clicked
   showing?: (row: TData) => boolean; // whether a View it opens is shown, which marks it
 }
 
@@ -51,7 +51,8 @@ interface Props<TData extends RowData> {
  * details below them, or the rows within them where they fold, or another View, each beside a
  * square, which a first column of `Chevron`s fills (plain rows open nothing); more
  * rows as the end comes into view. A row opens by its first cell's button, or by a click
- * anywhere else on it but on its cells' own buttons and links. Cells cut off show their whole
+ * anywhere else on it but on its cells' own buttons and links; one opening a View, also by
+ * the middle button. Cells cut off show their whole
  * text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
  * height), unless the list is wide: then it scrolls sideways, its details staying in view.
  * A row whose View is shown, in any Group, is marked.
@@ -144,8 +145,11 @@ export function ListTable<TData extends RowData>({
               const still = view === undefined && (plain?.(row.original) ?? false);
               const folding = folds?.(row.original) ?? false;
               const shown = folding ? row.getIsExpanded() : open.has(row.id);
-              let opening = folding ? () => row.toggleExpanded() : () => toggle(row.id);
-              if (view !== undefined) opening = () => view(false);
+              let opening: (click: MouseEvent) => void = folding
+                ? () => row.toggleExpanded()
+                : () => toggle(row.id);
+              if (view !== undefined) opening = view;
+              const middle = (click: MouseEvent) => click.button === 1 && view?.(click);
               const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
               const [first, ...others] = row.getVisibleCells();
               return (
@@ -161,8 +165,8 @@ export function ListTable<TData extends RowData>({
                     className={styles.row}
                     data-plain={still || undefined}
                     data-showing={showing?.(row.original) || undefined}
-                    onClick={still ? undefined : (event) => clickRow(event, opening)}
-                    onDoubleClick={view && ((event) => clickRow(event, () => view(true)))}
+                    onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
+                    onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
                   >
                     {first && still && (
                       <span data-column={first.column.id}>
@@ -179,6 +183,7 @@ export function ListTable<TData extends RowData>({
                           aria-labelledby={id}
                           title={squareTitle?.(row.original)}
                           onClick={opening}
+                          onAuxClick={view && middle}
                         >
                           <FlexRender cell={first} />
                         </button>

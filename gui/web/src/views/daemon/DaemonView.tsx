@@ -51,7 +51,6 @@ export function DaemonView() {
     <ViewLink
       address={{ kind: "log", params: { process: "daemon", pid: String(process.pid) } }}
       label="The Daemon's log"
-      opening={{ beside: true }}
       named
     />
   );

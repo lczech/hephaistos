@@ -193,7 +193,7 @@ describe("the Changes View", () => {
     expect(rows().slice(1, 3)).toEqual(["src/app/ +10 −2", "Not staged modified 3 +18 −6"]);
   });
 
-  it("opens a file's diff beside, as a preview, kept by a double click", async () => {
+  it("opens a file's diff as a preview, in its Group or beside it by the middle button", async () => {
     serveChanges();
     const opened: [Address, Opening | undefined][] = [];
     renderWithQueries(
@@ -207,9 +207,11 @@ describe("the Changes View", () => {
       kind: "diff",
       params: { clone: "clone-proj", from: "HEAD", to: "index", path: "src/app/main.py" },
     };
-    expect(opened).toEqual([[diff, { beside: true, preview: true }]]);
-    await userEvent.dblClick(name);
-    expect(opened.at(-1)).toEqual([diff, { beside: true, preview: false }]);
+    await userEvent.pointer({ keys: "[MouseMiddle]", target: name });
+    expect(opened).toEqual([
+      [diff, { beside: false, preview: true }],
+      [diff, { beside: true, preview: true }],
+    ]);
     const row = name.closest("li") as HTMLElement;
     expect(within(row).getByRole("button")).not.toHaveAttribute("aria-expanded");
     expect(screen.queryByRole("region")).toBeNull();

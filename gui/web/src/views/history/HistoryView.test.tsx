@@ -108,7 +108,7 @@ describe("the History View", () => {
     expect(within(details).getAllByRole("button", { name: /^Changes in commit / })).toHaveLength(2);
   });
 
-  it("opens a commit's changes from its hash, beside as a preview", async () => {
+  it("opens a commit's changes from its hash, as a preview", async () => {
     serveHistory(() => json(page([HEAD])));
     const opened: [Address, Opening | undefined][] = [];
     renderWithQueries(
@@ -120,7 +120,7 @@ describe("the History View", () => {
     expect(opened).toEqual([
       [
         { kind: "changes", params: { clone: "clone-proj", commit: HEAD.hash } },
-        { beside: true, preview: true },
+        { beside: false, preview: true },
       ],
     ]);
     expect(screen.queryByRole("region")).toBeNull(); // the hash opens no details

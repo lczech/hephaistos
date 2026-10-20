@@ -259,7 +259,6 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
             <ViewLink
               address={{ kind: "history", params: { ...checkoutOf(params), path: query.path } }}
               label={`Commit history of ${query.path}`}
-              opening={{ beside: true, preview: true }}
             />
           )}
           <Refresh

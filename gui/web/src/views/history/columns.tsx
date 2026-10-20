@@ -45,11 +45,7 @@ export function historyColumns(
         if (checkout === undefined) return "";
         if (row.original.type === "uncommitted") {
           return (
-            <ViewLink
-              address={{ kind: "changes", params: checkout }}
-              label="Uncommitted changes"
-              opening={{ beside: true, preview: true }}
-            />
+            <ViewLink address={{ kind: "changes", params: checkout }} label="Uncommitted changes" />
           );
         }
         if (row.original.type === "found") {

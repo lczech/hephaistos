@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
 import { LayoutList, List } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { KEYS, useChanges, useChangesWithin, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
@@ -14,7 +14,7 @@ import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
-import { useIsShown, useOpenView } from "../opening";
+import { clickOpening, useIsShown, useOpenView } from "../opening";
 import { branchText, branchTitle } from "../repositories/rows";
 import { sortingOf, withSorting } from "../sorting";
 import { ViewLink } from "../ViewLink";
@@ -116,7 +116,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     [several],
   );
   const columns = useMemo(() => changesColumns(most, folds), [most, folds]);
-  // A file's row opens its diff beside, as a preview, kept by a double click.
+  // A file's row opens its diff, as a link does.
   const openView = useOpenView();
   const isShown = useIsShown();
   const diffOf = (entry: Entry): Address | undefined => {
@@ -127,7 +127,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   };
   const opens = (entry: Entry) => {
     const diff = diffOf(entry);
-    return diff && ((keep: boolean) => openView(diff, { beside: true, preview: !keep }));
+    return diff && ((click: MouseEvent) => openView(diff, clickOpening(click)));
   };
   const showing = (entry: Entry) => {
     const diff = diffOf(entry);
@@ -224,7 +224,6 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
             <ViewLink
               address={{ kind: "history", params: checkout }}
               label="Commit history of this Checkout"
-              opening={{ beside: true, preview: true }}
             />
             <Refresh
               busy={changes.isFetching}

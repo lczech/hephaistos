@@ -34,6 +34,22 @@ export function keep(panel: IDockviewPanel | undefined): void {
   if (isPreview(panel?.params)) panel?.api.updateParameters({ [PREVIEW]: undefined });
 }
 
+// The accent, held a moment, then fading to the tab's own colours.
+const MARKED = {
+  color: "var(--accent)",
+  backgroundColor: "color-mix(in srgb, var(--accent) 15%, transparent)",
+};
+const FLASH: Keyframe[] = [
+  { offset: 0, ...MARKED },
+  { offset: 0.4, ...MARKED },
+];
+
+/** Marks a Panel's tab for a moment, to show where a View already open is. */
+function flash(panel: IDockviewPanel): void {
+  const tab = panel.view.tab.element;
+  (tab.closest(".dv-tab") ?? tab).animate(FLASH, { duration: 900, easing: "ease-out" });
+}
+
 /** The Group beside `from`, if it isn't alone; see `besideOf`. */
 function besideGroup(api: DockviewApi, from: IDockviewGroupPanel): DockviewGroupPanel | undefined {
   const others = api.groups.filter(
@@ -48,8 +64,9 @@ function besideGroup(api: DockviewApi, from: IDockviewGroupPanel): DockviewGroup
 }
 
 /**
- * Shows a View: focuses a Panel showing it, or opens one in `from`'s Group (by default the
- * active one), or beside it. A preview replaces the View of that Group's preview Panel, if any.
+ * Shows a View: focuses a Panel showing it, flashing its tab, or opens one in `from`'s Group (by
+ * default the active one), or beside it. A preview replaces the View of that Group's preview
+ * Panel, if any.
  */
 export function openView(
   api: DockviewApi,
@@ -65,6 +82,7 @@ export function openView(
   if (open !== undefined) {
     if (!opening.preview) keep(open);
     open.api.setActive();
+    flash(open);
     return open;
   }
   const { kind, params } = address;

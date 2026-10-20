@@ -8,6 +8,14 @@ export interface Opening {
 }
 
 /**
+ * How a click on a link opens its View: as a preview, in its Group, or beside it by the middle
+ * button or Alt, as browsers open a link in place or in a new tab.
+ */
+export function clickOpening(event: { button: number; altKey: boolean }): Opening {
+  return { beside: event.button === 1 || event.altKey, preview: true };
+}
+
+/**
  * Shows a View: focuses one showing that address, or opens it, by default in the current Group.
  * Opening it as not a preview keeps a preview that shows it.
  */

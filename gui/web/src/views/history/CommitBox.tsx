@@ -8,13 +8,12 @@ import { ViewLink } from "../ViewLink";
 import styles from "./CommitBox.module.css";
 import { type Commit, committedApart, type Ref } from "./rows";
 
-/** A commit's hash, as a link to its changes, opened beside as a preview. */
+/** A commit's hash, as a link to its changes. */
 export function CommitLink({ hash, checkout }: { hash: string; checkout: Checkout }) {
   return (
     <ViewLink
       address={{ kind: "changes", params: { ...checkout, commit: hash } }}
       label={`Changes in commit ${shortHash(hash)}`}
-      opening={{ beside: true, preview: true }}
       icon={GitCommitVertical}
     >
       <span className={styles.hash}>{shortHash(hash)}</span>

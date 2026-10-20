@@ -117,23 +117,24 @@ describe("the Repositories View", () => {
     ]);
   });
 
-  it("opens the History of a Clone or Worktree, beside as a preview", async () => {
+  it("opens the History of a Clone or Worktree, as a preview, in its Group or beside it", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
     await screen.findByText("recent");
     expect(screen.queryByRole("button", { name: "Commit history of recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Commit history of ~/recent" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: "Commit history of .worktrees/feature" }),
-    );
+    await userEvent.pointer({
+      keys: "[MouseMiddle]",
+      target: screen.getByRole("button", { name: "Commit history of .worktrees/feature" }),
+    });
     expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
-      ["history?clone=clone-recent", { beside: true, preview: true }],
+      ["history?clone=clone-recent", { beside: false, preview: true }],
       ["history?worktree=wt-recent-feature", { beside: true, preview: true }],
     ]);
   });
 
-  it("opens the Changes of a Clone or Worktree, beside as a preview", async () => {
+  it("opens the Changes of a Clone or Worktree, as a preview", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
@@ -142,8 +143,8 @@ describe("the Repositories View", () => {
     await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent" }));
     await userEvent.click(screen.getByRole("button", { name: "Changes in .worktrees/feature" }));
     expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
-      ["changes?clone=clone-recent", { beside: true, preview: true }],
-      ["changes?worktree=wt-recent-feature", { beside: true, preview: true }],
+      ["changes?clone=clone-recent", { beside: false, preview: true }],
+      ["changes?worktree=wt-recent-feature", { beside: false, preview: true }],
     ]);
     // Greyed out without changes: the Worktree has none, the Clone 2 changed.
     const feature = screen.getByRole("button", { name: "Changes in .worktrees/feature" });
