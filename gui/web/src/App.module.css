@@ -7,6 +7,9 @@
 .main {
   flex: 1;
   min-height: 0; /* the Groups fit the window; Panels scroll */
+  /* Nor does the page: dockview draws Views over their Groups, and those of tabs not shown yet
+     where it hasn't placed them, below the others, past the window. */
+  overflow: hidden;
 }
 
 .banner,

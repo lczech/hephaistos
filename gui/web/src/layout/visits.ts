@@ -105,7 +105,12 @@ export function keepVisits(api: DockviewApi): { dispose: () => void } {
     event.preventDefault();
     if (event.type !== "mouseup") return;
     const target = event.target instanceof Node ? event.target : null;
-    const group = api.groups.find((group) => group.element.contains(target));
+    // Its tabs, or its Views, which are drawn over it, not in it.
+    const group = api.groups.find(
+      (group) =>
+        group.element.contains(target) ||
+        group.panels.some((panel) => panel.view.content.element.contains(target)),
+    );
     if (group) go(group, event.button === BACK);
   };
   const onKey = (event: KeyboardEvent) => {

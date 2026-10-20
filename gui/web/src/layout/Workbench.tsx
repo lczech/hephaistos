@@ -54,8 +54,9 @@ function searchByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== "f" || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
       return;
-    // The active Group holds only its visible Panel's View.
-    const field = api.activeGroup?.element.querySelector<HTMLInputElement>("input[type=search]");
+    // The active Group's visible Panel's View: drawn over its Group, not in it (`always`).
+    const shown = api.activeGroup?.activePanel?.view.content.element;
+    const field = shown?.querySelector<HTMLInputElement>("input[type=search]");
     if (!field) return;
     event.preventDefault();
     field.focus();
@@ -146,6 +147,7 @@ export function Workbench() {
         watermarkComponent={Placeholder}
         noPanelsOverlay="emptyGroup"
         closeEmptyGroups={false}
+        defaultRenderer="always" // Views shown once stay drawn while hidden (`PanelView`)
         theme={THEME}
         onReady={ready}
       />

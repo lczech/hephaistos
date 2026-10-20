@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -173,6 +173,38 @@ describe("the Diff View", () => {
     expect(asked.find((url) => url.pathname === "/api/diff/files")?.search).toBe(
       "?clone=clone-proj&from=HEAD&to=index&path=src%2Fmain.py",
     );
+  });
+
+  it("shows old and new inline in a narrow Panel, as it was while its tab is hidden", async () => {
+    // Widths reported to the View as a whole, as a browser measures it.
+    const observed: [ResizeObserverCallback, Element][] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private report: ResizeObserverCallback) {}
+        observe(target: Element) {
+          observed.push([this.report, target]);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const resize = (width: number) =>
+      act(() => {
+        for (const [report, target] of observed) {
+          if (!target.querySelector("[aria-label='Side by side']")) continue;
+          report([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver);
+        }
+      });
+    serveDiff({ change: change(), patch: PATCH });
+    renderWithQueries(<Diff initial={STAGED} />);
+    const split = await screen.findByRole("button", { name: "Side by side" });
+    expect(split).toHaveAttribute("aria-pressed", "true");
+    resize(500);
+    expect(split).toHaveAttribute("aria-pressed", "false");
+    resize(1000);
+    resize(0); // hidden, e.g. in another tab: not narrow, nor drawn anew
+    expect(split).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows a diff first with its versions, so that it doesn't grow once they come", async () => {

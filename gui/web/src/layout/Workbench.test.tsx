@@ -78,6 +78,17 @@ const groups = () =>
   );
 
 beforeEach(() => {
+  // Views are drawn over their Groups where these are, at the next frame, and stay hidden while
+  // 0 by 0, as all are without a layout: each as large as a page, at once.
+  const page = { x: 0, y: 0, left: 0, top: 0, width: 1200, height: 800, right: 1200, bottom: 800 };
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
+    ...page,
+    toJSON: () => page,
+  });
+  vi.stubGlobal("requestAnimationFrame", (draw: FrameRequestCallback) => {
+    draw(performance.now());
+    return 0;
+  });
   serve({
     "GET /api/daemon": () => json(daemon()),
     "GET /api/events": () => json([]),
@@ -160,6 +171,35 @@ describe("the Workbench", () => {
     expect(tabs()).toEqual(["gone", "daemon"]);
   });
 
+  it("builds a View once its tab is first shown, then keeps it drawn while hidden", async () => {
+    VIEWS.probe = Probe;
+    VIEWS.typer = Typer;
+    try {
+      save("probe", "typer");
+      renderWithQueries(<Workbench />);
+      expect(await screen.findByRole("button", { name: "probe" })).toBeInTheDocument();
+      const field = () => document.querySelector<HTMLInputElement>("input[aria-label=Text]");
+      expect(field()).toBeNull(); // not shown yet
+      await userEvent.click(screen.getByRole("tab", { name: "typer" }));
+      await userEvent.type(field() as HTMLInputElement, "kept");
+      await userEvent.click(screen.getByRole("tab", { name: "probe" }));
+      // Hidden, but still in the page as it was.
+      expect(field()).toBeInTheDocument();
+      expect(field()).toHaveValue("kept");
+      // Restored, Panels are built once shown again: how they were drawn isn't saved.
+      await waitFor(() =>
+        expect(savedViews()).toContainEqual({ kind: "typer", params: { text: "kept" } }),
+      );
+      expect(Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.renderer)).toEqual([
+        undefined,
+        undefined,
+      ]);
+    } finally {
+      delete VIEWS.probe;
+      delete VIEWS.typer;
+    }
+  });
+
   it("starts anew from a Layout it can't restore", () => {
     localStorage.setItem("hephaistos.layout", '{"format": 2, "dock": {"grid": 5}}');
     renderWithQueries(<Workbench />);
@@ -189,7 +229,8 @@ describe("the Workbench", () => {
     const link = await screen.findByRole("button", { name: "The Daemon's log" });
     expect(link).toHaveTextContent("Log");
     await altClick(link);
-    expect(groups()).toEqual([["daemon", "Events"], ["Log: daemon[4242]*"]]);
+    // Events, never shown, keeps the title its Layout saved: its View is built once shown.
+    expect(groups()).toEqual([["daemon", "events"], ["Log: daemon[4242]*"]]);
     await waitFor(() =>
       expect(savedViews()).toContainEqual({
         kind: "log",
@@ -293,8 +334,9 @@ describe("the Workbench", () => {
       renderWithQueries(<Workbench />);
       await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
       await userEvent.click(screen.getByRole("button", { name: "probe?n=1" })); // narrowed, kept
+      // Over the View shown, which is drawn over its Group, not in it.
       const side = (button: number) =>
-        fireEvent.mouseUp(document.querySelector(".dv-groupview") as Element, { button });
+        fireEvent.mouseUp(document.querySelector(".dv-render-overlay > *") as Element, { button });
       expect(side(3)).toBe(false); // the browser's back prevented
       expect(screen.getByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
       expect(groups()).toEqual([["linker", "probe"]]);

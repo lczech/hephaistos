@@ -89,14 +89,17 @@ function queryText(query: DiffQuery): string {
   return revisions ? comparedText(revisions) : shortHash(query.commit ?? "");
 }
 
-/** Whether the element is narrower than `rem`; false until measured. */
+/** Whether the element is narrower than `rem`; false until measured. Hidden, e.g. in a tab not
+ * shown, it is 0 wide: as it was, rather than all its diffs drawn anew, inline, and back. */
 function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): boolean {
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
     if (element.current === null) return;
     const em = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry !== undefined) setNarrow(entry.contentRect.width < rem * em);
+      if (entry !== undefined && entry.contentRect.width > 0) {
+        setNarrow(entry.contentRect.width < rem * em);
+      }
     });
     observer.observe(element.current);
     return () => observer.disconnect();
