@@ -33,6 +33,19 @@ jobs:
       - run: git --version
       - run: uv run --locked pytest
 
+  # The GUI: lint, types, tests and the build, which compiles every component with React's
+  # compiler and fails on any it can't (gui/web/vite.config.ts).
+  gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked
+      - run: uv run npm --prefix gui ci
+      - run: uv run npm --prefix gui run lint
+      - run: uv run npm --prefix gui run check
+      - run: uv run npm --prefix gui run build
+
   git-versions:
     runs-on: ubuntu-latest
     steps:
