@@ -1,7 +1,7 @@
 import {
   ChevronDown,
+  CircleChevronUp,
   Cloud,
-  Focus,
   FolderPen,
   GitBranch,
   GitCommitVertical,
@@ -478,7 +478,7 @@ function ranked<T>(items: T[], name: (item: T) => string, typed: string): T[] {
 const FIXED_ICONS: Record<FixedRow, LucideIcon> = {
   [WORKING_TREE]: FolderPen,
   [INDEX]: ListChecks,
-  [HEAD]: Focus,
+  [HEAD]: CircleChevronUp,
 };
 
 const FIXED_WORDS: Record<FixedRow, string> = {

@@ -4,7 +4,7 @@
 
 import { getSingularPatch, hydratePartialDiff } from "@pierre/diffs";
 import type { FileDiffMetadata } from "@pierre/diffs/react";
-import { FileDiff } from "@pierre/diffs/react";
+import { FileDiff, Virtualizer } from "@pierre/diffs/react";
 import { type ReactNode, useMemo } from "react";
 import type { CodeThemes } from "./themes";
 
@@ -23,21 +23,30 @@ export interface Versions {
 
 interface Props {
   patch: string; // git's, for one file
-  header: ReactNode; // above it, staying in view while it scrolls
   look: DiffLook;
   themes: CodeThemes;
   versions: Versions | undefined; // once known: to show where the file ends, and more of it
 }
 
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
-// of lines added and removed from it; and the code's font and size. The renderer's own
-// variables, so check them on upgrades.
+// of lines added and removed from it; and the code's font and size. The lines left out between
+// changes as gaps between two lines, rather than bars: quieter than the files' headers. The renderer's
+// own variables and attributes, so check them on upgrades.
 const PAGE_LOOK = `:host {
   --diffs-light-bg: var(--background);
   --diffs-dark-bg: var(--background);
+  --diffs-bg-separator: var(--background);
   --diffs-font-family: var(--font-mono);
   --diffs-font-size: var(--code-size);
   --diffs-line-height: calc(var(--code-size) * 1.5);
+}
+[data-separator=line-info] {
+  box-shadow: inset 0 1px var(--line), inset 0 -1px var(--line);
+}
+[data-separator=line-info] [data-separator-wrapper],
+[data-separator=line-info] [data-separator-content],
+[data-separator=line-info] [data-expand-button] {
+  background: none;
 }`;
 
 /** The patch's lines filled in with both versions, so that all of the file can show; the patch
@@ -55,22 +64,32 @@ export function withVersions(partial: FileDiffMetadata, versions: Versions): Fil
 }
 
 /**
+ * Where diffs scroll, one or many: the renderer draws only their lines in view. Diffs within it
+ * come with headers of their own.
+ */
+export function DiffScroll({ className, children }: { className?: string; children: ReactNode }) {
+  return <Virtualizer className={className}>{children}</Virtualizer>;
+}
+
+/**
  * A file's diff from git's patch, highlighted, with words changed within lines marked; once its
  * versions are known, with where it ends and all of it to show. Lines shown on asking stay so
  * until the whole file is shown or no longer is: the renderer can't fold them again, so it
- * starts anew.
+ * starts anew. Within a `DiffScroll`.
  */
-export default function Diff({ patch, header, look, themes, versions }: Props) {
+export default function Diff({ patch, look, themes, versions }: Props) {
   const partial = useMemo(() => getSingularPatch(patch), [patch]);
+  // By their text: versions asked for again, unchanged, leave the diff as it is.
+  const known = versions !== undefined;
+  const { old: oldText = null, new: newText = null } = versions ?? {};
   const fileDiff = useMemo(
-    () => (versions ? withVersions(partial, versions) : partial),
-    [partial, versions],
+    () => (known ? withVersions(partial, { old: oldText, new: newText }) : partial),
+    [partial, known, oldText, newText],
   );
   return (
     <FileDiff
       key={look.whole ? "whole" : "changes"}
       fileDiff={fileDiff}
-      renderCustomHeader={() => header}
       options={{
         theme: themes,
         themeType: "system", // as the page: the system's
@@ -79,7 +98,7 @@ export default function Diff({ patch, header, look, themes, versions }: Props) {
         expandUnchanged: look.whole,
         lineDiffType: "word-alt",
         diffIndicators: "bars",
-        stickyHeader: true,
+        disableFileHeader: true,
         unsafeCSS: PAGE_LOOK,
       }}
     />

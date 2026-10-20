@@ -11,37 +11,36 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
 import {
+  type ChangesQuery,
   type DiffQuery,
   KEYS,
   useChanges,
-  useDiff,
-  useDiffFiles,
+  useRepositories,
   useSetting,
 } from "../../api/queries";
-import { LazyDiff } from "../../components/diff/LazyDiff";
+import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
-import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, BarLine, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { ComparedPickers } from "../changes/ComparedPickers";
-import { checkoutOf } from "../changes/checkout";
-import { ChangePath, Lines } from "../changes/columns";
+import { checkoutName, checkoutOf } from "../changes/checkout";
 import {
   arrowText,
-  type Change,
   type Compared,
-  changedLines,
   comparison,
   groupName,
-  otherText,
   pathParts,
+  totalsText,
 } from "../changes/rows";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
+import { type DiffShow, FileSection } from "./FileSection";
 import { diffLook } from "./look";
+import { StackedDiff } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
 
@@ -102,21 +101,26 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
 }
 
 /**
- * A file's diff from one Revision to another (its parameters `from` and `to`, picked in its
- * bar), or in a commit (`commit`, its line in the bar instead), as git's patch has it,
- * highlighted. More of the file shows on asking. Large diffs wait to be shown; one that is empty
- * says where the file's changes are now.
+ * The diffs of a comparison from one Revision to another (its parameters `from` and `to`, picked
+ * in its bar), or of a commit (`commit`, its line in the bar instead), as git's patch has them,
+ * highlighted: one file's (`path`), or all, one under the other, each asked for as it comes near.
+ * More of a file shows on asking. Large diffs wait to be shown; untracked files, to be opened;
+ * one file without changes says where its changes are now.
  */
 export function DiffView({ params, setParams, setTitle }: ViewProps) {
-  const query = diffQuery(params);
-  const diff = useDiff(query);
   const checkout = checkoutOf(params);
   const [commit] = paramValues(params.commit);
-  // A commit's, for its line: the file's changes in it, with all about the commit.
-  const ofCommit = useChanges(
-    checkout && query && commit !== undefined ? { ...checkout, commit, path: query.path } : {},
-  );
-  const shown = commit === undefined ? undefined : ofCommit.data?.commit;
+  const [path] = paramValues(params.path);
+  const query = diffQuery(params);
+  const compared = commit === undefined ? comparison(params) : undefined;
+  const base = checkout && (commit === undefined ? compared : { commit });
+  // All files' changes, for the stack; a commit's file, for the commit's line.
+  const listQuery: ChangesQuery =
+    checkout === undefined || base === undefined || (path !== undefined && commit === undefined)
+      ? {}
+      : { ...checkout, ...base, ...(path !== undefined && { path }) };
+  const listed = useChanges(listQuery);
+  const shown = commit === undefined ? undefined : listed.data?.commit;
   const [details, setDetails] = useState(false);
   const now = useNow(10_000);
   const { from: _, to: __, commit: ___, ...others } = params;
@@ -125,93 +129,79 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const parentToCommit =
     parent && shown?.commit ? { from: parent, to: shown.commit.hash } : undefined;
   const client = useQueryClient();
+  const repositories = useRepositories();
   const [look, setLook] = useAtom(diffLook());
   const view = useRef<HTMLElement>(null);
   const narrow = useNarrow(view, NARROW);
-  const [shownLarge, setShownLarge] = useState<string>();
   const [themes, unknown] = codeThemes({
     light: textSetting(useSetting("gui.code.theme_light")),
     dark: textSetting(useSetting("gui.code.theme_dark")),
   });
   const large = useSetting("gui.diff.large_lines");
-
-  const title = query && `Diff: ${pathParts(query.path)[1]}, ${queryText(query)}`;
+  const show: DiffShow = {
+    look: { ...look, split: look.split && !narrow },
+    themes,
+    large: typeof large === "number" ? large : undefined,
+  };
+  const what = commit !== undefined ? shortHash(commit) : compared && comparedText(compared);
+  const name = checkout && checkoutName(repositories.data, checkout);
+  const title = query
+    ? `Diff: ${pathParts(query.path)[1]}, ${queryText(query)}`
+    : name && what && `Diff: ${name}, ${what}`;
   useEffect(() => {
     if (title !== undefined) setTitle(title);
   }, [title, setTitle]);
-
-  const change = diff.data?.change;
-  const patch = diff.data?.patch;
-  const waiting =
-    typeof large === "number" &&
-    (change ? (changedLines(change) ?? 0) : 0) > large &&
-    shownLarge !== query?.path;
-  // Both versions, where both are and the patch shows; an added or deleted file is all patch.
-  const twoSided = change && !change.binary && !["A", "?", "D"].includes(change.status);
-  const versions = useDiffFiles(
-    query,
-    diff.dataUpdatedAt,
-    Boolean(twoSided && patch && !waiting && !diff.isPlaceholderData),
-  );
+  const groups = path === undefined ? (listed.data?.groups ?? []) : [];
 
   let body: ReactNode;
-  if (query === undefined) {
-    body = <p className={styles.note}>No file: open a Diff from a file in Changes.</p>;
-  } else if (diff.data === undefined) {
-    body = (
-      <p className={styles.note}>
-        {diff.isError ? `Couldn't load: ${diff.error.message}` : "Loading the diff…"}
-      </p>
-    );
-  } else if (change === null || change === undefined) {
+  if (checkout === undefined || base === undefined) {
+    body = <p className={styles.note}>Nothing compared: open a Diff from Changes.</p>;
+  } else if (query !== undefined) {
     const revisions = revisionsOf(query);
-    body = revisions ? (
-      <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
-    ) : (
-      <p className={styles.note}>No changes to this file in {queryText(query)}.</p>
+    body = (
+      <FileSection
+        alone
+        query={query}
+        show={show}
+        unchanged={
+          revisions ? (
+            <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
+          ) : (
+            <p className={styles.note}>No changes to this file in {queryText(query)}.</p>
+          )
+        }
+      />
     );
-  } else if (change.binary) {
-    body = <p className={styles.note}>Not shown: {otherText(change)}.</p>;
-  } else if (patch === null || patch === undefined) {
-    const size = otherText(change);
+  } else if (listed.data === undefined) {
     body = (
       <p className={styles.note}>
-        Not shown{size ? `: ${size}` : ""}, more than the setting <code>gui.diff.max_bytes</code>{" "}
-        allows.
+        {listed.isError ? `Couldn't load: ${listed.error.message}` : "Loading changes…"}
       </p>
     );
-  } else if (waiting) {
+  } else if (groups.length === 0) {
     body = (
       <p className={styles.note}>
-        {(changedLines(change) ?? 0).toLocaleString("en")} lines changed: more than the setting{" "}
-        <code>gui.diff.large_lines</code>.{" "}
-        <button type="button" className={styles.action} onClick={() => setShownLarge(query.path)}>
-          Show
-        </button>
+        {compared ? noChanges(compared) : `No changes in ${shortHash(commit ?? "")}.`}
       </p>
     );
   } else {
     body = (
-      <LazyDiff
-        patch={patch}
-        header={<FileHeader change={change} />}
-        look={{ ...look, split: look.split && !narrow }}
-        themes={themes}
-        versions={versions.data}
+      <StackedDiff
+        key={JSON.stringify(listQuery)} // files collapsed for this comparison only
+        groups={groups}
+        query={listQuery}
+        base={{ ...checkout, ...base }}
+        show={show}
       />
     );
   }
 
   const choose = (key: keyof typeof look) => (on: boolean) => setLook({ ...look, [key]: on });
   return (
-    <section ref={view} className={styles.view} data-stale={diff.isPlaceholderData || undefined}>
+    <section ref={view} className={styles.view} data-stale={listed.isPlaceholderData || undefined}>
       <ViewBar>
-        {checkout && query?.from && query.to && (
-          <ComparedPickers
-            checkout={checkout}
-            compared={{ from: query.from, to: query.to }}
-            onChange={compare}
-          />
+        {checkout && compared && (
+          <ComparedPickers checkout={checkout} compared={compared} onChange={compare} />
         )}
         {checkout && shown && (
           <CommitLine
@@ -251,7 +241,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
             on={look.whole}
             onChange={choose("whole")}
             ways={[
-              { icon: ListChevronsUpDown, title: "Show complete file" },
+              { icon: ListChevronsUpDown, title: "Show complete files" },
               { icon: ListChevronsDownUp, title: "Show context around changes only" },
             ]}
           />
@@ -261,11 +251,26 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
               label={`Commit history of ${query.path}`}
             />
           )}
+          {!query && checkout && base && (
+            <ViewLink
+              address={{ kind: "changes", params: { ...checkout, ...base } }}
+              label="These changes as a list"
+            />
+          )}
           <Refresh
-            busy={diff.isFetching}
-            onClick={() => void client.invalidateQueries({ queryKey: KEYS.diff })}
+            busy={listed.isFetching}
+            onClick={() =>
+              void client.invalidateQueries({ queryKey: query ? KEYS.diff : KEYS.changes })
+            }
           />
         </BarEnd>
+        {groups.length > 0 && (
+          <BarLine>
+            <span title="Total lines added and removed">
+              {totalsText(groups.flatMap((group) => group.changes))}
+            </span>
+          </BarLine>
+        )}
       </ViewBar>
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
@@ -277,26 +282,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           Shiki does.
         </p>
       )}
-      <div className={styles.diff}>{body}</div>
+      <LazyDiffScroll className={styles.diff}>{body}</LazyDiffScroll>
     </section>
-  );
-}
-
-/**
- * Above the diff: what happened to the file, its path, and its lines added and removed; what is
- * compared, the bar says.
- */
-function FileHeader({ change }: { change: Change }) {
-  return (
-    <div className={styles.header}>
-      <ChangePath change={change} base="" />
-      {change.original !== null && (
-        <span className={styles.aside}>renamed from {change.original}</span>
-      )}
-      {change.added !== null && change.removed !== null && (
-        <Lines added={change.added} removed={change.removed} />
-      )}
-    </div>
   );
 }
 

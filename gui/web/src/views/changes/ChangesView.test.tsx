@@ -212,6 +212,12 @@ describe("the Changes View", () => {
       [diff, { beside: false, preview: true }],
       [diff, { beside: true, preview: true }],
     ]);
+    // All of them as one Diff: since HEAD, as the groups show them.
+    await userEvent.click(screen.getByRole("button", { name: "These changes as one Diff" }));
+    expect(opened.at(-1)?.[0]).toEqual({
+      kind: "diff",
+      params: { clone: "clone-proj", from: "HEAD", to: "working-tree" },
+    });
     const row = name.closest("li") as HTMLElement;
     expect(within(row).getByRole("button")).not.toHaveAttribute("aria-expanded");
     expect(screen.queryByRole("region")).toBeNull();

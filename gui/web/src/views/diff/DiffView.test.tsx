@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,22 +12,20 @@ import { DiffView } from "./DiffView";
 vi.mock("../../components/diff/LazyDiff", () => ({
   LazyDiff: ({
     patch,
-    header,
     look,
     versions,
   }: {
     patch: string;
-    header: ReactNode;
     look: DiffLook;
     versions: Versions | undefined;
   }) => (
     <figure>
-      <header>{header}</header>
       <pre>{patch}</pre>
       <figcaption>{JSON.stringify(look)}</figcaption>
       <p>{versions ? `versions: ${JSON.stringify(versions)}` : "no versions"}</p>
     </figure>
   ),
+  LazyDiffScroll: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 type Change = Schemas["ChangeJson"];
@@ -175,6 +173,23 @@ describe("the Diff View", () => {
     );
   });
 
+  it("shows a diff first with its versions, so that it doesn't grow once they come", async () => {
+    let answer: ((response: Response) => void) | undefined;
+    serve({
+      "GET /api/diff": () => json({ change: change(), patch: PATCH }),
+      "GET /api/diff/files": () => new Promise((resolve) => (answer = resolve)),
+      "GET /api/config": () =>
+        json({ host: "laptop", settings: [], sources: [], other_hosts: [], unknown_variables: [] }),
+    });
+    renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText("src/main.py", { exact: false })).toBeInTheDocument();
+    await waitFor(() => expect(answer).toBeDefined());
+    expect(screen.queryByRole("figure")).toBeNull();
+    expect(screen.getByText("Loading the diff…")).toBeInTheDocument();
+    answer?.(json({ old: "a\n", new: "b\n" }));
+    expect(await screen.findByText(/^versions:/)).toBeInTheDocument();
+  });
+
   it("asks no versions of an added file, all of which its patch has", async () => {
     const requests = serveDiff({ change: change({ status: "A" }), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);
@@ -237,9 +252,108 @@ describe("the Diff View", () => {
     expect(await screen.findByText(/Unknown code theme no-such-theme/)).toBeInTheDocument();
   });
 
-  it("says when no file is named", () => {
+  it("says when nothing is compared", () => {
     serve({});
     renderWithQueries(<Diff initial={{ clone: "clone-proj" }} />);
-    expect(screen.getByText(/No file/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing compared/)).toBeInTheDocument();
+  });
+
+  describe("of all files", () => {
+    const SINCE_HEAD = { clone: "clone-proj", from: "HEAD", to: "working-tree" };
+    const GROUP = {
+      name: "changes" as const,
+      from: "HEAD",
+      to: "working-tree",
+      count: 4,
+      changes: [
+        change({ path: "README.md", added: 2, removed: 0 }),
+        change({ path: "notes.txt", status: "?", added: 4, removed: 0 }),
+        change({ path: "src/b.py" }),
+        change({ path: "tmp/", status: "?", added: null, removed: null, files: 1, size: 9 }),
+      ],
+    };
+
+    /** The Server, answering each file's diff with its patch; returns the paths asked. */
+    function serveAll(): { diffs: string[]; within: string[] } {
+      const asked = { diffs: [] as string[], within: [] as string[] };
+      serve({
+        "GET /api/changes": (request) => {
+          const path = new URL(request.url).searchParams.get("path");
+          if (path === null) return json({ branch: null, groups: [GROUP], commit: null });
+          asked.within.push(path);
+          const files = [change({ path: "tmp/a.log", status: "?", added: 3, removed: 0 })];
+          return json({ branch: null, groups: [{ ...GROUP, changes: files, count: 1 }] });
+        },
+        "GET /api/diff": (request) => {
+          const path = new URL(request.url).searchParams.get("path") ?? "";
+          asked.diffs.push(path);
+          return json({ change: change({ path }), patch: `diff --git a/${path} b/${path}\n` });
+        },
+        "GET /api/config": () =>
+          json({
+            host: "laptop",
+            settings: [],
+            sources: [],
+            other_hosts: [],
+            unknown_variables: [],
+          }),
+      });
+      return asked;
+    }
+
+    /** Everything comes near as soon as it is there. */
+    class Near {
+      constructor(private report: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        const entry = { isIntersecting: true, target } as IntersectionObserverEntry;
+        this.report([entry], this as unknown as IntersectionObserver);
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+
+    it("shows them one under the other as Changes lists them, untracked ones listed", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      const asked = serveAll();
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      expect(await screen.findByText("3 files, +7 −1")).toBeInTheDocument();
+      const files = await screen.findAllByRole("region", { name: /^(src|README)/ });
+      expect(files.map((file) => file.getAttribute("aria-label"))).toEqual([
+        "src/b.py",
+        "README.md",
+      ]);
+      await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
+      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      const first = files[0] as HTMLElement;
+      expect(
+        within(first).getByRole("button", { name: "Diff of src/b.py alone" }),
+      ).toBeInTheDocument();
+      // A click on a header collapses its file, its chevron saying so; another shows it again.
+      await userEvent.click(within(first).getByText("b.py"));
+      expect(within(first).queryByRole("figure")).toBeNull();
+      const chevron = within(first).getByRole("button", { name: "Diff of src/b.py" });
+      expect(chevron).toHaveAttribute("aria-expanded", "false");
+      await userEvent.click(chevron);
+      expect(within(first).getByRole("figure")).toBeInTheDocument();
+      // Untracked: listed, each diff asked for once opened, or all at once.
+      const untracked = screen.getByRole("region", { name: "Untracked" });
+      expect(untracked).toHaveTextContent("Untracked: 1 file, 1 new folder");
+      await userEvent.click(within(untracked).getByText("notes.txt"));
+      expect(await within(untracked).findByRole("figure")).toBeInTheDocument();
+      expect(asked.diffs).toContain("notes.txt");
+      await userEvent.click(within(untracked).getByRole("button", { name: "Show all" }));
+      await waitFor(() => expect(within(untracked).getAllByRole("figure")).toHaveLength(2));
+      expect(asked.within).toEqual(["tmp/"]);
+      expect(asked.diffs).toContain("tmp/a.log");
+      expect(screen.getByRole("button", { name: "These changes as a list" })).toBeInTheDocument();
+    });
+
+    it("asks for a file's diff only as it comes near", async () => {
+      const asked = serveAll();
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      expect(await screen.findByRole("region", { name: "src/b.py" })).toBeInTheDocument();
+      expect(screen.queryByRole("figure")).toBeNull();
+      expect(asked.diffs).toEqual([]);
+    });
   });
 });

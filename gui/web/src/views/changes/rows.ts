@@ -152,7 +152,7 @@ function note(id: string, text: string): Entry {
   return { type: "note", id, text, subRows: [] };
 }
 
-function moreText(listed: number, count: number): string {
+export function moreText(listed: number, count: number): string {
   return `and ${(count - listed).toLocaleString("en")} more, not listed`;
 }
 
@@ -280,6 +280,14 @@ export function otherText(change: Change): string | undefined {
   if (change.added === null)
     return size === null ? "not counted" : `${sizeText(size)}, not counted`;
   return undefined;
+}
+
+/** How many files these changes are, and their lines added and removed: `3 files, +12 −3`. */
+export function totalsText(changes: Change[]): string {
+  const files = new Set(changes.filter((change) => !isFolder(change)).map((change) => change.path))
+    .size;
+  const { added, removed } = totals(changes);
+  return `${files} ${files === 1 ? "file" : "files"}, ${linesText(added, removed)}`;
 }
 
 /** Lines added and removed in these changes, which have them. */

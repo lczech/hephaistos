@@ -44,6 +44,8 @@ interface Props<TData extends RowData> {
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
   opens?: (row: TData) => ((click: MouseEvent) => void) | undefined; // another View, as clicked
   showing?: (row: TData) => boolean; // whether a View it opens is shown, which marks it
+  opened?: ReadonlySet<string>; // the rows whose details are open, if not kept here
+  onOpenedChange?: (opened: ReadonlySet<string>) => void;
 }
 
 /**
@@ -75,8 +77,11 @@ export function ListTable<TData extends RowData>({
   plain,
   opens,
   showing,
+  opened,
+  onOpenedChange,
 }: Props<TData>) {
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
+  const open = opened ?? kept;
   const end = useRef<HTMLParagraphElement>(null);
   const list = useId();
   const { hasNextPage = false, isFetchingNextPage = false, fetchNextPage } = paging ?? {};
@@ -89,12 +94,11 @@ export function ListTable<TData extends RowData>({
     observer.observe(end.current);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-  const toggle = (id: string) =>
-    setOpen((was) => {
-      const next = new Set(was);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => {
+    const next = new Set(open);
+    if (!next.delete(id)) next.add(id);
+    (onOpenedChange ?? setKept)(next);
+  };
   // Not a click on a cell's own button or link, nor one ending a text selection; a double
   // click's second is not, so that selecting a word leaves the row as it was.
   const clickRow = (event: MouseEvent, opening: () => void) => {

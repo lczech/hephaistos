@@ -32,6 +32,7 @@
   --background: #ffffff;
   --surface: #ffffff;
   --bar: #f8f8f8;
+  --raised: #f8f8f8; /* standing out from the background: a file's header in a Diff */
   --border: #e5e5e5;
   --line: #d8d8d8; /* between a list's groups of rows */
   --divider: #cccccc; /* between Groups */
@@ -51,6 +52,7 @@
     --background: #1e1e1e;
     --surface: #1e1e1e;
     --bar: #181818;
+    --raised: #2a2a2a;
     --border: #2b2b2b;
     --line: #383838;
     --divider: #474747;
