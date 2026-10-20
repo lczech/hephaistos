@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   type HistoryQuery,
   KEYS,
@@ -17,7 +17,7 @@ import { BarEnd, Refresh, ViewBar } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
-import { type Params, paramValues } from "../address";
+import { type Params, paramValues, withParam } from "../address";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
@@ -42,7 +42,7 @@ const SEARCH_DELAY = 300; // ms after the last key typed
  * any order and case. A commit's row opens all about it; its hash, its changes.
  */
 export function HistoryView({ params, setParams, setTitle }: ViewProps) {
-  const checkout = useMemo(() => checkoutOf(params), [params]); // the columns depend on it
+  const checkout = checkoutOf(params);
   const isShown = useIsShown();
   const [ref] = paramValues(params.ref);
   const [path] = paramValues(params.path);
@@ -82,18 +82,9 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   );
   // A commit searched for by its hash, not listed, shows on its branch, or among all files.
   const walked = revisionText(ref ?? first?.branch ?? HEAD);
-  const showOn = useCallback(
-    (other: string) => setParams({ ...params, ref: other }),
-    [params, setParams],
-  );
-  const allFiles = useCallback(() => {
-    const { path: _, ...others } = params;
-    setParams(others);
-  }, [params, setParams]);
-  const columns = useMemo(
-    () => historyColumns(checkout, first?.head, { walked, path, showOn, allFiles }),
-    [checkout, first?.head, walked, path, showOn, allFiles],
-  );
+  const showOn = (other: string) => setParams({ ...params, ref: other });
+  const allFiles = () => setParams(withParam(params, "path", []));
+  const columns = historyColumns(checkout, first?.head, { walked, path, showOn, allFiles });
   const table = useListTable({
     columns,
     data: listed,
@@ -102,10 +93,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     meta: { now },
   });
 
-  const without = (name: string): Params => {
-    const { [name]: _, ...others } = params;
-    return others;
-  };
+  const without = (name: string): Params => withParam(params, name, []);
   let message: string | null = null;
   if (checkout === undefined) {
     message = "No Checkout: open History from a Clone or Worktree in Repositories.";

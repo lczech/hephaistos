@@ -3,12 +3,19 @@
 // Large, with its highlighter: loaded only once a diff shows (`LazyDiff`).
 
 import { DEFAULT_VIRTUAL_FILE_METRICS, getSingularPatch, hydratePartialDiff } from "@pierre/diffs";
-import type { FileDiffMetadata } from "@pierre/diffs/react";
-import { FileDiff, Virtualizer } from "@pierre/diffs/react";
+import type { FileDiffMetadata, WorkerPoolOptions } from "@pierre/diffs/react";
+import {
+  FileDiff,
+  useWorkerPool,
+  Virtualizer,
+  WorkerPoolContextProvider,
+} from "@pierre/diffs/react";
+import HighlightWorker from "@pierre/diffs/worker/worker.js?worker";
 import {
   createContext,
   type ReactNode,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -84,6 +91,27 @@ export function bothSides(fileDiff: FileDiffMetadata): FileDiffMetadata {
     : fileDiff;
 }
 
+// Highlighting in workers, so that the page stays responsive while large files are: a diff shows
+// as plain text until its colours come. Half the cores, at most 4, each worker with a highlighter
+// of its own; without workers (or if they fail to start), on the page, as before.
+const POOL: WorkerPoolOptions | undefined =
+  typeof Worker === "undefined"
+    ? undefined
+    : {
+        workerFactory: () => new HighlightWorker(),
+        poolSize: Math.min(4, Math.max(1, Math.floor((navigator.hardwareConcurrency || 2) / 2))),
+      };
+
+/** Tells the workers the code's themes, which settings may change. */
+function PoolThemes({ themes }: { themes: CodeThemes }) {
+  const pool = useWorkerPool();
+  const { light, dark } = themes;
+  useEffect(() => {
+    void pool?.setRenderOptions({ theme: { light, dark } });
+  }, [pool, light, dark]);
+  return null;
+}
+
 /** A line's height in pixels, as measured within a `DiffScroll`; 0 until known. */
 const LineHeight = createContext(0);
 
@@ -94,7 +122,15 @@ const LineHeight = createContext(0);
  * others while the view stays (with lines of 15px, e.g.). So a line's height is measured, and
  * again when the code's size changes.
  */
-export function DiffScroll({ className, children }: { className?: string; children: ReactNode }) {
+export function DiffScroll({
+  className,
+  themes,
+  children,
+}: {
+  className?: string;
+  themes: CodeThemes; // the diffs', for the workers that highlight them
+  children: ReactNode;
+}) {
   const line = useRef<HTMLDivElement>(null);
   const [lineHeight, setLineHeight] = useState(0);
   useLayoutEffect(() => {
@@ -107,11 +143,21 @@ export function DiffScroll({ className, children }: { className?: string; childr
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  return (
+  const scroll = (
     <Virtualizer className={className}>
       <div ref={line} style={{ position: "absolute", height: LINE_HEIGHT }} aria-hidden />
       <LineHeight.Provider value={lineHeight}>{children}</LineHeight.Provider>
     </Virtualizer>
+  );
+  if (POOL === undefined) return scroll;
+  return (
+    <WorkerPoolContextProvider
+      poolOptions={POOL}
+      highlighterOptions={{ theme: themes, lineDiffType: "word-alt" }}
+    >
+      <PoolThemes themes={themes} />
+      {scroll}
+    </WorkerPoolContextProvider>
   );
 }
 

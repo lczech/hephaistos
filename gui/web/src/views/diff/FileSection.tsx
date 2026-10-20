@@ -103,7 +103,8 @@ export function FileBody({ query, known, show, unchanged, estimate }: BodyProps)
   const twoSided = change && !change.binary && !["A", "?", "D"].includes(change.status);
   const due = Boolean(twoSided && patch && !waiting && !diff.isPlaceholderData);
   const versions = useDiffFiles(query, diff.dataUpdatedAt, due);
-  const shown = useRef<{ patch: string; versions: Versions | undefined }>(undefined);
+  // The patch shown and its versions: kept until a new patch's versions came too.
+  const [shown, setShown] = useState<{ patch: string; versions: Versions | undefined }>();
   const asking = estimate ? (
     <div className={styles.waiting} style={estimate} />
   ) : (
@@ -140,12 +141,17 @@ export function FileBody({ query, known, show, unchanged, estimate }: BodyProps)
       </p>
     );
   }
-  // This patch with its versions, once they came (or can't), else the patch shown before.
-  if (!due || versions.data !== undefined || versions.isError) {
-    shown.current = { patch, versions: due ? versions.data : undefined };
+  // This patch with its versions, once they came (or can't), else the patch shown before; kept
+  // as React keeps what a render showed, set while rendering.
+  const ready =
+    !due || versions.data !== undefined || versions.isError
+      ? { patch, versions: due ? versions.data : undefined }
+      : undefined;
+  if (ready && (ready.patch !== shown?.patch || ready.versions !== shown?.versions)) {
+    setShown(ready);
   }
-  if (shown.current === undefined) return asking;
-  const pair = shown.current;
+  const pair = ready ?? shown;
+  if (pair === undefined) return asking;
   // Its height as the patch has it, held until the renderer has drawn it.
   const newText = pair.versions?.new;
   const held = heightOf(

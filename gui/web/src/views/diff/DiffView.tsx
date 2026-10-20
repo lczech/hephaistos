@@ -324,7 +324,9 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           Shiki does.
         </p>
       )}
-      <LazyDiffScroll className={styles.diff}>{body}</LazyDiffScroll>
+      <LazyDiffScroll className={styles.diff} themes={themes}>
+        {body}
+      </LazyDiffScroll>
     </section>
   );
 }

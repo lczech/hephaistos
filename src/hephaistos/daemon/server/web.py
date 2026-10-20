@@ -18,9 +18,10 @@ ASSETS = "assets"  # files named by their content, so browsers may keep them for
 
 # What the page may load and where it may connect: only this Server. Inline styles are allowed
 # for the diff renderer, which sets its theme's colours in them; CSS injected into the page could
-# still send nothing out, as nothing else may load or connect.
+# still send nothing out, as nothing else may load or connect. Workers, from this Server too,
+# highlight the diffs' code.
 POLICY = (
-    "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    "default-src 'none'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline';"
     " img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none';"
     " frame-ancestors 'none'"
 )
