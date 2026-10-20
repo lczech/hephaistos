@@ -24,6 +24,17 @@ function Probe({ params, setParams, setTitle }: ViewProps) {
   );
 }
 
+/** A View with a field whose text is a parameter, changed at each key, as a search's. */
+function Typer({ params, setParams }: ViewProps) {
+  return (
+    <input
+      aria-label="Text"
+      value={typeof params.text === "string" ? params.text : ""}
+      onChange={(event) => setParams({ text: event.target.value }, true)}
+    />
+  );
+}
+
 /** A View linking to Probes 1 and 2, and saying which are shown. */
 function Linker() {
   const isShown = useIsShown();
@@ -252,6 +263,70 @@ describe("the Workbench", () => {
       await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
       await userEvent.click(screen.getByRole("button", { name: "probe?n=1" }));
       expect(groups()).toEqual([["linker", "Probe, 1h"]]);
+    });
+
+    it("goes back and forward through a Group's Views, by Alt+←/→", async () => {
+      renderWithQueries(<Workbench />);
+      const go = (key: string) => userEvent.keyboard(`{Alt>}{${key}}{/Alt}`);
+      const probe = (n: string) => screen.queryByRole("button", { name: `probe?n=${n}` });
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.click(screen.getByRole("tab", { name: "linker" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Probe 2" }));
+      expect(probe("2")).toBeInTheDocument();
+      await go("ArrowLeft");
+      expect(screen.getByRole("button", { name: "Probe 1" })).toBeInTheDocument();
+      await go("ArrowLeft"); // replaced by Probe 2, so shown in the preview again
+      expect(probe("1")).toBeInTheDocument();
+      expect(groups()).toEqual([["linker", "probe*"]]);
+      await go("ArrowLeft");
+      await go("ArrowLeft"); // nothing before
+      expect(screen.getByRole("button", { name: "Probe 1" })).toBeInTheDocument();
+      await go("ArrowRight");
+      expect(probe("1")).toBeInTheDocument();
+      await go("ArrowRight");
+      await go("ArrowRight");
+      expect(probe("2")).toBeInTheDocument();
+      expect(groups()).toEqual([["linker", "probe*"]]);
+    });
+
+    it("goes back by the mouse's side button through a View's changes, in its Panel", async () => {
+      renderWithQueries(<Workbench />);
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.click(screen.getByRole("button", { name: "probe?n=1" })); // narrowed, kept
+      const side = (button: number) =>
+        fireEvent.mouseUp(document.querySelector(".dv-groupview") as Element, { button });
+      expect(side(3)).toBe(false); // the browser's back prevented
+      expect(screen.getByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
+      expect(groups()).toEqual([["linker", "probe"]]);
+      side(3);
+      expect(screen.getByRole("button", { name: "Probe 1" })).toBeInTheDocument();
+      side(4);
+      expect(side(4)).toBe(false);
+      expect(screen.getByRole("button", { name: "probe?since=1h" })).toBeInTheDocument();
+      expect(groups()).toEqual([["linker", "probe"]]);
+    });
+
+    it("takes keys typed in a row as one step", async () => {
+      VIEWS.typer = Typer;
+      try {
+        save("typer");
+        renderWithQueries(<Workbench />);
+        const go = (key: string) => userEvent.keyboard(`{Alt>}{${key}}{/Alt}`);
+        const field = () => screen.getByRole("textbox", { name: "Text" });
+        await userEvent.type(field(), "abc");
+        await go("ArrowLeft");
+        expect(field()).toHaveValue("");
+        await go("ArrowRight");
+        expect(field()).toHaveValue("abc");
+        await go("ArrowLeft");
+        await userEvent.type(field(), "x"); // another step, Forward gone
+        await go("ArrowRight");
+        expect(field()).toHaveValue("x");
+        await go("ArrowLeft");
+        expect(field()).toHaveValue("");
+      } finally {
+        delete VIEWS.typer;
+      }
     });
 
     it("restores a preview as one", async () => {

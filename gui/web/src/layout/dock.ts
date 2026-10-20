@@ -50,6 +50,26 @@ function flash(panel: IDockviewPanel): void {
   (tab.closest(".dv-tab") ?? tab).animate(FLASH, { duration: 900, easing: "ease-out" });
 }
 
+// The Panels whose View was last changed by a key, e.g. typing a search; see `layout/visits.ts`.
+const typedInto = new WeakSet<object>();
+
+/** Notes whether a Panel's View is changed by a key: a run of them is one step back. */
+export function noteTyped(panel: Pick<IDockviewPanel, "api">, typed: boolean): void {
+  if (typed) typedInto.add(panel.api);
+  else typedInto.delete(panel.api);
+}
+
+export function wasTyped(panel: Pick<IDockviewPanel, "api">): boolean {
+  return typedInto.has(panel.api);
+}
+
+/** Shows another View in a Panel. */
+export function showIn(panel: IDockviewPanel, { kind, params }: Address): void {
+  noteTyped(panel, false);
+  panel.api.updateParameters({ kind, params });
+  panel.api.setTitle(viewTitle({ kind, params }));
+}
+
 /** The Group beside `from`, if it isn't alone; see `besideOf`. */
 function besideGroup(api: DockviewApi, from: IDockviewGroupPanel): DockviewGroupPanel | undefined {
   const others = api.groups.filter(
@@ -92,8 +112,7 @@ export function openView(
     ? group?.panels.find((panel) => isPreview(panel.params))
     : undefined;
   if (replaced !== undefined) {
-    replaced.api.updateParameters({ kind, params });
-    replaced.api.setTitle(title);
+    showIn(replaced, address);
     replaced.api.setActive();
     return replaced;
   }

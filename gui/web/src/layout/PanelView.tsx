@@ -4,7 +4,7 @@ import { Boundary } from "../components/Boundary";
 import { viewComponent } from "../views";
 import { type Address, asAddress, type Params } from "../views/address";
 import { type Opening, OpenViewContext } from "../views/opening";
-import { openView, PREVIEW } from "./dock";
+import { noteTyped, openView, PREVIEW } from "./dock";
 import styles from "./layout.module.css";
 
 /** A Panel's content: the View its parameters name, kept from failing the other Panels. */
@@ -13,8 +13,10 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
   const name = address?.kind;
   const setParams = useCallback(
     // Changing a preview keeps it.
-    (changed: Params) =>
-      api.updateParameters({ kind: name, params: changed, [PREVIEW]: undefined }),
+    (changed: Params, typed = false) => {
+      noteTyped({ api }, typed);
+      api.updateParameters({ kind: name, params: changed, [PREVIEW]: undefined });
+    },
     [api, name],
   );
   const setTitle = useCallback((title: string) => api.setTitle(title), [api]);

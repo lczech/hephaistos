@@ -11,6 +11,7 @@ import { Placeholder } from "./Placeholder";
 import { savedLayout, saveLayout } from "./saved";
 import { useDockRegistry } from "./ViewOpener";
 import { ViewTab } from "./ViewTab";
+import { keepVisits } from "./visits";
 
 const SAVE_DELAY = 300; // ms: a drag or resize saves once, when it ends
 
@@ -133,6 +134,7 @@ export function Workbench() {
       keepShown(api, setShown),
     ];
     restore(api);
+    attached.current.push(keepVisits(api)); // from the Views restored
     register(api);
   };
   return (

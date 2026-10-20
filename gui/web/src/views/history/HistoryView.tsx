@@ -160,6 +160,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
             onChange={(text) =>
               setParams(
                 searchWords(text).length > 0 ? { ...params, search: text } : without("search"),
+                true,
               )
             }
           />

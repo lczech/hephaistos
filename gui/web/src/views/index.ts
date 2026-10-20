@@ -14,7 +14,9 @@ import { RepositoriesView } from "./repositories/RepositoriesView";
 /** What a View gets: its parameters, and ways to change them and what its tab says. */
 export interface ViewProps {
   params: Params;
-  setParams: (params: Params) => void; // shows others instead, e.g. when filtered
+  // Shows others instead, e.g. when filtered; `typed`: by a key, going on with the step of the
+  // key before (`layout/visits.ts`).
+  setParams: (params: Params, typed?: boolean) => void;
   setTitle: (title: string) => void; // if not just the kind's name
 }
 
