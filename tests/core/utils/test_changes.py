@@ -196,6 +196,25 @@ def test_since_head_includes_staged_unstaged_and_untracked(repo: Path) -> None:
     assert [change.path for change in found.groups[0].changes] == ["a.txt", "b.txt", "new.txt"]
 
 
+def test_from_the_working_tree_untracked_files_are_deleted(repo: Path) -> None:
+    _write(repo, "new.txt", "one\ntwo\n")
+    _write(repo, "folder/inside.txt", "x\n")
+    [forward] = _changes(repo, "HEAD", "working-tree").groups
+    [backward] = _changes(repo, "working-tree", "HEAD").groups
+    assert [(change.path, change.status) for change in forward.changes] == [
+        ("folder/", "?"),
+        ("new.txt", "?"),
+    ]
+    assert [(change.path, change.status) for change in backward.changes] == [
+        ("folder/", "D"),
+        ("new.txt", "D"),
+    ]
+    assert backward.changes[1] == Change("new.txt", "D", added=0, removed=2)
+    assert [group.changes for group in _changes(repo, "working-tree", "index").groups] == [
+        backward.changes
+    ]
+
+
 def test_unborn_head_is_empty(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -345,6 +364,16 @@ def test_diff_of_an_untracked_file(repo: Path) -> None:
     (repo / ".gitignore").write_text("*.log\n")
     _write(repo, "debug.log", "x\n")
     assert diff(repo, "index", "working-tree", "debug.log", max_bytes=1000).change is None
+
+
+def test_diff_of_an_untracked_file_from_the_working_tree(repo: Path) -> None:
+    _write(repo, "notes.md", "a\nb\n")
+    found = diff(repo, "working-tree", "HEAD", "notes.md", max_bytes=1000)
+    assert found.change == Change("notes.md", "D", added=0, removed=2)
+    assert _patch_lines(found.patch) == ["@@ -1,2 +0,0 @@", "-a", "-b"]
+    _write(repo, "image.bin", b"\0\1\2")
+    binary = diff(repo, "working-tree", "index", "image.bin", max_bytes=1000)
+    assert binary.change == Change("image.bin", "D", binary=True, old_size=3)
 
 
 def test_no_patch_for_binary_or_large_files(repo: Path) -> None:

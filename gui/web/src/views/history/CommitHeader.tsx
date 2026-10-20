@@ -1,35 +1,33 @@
-import { ChevronRight, GitCommitVertical, GitMerge } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, GitCommitVertical, GitCompare, GitMerge } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { shortHash } from "../../revisions";
-import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, CommitLink, RefLabels } from "./CommitBox";
 import styles from "./CommitBox.module.css";
 
-interface Props {
-  shown: Schemas["ShownCommitJson"];
+type Shown = Schemas["ShownCommitJson"];
+
+interface LineProps {
+  shown: Shown;
   checkout: Checkout;
-  now: number;
+  open: boolean;
+  onToggle: () => void;
+  /** To compare other Revisions instead, from its first parent to it; none for a root commit. */
+  onCompare?: () => void;
 }
 
 /**
- * Above a commit's changes: the commit in one line, which opens all about it below; whether
- * nothing leads to it any more, and what amends of it led to.
+ * A commit whose changes are shown, in one line in the View's bar, where two Revisions compared
+ * would be: it opens all about the commit below the bar (`CommitBelow`); a button at its end
+ * compares other Revisions instead.
  */
-export function CommitHeader({ shown, checkout, now }: Props) {
-  const [open, setOpen] = useState(false);
+export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineProps) {
   const { commit } = shown;
-  const amended = shown.amended_as && (
-    <>
-      {" "}
-      Amended as <CommitLink hash={shown.amended_as} checkout={checkout} />.
-    </>
-  );
   if (commit === null) {
     return (
       <p className={styles.gone}>
-        {shortHash(shown.name)} is no longer in this Checkout.{amended}
+        {shortHash(shown.name)} is no longer in this Checkout.
+        <Amended shown={shown} checkout={checkout} />
       </p>
     );
   }
@@ -39,7 +37,7 @@ export function CommitHeader({ shown, checkout, now }: Props) {
         type="button"
         className={styles.line}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={onToggle}
         title="Show commit details"
       >
         <ChevronRight className={styles.chevron} aria-hidden="true" />
@@ -50,20 +48,64 @@ export function CommitHeader({ shown, checkout, now }: Props) {
           <GitMerge className={styles.icon} aria-label="Merge commit" />
         )}
         <span className={styles.lineSubject}>{commit.subject}</span>
-        <span className={styles.by} title={fullTime(commit.author.at)}>
-          {commit.author.name}, {ago(commit.author.at, now)}
-        </span>
       </button>
+      {onCompare && (
+        <button
+          type="button"
+          className={styles.compare}
+          onClick={onCompare}
+          aria-label="Compare with other Revisions"
+          title="Compare with other Revisions: from its first parent to it, then pick others"
+        >
+          <GitCompare aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Below the bar with a commit's line: whether nothing leads to the commit any more, and what
+ * amends of it led to; all about it, while open.
+ */
+export function CommitBelow({
+  shown,
+  checkout,
+  now,
+  open,
+}: {
+  shown: Shown;
+  checkout: Checkout;
+  now: number;
+  open: boolean;
+}) {
+  const { commit } = shown;
+  if (commit === null) return null;
+  return (
+    <>
       {!shown.reachable && (
         <p className={styles.gone}>
-          Not on any branch or tag: amended, rebased, or reset away.{amended}
+          Not on any branch or tag: amended, rebased, or reset away.
+          <Amended shown={shown} checkout={checkout} />
         </p>
       )}
       {open && (
-        <div className={styles.frame}>
-          <CommitBox commit={commit} checkout={checkout} now={now} />
+        <div className={styles.below}>
+          <div className={styles.frame}>
+            <CommitBox commit={commit} checkout={checkout} now={now} />
+          </div>
         </div>
       )}
-    </div>
+    </>
+  );
+}
+
+function Amended({ shown, checkout }: { shown: Shown; checkout: Checkout }) {
+  if (!shown.amended_as) return null;
+  return (
+    <>
+      {" "}
+      Amended as <CommitLink hash={shown.amended_as} checkout={checkout} />.
+    </>
   );
 }

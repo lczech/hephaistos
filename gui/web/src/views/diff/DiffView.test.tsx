@@ -53,12 +53,16 @@ const PATCH = "diff --git a/src/main.py b/src/main.py\n@@ -1 +1 @@\n-a\n+b\n";
 /** The Server, answering for the diff and the settings; returns the requests asked. */
 function serveDiff(
   diff: Schemas["DiffJson"],
-  { theme = "github-dark", changes = [] as Schemas["ChangeGroupJson"][] } = {},
+  {
+    theme = "github-dark",
+    changes = [] as Schemas["ChangeGroupJson"][],
+    commit = null as Schemas["ShownCommitJson"] | null,
+  } = {},
 ): Request[] {
   return serve({
     "GET /api/diff": () => json(diff),
     "GET /api/diff/files": () => json({ old: "a\n", new: "b\n" }),
-    "GET /api/changes": () => json({ branch: null, groups: changes }),
+    "GET /api/changes": () => json({ branch: null, groups: changes, commit }),
     "GET /api/config": () =>
       json({
         host: "laptop",
@@ -93,9 +97,26 @@ function Diff({ initial }: { initial: Params }) {
 afterEach(() => localStorage.clear());
 
 describe("the Diff View", () => {
-  it("shows a file's diff in a commit", async () => {
-    const requests = serveDiff({ change: change(), patch: PATCH });
+  it("shows a file's diff in a commit, its line in the bar, leading to other Revisions", async () => {
     const hash = "c".repeat(40);
+    const parent = "b".repeat(40);
+    const person = { name: "Lucas", email: "lucas@example.org", at: new Date().toISOString() };
+    const shown = {
+      name: hash,
+      commit: {
+        hash,
+        parents: [parent],
+        subject: "Fix the parser",
+        body: "",
+        author: person,
+        committer: person,
+        refs: [],
+        renamed_from: null,
+      },
+      reachable: true,
+      amended_as: null,
+    };
+    const requests = serveDiff({ change: change(), patch: PATCH }, { commit: shown });
     renderWithQueries(
       <Diff initial={{ clone: "clone-proj", commit: hash, path: "src/main.py" }} />,
     );
@@ -105,7 +126,15 @@ describe("the Diff View", () => {
       `?clone=clone-proj&commit=${hash}&path=src%2Fmain.py&context=5`,
     );
     expect(screen.getByRole("heading")).toHaveTextContent("Diff: main.py, ccccccc");
-    expect(within(screen.getByRole("figure")).getByText("ccccccc")).toBeInTheDocument();
+    const line = await screen.findByRole("button", { name: /Fix the parser/ });
+    expect(line).toHaveTextContent("ccccccc");
+    await userEvent.click(line);
+    expect(screen.getByText("Lucas <lucas@example.org>")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Compare with other Revisions" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      `diff?clone=clone-proj&from=${parent}&path=src%2Fmain.py&to=${hash}`,
+    );
+    expect(screen.getByRole("button", { name: "Compare from: bbbbbbb" })).toBeInTheDocument();
   });
 
   it("shows git's patch, as chosen to look, for all Diffs", async () => {
@@ -113,7 +142,10 @@ describe("the Diff View", () => {
     renderWithQueries(<Diff initial={STAGED} />);
     expect(await screen.findByText(/^diff --git/)).toHaveTextContent("+b");
     expect(screen.getByRole("heading")).toHaveTextContent("Diff: main.py, staged");
-    expect(within(screen.getByRole("figure")).getByText("staged")).toBeInTheDocument();
+    // What is compared, in the bar, not again above the diff.
+    expect(screen.getByRole("button", { name: "Compare from: HEAD" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare to: Staged (index)" })).toBeInTheDocument();
+    expect(within(screen.getByRole("figure")).queryByText("staged")).toBeNull();
     expect(screen.getByText(/"split"/)).toHaveTextContent(
       '{"split":true,"wrap":false,"whole":false}',
     );

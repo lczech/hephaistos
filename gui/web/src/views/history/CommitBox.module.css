@@ -72,18 +72,49 @@
   gap: var(--space-3);
 }
 
-/* A commit's changes' header: one line, opening all about it below, framed as a row's details. */
+/* A commit whose changes show: one line in the bar, where two Revisions compared would be,
+   opening all about it below the bar, framed as a row's details; a button to compare others. */
 .header {
-  margin: var(--space-2) var(--space-3) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: var(--comparison-width);
+  max-width: 100%;
+}
+
+.below {
+  margin: var(--space-1) var(--space-3) 0;
+}
+
+.compare {
+  display: flex;
+  flex: none;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.compare:hover,
+.compare:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.compare svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 .line {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--space-2);
-  width: 100%;
   min-width: 0;
-  padding: var(--space-1) var(--space-2);
+  padding: 1px var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: none;
@@ -119,12 +150,6 @@
   white-space: nowrap;
 }
 
-.by {
-  flex: none;
-  color: var(--text-muted);
-  font-size: var(--text-small);
-}
-
 .frame {
   margin-top: var(--space-1);
   padding: var(--space-2) var(--space-3);
@@ -142,5 +167,5 @@
 }
 
 .header > .gone {
-  margin: var(--space-1) 0 0;
+  margin: 0;
 }

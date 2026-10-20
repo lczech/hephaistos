@@ -1,11 +1,11 @@
 import {
   ChevronDown,
   Cloud,
+  Focus,
   FolderPen,
   GitBranch,
   GitCommitVertical,
   ListChecks,
-  LocateFixed,
   type LucideIcon,
   Tag,
 } from "lucide-react";
@@ -478,7 +478,7 @@ function ranked<T>(items: T[], name: (item: T) => string, typed: string): T[] {
 const FIXED_ICONS: Record<FixedRow, LucideIcon> = {
   [WORKING_TREE]: FolderPen,
   [INDEX]: ListChecks,
-  [HEAD]: LocateFixed,
+  [HEAD]: Focus,
 };
 
 const FIXED_WORDS: Record<FixedRow, string> = {

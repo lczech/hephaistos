@@ -20,6 +20,8 @@
   --space-3: 0.75rem;
   --space-4: 1rem;
   --radius: 6px;
+  /* Two Revisions compared, or the commit in their place, in a View's bar. */
+  --comparison-width: 34rem;
 
   /* Icons beside text: their centre a little above the middle of its capitals, where they look
      centred. Inline ones (1em high) by vertical-align, ones centred on their line by translate. */

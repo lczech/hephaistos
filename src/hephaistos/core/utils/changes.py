@@ -287,6 +287,20 @@ def _untracked(status: git.Status) -> list[Change]:
     return [Change(entry.path, "?") for entry in status.entries if entry.index == "?"]
 
 
+def _untracked_deleted(change: Change) -> Change:
+    """An untracked file or new folder, compared from the working tree: deleted."""
+    if change.status != "?":
+        return change
+    return replace(
+        change,
+        status="D",
+        added=change.removed,
+        removed=change.added,
+        size=None,
+        old_size=change.size,
+    )
+
+
 def _untracked_counted(top: Path, path: str, max_bytes: int) -> Change:
     """An untracked file with its lines counted, or a new folder with its files."""
     return _folder(top, path) if path.endswith("/") else _counted(top, path, max_bytes)
@@ -364,11 +378,13 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
     arguments = diff_arguments(*resolved)
     found = [] if arguments is None else _diff(top, arguments, pathspec)
     status = None
-    if target == WORKING_TREE:  # untracked files are part of it
+    if WORKING_TREE in (base, target):  # untracked files are part of it
         status = _status(top, pathspec)
-        if base != WORKING_TREE:
+        if base != target:
             found += _untracked(status)
     group = _group(top, "changes", base, target, found, limit=max_files, max_bytes=max_bytes)
+    if base == WORKING_TREE:  # from it, they are deleted
+        group = replace(group, changes=tuple(map(_untracked_deleted, group.changes)))
     return Changes(status, (group,) if group.count else ())
 
 
@@ -450,20 +466,26 @@ def _untracked_file(top: Path, path: str) -> bool:
     return path in listed.split("\0")
 
 
-def _patch(
-    top: Path, arguments: list[str], change: Change, max_bytes: int, context: int
+def _patch(  # noqa: PLR0913 - the change, then how
+    top: Path,
+    arguments: list[str],
+    change: Change,
+    max_bytes: int,
+    context: int,
+    *,
+    untracked: bool = False,
 ) -> str | None:
     """The patch git makes for a change; None if binary, uncounted, or above `max_bytes`.
 
-    `context` unchanged lines surround each hunk.
+    `context` unchanged lines surround each hunk. An untracked file is compared with nothing:
+    added, or deleted when compared from the working tree.
     """
     if change.binary or change.added is None:
         return None
     patch = (*_PATCH, f"--unified={context}")
-    if change.status == "?":
-        result = git.run_bounded(
-            top, *patch, "--no-index", "--", "/dev/null", change.path, max_bytes=max_bytes
-        )
+    if untracked:
+        sides = (change.path, "/dev/null") if change.status == "D" else ("/dev/null", change.path)
+        result = git.run_bounded(top, *patch, "--no-index", "--", *sides, max_bytes=max_bytes)
         succeeded = (0, 1)  # 1: they differ
     else:
         paths = [*([change.original] if change.original else []), change.path]
@@ -486,19 +508,22 @@ def diff(  # noqa: PLR0913 - the comparison, then how
     """A file's change from `base` to `target` in the working tree at `top`, with git's patch.
 
     A renamed file is found by its new path or its original one. An untracked file counts as
-    added to the working tree. Patches larger than `max_bytes` are left out; `context` lines
-    surround each hunk, as git's `--unified`.
+    added to the working tree, and deleted from it. Patches larger than `max_bytes` are left
+    out; `context` lines surround each hunk, as git's `--unified`.
     """
     _file_path(path)
     arguments = diff_arguments(_resolved(top, base), _resolved(top, target))
     if arguments is None:
         return Diff(None, None)
     change = _changed(top, arguments, path)
-    if change is None and target == WORKING_TREE and _untracked_file(top, path):
+    untracked = change is None and WORKING_TREE in (base, target) and _untracked_file(top, path)
+    if untracked:
         change = _counted(top, path, max_bytes)
+        if base == WORKING_TREE:
+            change = _untracked_deleted(change)
     if change is None:
         return Diff(None, None)
-    return Diff(change, _patch(top, arguments, change, max_bytes, context))
+    return Diff(change, _patch(top, arguments, change, max_bytes, context, untracked=untracked))
 
 
 def _contents(top: Path, revision: str, path: str, max_bytes: int) -> str | None:

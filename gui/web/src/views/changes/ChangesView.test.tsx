@@ -135,6 +135,41 @@ describe("the Changes View", () => {
     expect(screen.getByText("4 files, +28 −8")).toBeInTheDocument();
     expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj");
     expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Compare from: HEAD (main)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare to: Working tree" })).toBeInTheDocument();
+  });
+
+  it("compares Revisions picked or swapped, grouping only HEAD's to the working tree", async () => {
+    const requests = serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ branch: BRANCH, commit: null, groups: [] }),
+      "GET /api/history": () =>
+        json({
+          head: "abc",
+          branch: "main",
+          refs: [{ name: "v1", full: "refs/tags/v1", kind: "tag", commit: "abc" }],
+          commits: [],
+          next: null,
+          found: null,
+        }),
+    });
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Swap" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "changes?clone=clone-proj&from=working-tree&to=HEAD",
+    );
+    expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /^Compare to: / }));
+    await userEvent.click(await screen.findByRole("option", { name: "v1" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "changes?clone=clone-proj&from=working-tree&to=refs%2Ftags%2Fv1",
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, working tree → v1");
+    const asked = requests.filter((request) => new URL(request.url).pathname === "/api/changes");
+    expect(new URL(asked.at(-1)?.url ?? "").searchParams.get("to")).toBe("refs/tags/v1");
   });
 
   it("opens a new folder, asking for the files in it, and closes a group", async () => {
@@ -246,10 +281,17 @@ describe("the Changes View", () => {
     expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
     expect(screen.getByText(/^Not on any branch or tag/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Changes in commit ddddddd" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Compare from/ })).toBeNull();
     const header = screen.getByRole("button", { name: /Fix it/ });
     await userEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Why.")).toBeInTheDocument();
+    // Other Revisions instead: from its first parent to it, to pick others.
+    await userEvent.click(screen.getByRole("button", { name: "Compare with other Revisions" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      `changes?clone=clone-proj&from=${"b".repeat(40)}&to=${hash}`,
+    );
+    expect(screen.getByRole("button", { name: "Compare to: ccccccc" })).toBeInTheDocument();
   });
 
   it("says when git has a commit no longer", async () => {
@@ -267,18 +309,29 @@ describe("the Changes View", () => {
     expect(await screen.findByText("abc1234 is no longer in this Checkout.")).toBeInTheDocument();
   });
 
-  it("compares since HEAD, and sorts by lines, in its parameters", async () => {
-    serveChanges();
+  it("shows the changes since HEAD together, as chosen in this browser, also after swapping", async () => {
+    const requests = serveChanges();
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Staged");
-    await userEvent.click(screen.getByRole("button", { name: "Groups" }));
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "changes?clone=clone-proj&from=HEAD&to=working-tree",
-    );
-    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, HEAD → working tree");
-    expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "false");
-    await userEvent.click(screen.getByRole("button", { name: "Groups" }));
-    expect(screen.getByRole("status")).toHaveTextContent("changes?clone=clone-proj");
+    const groups = () => screen.getByRole("button", { name: "Groups" });
+    await userEvent.click(groups());
+    // How they show isn't what is compared: the address stays, the choice is kept.
+    expect(screen.getByRole("status")).toHaveTextContent(/^changes\?clone=clone-proj$/);
+    expect(groups()).toHaveAttribute("aria-pressed", "false");
+    expect(JSON.parse(localStorage.getItem("hephaistos.changes") ?? "")).toEqual({
+      grouped: false,
+    });
+    const asked = () =>
+      requests.filter((request) => new URL(request.url).pathname === "/api/changes").at(-1)?.url;
+    expect(new URL(asked() ?? "").search).toBe("?clone=clone-proj&from=HEAD&to=working-tree");
+    await userEvent.click(screen.getByRole("button", { name: "Swap" }));
+    expect(screen.getByRole("status")).toHaveTextContent("from=working-tree&to=HEAD");
+    expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Swap" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/^changes\?clone=clone-proj$/);
+    expect(groups()).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(groups());
+    expect(await screen.findByText("Staged")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "lines" }));
     expect(screen.getByRole("status")).toHaveTextContent("sort=-lines");
     expect(rows().slice(4, 7)).toEqual([

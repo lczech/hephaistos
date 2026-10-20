@@ -40,6 +40,11 @@ export function Choice({ label, on, onChange, ways }: ChoiceProps) {
   );
 }
 
+/** A line of its own at the bar's foot: what the View shows holds, e.g. how many files. */
+export function BarLine({ children }: { children: ReactNode }) {
+  return <div className={styles.line}>{children}</div>;
+}
+
 /** The bar's end, after what it says: its buttons, then Refresh. */
 export function BarEnd({ children }: { children: ReactNode }) {
   return <div className={styles.end}>{children}</div>;

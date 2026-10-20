@@ -1,0 +1,34 @@
+/* From and to, as wide as each other, a swap button between them. */
+.compared {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: var(--comparison-width);
+  max-width: 100%;
+}
+
+.picker {
+  flex: 1 1 0;
+}
+
+.swap {
+  display: flex;
+  flex: none;
+  padding: 2px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.swap:hover,
+.swap:focus-visible {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  color: var(--text);
+}
+
+.swap svg {
+  width: 1.1em;
+  height: 1.1em;
+}

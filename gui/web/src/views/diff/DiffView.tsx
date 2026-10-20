@@ -22,7 +22,9 @@ import { LazyDiff } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
+import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
+import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutOf } from "../changes/checkout";
 import { ChangePath, Lines } from "../changes/columns";
 import {
@@ -35,6 +37,7 @@ import {
   otherText,
   pathParts,
 } from "../changes/rows";
+import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
@@ -99,13 +102,28 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
 }
 
 /**
- * A file's diff from one revision to another (its parameters `from` and `to`: a commit, `index`
- * or `working-tree`), as git's patch has it, highlighted. More of the file shows on asking. Large
- * diffs wait to be shown; one that is empty says where the file's changes are now.
+ * A file's diff from one Revision to another (its parameters `from` and `to`, picked in its
+ * bar), or in a commit (`commit`, its line in the bar instead), as git's patch has it,
+ * highlighted. More of the file shows on asking. Large diffs wait to be shown; one that is empty
+ * says where the file's changes are now.
  */
 export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const query = diffQuery(params);
   const diff = useDiff(query);
+  const checkout = checkoutOf(params);
+  const [commit] = paramValues(params.commit);
+  // A commit's, for its line: the file's changes in it, with all about the commit.
+  const ofCommit = useChanges(
+    checkout && query && commit !== undefined ? { ...checkout, commit, path: query.path } : {},
+  );
+  const shown = commit === undefined ? undefined : ofCommit.data?.commit;
+  const [details, setDetails] = useState(false);
+  const now = useNow(10_000);
+  const { from: _, to: __, commit: ___, ...others } = params;
+  const compare = (next: Compared) => setParams({ ...others, ...next });
+  const [parent] = shown?.commit?.parents ?? [];
+  const parentToCommit =
+    parent && shown?.commit ? { from: parent, to: shown.commit.hash } : undefined;
   const client = useQueryClient();
   const [look, setLook] = useAtom(diffLook());
   const view = useRef<HTMLElement>(null);
@@ -176,7 +194,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     body = (
       <LazyDiff
         patch={patch}
-        header={<FileHeader change={change} compared={queryText(query)} />}
+        header={<FileHeader change={change} />}
         look={{ ...look, split: look.split && !narrow }}
         themes={themes}
         versions={versions.data}
@@ -188,39 +206,55 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   return (
     <section ref={view} className={styles.view} data-stale={diff.isPlaceholderData || undefined}>
       <ViewBar>
-        <Choice
-          label="Side by side"
-          on={look.split && !narrow}
-          onChange={choose("split")}
-          ways={[
-            {
-              icon: StretchVertical,
-              title: narrow
-                ? "Show old and new side by side, once the Panel is wide enough"
-                : "Show old and new side by side",
-            },
-            { icon: StretchHorizontal, title: "Show old and new inline" },
-          ]}
-        />
-        <Choice
-          label="Wrap"
-          on={look.wrap}
-          onChange={choose("wrap")}
-          ways={[
-            { icon: TextWrap, title: "Wrap long lines" },
-            { icon: TableOfContents, title: "Scroll long lines" },
-          ]}
-        />
-        <Choice
-          label="Whole file"
-          on={look.whole}
-          onChange={choose("whole")}
-          ways={[
-            { icon: ListChevronsUpDown, title: "Show complete file" },
-            { icon: ListChevronsDownUp, title: "Show context around changes only" },
-          ]}
-        />
+        {checkout && query?.from && query.to && (
+          <ComparedPickers
+            checkout={checkout}
+            compared={{ from: query.from, to: query.to }}
+            onChange={compare}
+          />
+        )}
+        {checkout && shown && (
+          <CommitLine
+            shown={shown}
+            checkout={checkout}
+            open={details}
+            onToggle={() => setDetails(!details)}
+            onCompare={parentToCommit && (() => compare(parentToCommit))}
+          />
+        )}
         <BarEnd>
+          <Choice
+            label="Side by side"
+            on={look.split && !narrow}
+            onChange={choose("split")}
+            ways={[
+              {
+                icon: StretchVertical,
+                title: narrow
+                  ? "Show old and new side by side, once the Panel is wide enough"
+                  : "Show old and new side by side",
+              },
+              { icon: StretchHorizontal, title: "Show old and new inline" },
+            ]}
+          />
+          <Choice
+            label="Wrap"
+            on={look.wrap}
+            onChange={choose("wrap")}
+            ways={[
+              { icon: TextWrap, title: "Wrap long lines" },
+              { icon: TableOfContents, title: "Scroll long lines" },
+            ]}
+          />
+          <Choice
+            label="Whole file"
+            on={look.whole}
+            onChange={choose("whole")}
+            ways={[
+              { icon: ListChevronsUpDown, title: "Show complete file" },
+              { icon: ListChevronsDownUp, title: "Show context around changes only" },
+            ]}
+          />
           {query && (
             <ViewLink
               address={{ kind: "history", params: { ...checkoutOf(params), path: query.path } }}
@@ -234,6 +268,9 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           />
         </BarEnd>
       </ViewBar>
+      {shown && checkout && (
+        <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
+      )}
       {unknown.length > 0 && (
         <p className={styles.note}>
           Unknown code theme {unknown.join(", ")}: the default shows instead. The settings{" "}
@@ -247,17 +284,16 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
 }
 
 /**
- * Above the diff: what happened to the file, its path, the revisions compared, and its lines added
- * and removed.
+ * Above the diff: what happened to the file, its path, and its lines added and removed; what is
+ * compared, the bar says.
  */
-function FileHeader({ change, compared }: { change: Change; compared: string }) {
+function FileHeader({ change }: { change: Change }) {
   return (
     <div className={styles.header}>
       <ChangePath change={change} base="" />
       {change.original !== null && (
         <span className={styles.aside}>renamed from {change.original}</span>
       )}
-      <span className={styles.aside}>{compared}</span>
       {change.added !== null && change.removed !== null && (
         <Lines added={change.added} removed={change.removed} />
       )}
