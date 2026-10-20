@@ -177,7 +177,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
           <BarLine>
             {groups.length > 0 && (
               <span className={styles.totals} title="Total lines added and removed">
-                {totalsText(groups.flatMap((group) => group.changes))}
+                {totalsText(groups)}
               </span>
             )}
             {branch && <span title={branchTitle(branch)}>{branchMoves(branch)}</span>}

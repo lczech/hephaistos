@@ -8,6 +8,7 @@ import {
   otherText,
   pathParts,
   sizeText,
+  totalsText,
 } from "./rows";
 
 function change(path: string, fields: Partial<Change> = {}): Change {
@@ -68,6 +69,15 @@ describe("a change's texts", () => {
       ),
     ).toBe("10,000+ files, 2.0 MB");
     expect(otherText(change("a.py"))).toBeUndefined();
+  });
+
+  it("totals the files listed, a file in two groups once, and how many more there are", () => {
+    const staged = group("staged", [change("a", { added: 2 }), change("b")]);
+    const unstaged = group("unstaged", [change("a", { added: 1_500, removed: 3 })]);
+    expect(totalsText([staged, unstaged])).toBe("2 files, +1,503 −3");
+    expect(totalsText([staged, { ...unstaged, count: 1_650 }])).toBe(
+      "2 files, +1,503 −3 (1,649 more not listed)",
+    );
   });
 });
 
@@ -134,9 +144,12 @@ describe("the rows", () => {
     ]);
   });
 
-  it("say how many more there are than listed", () => {
+  it("say how many more there are than listed, and that a setting stops them", () => {
     const [row] = entries([group("unstaged", [change("a")], 1001)], nothingWithin, []);
-    expect(row?.subRows.at(-1)).toMatchObject({ type: "note", text: "and 1,000 more, not listed" });
+    expect(row?.subRows.at(-1)).toMatchObject({
+      type: "note",
+      text: "1,000 more not listed, as the setting gui.diff.max_files allows 1 per list",
+    });
   });
 
   it("hold a folder's files once asked, and say so meanwhile", () => {

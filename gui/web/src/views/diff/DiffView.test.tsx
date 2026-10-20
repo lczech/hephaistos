@@ -304,13 +304,17 @@ describe("the Diff View", () => {
       ],
     };
 
-    /** The Server, answering each file's diff with its patch; returns the paths asked. */
-    function serveAll(): { diffs: string[]; within: string[] } {
+    /**
+     * The Server, answering each file's diff with its patch, its list cut short of `count`;
+     * returns the paths asked.
+     */
+    function serveAll(count = GROUP.count): { diffs: string[]; within: string[] } {
       const asked = { diffs: [] as string[], within: [] as string[] };
       serve({
         "GET /api/changes": (request) => {
           const path = new URL(request.url).searchParams.get("path");
-          if (path === null) return json({ branch: null, groups: [GROUP], commit: null });
+          if (path === null)
+            return json({ branch: null, groups: [{ ...GROUP, count }], commit: null });
           asked.within.push(path);
           const files = [change({ path: "tmp/a.log", status: "?", added: 3, removed: 0 })];
           return json({ branch: null, groups: [{ ...GROUP, changes: files, count: 1 }] });
@@ -394,6 +398,17 @@ describe("the Diff View", () => {
       );
       expect(await screen.findByRole("figure")).toBeInTheDocument();
       expect(container.querySelector("[data-stale]")).toBeNull();
+    });
+
+    it("says that more aren't listed, past a setting, not at their end", async () => {
+      serveAll(1_004);
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      expect(await screen.findByText("3 files, +7 −1 (1,000 more not listed)")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "1,000 more not listed, as the setting gui.diff.max_files allows 4 per list.",
+        ),
+      ).toBeInTheDocument();
     });
 
     it("asks for a file's diff only as it comes near", async () => {

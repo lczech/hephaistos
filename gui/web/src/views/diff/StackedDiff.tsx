@@ -48,8 +48,9 @@ export function StackedDiff({ groups, query, base, show }: Props) {
     const changes = group.changes.filter(isUntracked);
     return changes.length > 0 ? [{ ...group, changes, count: changes.length }] : [];
   });
-  const listed = groups.reduce((sum, group) => sum + group.changes.length, 0);
-  const count = groups.reduce((sum, group) => sum + group.count, 0);
+  // Groups cut at the setting's cap, which their lists reached.
+  const cut = groups.filter((group) => group.count > group.changes.length);
+  const more = cut.reduce((sum, group) => sum + group.count - group.changes.length, 0);
   // Files collapsed to their headers, while this comparison shows.
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const collapse = (path: string) => (on: boolean) =>
@@ -75,7 +76,11 @@ export function StackedDiff({ groups, query, base, show }: Props) {
       {untracked.length > 0 && (
         <Untracked groups={untracked} query={query} base={base} show={show} />
       )}
-      {count > listed && <p className={styles.note}>{moreText(listed, count)}.</p>}
+      {more > 0 && (
+        <p className={styles.note}>
+          {moreText(more, Math.max(...cut.map((group) => group.changes.length)))}.
+        </p>
+      )}
     </>
   );
 }

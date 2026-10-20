@@ -152,8 +152,9 @@ function note(id: string, text: string): Entry {
   return { type: "note", id, text, subRows: [] };
 }
 
-export function moreText(listed: number, count: number): string {
-  return `and ${(count - listed).toLocaleString("en")} more, not listed`;
+/** That lists stop at the setting's cap, which those cut reached, not at their end. */
+export function moreText(more: number, cap: number): string {
+  return `${more.toLocaleString("en")} more not listed, as the setting gui.diff.max_files allows ${cap.toLocaleString("en")} per list`;
 }
 
 type WithinOf = (group: Group, folder: Change) => Within;
@@ -182,7 +183,9 @@ function withinRows(group: Group, folder: Change, within: Within, sorted: Sortin
   if ("error" in within) return [note(`${id}error`, `Couldn't load: ${within.error}`)];
   const rows = changeRows(group, within.changes, folder.path, () => undefined, sorted);
   if (within.count > within.changes.length) {
-    rows.push(note(`${id}more`, moreText(within.changes.length, within.count)));
+    rows.push(
+      note(`${id}more`, moreText(within.count - within.changes.length, within.changes.length)),
+    );
   }
   return rows;
 }
@@ -220,7 +223,12 @@ export function entries(groups: Group[], within: WithinOf, sorted: SortingState)
       ...changeRows(group, byDirectory.get("") ?? [], "", within, sorted),
     ];
     if (group.count > group.changes.length) {
-      rows.push(note(`${group.name}:more`, moreText(group.changes.length, group.count)));
+      rows.push(
+        note(
+          `${group.name}:more`,
+          moreText(group.count - group.changes.length, group.changes.length),
+        ),
+      );
     }
     return { type: "group", group, subRows: rows };
   });
@@ -260,7 +268,7 @@ export function sizeText(bytes: number): string {
 
 /** Lines added and removed: `+12 −3`. */
 export function linesText(added: number, removed: number): string {
-  return `+${added} −${removed}`;
+  return `+${added.toLocaleString("en")} −${removed.toLocaleString("en")}`;
 }
 
 /** What changed in a file, if not its lines: `binary, 1.2 → 1.4 MB`, `12 MB, not counted`. */
@@ -282,12 +290,18 @@ export function otherText(change: Change): string | undefined {
   return undefined;
 }
 
-/** How many files these changes are, and their lines added and removed: `3 files, +12 −3`. */
-export function totalsText(changes: Change[]): string {
+/**
+ * How many files the groups list, and their lines added and removed: `3 files, +12 −3`; and how
+ * many more they have than listed, whose lines are unknown: `(649 more not listed)`.
+ */
+export function totalsText(groups: Group[]): string {
+  const changes = groups.flatMap((group) => group.changes);
   const files = new Set(changes.filter((change) => !isFolder(change)).map((change) => change.path))
     .size;
   const { added, removed } = totals(changes);
-  return `${files} ${files === 1 ? "file" : "files"}, ${linesText(added, removed)}`;
+  const text = `${files.toLocaleString("en")} ${files === 1 ? "file" : "files"}, ${linesText(added, removed)}`;
+  const more = groups.reduce((sum, group) => sum + group.count - group.changes.length, 0);
+  return more > 0 ? `${text} (${more.toLocaleString("en")} more not listed)` : text;
 }
 
 /** Lines added and removed in these changes, which have them. */
