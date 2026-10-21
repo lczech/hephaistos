@@ -216,7 +216,9 @@ describe("the Workbench", () => {
     await userEvent.click(inEvents as HTMLElement);
     expect(tabs()).toEqual(["Repositories", "Events"]);
     const [repositories] = screen.getAllByRole("tab");
-    expect(animate.mock.contexts).toEqual([repositories]);
+    expect(animate.mock.contexts).toEqual([
+      within(repositories as HTMLElement).getByTitle("Repositories"),
+    ]);
     animate.mockRestore();
   });
 

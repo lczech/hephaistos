@@ -45,11 +45,18 @@ const FLASH: Keyframe[] = [
   { offset: 0.4, ...MARKED },
 ];
 
+// Each Panel's tab, ours within dockview's, by the Panel's ID; see `ViewTab`.
+const tabs = new Map<string, HTMLElement>();
+
+/** Notes a Panel's tab, or that it is gone. */
+export function noteTab(panel: string, element: HTMLElement | null): void {
+  if (element === null) tabs.delete(panel);
+  else tabs.set(panel, element);
+}
+
 /** Marks a Panel's tab for a moment, to show where a View already open is. */
 function flash(panel: IDockviewPanel): void {
-  // biome-ignore lint/plugin: dockview's tab around our own, which alone has its colours
-  const tab = panel.view.tab.element;
-  (tab.closest(".dv-tab") ?? tab).animate(FLASH, { duration: 900, easing: "ease-out" });
+  tabs.get(panel.id)?.animate(FLASH, { duration: 900, easing: "ease-out" });
 }
 
 // Where keys go in each Panel's View, by the Panel's ID; see `views/keys.ts`.

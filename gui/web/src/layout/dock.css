@@ -24,3 +24,8 @@
   --dv-tabs-container-scrollbar-color: var(--text-muted);
   --dv-floating-border: 1px solid var(--border);
 }
+
+/* Our tab fills dockview's, taking its padding (`ViewTab`). */
+.hephaistos-dock .dv-tab {
+  padding: 0;
+}
