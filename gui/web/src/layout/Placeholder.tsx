@@ -1,9 +1,13 @@
 import type { DockviewApi, IWatermarkPanelProps } from "dockview-react";
 import { useSyncExternalStore } from "react";
+import { TextIcon } from "../components/TextIcon";
+import { KINDS, type KindName } from "../views/kinds";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
-import { ViewList } from "./ViewList";
 import { useSideButtons } from "./visits";
+
+// The Views to start with.
+const SUGGESTED: KindName[] = ["repositories", "events"];
 
 /** How many Groups there are, following them as they come and go. */
 function useGroupCount(api: DockviewApi): number {
@@ -26,10 +30,23 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.placeholder} onMouseUp={sideButtons}>
       <p>Open a View:</p>
-      <ViewList
-        suggested
-        open={(kind) => openView(containerApi, { kind, params: {} }, {}, group)}
-      />
+      <ul className={styles.views}>
+        {SUGGESTED.map((kind) => {
+          const { name, icon } = KINDS[kind];
+          return (
+            <li key={kind}>
+              <button
+                type="button"
+                className={styles.choice}
+                onClick={() => openView(containerApi, { kind, params: {} }, {}, group)}
+              >
+                <TextIcon icon={icon} className={styles.choiceIcon} />
+                {name}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
       {group && groups > 1 && (
         <button type="button" className={styles.close} onClick={() => group.api.close()}>
           Close this Group

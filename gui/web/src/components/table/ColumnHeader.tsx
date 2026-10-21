@@ -1,6 +1,14 @@
 import { ArrowDown, ArrowUp, Funnel } from "lucide-react";
-import { type ReactNode, useId, useRef } from "react";
-import { placeBelow } from "../popover";
+import { type ReactNode, type RefObject, useRef } from "react";
+import {
+  Dialog,
+  DialogTrigger,
+  Menu,
+  MenuItem,
+  MenuTrigger,
+  Popover,
+  Pressable,
+} from "react-aria-components";
 import popover from "../popover.module.css";
 import { type ColumnLook, Resizer } from "./columns";
 import { type Choice, filterText, toggled } from "./filters";
@@ -35,8 +43,7 @@ interface Props {
  */
 export function ColumnHeader({ header, choices = [], children }: Props) {
   const { column } = header;
-  const menu = useRef<HTMLDivElement>(null);
-  const id = useId();
+  const own = useRef<HTMLSpanElement>(null);
   const values = (column.getFilterValue() as string[] | undefined) ?? [];
   const look = column.columnDef.meta?.filter;
   const filter = look?.linked && values.length === 0 ? undefined : look;
@@ -45,6 +52,7 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
   const description = column.columnDef.meta?.description;
   return (
     <span
+      ref={own}
       className={styles.header}
       data-column={column.id}
       data-end={column.columnDef.meta?.end || undefined}
@@ -64,26 +72,24 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
           </span>
         ))}
       {filter !== undefined && (
-        <>
-          <button
-            type="button"
-            className={styles.filter}
-            popoverTarget={id}
-            // Below the whole header, so the choices line up with their column.
-            onClick={(event) => placeBelow(menu.current, event.currentTarget.parentElement, "left")}
-            aria-label={`Filter by ${column.id}`}
-            title={text === undefined ? `Filter by ${column.id}` : `${column.id}: ${text}`}
-          >
-            <Funnel aria-hidden="true" />
-          </button>
-          <div id={id} ref={menu} popover="auto" className={`${popover.menu} ${styles.menu}`}>
-            {filter.many === undefined ? (
-              <OneChoice choices={choices} values={values} set={set} menu={id} />
+        <Filter
+          header={own}
+          name={column.id}
+          text={text}
+          choices={
+            filter.many === undefined ? (
+              <OneChoice choices={choices} values={values} set={set} name={column.id} />
             ) : (
-              <ManyChoices choices={choices} values={values} set={set} />
-            )}
-          </div>
-        </>
+              <Dialog
+                className={`${popover.menu} ${styles.menu}`}
+                aria-label={`Filter by ${column.id}`}
+              >
+                <ManyChoices choices={choices} values={values} set={set} />
+              </Dialog>
+            )
+          }
+          menu={filter.many === undefined}
+        />
       )}
       {column.getCanResize() && <Resizer header={header} />}
     </span>
@@ -95,6 +101,37 @@ const DIRECTIONS = { asc: "ascending", desc: "descending" };
 /** A tooltip of these lines, leaving out those missing; none without any. */
 function lines(...texts: (string | undefined)[]): string | undefined {
   return texts.filter(Boolean).join("\n") || undefined;
+}
+
+interface FilterProps {
+  header: RefObject<HTMLSpanElement | null>;
+  name: string; // the column's
+  text: string | undefined; // what the filter is set to
+  choices: ReactNode; // a menu, or a dialog
+  menu: boolean; // whether they are a menu
+}
+
+/** The funnel opening a column's filter, below the whole header: lined up with its column. */
+function Filter({ header, name, text, choices, menu }: FilterProps) {
+  const Trigger = menu ? MenuTrigger : DialogTrigger;
+  return (
+    <Trigger>
+      {/* Our own button, for its tooltip: React Aria's has none. */}
+      <Pressable>
+        <button
+          type="button"
+          className={styles.filter}
+          aria-label={`Filter by ${name}`}
+          title={text === undefined ? `Filter by ${name}` : `${name}: ${text}`}
+        >
+          <Funnel aria-hidden="true" />
+        </button>
+      </Pressable>
+      <Popover className={popover.popover} triggerRef={header} placement="bottom start">
+        {choices}
+      </Popover>
+    </Trigger>
+  );
 }
 
 interface SortProps {
@@ -130,29 +167,31 @@ interface ChoicesProps {
 }
 
 /** One of the choices, or all: choosing closes the menu. */
-function OneChoice({ choices, values, set, menu }: ChoicesProps & { menu: string }) {
+function OneChoice({ choices, values, set, name }: ChoicesProps & { name: string }) {
   const [chosen] = values;
   const entries: { value: string | undefined; label: string }[] = [
     { value: undefined, label: "all" },
     ...choices,
   ];
+  // Items by their place: "all" has no value to be its key.
+  const at = entries.findIndex(({ value }) => value === chosen);
   return (
-    <ul className={styles.choices}>
-      {entries.map(({ value, label }) => (
-        <li key={value ?? ""}>
-          <button
-            type="button"
-            className={styles.choice}
-            aria-pressed={value === chosen}
-            popoverTarget={menu}
-            popoverTargetAction="hide"
-            onClick={() => set(value === undefined ? [] : [value])}
-          >
-            {label}
-          </button>
-        </li>
+    <Menu
+      className={`${popover.menu} ${styles.menu} ${styles.choices}`}
+      aria-label={`Filter by ${name}`}
+      selectionMode="single"
+      selectedKeys={at < 0 ? [] : [at]}
+      onAction={(at) => {
+        const value = entries[Number(at)]?.value;
+        set(value === undefined ? [] : [value]);
+      }}
+    >
+      {entries.map(({ value, label }, at) => (
+        <MenuItem key={value ?? ""} id={at} className={styles.choice}>
+          {label}
+        </MenuItem>
       ))}
-    </ul>
+    </Menu>
   );
 }
 

@@ -41,6 +41,10 @@ function Events({ at = {} }: { at?: Params }) {
   );
 }
 
+// An Event's row, its details closed: not a filter's funnel, which opens a menu.
+const closedRow = () =>
+  screen.findByRole("button", { expanded: false, name: (name) => !name.startsWith("Filter by") });
+
 const address = () => screen.getByRole("status").textContent;
 /** What the last request for Events asked to filter by. */
 const asked = (requests: Request[]) =>
@@ -87,7 +91,7 @@ describe("the Events View", () => {
   it("opens an Event's details below it, and closes them again", async () => {
     serveEvents([committed]);
     renderWithQueries(<Events />);
-    const row = await screen.findByRole("button", { expanded: false });
+    const row = await closedRow();
     await userEvent.click(row);
     expect(row).toHaveAttribute("aria-expanded", "true");
     const details = screen.getByRole("region", { name: "Event details" });
@@ -110,7 +114,7 @@ describe("the Events View", () => {
     });
     serveEvents([withBody]);
     renderWithQueries(<Events />);
-    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+    await userEvent.click(await closedRow());
     const details = screen.getByRole("region", { name: "Event details" });
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
     expect(within(details).queryByText("body")).toBeNull(); // the box says it whole
@@ -122,7 +126,7 @@ describe("the Events View", () => {
   it("opens and closes with the keyboard", async () => {
     serveEvents([committed]);
     renderWithQueries(<Events />);
-    (await screen.findByRole("button", { expanded: false })).focus();
+    (await closedRow()).focus();
     await userEvent.keyboard("{Enter}");
     expect(screen.getByText(committed.id)).toBeInTheDocument();
     await userEvent.keyboard(" ");
@@ -133,7 +137,7 @@ describe("the Events View", () => {
     let listed = [committed];
     serveEvents(() => listed);
     const { client } = renderWithQueries(<Events />);
-    await userEvent.click(await screen.findByRole("button", { expanded: false }));
+    await userEvent.click(await closedRow());
     listed = [event(2), committed];
     await act(() => client.invalidateQueries());
     expect(await screen.findByText("Commit number 2 (abc2)")).toBeInTheDocument();
@@ -213,8 +217,10 @@ describe("the Events View's columns", () => {
 });
 
 describe("the Events View's filters", () => {
-  // jsdom can't open the filters' menus, popovers, so their choices count as hidden.
-  const hidden = { hidden: true };
+  // Opened as by the user; while open, the rest of the page is hidden from queries by role.
+  const open = (column: string) =>
+    userEvent.click(screen.getByRole("button", { name: `Filter by ${column}` }));
+  const close = () => userEvent.keyboard("{Escape}");
 
   it("are its parameters, which the Server filters by", async () => {
     const requests = serveEvents([committed]);
@@ -231,9 +237,11 @@ describe("the Events View's filters", () => {
       "title",
       "priority: high+",
     );
-    expect(screen.getByRole("checkbox", { name: "machine.added", ...hidden })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "clone.added", ...hidden })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "clone.missing", ...hidden })).not.toBeChecked();
+    await open("kind");
+    expect(screen.getByRole("checkbox", { name: "machine.added" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "clone.added" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "clone.missing" })).not.toBeChecked();
+    await close();
     expect(setTitle).toHaveBeenLastCalledWith("Events: 3 filters");
   });
 
@@ -242,21 +250,35 @@ describe("the Events View's filters", () => {
     renderWithQueries(<Events />);
     await screen.findByText("Commit number 1 (abc1)");
     expect(setTitle).toHaveBeenLastCalledWith("Events");
-    await userEvent.click(await screen.findByRole("checkbox", { name: "project", ...hidden }));
+    await open("repository");
+    await userEvent.click(await screen.findByRole("checkbox", { name: "project" }));
+    await close();
     expect(address()).toBe(`events?repository=${PROJECT}`);
     await vi.waitFor(() => expect(asked(requests).get("repository")).toBe(PROJECT));
     expect(setTitle).toHaveBeenLastCalledWith("Events: project");
 
-    await userEvent.click(screen.getByRole("button", { name: "last day", ...hidden }));
+    await open("recorded");
+    expect(screen.getByRole("menuitemradio", { name: "all" })).toBeChecked();
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "last day" }));
+    // Choosing one closes the menu.
+    expect(screen.queryByRole("menu")).toBeNull();
     expect(address()).toBe(`events?repository=${PROJECT}&since=1d`);
     expect(setTitle).toHaveBeenLastCalledWith("Events: last day, project");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: "clone", ...hidden }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "clone.added", ...hidden }));
+    await open("kind");
+    await userEvent.click(screen.getByRole("checkbox", { name: "clone" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "clone.added" }));
+    await close();
+    // Closing gives the focus back to the funnel.
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: "Filter by kind" })).toHaveFocus(),
+    );
     expect(address()).toBe(
       `events?kind=clone.committed&kind=clone.missing&repository=${PROJECT}&since=1d`,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Only machine", ...hidden }));
+    await open("kind");
+    await userEvent.click(screen.getByRole("button", { name: "Only machine" }));
+    await close();
     expect(address()).toBe(`events?kind=machine&repository=${PROJECT}&since=1d`);
 
     await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
@@ -270,10 +292,8 @@ describe("the Events View's filters", () => {
     serveEvents([]);
     renderWithQueries(<Events at={{ since: "1h" }} />);
     expect(await screen.findByText("No Events match.")).toBeInTheDocument();
-    const recorded = screen.getByRole("button", { name: "Filter by recorded" }).parentElement;
-    await userEvent.click(
-      within(recorded as HTMLElement).getByRole("button", { name: "all", ...hidden }),
-    );
+    await open("recorded");
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "all" }));
     expect(address()).toBe("events");
     expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
   });

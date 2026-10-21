@@ -41,11 +41,6 @@
 /* The list opened: a field, the tabs, and one tab's rows, scrolling. */
 .popover {
   width: min(28rem, calc(100vw - 2rem));
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
 }
 
 .dialog {

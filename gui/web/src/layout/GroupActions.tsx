@@ -1,37 +1,49 @@
 import type { IDockviewHeaderActionsProps } from "dockview-react";
 import { Plus } from "lucide-react";
-import { useRef } from "react";
-import { placeBelow } from "../components/popover";
+import { Menu, MenuItem, MenuTrigger, Popover, Pressable } from "react-aria-components";
 import popover from "../components/popover.module.css";
+import { TextIcon } from "../components/TextIcon";
+import { KINDS, type KindName } from "../views/kinds";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
-import { ViewList } from "./ViewList";
 import { useSideButtons } from "./visits";
+
+// The kinds of View that stand alone, without what others are opened from (e.g. a Checkout).
+const OFFERED: KindName[] = ["repositories", "events", "daemon", "log", "config", "db"];
 
 /** A Group's buttons next to its tabs: "+" opens a View in it. */
 export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProps) {
-  const menu = useRef<HTMLDivElement>(null);
-  const id = `views-${group.id}`;
   const sideButtons = useSideButtons(group);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.actions} onMouseUp={sideButtons}>
-      <button
-        type="button"
-        className={styles.add}
-        popoverTarget={id}
-        onClick={(event) => placeBelow(menu.current, event.currentTarget, "right")}
-        title="Open a View"
-        aria-label="Open a View"
-      >
-        <Plus className={styles.icon} aria-hidden />
-      </button>
-      <div id={id} ref={menu} popover="auto" className={popover.menu}>
-        <ViewList
-          menu={id}
-          open={(kind) => openView(containerApi, { kind, params: {} }, {}, group)}
-        />
-      </div>
+      <MenuTrigger>
+        {/* Our own button, for its tooltip: React Aria's has none. */}
+        <Pressable>
+          <button type="button" className={styles.add} title="Open a View" aria-label="Open a View">
+            <Plus className={styles.icon} aria-hidden />
+          </button>
+        </Pressable>
+        <Popover className={popover.popover} placement="bottom end">
+          <Menu
+            className={`${styles.views} ${popover.menu}`}
+            aria-label="Views"
+            onAction={(kind) =>
+              openView(containerApi, { kind: String(kind), params: {} }, {}, group)
+            }
+          >
+            {OFFERED.map((kind) => {
+              const { name, icon } = KINDS[kind];
+              return (
+                <MenuItem key={kind} id={kind} className={styles.choice} textValue={name}>
+                  <TextIcon icon={icon} className={styles.choiceIcon} />
+                  {name}
+                </MenuItem>
+              );
+            })}
+          </Menu>
+        </Popover>
+      </MenuTrigger>
     </div>
   );
 }

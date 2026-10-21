@@ -78,6 +78,13 @@
   text-align: left;
 }
 
+/* A menu's item: focused as the mouse moves over it, too. */
+.choice[data-focused] {
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  cursor: default;
+}
+
 .choiceIcon {
   margin-right: var(--space-2);
 }

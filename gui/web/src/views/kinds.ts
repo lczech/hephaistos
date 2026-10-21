@@ -19,12 +19,11 @@ export interface ViewKind {
   name: string;
   icon: LucideIcon;
   iconOf?: (params: Params) => LucideIcon; // a View's own, if its parameters change it
-  suggested?: boolean; // offered in an empty Group
 }
 
 const kinds = {
-  repositories: { name: "Repositories", icon: FolderGit2, suggested: true },
-  events: { name: "Events", icon: Calendar, suggested: true },
+  repositories: { name: "Repositories", icon: FolderGit2 },
+  events: { name: "Events", icon: Calendar },
   changes: { name: "Changes", icon: GitCompareArrows },
   diff: {
     name: "Diff",

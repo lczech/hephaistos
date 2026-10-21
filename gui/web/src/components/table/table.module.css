@@ -395,11 +395,17 @@
 
 .choice:not(:disabled):hover,
 .choice:focus-visible,
+.choice[data-focused],
 .entry:hover {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.choice[aria-pressed="true"] {
+.choice[data-focused] {
+  outline: none;
+  cursor: default;
+}
+
+.choice[data-selected] {
   font-weight: 600;
 }
 

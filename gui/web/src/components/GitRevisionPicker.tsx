@@ -35,6 +35,7 @@ import { useDebounced } from "../useDebounced";
 import type { Checkout } from "../views/changes/checkout";
 import { headText, searchWords } from "../views/history/rows";
 import styles from "./GitRevisionPicker.module.css";
+import popover from "./popover.module.css";
 import { SearchField } from "./SearchField";
 import { TextIcon } from "./TextIcon";
 
@@ -388,7 +389,7 @@ export function GitRevisionPicker({
         </span>
         <ChevronDown className={styles.chevron} aria-hidden="true" />
       </Button>
-      <Popover className={styles.popover} placement="bottom start">
+      <Popover className={`${popover.popover} ${styles.popover}`} placement="bottom start">
         <Dialog className={styles.dialog} aria-label={label}>
           <Autocomplete inputValue={typed} onInputChange={typedChanged}>
             <SearchField
