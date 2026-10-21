@@ -1,5 +1,4 @@
 import { functionalUpdate } from "@tanstack/react-table";
-import { useEffect } from "react";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
 import { ListTable, type Tone } from "../../components/table/ListTable";
@@ -7,6 +6,7 @@ import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { useNow } from "../../useNow";
 import type { ViewProps } from "../index";
+import { useTitle } from "../title";
 import {
   eventColumnFilters,
   eventFilters,
@@ -51,9 +51,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   });
   const choices = useEventChoices(params);
   const title = eventsTitle(filters, choices);
-  useEffect(() => {
-    if (title !== undefined) setTitle(title);
-  }, [title, setTitle]);
+  useTitle(setTitle, title);
   let message: string | null = null;
   if (events.data === undefined) {
     message = events.isError ? `Couldn't load: ${events.error.message}` : "Loading Events…";

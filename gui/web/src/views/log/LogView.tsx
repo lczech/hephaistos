@@ -1,5 +1,4 @@
 import { functionalUpdate } from "@tanstack/react-table";
-import { useEffect } from "react";
 import { useLog } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -7,6 +6,7 @@ import { columnWidths } from "../../components/table/widths";
 import { useNow } from "../../useNow";
 import { withParam } from "../address";
 import type { ViewProps } from "../index";
+import { useTitle } from "../title";
 import { logChoices, logColumnFilters, logFilters, logParams, logTitle } from "./choices";
 import { columns } from "./columns";
 import { LogDetails } from "./LogDetails";
@@ -40,7 +40,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   });
   const choices = logChoices(params);
   const title = logTitle(columnFilters, choices);
-  useEffect(() => setTitle(title), [title, setTitle]);
+  useTitle(setTitle, title);
   let message: string | null = null;
   if (pages === undefined) {
     message = log.isError ? `Couldn't load: ${log.error.message}` : "Loading the log…";

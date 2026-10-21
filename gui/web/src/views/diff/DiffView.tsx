@@ -40,6 +40,7 @@ import {
 } from "../changes/rows";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
+import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 import { type DiffShow, FileSection } from "./FileSection";
@@ -156,9 +157,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const title = query
     ? `Diff: ${pathParts(query.path)[1]}, ${queryText(query)}`
     : name && what && `Diff: ${name}, ${what}`;
-  useEffect(() => {
-    if (title !== undefined) setTitle(title);
-  }, [title, setTitle]);
+  useTitle(setTitle, title);
   const groups = path === undefined ? (listed.data?.groups ?? []) : [];
   // Files and directories (their paths ending in `/`) collapsed in the Checkout's stacks, in
   // every comparison; a directory's files keep theirs. All files, to collapse at once: not

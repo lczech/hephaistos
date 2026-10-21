@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useEffect } from "react";
 import {
   type HistoryQuery,
   KEYS,
@@ -21,6 +20,7 @@ import { type Params, paramValues, withParam } from "../address";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
+import { useTitle } from "../title";
 import { CommitBox } from "./CommitBox";
 import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
@@ -61,9 +61,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   const repositories = useRepositories();
   const name = checkout && checkoutName(repositories.data, checkout);
   const title = historyTitle(name, ref, path, words);
-  useEffect(() => {
-    if (title !== undefined) setTitle(title);
-  }, [title, setTitle]);
+  useTitle(setTitle, title);
   const now = useNow(10_000);
 
   const first = history.data?.pages[0];

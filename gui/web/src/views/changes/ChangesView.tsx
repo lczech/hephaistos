@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List } from "lucide-react";
-import { type MouseEvent, useEffect, useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
@@ -12,6 +12,7 @@ import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
 import { sortingOf, withSorting } from "../sorting";
+import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
 import { ComparedPickers } from "./ComparedPickers";
@@ -61,9 +62,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     comparing = `, ${shortHash(commit)}${subject ? ` ${subject}` : ""}`;
   }
   const title = name && `Changes: ${name}${comparing}`;
-  useEffect(() => {
-    if (title !== undefined) setTitle(title);
-  }, [title, setTitle]);
+  useTitle(setTitle, title);
   const groups = changes.data?.groups ?? [];
 
   const sorted = sortingOf(params, SORTS, DEFAULT_SORT);

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
 import { Fields } from "../../components/table/Fields";
@@ -7,6 +6,7 @@ import { listColumnHelper, useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { paramValues, withParam } from "../address";
 import type { ViewProps } from "../index";
+import { useTitle } from "../title";
 import { cellText, type ValueType } from "./cells";
 import styles from "./DbView.module.css";
 
@@ -48,10 +48,7 @@ function tableColumns(columns: Column[]) {
 /** The database as stored: its tables, or one table's rows, as `hephaistos db` shows them. */
 export function DbView({ params, setParams, setTitle }: ViewProps) {
   const [table] = paramValues(params.table);
-  useEffect(
-    () => setTitle(table === undefined ? "Database" : `Database: ${table}`),
-    [table, setTitle],
-  );
+  useTitle(setTitle, table === undefined ? "Database" : `Database: ${table}`);
   const show = (name: string | undefined) =>
     setParams(withParam(params, "table", name === undefined ? [] : [name]));
   return table === undefined ? (
