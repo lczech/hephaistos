@@ -26,6 +26,7 @@
 
 /* The Daemon's icon, coloured by its health; it opens the Daemon View. */
 .health {
+  --icon-size: 1.1em;
   display: flex;
   flex: none;
   padding: 1px;
@@ -39,12 +40,6 @@
 .health:hover,
 .health:focus-visible {
   background: color-mix(in srgb, var(--text) 12%, transparent);
-}
-
-.health svg {
-  width: 1.1em;
-  height: 1.1em;
-  translate: 0 var(--icon-lift);
 }
 
 .health[data-health="good"] {

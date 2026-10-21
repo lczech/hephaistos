@@ -15,12 +15,6 @@
   border-color: var(--accent);
 }
 
-.icon {
-  flex: none;
-  width: 1em;
-  height: 1em;
-}
-
 .input {
   flex: 1;
   width: 12rem;

@@ -46,11 +46,8 @@
 }
 
 .icon {
-  width: 1em;
-  height: 1em;
   margin-right: var(--space-1);
   color: var(--text-muted);
-  vertical-align: var(--icon-drop);
 }
 
 /* Where a file was renamed: a line, then the path it had before, which the rows below are of. */

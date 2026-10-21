@@ -129,11 +129,14 @@
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
-.chevron,
-.icon {
+.chevron {
   flex: none;
   width: 1em;
   height: 1em;
+  color: var(--text-muted);
+}
+
+.icon {
   color: var(--text-muted);
 }
 

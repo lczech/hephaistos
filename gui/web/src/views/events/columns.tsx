@@ -1,4 +1,5 @@
 import type { Schemas } from "../../api/client";
+import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { actionIcon, actionOf, entityIcon } from "../../icons";
@@ -45,7 +46,7 @@ export const columns = column.columns([
       const Action = actionIcon(action);
       return (
         <span title={row.original.kind}>
-          <Action className={styles.icon} aria-hidden="true" />
+          <TextIcon icon={Action} className={styles.icon} />
           <span className={styles.action}>{action}</span>
         </span>
       );
@@ -78,7 +79,7 @@ export const columns = column.columns([
       const Entity = entityIcon(event.subject.type);
       return (
         <span title={subjectTitle(event, home)}>
-          <Entity className={styles.icon} aria-hidden="true" />
+          <TextIcon icon={Entity} className={styles.icon} />
           {subjectText(event, home)}
         </span>
       );

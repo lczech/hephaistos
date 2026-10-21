@@ -1,4 +1,5 @@
 import { GitMerge } from "lucide-react";
+import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { ago, fullTime } from "../../time";
@@ -81,7 +82,7 @@ export function historyColumns(
             <RefLabels refs={commit.refs} head={commit.hash === head} />
             {commit.parents.length > 1 && (
               <span title="Merge commit: changes shown against its first parent">
-                <GitMerge className={styles.icon} aria-label="merge" />
+                <TextIcon icon={GitMerge} className={styles.icon} label="merge" />
               </span>
             )}
             {commit.subject}

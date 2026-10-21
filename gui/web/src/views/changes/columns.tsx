@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import styles from "./ChangesView.module.css";
@@ -44,7 +45,7 @@ function KindIcon({ kind, title, binary }: { kind: Kind; title?: string; binary?
   const Icon = binary ? FileDigit : ICONS[kind];
   return (
     <span className={styles.kind} data-kind={kind} title={title ?? kind}>
-      <Icon aria-hidden="true" />
+      <TextIcon icon={Icon} />
     </span>
   );
 }
@@ -140,7 +141,7 @@ export function DirectoryPath({ shown, path }: { shown: string; path: string }) 
       title={path}
       icon={
         <span className={styles.kind}>
-          <Folder aria-hidden="true" />
+          <TextIcon icon={Folder} />
         </span>
       }
     />

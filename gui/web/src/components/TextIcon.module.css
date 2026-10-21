@@ -1,0 +1,11 @@
+/* Beside text, an icon looks centred a little above the middle of its capitals (theme.css): in a
+   line of text it sits so by vertical-align, in a row centred on its line by translate, which
+   shifts what vertical-align placed; so both, and it lines up either way. A context may size it
+   (--icon-size); its own class adds only room and colour. */
+.icon {
+  flex: none;
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
+  vertical-align: calc(var(--icon-drop) + var(--icon-lift));
+  translate: 0 var(--icon-lift);
+}

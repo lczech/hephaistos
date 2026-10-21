@@ -27,11 +27,14 @@
   white-space: nowrap;
 }
 
-.icon,
 .chevron {
   flex: none;
   width: 1em;
   height: 1em;
+  color: var(--text-muted);
+}
+
+.icon {
   color: var(--text-muted);
 }
 

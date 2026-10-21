@@ -1,8 +1,5 @@
 .icon {
-  width: 1em;
-  height: 1em;
   margin-right: var(--space-1);
-  vertical-align: var(--icon-drop);
 }
 
 /* Narrow: the action's icon, the Repository and summary on one line; below them, from where the

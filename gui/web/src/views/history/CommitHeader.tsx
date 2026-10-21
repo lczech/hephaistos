@@ -1,5 +1,6 @@
 import { ChevronRight, GitCommitVertical, GitCompare, GitMerge } from "lucide-react";
 import type { Schemas } from "../../api/client";
+import { TextIcon } from "../../components/TextIcon";
 import { shortHash } from "../../revisions";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, CommitLink, RefLabels } from "./CommitBox";
@@ -41,11 +42,11 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
         title="Show commit details"
       >
         <ChevronRight className={styles.chevron} aria-hidden="true" />
-        <GitCommitVertical className={styles.icon} aria-hidden="true" />
+        <TextIcon icon={GitCommitVertical} className={styles.icon} />
         <span className={styles.hash}>{shortHash(commit.hash)}</span>
         <RefLabels refs={commit.refs} />
         {commit.parents.length > 1 && (
-          <GitMerge className={styles.icon} aria-label="Merge commit" />
+          <TextIcon icon={GitMerge} className={styles.icon} label="Merge commit" />
         )}
         <span className={styles.lineSubject}>{commit.subject}</span>
       </button>

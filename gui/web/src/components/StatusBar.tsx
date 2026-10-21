@@ -6,6 +6,7 @@ import { daemonHealth, disconnectedText, retryText } from "../views/daemon/healt
 import { KINDS } from "../views/kinds";
 import { useOpenView } from "../views/opening";
 import styles from "./StatusBar.module.css";
+import { TextIcon } from "./TextIcon";
 
 const Icon = KINDS.daemon.icon;
 
@@ -52,7 +53,7 @@ export function StatusBar() {
           title={title}
           aria-label={`Daemon: ${reasons.join("; ")}; open the Daemon View`}
         >
-          <Icon aria-hidden="true" />
+          <TextIcon icon={Icon} />
         </button>
         <span className={styles.text} data-state={connection.state} title={details}>
           {text}

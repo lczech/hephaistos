@@ -38,10 +38,6 @@
   vertical-align: var(--icon-drop);
 }
 
-.tab > .icon {
-  translate: 0 var(--icon-lift);
-}
-
 .actions {
   display: flex;
   align-items: center;
@@ -81,7 +77,7 @@
   text-align: left;
 }
 
-.choice .icon {
+.choiceIcon {
   margin-right: var(--space-2);
 }
 

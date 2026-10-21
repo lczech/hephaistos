@@ -1,3 +1,4 @@
+import { TextIcon } from "../components/TextIcon";
 import { KINDS } from "../views/kinds";
 import styles from "./layout.module.css";
 
@@ -21,7 +22,7 @@ export function ViewList({ open, suggested, menu }: Props) {
             popoverTargetAction={menu === undefined ? undefined : "hide"}
             onClick={() => open(name)}
           >
-            <Icon className={styles.icon} aria-hidden="true" />
+            <TextIcon icon={Icon} className={styles.choiceIcon} />
             {title}
           </button>
         </li>

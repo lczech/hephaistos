@@ -3,6 +3,7 @@ import type { KeyboardEvent } from "react";
 import { Button, SearchField as Field, Input } from "react-aria-components";
 import { useKeyTarget } from "../views/keys";
 import styles from "./SearchField.module.css";
+import { TextIcon } from "./TextIcon";
 
 interface SearchFieldProps {
   label: string;
@@ -44,7 +45,7 @@ export function SearchField({
       onKeyDown={onKeyDown}
       autoFocus={autoFocus}
     >
-      <Search className={styles.icon} aria-hidden="true" />
+      <TextIcon icon={Search} />
       <Input ref={target} className={styles.input} placeholder={placeholder} title={title} />
       <Button className={styles.clear} aria-label="Clear">
         <X aria-hidden="true" />

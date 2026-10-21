@@ -36,6 +36,7 @@ import type { Checkout } from "../views/changes/checkout";
 import { headText, searchWords } from "../views/history/rows";
 import styles from "./GitRevisionPicker.module.css";
 import { SearchField } from "./SearchField";
+import { TextIcon } from "./TextIcon";
 
 type Ref = Schemas["RefJson"];
 type Commit = Schemas["CommitJson"];
@@ -530,7 +531,7 @@ function PickedIcon({ value, refs }: { value: string; refs: KnownRefs | undefine
     else if (value.startsWith("refs/tags/")) Icon = Tag;
     else if (SHORT_HASH.test(value)) Icon = GitCommitVertical;
   }
-  return <Icon className={styles.icon} aria-hidden="true" />;
+  return <TextIcon icon={Icon} className={styles.icon} />;
 }
 
 interface RowProps {
@@ -554,7 +555,7 @@ function Row({ id, value, icon: Icon, text, hash, disabled, line }: RowProps) {
       data-current={id === value || undefined}
       data-line={line}
     >
-      <Icon className={styles.icon} aria-hidden="true" />
+      <TextIcon icon={Icon} className={styles.icon} />
       {hash !== undefined && <span className={styles.hash}>{hash}</span>}
       <span className={styles.text}>{text}</span>
     </ListBoxItem>
