@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 
 // The API version this GUI is built for, from the schema its types come from.
 const schema = JSON.parse(readFileSync(new URL("openapi.json", import.meta.url), "utf8"));
@@ -36,10 +36,5 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: { "/api": { target: "http://127.0.0.1:8264", ws: true } }, // the Daemon's Server
-  },
-  test: {
-    name: "web",
-    environment: "jsdom",
-    setupFiles: ["src/test/setup.ts"],
   },
 });

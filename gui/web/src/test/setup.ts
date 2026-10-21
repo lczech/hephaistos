@@ -5,6 +5,8 @@ import { forgetKept } from "../kept";
 import { forgetToken } from "../token";
 import { FakeSocket } from "./live";
 
+// Stand-ins for what jsdom lacks; in a real browser, its own.
+
 // jsdom measures nothing, so dockview's observer of sizes has nothing to report.
 globalThis.ResizeObserver ??= class {
   observe() {}

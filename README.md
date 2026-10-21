@@ -36,6 +36,7 @@ git config core.hooksPath .githooks   # once: linters before each commit, type c
 uv run pytest
 uv run ruff check . && uv run ruff format .
 uv run pyright
+uv run npm --prefix gui run fetch-browsers  # once per Playwright version: the browsers some GUI tests run in
 uv run npm --prefix gui run check   # the GUI's and the Desktop's types and tests; `run lint`, `run format`: Biome
 uv run npm --prefix gui run dev     # the GUI at http://127.0.0.1:5173/#token=…, reloading on changes
 ```
