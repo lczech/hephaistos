@@ -55,8 +55,7 @@ interface Props<TData extends RowData> {
  * square, which a first column of `Chevron`s fills (plain rows open nothing); more
  * rows as the end comes into view. A row opens by its first cell's button, or by a click
  * anywhere else on it but on its cells' own buttons and links; one opening a View, also by
- * the middle button. Cells cut off show their whole
- * text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
+ * the middle button. Cells show their whole text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
  * height), unless the list is wide: then it scrolls sideways, its details staying in view.
  * A row whose View is shown, in any Group, is marked.
  */
@@ -145,7 +144,7 @@ export function ListTable<TData extends RowData>({
           )}
         </div>
         {rows.length > 0 && (
-          <ol className={styles.rows} onPointerOver={showCutOff}>
+          <ol className={styles.rows} onPointerOver={showWholeText}>
             {rows.map((row, index) => {
               const view = opens?.(row.original);
               const still = view === undefined && (plain?.(row.original) ?? false);
@@ -227,12 +226,16 @@ export function ListTable<TData extends RowData>({
   );
 }
 
-/** Gives the hovered cell its whole text as a tooltip while cut off; its parts' own still win. */
-function showCutOff(event: PointerEvent) {
+/**
+ * Gives the hovered cell its whole text as a tooltip, as what a cell shows may be cut off, and
+ * is known only once drawn; its parts' own tooltips still win.
+ */
+function showWholeText(event: PointerEvent) {
   const cell = (event.target as Element).closest(`.${styles.row} > *`);
   if (!(cell instanceof HTMLElement)) return;
-  if (cell.scrollWidth > cell.clientWidth) cell.title = cell.textContent ?? "";
-  else cell.removeAttribute("title");
+  const text = cell.textContent?.trim() ?? "";
+  if (text === "") cell.removeAttribute("title");
+  else cell.title = text;
 }
 
 /** A row's square: the chevron that turns as its details open. */

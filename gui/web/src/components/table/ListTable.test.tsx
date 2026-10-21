@@ -66,15 +66,10 @@ describe("a list's rows", () => {
     expect(pear).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("show their own tooltips: the square's, and cut-off cells' whole text", () => {
+  it("show their own tooltips: the square's, and cells' whole text", () => {
     render(<Fruits act={vi.fn()} />);
     expect(screen.getByRole("button", { name: /pear$/ })).toHaveAttribute("title", "pear square");
     const cell = screen.getByText("pear");
-    Object.defineProperty(cell, "clientWidth", { value: 30, configurable: true });
-    Object.defineProperty(cell, "scrollWidth", { value: 30, configurable: true });
-    fireEvent.pointerOver(cell);
-    expect(cell).not.toHaveAttribute("title");
-    Object.defineProperty(cell, "scrollWidth", { value: 50 });
     fireEvent.pointerOver(cell);
     expect(cell).toHaveAttribute("title", "pear");
   });
