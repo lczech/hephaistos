@@ -257,8 +257,9 @@ function useFolding(
     stuck.current = false;
     const scroller = scrollerOf(element);
     if (scroller === null) return;
-    scroller.scrollTop +=
-      element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    const past = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    // To the nearest whole pixel: WebKit scrolls by whole ones, dropping a fraction.
+    scroller.scrollTop = Math.round(scroller.scrollTop + past);
   }, [section, collapsed]);
   if (onCollapsedChange === undefined) return undefined;
   return () => {
