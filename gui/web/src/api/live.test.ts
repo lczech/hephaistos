@@ -140,6 +140,14 @@ describe("the live connection", () => {
     expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
   });
 
+  it("asks again when the page is shown, as when its window gains focus", () => {
+    const { invalidated } = start();
+    invalidated.mockClear();
+    wait(60_000);
+    act(() => document.dispatchEvent(new Event("visibilitychange", { bubbles: true })));
+    expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+  });
+
   it("keeps every query current somehow", () => {
     const covered = new Set([...Object.values(HINTED).flat(), ...ON_FOCUS, ...ON_CONNECT]);
     expect(Object.keys(KEYS).filter((name) => !covered.has(name as KeyName))).toEqual([]);

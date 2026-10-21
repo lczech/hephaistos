@@ -1,7 +1,7 @@
 // The live connection to this Machine's Server: it hints at what changed, and the queries that
 // show it are asked again. On connecting, everything is, as hints may have been missed.
 
-import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { focusManager, type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useSyncExternalStore } from "react";
 import { forgetToken, token } from "../token";
 import type { Schemas } from "./client";
@@ -137,9 +137,22 @@ class LiveConnection {
   }
 }
 
+// The page has focus when shown, as TanStack's default has it, and also when its window gains
+// it: coming back from another, e.g. the editor, while the page stayed shown.
+focusManager.setEventListener((changed) => {
+  const listener = () => changed();
+  window.addEventListener("visibilitychange", listener);
+  window.addEventListener("focus", listener);
+  return () => {
+    window.removeEventListener("visibilitychange", listener);
+    window.removeEventListener("focus", listener);
+  };
+});
+
 /**
- * Keeps the live connection while mounted, and acts on the page gaining focus: asks for a pass
- * (at most every FOCUS_GAP), asks again for what no hint covers, and reconnects at once.
+ * Keeps the live connection while mounted, and acts on the page gaining focus (TanStack's
+ * `focusManager`): asks for a pass (at most every FOCUS_GAP), asks again for what no hint
+ * covers, and reconnects at once.
  */
 export function useLiveUpdates(): void {
   const client = useQueryClient();
@@ -148,7 +161,7 @@ export function useLiveUpdates(): void {
     live.start();
     let lastPass = Number.NEGATIVE_INFINITY;
     const onFocus = () => {
-      if (document.visibilityState !== "visible") return;
+      if (!focusManager.isFocused()) return;
       live.reconnectNow();
       if (Date.now() - lastPass < FOCUS_GAP) return;
       lastPass = Date.now();
@@ -157,11 +170,9 @@ export function useLiveUpdates(): void {
       void observe().catch(() => undefined);
     };
     onFocus();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
+    const unsubscribe = focusManager.subscribe(onFocus);
     return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
+      unsubscribe();
       live.stop();
     };
   }, [client]);
