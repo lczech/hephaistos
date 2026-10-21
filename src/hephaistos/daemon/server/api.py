@@ -46,6 +46,7 @@ from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
+from hephaistos.daemon.server.errors import ErrorJson
 from hephaistos.daemon.server.live import Hint, Live
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
@@ -55,7 +56,12 @@ DEFAULT_ROWS = 20  # as `db dump` shows
 DEFAULT_RECORDS = 50  # as `log show` shows
 DEFAULT_COMMITS = 50  # a page of a history
 
-router = APIRouter(prefix="/api")
+# Every answer other than success has one shape; declaring it also replaces FastAPI's 422,
+# which this Server never sends (`app.py` answers invalid parameters with 400).
+router = APIRouter(
+    prefix="/api",
+    responses={"default": {"model": ErrorJson, "description": "Not a success: the error"}},
+)
 
 type Observe = Callable[[Trigger], Awaitable[Done | PassFailed]]  # the Watcher's pass
 

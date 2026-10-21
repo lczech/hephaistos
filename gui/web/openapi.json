@@ -765,6 +765,20 @@
         "title": "DiffJson",
         "type": "object"
       },
+      "ErrorJson": {
+        "description": "An answer other than success (400, 401, 404, 500, \u2026), with the CLI's message.",
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorJson",
+        "type": "object"
+      },
       "EventJson": {
         "description": "An Event.",
         "properties": {
@@ -909,19 +923,6 @@
           "changes"
         ],
         "type": "string"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "title": "Detail",
-            "type": "array"
-          }
-        },
-        "title": "HTTPValidationError",
-        "type": "object"
       },
       "HistoryJson": {
         "description": "A page of a Checkout's commits, newest first, with HEAD and the refs to walk from.",
@@ -1977,46 +1978,6 @@
         "title": "UnknownVariableJson",
         "type": "object"
       },
-      "ValidationError": {
-        "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError",
-        "type": "object"
-      },
       "ValueType": {
         "enum": [
           "id",
@@ -2274,7 +2235,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.16"
+    "version": "0.17"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2393,15 +2354,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Changes Show"
@@ -2445,15 +2406,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Clone List"
@@ -2486,15 +2447,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Clone Show"
@@ -2514,6 +2475,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Config Show"
@@ -2533,6 +2504,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Daemon"
@@ -2552,6 +2533,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Db Tables"
@@ -2624,15 +2615,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Db Dump"
@@ -2757,15 +2748,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Diff Show"
@@ -2879,15 +2870,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Diff Files"
@@ -3073,15 +3064,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Event List"
@@ -3105,6 +3096,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Event Kinds"
@@ -3137,15 +3138,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Event Show"
@@ -3298,15 +3299,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "History Show"
@@ -3326,6 +3327,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Info"
@@ -3466,15 +3477,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Log Show"
@@ -3498,6 +3509,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Machine List"
@@ -3530,15 +3551,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Machine Show"
@@ -3551,6 +3572,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Observe"
@@ -3574,6 +3605,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
           }
         },
         "summary": "Repository List"
@@ -3606,15 +3647,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Repository Show"
@@ -3658,15 +3699,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Worktree List"
@@ -3699,15 +3740,15 @@
             },
             "description": "Successful Response"
           },
-          "422": {
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorJson"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Not a success: the error"
           }
         },
         "summary": "Worktree Show"

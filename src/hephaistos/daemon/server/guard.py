@@ -15,13 +15,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi import Request, Response, WebSocket
-from fastapi.responses import JSONResponse
 from starlette.requests import HTTPConnection
 
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import web
+from hephaistos.daemon.server.errors import error_response
 from hephaistos.daemon.server.token import TokenFile, matches
 
 HOSTS = frozenset({"localhost", "127.0.0.1"})
@@ -84,7 +84,7 @@ def _given_token(request: Request) -> str | None:
 def _refused(reason: str, status: int) -> Response:
     """The answer to a refused request."""
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None  # noqa: PLR2004 - HTTP's
-    return JSONResponse({"error": reason}, status_code=status, headers=headers)
+    return error_response(reason, status, headers)
 
 
 def _secured(response: Response) -> Response:
@@ -158,7 +158,7 @@ class Guard:
         except Exception:
             log.exception("failed: %s", shown)
             error = f"internal error; see the log on {self._machine}"
-            response = JSONResponse({"error": error}, status_code=500)
+            response = error_response(error, 500)
         self.admitted()
         milliseconds = round((time.monotonic() - started) * 1000)
         log.debug("%s %d %d ms", shown, response.status_code, milliseconds)
