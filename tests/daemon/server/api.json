@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 17
+    "minor": 18
   },
   "shapes": {
     "components": {
@@ -460,13 +460,6 @@
             }
           },
           "required": [
-            "id",
-            "repository",
-            "filesystem",
-            "path",
-            "resolved_path",
-            "created_at",
-            "bare",
             "observed_at",
             "observed_by",
             "active_at",
@@ -481,6 +474,13 @@
             "untracked",
             "conflicted",
             "error",
+            "id",
+            "repository",
+            "filesystem",
+            "path",
+            "resolved_path",
+            "created_at",
+            "bare",
             "branches",
             "root_commits",
             "remotes",
@@ -2211,12 +2211,6 @@
             }
           },
           "required": [
-            "id",
-            "repository",
-            "clone",
-            "name",
-            "path",
-            "lock_reason",
             "observed_at",
             "observed_by",
             "active_at",
@@ -2230,7 +2224,13 @@
             "changed",
             "untracked",
             "conflicted",
-            "error"
+            "error",
+            "id",
+            "repository",
+            "clone",
+            "name",
+            "path",
+            "lock_reason"
           ],
           "title": "WorktreeJson",
           "type": "object"

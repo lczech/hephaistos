@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 17)
+API_VERSION = ApiVersion(0, 18)
 
 
 class Ref(TypedDict):
@@ -114,7 +114,7 @@ class _CheckoutJson(TypedDict):
     error: str | None
 
 
-class WorktreeJson(TypedDict):
+class WorktreeJson(_CheckoutJson):
     """A Worktree with its State."""
 
     id: str
@@ -123,23 +123,9 @@ class WorktreeJson(TypedDict):
     name: str
     path: str
     lock_reason: str | None
-    observed_at: str
-    observed_by: Ref
-    active_at: str | None
-    present: bool
-    head: str | None
-    branch: str | None
-    upstream: str | None
-    ahead: int | None
-    behind: int | None
-    staged: int | None
-    changed: int | None
-    untracked: int | None
-    conflicted: int | None
-    error: str | None
 
 
-class CloneJson(TypedDict):
+class CloneJson(_CheckoutJson):
     """A Clone with its State and Worktrees."""
 
     id: str
@@ -149,20 +135,6 @@ class CloneJson(TypedDict):
     resolved_path: str
     created_at: str
     bare: bool
-    observed_at: str
-    observed_by: Ref
-    active_at: str | None
-    present: bool
-    head: str | None
-    branch: str | None
-    upstream: str | None
-    ahead: int | None
-    behind: int | None
-    staged: int | None
-    changed: int | None
-    untracked: int | None
-    conflicted: int | None
-    error: str | None
     branches: list[str]
     root_commits: list[str]
     remotes: dict[str, str]

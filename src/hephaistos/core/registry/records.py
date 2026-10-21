@@ -3,6 +3,7 @@
 import dataclasses
 import uuid
 from collections.abc import Collection
+from typing import Literal
 
 from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession, chunks
@@ -90,9 +91,13 @@ def delete(session: WriteSession, table: Table, kind: EventKind, record: Record)
     events.record(session, kind, record.id, record)
 
 
+# The columns that name or place a record, which `column_values` reads.
+type NameColumn = Literal["name", "path", "display_path"]
+
+
 # SQLite allows at most 32766 parameters per statement.
 def column_values(
-    session: ReadSession, table: Table, column: str, ids: Collection[uuid.UUID]
+    session: ReadSession, table: Table, column: NameColumn, ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, str]:
     """The values of `column` for these records, deleted ones included, by ID."""
     _check(table)
@@ -100,7 +105,7 @@ def column_values(
     for chunk in chunks(ids):
         placeholders = ", ".join("?" * len(chunk))
         rows = session.conn.execute(
-            f"SELECT id, {column} FROM {table} WHERE id IN ({placeholders})",  # noqa: S608 - table and columns come from our Table enum and dataclass fields
+            f"SELECT id, {column} FROM {table} WHERE id IN ({placeholders})",  # noqa: S608 - table and column come from our Table enum and NameColumn
             chunk,
         )
         found |= {uuid.UUID(bytes=row[0]): row[1] for row in rows}

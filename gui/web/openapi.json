@@ -455,13 +455,6 @@
           }
         },
         "required": [
-          "id",
-          "repository",
-          "filesystem",
-          "path",
-          "resolved_path",
-          "created_at",
-          "bare",
           "observed_at",
           "observed_by",
           "active_at",
@@ -476,6 +469,13 @@
           "untracked",
           "conflicted",
           "error",
+          "id",
+          "repository",
+          "filesystem",
+          "path",
+          "resolved_path",
+          "created_at",
+          "bare",
           "branches",
           "root_commits",
           "remotes",
@@ -2206,12 +2206,6 @@
           }
         },
         "required": [
-          "id",
-          "repository",
-          "clone",
-          "name",
-          "path",
-          "lock_reason",
           "observed_at",
           "observed_by",
           "active_at",
@@ -2225,7 +2219,13 @@
           "changed",
           "untracked",
           "conflicted",
-          "error"
+          "error",
+          "id",
+          "repository",
+          "clone",
+          "name",
+          "path",
+          "lock_reason"
         ],
         "title": "WorktreeJson",
         "type": "object"
@@ -2235,7 +2235,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.17"
+    "version": "0.18"
   },
   "openapi": "3.1.0",
   "paths": {

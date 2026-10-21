@@ -29,7 +29,7 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [compiler] })],
   define: { __API_VERSION__: JSON.stringify(schema.info.version) },
   // Served by this Machine's Server and kept by the browser: one script is fine at this size.
-  build: { chunkSizeWarningLimit: 1000 },
+  build: { chunkSizeWarningLimit: 1500 },
   worker: { format: "es" }, // the diff renderer's highlighting worker imports its modules
   server: {
     host: "127.0.0.1",

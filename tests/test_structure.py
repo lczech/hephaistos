@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 PACKAGE = Path(__file__).parents[1] / "src" / "hephaistos"
-PARTS = ("core", "cli", "daemon", "desktop", "plugins")
 # The parts each part may import besides itself: dependencies point towards the Core (ADR 002),
 # and the CLI, one command for everything, also starts the Daemon and the Desktop.
 ALLOWED = {
@@ -15,6 +14,13 @@ ALLOWED = {
     "desktop": {"core"},
     "cli": {"core", "daemon", "desktop"},
 }
+# What no part may import unless allowed: every part, and plugins, which are found through
+# entry points (ADR 002), never imported.
+PARTS = (*ALLOWED, "plugins")
+
+
+def test_every_part_says_what_it_may_import() -> None:
+    assert {path.parent.name for path in PACKAGE.glob("*/__init__.py")} == set(ALLOWED)
 
 
 def _imported_modules(path: Path) -> set[str]:

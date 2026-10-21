@@ -46,7 +46,7 @@ Deferred: sync transport details.
 
 Trust (later): Registry changes that make a Machine execute something (Links, Automations) could otherwise travel through Sync against the direction of SSH access. They should be signed with per-Machine keys and accepted only from trusted Machines.
 
-Validation (with Sync): what Peers send is decoded strictly where it arrives; records and Events that don't fit are refused and logged, never stored. Sync's schema change also adds the constraints SQLite can check: the top-level type of JSON columns, counts that can't be negative, `ahead` and `behind` only with an `upstream`, no status for a bare Clone. Events stay unchanged once recorded, which has to allow local marks such as `duplicate`, and pruning.
+Validation (with Sync): what Peers send is decoded strictly where it arrives; records and Events that don't fit are refused and logged, never stored. Sync's schema change also adds the constraints SQLite can check: the top-level type of JSON columns, counts that can't be negative, `ahead` and `behind` only with an `upstream`, no status for a bare Clone. Events stay unchanged once recorded, which has to allow local marks such as `duplicate`, and pruning. Merge rules get property-based tests, as orders and repeats are hard to cover by hand.
 
 Size: only metadata is copied, never transcripts or Repositories. If needed later: prune or compact old Events, and partial copies per Peer connection (e.g. a cluster node sends its own data but receives only the Registry).
 

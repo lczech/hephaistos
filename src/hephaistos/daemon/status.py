@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from hephaistos.core.utils.paths import private_directory
 from hephaistos.daemon.errors import NotStartedError
@@ -82,9 +82,35 @@ def _at(value: datetime | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
-def _from_at(value: Any) -> datetime | None:  # noqa: ANN401 - JSON, checked by using it
+def _of[T](value: object, kind: type[T]) -> T:
+    """A JSON value that must be of this type; `True` isn't an int here, nor `"false"` a bool."""
+    if type(value) is not kind:
+        raise TypeError(f"not a {kind.__name__}: {value!r}")
+    return cast("T", value)
+
+
+def _optional[T](value: object, kind: type[T]) -> T | None:
+    """A JSON value of this type, or null."""
+    return None if value is None else _of(value, kind)
+
+
+def _from_at(value: object) -> datetime | None:
     """A time from JSON."""
-    return None if value is None else datetime.fromisoformat(value)
+    return None if value is None else datetime.fromisoformat(_of(value, str))
+
+
+def _trigger(value: object) -> Trigger:
+    """What asked for a pass, from JSON."""
+    match _of(value, str):
+        case "watcher" | "api" as trigger:
+            return trigger
+        case other:
+            raise ValueError(f"not a trigger: {other!r}")
+
+
+def _texts(value: object) -> tuple[str, ...]:
+    """A JSON list of text."""
+    return tuple(_of(item, str) for item in cast("list[object]", _of(value, list)))
 
 
 def _status_json(status: Status) -> dict[str, object]:
@@ -118,33 +144,33 @@ def _status_json(status: Status) -> dict[str, object]:
     }
 
 
-def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked by using it
+def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked here
     """A status from its JSON values; raises if any don't fit."""
     passed, server = data["watcher"], data["server"]
     return Status(
-        pid=int(data["pid"]),
-        version=str(data["version"]),
-        started_at=datetime.fromisoformat(data["started_at"]),
+        pid=_of(data["pid"], int),
+        version=_of(data["version"], str),
+        started_at=datetime.fromisoformat(_of(data["started_at"], str)),
         stopped_at=_from_at(data["stopped_at"]),
-        parts=tuple(str(name) for name in data["parts"]),
+        parts=_texts(data["parts"]),
         watcher=None
         if passed is None
         else PassStatus(
-            datetime.fromisoformat(passed["finished_at"]),
-            float(passed["duration"]),
-            None if passed["error"] is None else str(passed["error"]),
-            "api" if passed["trigger"] == "api" else "watcher",
+            datetime.fromisoformat(_of(passed["finished_at"], str)),
+            _of(passed["duration"], float),
+            _optional(passed["error"], str),
+            _trigger(passed["trigger"]),
         ),
         server=None
         if server is None
         else ServerStatus(
-            address=str(server["address"]),
-            listening=bool(server["listening"]),
-            error=None if server["error"] is None else str(server["error"]),
-            requests=int(server["requests"]),
+            address=_of(server["address"], str),
+            listening=_of(server["listening"], bool),
+            error=_optional(server["error"], str),
+            requests=_of(server["requests"], int),
             last_request_at=_from_at(server["last_request_at"]),
-            refused=int(server["refused"]),
-            live=int(server["live"]),
+            refused=_of(server["refused"], int),
+            live=_of(server["live"], int),
         ),
     )
 
