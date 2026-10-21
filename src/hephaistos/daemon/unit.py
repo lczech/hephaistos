@@ -17,13 +17,11 @@ from pathlib import Path
 
 from hephaistos.core import config
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import HOME_VARIABLE, Paths
+from hephaistos.core.utils.paths import PATH_VARIABLES, Paths
 from hephaistos.daemon import status
 
 UNIT_NAME = "hephaistos.service"
 MARKER = "# Written by `hephaistos daemon install`, which rewrites it; `uninstall` removes it."
-# Variables that choose where our config, database and logs are.
-PATH_VARIABLES = (HOME_VARIABLE, "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME")
 LINGER_DIR = Path("/var/lib/systemd/linger")  # a file per user with linger on
 TIMEOUT = 30.0  # seconds a systemctl or loginctl call may take
 START_WAIT = 10.0  # seconds a started Daemon gets to take its lock

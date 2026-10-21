@@ -8,7 +8,6 @@ from pathlib import Path
 
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, private_directory, shell_path
-from hephaistos.daemon.server.token import token_file
 
 PACKAGE = Path("gui")  # the GUI's npm package, in the checkout: also Electron's app
 ELECTRON = PACKAGE / "node_modules" / "electron" / "dist" / "electron"
@@ -70,7 +69,7 @@ def environment(env: Mapping[str, str], paths: Paths, executable: Path) -> dict[
     return kept | {
         EXECUTABLE_VARIABLE: str(executable),
         PROFILE_VARIABLE: str(private_directory(paths.state_dir / "desktop")),
-        TOKEN_VARIABLE: str(token_file(paths)),
+        TOKEN_VARIABLE: str(paths.token),
     }
 
 

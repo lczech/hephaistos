@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hephaistos import __description__
-from hephaistos.daemon.unit import PATH_VARIABLES
+from hephaistos.core.utils.paths import PATH_VARIABLES
 
 APP_ID = "hephaistos"
 ICON = Path("assets", "icon.svg")  # in the checkout

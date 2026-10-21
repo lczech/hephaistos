@@ -8,7 +8,7 @@ The first slice needs the Core's foundations: storing Registry, State and Events
 
 ## Package layout
 
-One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, src layout. uv manages the environment; `uv.lock` is committed. During development, `uv tool install --editable .` puts `hephaistos` on the path, following the current code. The parts from [002](002-technology-stack.md) are subpackages; `gui/` stays outside. A test checks that `core` imports none of the other parts.
+One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, src layout. uv manages the environment; `uv.lock` is committed. During development, `uv tool install --editable .` puts `hephaistos` on the path, following the current code. The parts from [002](002-technology-stack.md) are subpackages; `gui/` stays outside. A test checks what each part imports: the Core none of the others, the Daemon and the Desktop only the Core, the CLI any.
 
 ```
 src/hephaistos/

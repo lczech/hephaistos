@@ -138,7 +138,7 @@ class Server:
         where = address(port)
         token.token(self._paths)
         if token.tighten(self._paths):
-            log.warning("others could read %s; now only you can", token.token_file(self._paths))
+            log.warning("others could read %s; now only you can", self._paths.token)
         try:
             _check_websockets()
             sock = bind(port)

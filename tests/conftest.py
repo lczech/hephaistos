@@ -6,8 +6,7 @@ import pytest
 
 from hephaistos.core import config
 from hephaistos.core.registry import machines
-from hephaistos.core.utils.paths import Paths
-from hephaistos.daemon import unit
+from hephaistos.core.utils.paths import PATH_VARIABLES, Paths
 from hephaistos.desktop import apparmor
 from support import hostnamectl
 
@@ -34,7 +33,7 @@ def no_systemd_or_desktop(
     """systemctl and loginctl fail, there's no graphical session, and AppArmor's files are
     temporary ones: `setup` and others never reach the user's services, desktop or system. The
     `systemd` fixture stands in for systemd."""
-    for name in ("DISPLAY", "WAYLAND_DISPLAY", *unit.PATH_VARIABLES[1:]):  # all but our HOME
+    for name in ("DISPLAY", "WAYLAND_DISPLAY", *PATH_VARIABLES[1:]):  # all but our HOME
         monkeypatch.delenv(name, raising=False)
     bin_dir = tmp_path_factory.mktemp("bin")
     for name in ("systemctl", "loginctl"):

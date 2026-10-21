@@ -13,6 +13,9 @@ from hephaistos.core.utils.errors import HephaistosError
 
 DATABASE_NAME = "hephaistos.db"
 HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
+# Variables that choose where our config, database and logs are.
+PATH_VARIABLES = (HOME_VARIABLE, "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME")
+TOKEN_NAME = "server.token"  # noqa: S105 - the file's name, not a token
 PRIVATE_MODE = 0o700  # our data and state directories: only their user may enter them
 SOURCE = Path(__file__).parents[4]  # the checkout, when running from one: `src/hephaistos/…`
 
@@ -99,6 +102,11 @@ class Paths:
     def database_backup(self) -> Path:
         """Where `setup --reset` keeps the previous database."""
         return self.data_dir / f"{DATABASE_NAME}.old"
+
+    @property
+    def token(self) -> Path:
+        """The Server's token, which its clients read: the Desktop, `daemon token`."""
+        return self.data_dir / TOKEN_NAME
 
     def make_private(self) -> list[Path]:
         """Lets only the user enter the data and state directories; returns those others could.

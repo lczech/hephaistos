@@ -11,14 +11,8 @@ from pathlib import Path
 
 from hephaistos.core.utils.paths import Paths, private_directory
 
-TOKEN_NAME = "server.token"  # noqa: S105 - the file's name, not a token
 TOKEN_BYTES = 32  # random bytes; 43 characters of URL-safe base64
 MODE = 0o600
-
-
-def token_file(paths: Paths) -> Path:
-    """Where the token is kept."""
-    return paths.data_dir / TOKEN_NAME
 
 
 def _read(path: Path) -> str | None:
@@ -39,7 +33,7 @@ def _written(path: Path, value: str, *, exclusive: bool) -> None:
 
 def renew(paths: Paths) -> str:
     """Replaces the token with a new one, which every client then needs; returns it."""
-    path = token_file(paths)
+    path = paths.token
     private_directory(path.parent)
     new = path.with_name(f"{path.name}.new")
     with contextlib.suppress(FileNotFoundError):
@@ -52,7 +46,7 @@ def renew(paths: Paths) -> str:
 
 def token(paths: Paths) -> str:
     """The token, created on first use."""
-    path = token_file(paths)
+    path = paths.token
     if (found := _read(path)) is not None:
         return found
     if path.exists():  # empty: never fully written
@@ -68,7 +62,7 @@ def token(paths: Paths) -> str:
 
 def tighten(paths: Paths) -> bool:
     """Makes the token readable only by the user again; returns whether others could read it."""
-    path = token_file(paths)
+    path = paths.token
     if not path.stat().st_mode & 0o077:
         return False
     path.chmod(MODE)
@@ -92,12 +86,12 @@ class TokenFile:
     def current(self) -> str:
         """The token now."""
         try:
-            info = token_file(self._paths).stat()
+            info = self._paths.token.stat()
         except FileNotFoundError:
             info = None
         seen = None if info is None else (info.st_ino, info.st_mtime_ns)
         if seen is None or seen != self._seen:
             self._value = token(self._paths)
-            info = token_file(self._paths).stat()
+            info = self._paths.token.stat()
             self._seen = (info.st_ino, info.st_mtime_ns)
         return self._value

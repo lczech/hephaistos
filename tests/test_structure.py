@@ -3,9 +3,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PACKAGE = Path(__file__).parents[1] / "src" / "hephaistos"
-CORE = PACKAGE / "core"
-OTHER_PARTS = ("hephaistos.cli", "hephaistos.daemon", "hephaistos.desktop", "hephaistos.plugins")
+PARTS = ("core", "cli", "daemon", "desktop", "plugins")
+# The parts each part may import besides itself: dependencies point towards the Core (ADR 002),
+# and the CLI, one command for everything, also starts the Daemon and the Desktop.
+ALLOWED = {
+    "core": set[str](),
+    "daemon": {"core"},
+    "desktop": {"core"},
+    "cli": {"core", "daemon", "desktop"},
+}
 
 
 def _imported_modules(path: Path) -> set[str]:
@@ -18,20 +27,16 @@ def _imported_modules(path: Path) -> set[str]:
     return modules
 
 
-def test_core_imports_no_other_part() -> None:
-    files = list(CORE.rglob("*.py"))
+@pytest.mark.parametrize("part", sorted(ALLOWED))
+def test_parts_import_only_what_they_may(part: str) -> None:
+    files = list((PACKAGE / part).rglob("*.py"))
     assert files
+    forbidden = tuple(
+        f"hephaistos.{other}" for other in PARTS if other not in {part, *ALLOWED[part]}
+    )
     for path in files:
         for module in _imported_modules(path):
-            assert not module.startswith(OTHER_PARTS), f"{path.name} imports {module}"
-
-
-def test_daemon_imports_no_cli() -> None:
-    files = list((PACKAGE / "daemon").rglob("*.py"))
-    assert files
-    for path in files:
-        for module in _imported_modules(path):
-            assert not module.startswith("hephaistos.cli"), f"{path.name} imports {module}"
+            assert not module.startswith(forbidden), f"{path.name} imports {module}"
 
 
 def test_the_cli_starts_without_the_server_libraries() -> None:

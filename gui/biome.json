@@ -3,5 +3,28 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": { "includes": ["**", "!web/openapi.json"] },
   "plugins": ["./lint/dock-elements.grit", "./lint/no-manual-memo.grit"],
+  "linter": {
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "dockview": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView.",
+              "dockview-core": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView.",
+              "dockview-react": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView."
+            }
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["web/src/layout/**"],
+      "linter": { "rules": { "style": { "noRestrictedImports": "off" } } }
+    }
+  ],
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 }
 }
