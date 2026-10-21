@@ -28,16 +28,17 @@ describe("a diff's height", () => {
   });
 
   it("has bands before, between and after its hunks, where the file goes on", () => {
-    expect(diffRows(PATCH, look).bands).toBe(2); // after: unknown without the file
-    expect(diffRows(PATCH, look, 20).bands).toBe(3);
-    expect(diffRows(PATCH, look, 11).bands).toBe(2); // ends with the last hunk
+    expect(diffRows(PATCH, look)).toMatchObject({ bands: 2, ends: 1 }); // after: unknown
+    expect(diffRows(PATCH, look, 20)).toMatchObject({ bands: 3, ends: 0 });
+    expect(diffRows(PATCH, look, 11)).toMatchObject({ bands: 2, ends: 1 }); // ends with the last hunk
   });
 
   it("is the whole file, and the lines removed, once the file is shown whole", () => {
-    expect(diffRows(PATCH, { ...look, whole: true }, 20)).toEqual({ rows: 22, bands: 0 });
+    expect(diffRows(PATCH, { ...look, whole: true }, 20)).toEqual({ rows: 22, bands: 0, ends: 2 });
     expect(diffRows(PATCH, { ...look, split: true, whole: true }, 20)).toEqual({
       rows: 21,
       bands: 0,
+      ends: 2,
     });
   });
 

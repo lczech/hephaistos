@@ -37,8 +37,8 @@ export interface DiffShow {
 const AHEAD = "1500px"; // how far beyond the scrolled area a diff is asked for
 
 /** A height for CSS to size, as `.waiting` and `.holding` do. */
-function heightOf({ rows, bands }: DiffRows): CSSProperties {
-  return { "--rows": rows, "--bands": bands } as CSSProperties;
+function heightOf({ rows, bands, ends }: DiffRows): CSSProperties {
+  return { "--rows": rows, "--bands": bands, "--ends": ends } as CSSProperties;
 }
 
 /** A diff's rows and bands, guessed from its lines changed until its patch is there: a few
@@ -48,7 +48,7 @@ function guessed(change: Change | undefined, show: DiffShow): DiffRows {
   const changed = show.look.split
     ? Math.max(added ?? 0, removed ?? 0)
     : (added ?? 0) + (removed ?? 0);
-  return { rows: Math.min(changed, show.large ?? changed) + 6, bands: 2 };
+  return { rows: Math.min(changed, show.large ?? changed) + 6, bands: 2, ends: 0 };
 }
 
 /** The element that scrolls `element`: the nearest of its ancestors that does. */

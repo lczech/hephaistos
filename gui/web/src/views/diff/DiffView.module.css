@@ -123,11 +123,12 @@
 }
 
 /* A diff not yet asked for, as high as it is likely to be; and one given to the renderer, at
- * least so high until drawn: its rows of code, and its bands of lines left out, the renderer's
- * 32px and the gaps around them (`components/diff/height.ts`). */
+ * least so high until drawn: its rows of code; its bands of lines left out, the renderer's 32px
+ * and 8px on either side; and its padding of 8px at each end without a band
+ * (`components/diff/height.ts`). */
 .waiting,
 .holding {
-  --height: calc(var(--rows) * var(--code-size) * 1.5 + var(--bands) * 48px);
+  --height: calc(var(--rows) * var(--code-size) * 1.5 + var(--bands) * 48px + var(--ends) * 8px);
 }
 
 .waiting {

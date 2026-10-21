@@ -1,13 +1,14 @@
 // How high the renderer draws a diff, about, to hold its place until drawn: counted here, sized
-// by CSS (rows of code, and bands where lines are left out between hunks). Lines that wrap make
-// it higher. Apart from `Diff`, which would load the renderer.
+// by CSS (rows of code, bands where lines are left out between hunks, and the room at the ends
+// without one). Lines that wrap make it higher. Apart from `Diff`, which would load the renderer.
 
 import type { DiffLook } from "./Diff";
 
-/** A diff's rows of code, and its bands of lines left out. */
+/** A diff's rows of code, its bands of lines left out, and its ends without a band. */
 export interface DiffRows {
   rows: number;
   bands: number;
+  ends: number; // of its two: the renderer pads each, a band in its place
 }
 
 const HUNK = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
@@ -52,11 +53,11 @@ export function diffRows(patch: string, look: DiffLook, newLines?: number): Diff
     }
   }
   run();
-  if (look.whole && newLines !== undefined) return { rows: newLines + extra, bands: 0 };
+  if (look.whole && newLines !== undefined) return { rows: newLines + extra, bands: 0, ends: 2 };
   const [first] = hunks;
   const last = hunks.at(-1);
-  if (first === undefined || last === undefined) return { rows, bands: 0 };
+  if (first === undefined || last === undefined) return { rows, bands: 0, ends: 0 };
   const before = first[0] > 1 ? 1 : 0;
   const after = newLines !== undefined && last[0] + last[1] - 1 < newLines ? 1 : 0;
-  return { rows, bands: hunks.length - 1 + before + after };
+  return { rows, bands: hunks.length - 1 + before + after, ends: 2 - before - after };
 }
