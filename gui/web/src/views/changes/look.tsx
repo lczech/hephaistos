@@ -30,7 +30,7 @@ export function NestedChoice() {
       onChange={(nested) => setLook({ ...look, nested })}
       ways={[
         { icon: FolderTree, title: "Show directories as a tree, each in its parent" },
-        { icon: Folders, title: "Show each directory with changes by its path" },
+        { icon: Folders, title: "Show directories as a flat list, each by its full path" },
       ]}
     />
   );
