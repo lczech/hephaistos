@@ -1,5 +1,5 @@
 import { functionalUpdate } from "@tanstack/react-table";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useLog } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -20,12 +20,12 @@ const NONE: LogEntry[] = [];
  * it, filtered by its parameters as that is by its options.
  */
 export function LogView({ params, setParams, setTitle }: ViewProps) {
-  const filters = useMemo(() => logFilters(params), [params]);
+  const filters = logFilters(params);
   const log = useLog(filters);
   const now = useNow(10_000);
   const pages = log.data?.pages;
-  const listed = useMemo(() => pages?.flatMap((page) => page.entries) ?? NONE, [pages]);
-  const columnFilters = useMemo(() => logColumnFilters(params), [params]);
+  const listed = pages?.flatMap((page) => page.entries) ?? NONE;
+  const columnFilters = logColumnFilters(params);
   const table = useListTable({
     columns,
     data: listed,
@@ -38,7 +38,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
       setParams(logParams(params, functionalUpdate(change, columnFilters))),
     meta: { now },
   });
-  const choices = useMemo(() => logChoices(params), [params]);
+  const choices = logChoices(params);
   const title = logTitle(columnFilters, choices);
   useEffect(() => setTitle(title), [title, setTitle]);
   let message: string | null = null;

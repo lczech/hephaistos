@@ -1,5 +1,5 @@
 import { functionalUpdate } from "@tanstack/react-table";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
 import { ListTable, type Tone } from "../../components/table/ListTable";
@@ -35,8 +35,8 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   // With one Machine, every Event names the same: its column only shows with several.
   const showMachine = (useMachines().data?.length ?? 1) > 1;
   const now = useNow(10_000);
-  const listed = useMemo(() => events.data?.pages.flat() ?? NONE, [events.data]);
-  const filters = useMemo(() => eventColumnFilters(params), [params]);
+  const listed = events.data?.pages.flat() ?? NONE;
+  const filters = eventColumnFilters(params);
   const table = useListTable({
     columns,
     data: listed,

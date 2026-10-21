@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * A value that follows another once that stopped changing for `delay` ms, e.g. a search typed,
@@ -10,6 +10,6 @@ export function useDebounced<T>(value: T, delay: number): [T, () => void] {
     const timer = setTimeout(() => setFollowed(value), delay);
     return () => clearTimeout(timer);
   }, [value, delay]);
-  const now = useCallback(() => setFollowed(value), [value]);
+  const now = () => setFollowed(value);
   return [followed, now];
 }

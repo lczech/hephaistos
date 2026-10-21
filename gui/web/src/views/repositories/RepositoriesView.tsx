@@ -1,5 +1,4 @@
 import { functionalUpdate } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { useInfo, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -19,8 +18,8 @@ export function RepositoriesView({ params, setParams }: ViewProps) {
   const repositories = useRepositories();
   const home = useInfo().data?.home;
   const now = useNow(10_000);
-  const listed = useMemo(() => entries(repositories.data ?? []), [repositories.data]);
-  const sorted = useMemo(() => sorting(params), [params]);
+  const listed = entries(repositories.data ?? []);
+  const sorted = sorting(params);
   const table = useListTable({
     columns,
     data: listed,

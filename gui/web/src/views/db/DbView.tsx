@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
 import { Fields } from "../../components/table/Fields";
@@ -113,15 +113,13 @@ function Rows({ table, show }: RowsProps) {
   const tables = useDbTables().data?.tables;
   const pages = rows.data?.pages;
   // The first page's columns: those of the newest rows, refreshed with all pages.
-  const columns = useMemo(() => tableColumns(pages?.[0]?.columns ?? []), [pages]);
+  const columns = tableColumns(pages?.[0]?.columns ?? []);
   // A row is its values: tables share no key. A row on two pages, moved on by a newer one, shows once.
-  const listed = useMemo(() => {
-    const unique = new Map<string, Row>();
-    for (const row of pages?.flatMap((page) => page.rows) ?? NONE) {
-      unique.set(JSON.stringify(row), row);
-    }
-    return [...unique.values()];
-  }, [pages]);
+  const unique = new Map<string, Row>();
+  for (const row of pages?.flatMap((page) => page.rows) ?? NONE) {
+    unique.set(JSON.stringify(row), row);
+  }
+  const listed = [...unique.values()];
   const listTable = useListTable({
     columns,
     data: listed,

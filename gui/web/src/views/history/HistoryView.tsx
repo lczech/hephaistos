@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   type HistoryQuery,
   KEYS,
@@ -73,13 +73,10 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     path,
     ref === undefined && words.length === 0 && first !== undefined,
   );
-  const listed = useMemo(
-    () => [
-      ...(uncommitted ? [{ type: "uncommitted" as const, text: uncommitted }] : []),
-      ...searchedEntries(first?.found, history.data?.pages.flatMap((page) => page.commits) ?? []),
-    ],
-    [history.data, first, uncommitted],
-  );
+  const listed = [
+    ...(uncommitted ? [{ type: "uncommitted" as const, text: uncommitted }] : []),
+    ...searchedEntries(first?.found, history.data?.pages.flatMap((page) => page.commits) ?? []),
+  ];
   // A commit searched for by its hash, not listed, shows on its branch, or among all files.
   const walked = revisionText(ref ?? first?.branch ?? HEAD);
   const showOn = (other: string) => setParams({ ...params, ref: other });

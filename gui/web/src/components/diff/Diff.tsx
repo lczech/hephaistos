@@ -17,7 +17,6 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -161,6 +160,19 @@ export function DiffScroll({
   );
 }
 
+/** A diff given to the renderer, and what it was made of. */
+interface Given extends Versions {
+  patch: string;
+  known: boolean;
+  fileDiff: FileDiffMetadata;
+}
+
+/** A patch's diff for the renderer, filled in with both versions where known. */
+function diffOf(patch: string, versions: Versions | undefined): FileDiffMetadata {
+  const partial = getSingularPatch(patch);
+  return bothSides(versions ? withVersions(partial, versions) : partial);
+}
+
 /**
  * A file's diff from git's patch, highlighted, with words changed within lines marked; once its
  * versions are known, with where it ends and all of it to show. Lines shown on asking stay so
@@ -169,14 +181,16 @@ export function DiffScroll({
  */
 export default function Diff({ patch, look, themes, versions }: Props) {
   const lineHeight = useContext(LineHeight);
-  const partial = useMemo(() => getSingularPatch(patch), [patch]);
-  // By their text: versions asked for again, unchanged, leave the diff as it is.
+  // The diff the renderer was given, kept while its patch and versions' text stay: a new one,
+  // even an equal one, has it draw the file anew, e.g. for versions asked for again, unchanged.
+  // Held, as React keeps what a render showed, since a memo may be dropped and recomputed.
+  const [given, setGiven] = useState<Given>();
+  const { old = null, new: current = null } = versions ?? {};
   const known = versions !== undefined;
-  const { old: oldText = null, new: newText = null } = versions ?? {};
-  const fileDiff = useMemo(
-    () => bothSides(known ? withVersions(partial, { old: oldText, new: newText }) : partial),
-    [partial, known, oldText, newText],
-  );
+  const same =
+    given?.patch === patch && given.known === known && given.old === old && given.new === current;
+  const fileDiff = same ? given.fileDiff : diffOf(patch, known ? { old, new: current } : undefined);
+  if (!same) setGiven({ patch, known, old, new: current, fileDiff });
   // The renderer takes its line height once: a new one starts it anew.
   return (
     <FileDiff

@@ -1,6 +1,17 @@
 import { getSingularPatch } from "@pierre/diffs";
-import { describe, expect, it } from "vitest";
-import { bothSides, withVersions } from "./Diff";
+import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import Diff, { bothSides, withVersions } from "./Diff";
+
+// The renderer's diffs, as given: each new one draws the file anew.
+const drawn = vi.hoisted(() => new Set<unknown>());
+vi.mock("@pierre/diffs/react", async (original) => ({
+  ...(await original<typeof import("@pierre/diffs/react")>()),
+  FileDiff: ({ fileDiff }: { fileDiff: unknown }) => {
+    drawn.add(fileDiff);
+    return null;
+  },
+}));
 
 const OLD = "1\n2\n3\n4\n5\n6\n7\n8\n";
 const NEW = "1\n2\n3\nfour\n5\n6\n7\n8\n";
@@ -43,5 +54,19 @@ new file mode 100644
     expect(bothSides(added)).toMatchObject({ type: "change", additionLines: ["1\n", "2\n"] });
     const changed = getSingularPatch(PATCH);
     expect(bothSides(changed)).toBe(changed);
+  });
+});
+
+describe("a diff shown", () => {
+  it("stays as it is for its versions asked for again, unchanged", () => {
+    const shown = { patch: PATCH, look: { split: true, wrap: false, whole: false } };
+    const themes = { light: "github-light", dark: "github-dark" };
+    const { rerender } = render(
+      <Diff {...shown} themes={themes} versions={{ old: OLD, new: NEW }} />,
+    );
+    rerender(<Diff {...shown} themes={{ ...themes }} versions={{ old: OLD, new: NEW }} />);
+    expect(drawn.size).toBe(1);
+    rerender(<Diff {...shown} themes={themes} versions={{ old: OLD, new: `${NEW}9\n` }} />);
+    expect(drawn.size).toBe(2);
   });
 });

@@ -1,5 +1,5 @@
 import type { DockviewApi, IWatermarkPanelProps } from "dockview-react";
-import { useCallback, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
 import { ViewList } from "./ViewList";
@@ -7,17 +7,14 @@ import { useSideButtons } from "./visits";
 
 /** How many Groups there are, following them as they come and go. */
 function useGroupCount(api: DockviewApi): number {
-  const subscribe = useCallback(
-    (changed: () => void) => {
-      const added = api.onDidAddGroup(changed);
-      const removed = api.onDidRemoveGroup(changed);
-      return () => {
-        added.dispose();
-        removed.dispose();
-      };
-    },
-    [api],
-  );
+  const subscribe = (changed: () => void) => {
+    const added = api.onDidAddGroup(changed);
+    const removed = api.onDidRemoveGroup(changed);
+    return () => {
+      added.dispose();
+      removed.dispose();
+    };
+  };
   return useSyncExternalStore(subscribe, () => api.groups.length);
 }
 

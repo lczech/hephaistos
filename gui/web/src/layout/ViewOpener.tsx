@@ -1,5 +1,5 @@
 import type { DockviewApi } from "dockview-react";
-import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import type { Address } from "../views/address";
 import { type Opening, OpenViewContext } from "../views/opening";
 import { openView } from "./dock";
@@ -12,12 +12,9 @@ const DockRegistry = createContext<(api: DockviewApi | null) => void>(() => {});
  */
 export function ViewOpener({ children }: { children: ReactNode }) {
   const [dock, setDock] = useState<DockviewApi | null>(null);
-  const open = useCallback(
-    (address: Address, opening?: Opening) => {
-      if (dock !== null) openView(dock, address, opening);
-    },
-    [dock],
-  );
+  const open = (address: Address, opening?: Opening) => {
+    if (dock !== null) openView(dock, address, opening);
+  };
   return (
     <DockRegistry value={setDock}>
       <OpenViewContext value={open}>{children}</OpenViewContext>

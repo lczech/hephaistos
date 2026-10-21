@@ -36,3 +36,15 @@ it("has lint reject reading dockview's elements, but where said why", () => {
 `;
   expect(lint(excused)).not.toContain("Don't read dockview's elements");
 });
+
+// React's compiler memoizes (`lint/no-manual-memo.grit`).
+it("has lint reject memoizing by hand", () => {
+  const memoized = `import { memo, useCallback, useMemo } from "react";
+export function useTwice(n: number) {
+  const twice = useMemo(() => 2 * n, [n]);
+  return [twice, useCallback(() => n, [n])];
+}
+export const Shown = memo(() => null);
+`;
+  expect(lint(memoized).match(/Don't memoize by hand/g)).toHaveLength(3);
+});

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List } from "lucide-react";
-import { type MouseEvent, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
@@ -66,7 +66,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   }, [title, setTitle]);
   const groups = changes.data?.groups ?? [];
 
-  const sorted = useMemo(() => sortingOf(params, SORTS, DEFAULT_SORT), [params]);
+  const sorted = sortingOf(params, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
   const { table, folds } = useChangesTable({
     query,
