@@ -42,7 +42,11 @@ export default defineConfig({
             headless: true,
             screenshotFailures: false,
             viewport: { width: 1280, height: 800 },
-            instances: browsers.map((browser) => ({ browser })),
+            // WebKit's without workers: `src/test/browser.ts`.
+            instances: browsers.map((browser) => ({
+              browser,
+              provide: { workers: browser !== "webkit" },
+            })),
           },
         },
       },
