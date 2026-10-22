@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type Choice, filterText, toggled } from "./filters";
 
-const added = { value: "clone.added", label: "clone.added" };
+const added = { value: "clone.registered", label: "clone.registered" };
 const moved = { value: "clone.moved", label: "clone.moved" };
 const clone: Choice = { value: "clone", label: "clone", choices: [added, moved] };
 const machine: Choice = { value: "machine", label: "machine" };
@@ -9,16 +9,16 @@ const machine: Choice = { value: "machine", label: "machine" };
 describe("ticking a choice", () => {
   it("adds it, or takes it away again", () => {
     expect(toggled([], machine)).toEqual(["machine"]);
-    expect(toggled(["clone.added", "machine"], machine)).toEqual(["clone.added"]);
+    expect(toggled(["clone.registered", "machine"], machine)).toEqual(["clone.registered"]);
   });
 
   it("covers the choices within it, so they needn't be chosen too", () => {
-    expect(toggled(["clone.added", "machine"], clone)).toEqual(["machine", "clone"]);
+    expect(toggled(["clone.registered", "machine"], clone)).toEqual(["machine", "clone"]);
   });
 
   it("leaves the others within one chosen as a whole", () => {
     expect(toggled(["machine", "clone"], added, clone)).toEqual(["machine", "clone.moved"]);
-    expect(toggled(["machine"], added, clone)).toEqual(["machine", "clone.added"]);
+    expect(toggled(["machine"], added, clone)).toEqual(["machine", "clone.registered"]);
   });
 });
 

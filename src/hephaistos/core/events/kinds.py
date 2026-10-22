@@ -18,15 +18,15 @@ PriorityName = Literal["low", "normal", "high", "urgent"]
 class EventKind(StrEnum):
     """Stored as text; the part before the dot names the subject's type."""
 
-    MACHINE_ADDED = "machine.added"
+    MACHINE_REGISTERED = "machine.registered"
     MACHINE_CHANGED = "machine.changed"
-    FILESYSTEM_ADDED = "filesystem.added"
-    MOUNT_ADDED = "mount.added"
-    REPOSITORY_ADDED = "repository.added"
+    FILESYSTEM_REGISTERED = "filesystem.registered"
+    MOUNT_REGISTERED = "mount.registered"
+    REPOSITORY_REGISTERED = "repository.registered"
     REPOSITORY_CHANGED = "repository.changed"
-    REPOSITORY_DELETED = "repository.deleted"
-    CLONE_ADDED = "clone.added"
-    CLONE_DELETED = "clone.deleted"
+    REPOSITORY_UNREGISTERED = "repository.unregistered"
+    CLONE_REGISTERED = "clone.registered"
+    CLONE_UNREGISTERED = "clone.unregistered"
     CLONE_MOVED = "clone.moved"
     CLONE_MISSING = "clone.missing"
     CLONE_FOUND = "clone.found"
@@ -66,15 +66,15 @@ class EventKind(StrEnum):
         # Exhaustive: the type checker reports a new kind missing here.
         match self:
             case (
-                EventKind.MACHINE_ADDED
+                EventKind.MACHINE_REGISTERED
                 | EventKind.MACHINE_CHANGED
-                | EventKind.FILESYSTEM_ADDED
-                | EventKind.MOUNT_ADDED
-                | EventKind.REPOSITORY_ADDED
+                | EventKind.FILESYSTEM_REGISTERED
+                | EventKind.MOUNT_REGISTERED
+                | EventKind.REPOSITORY_REGISTERED
                 | EventKind.REPOSITORY_CHANGED
-                | EventKind.REPOSITORY_DELETED
-                | EventKind.CLONE_ADDED
-                | EventKind.CLONE_DELETED
+                | EventKind.REPOSITORY_UNREGISTERED
+                | EventKind.CLONE_REGISTERED
+                | EventKind.CLONE_UNREGISTERED
                 | EventKind.CLONE_MOVED
                 | EventKind.CLONE_FOUND
                 | EventKind.CLONE_RECOVERED

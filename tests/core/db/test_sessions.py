@@ -109,7 +109,7 @@ def test_write_session_persists_clock(set_up: Paths) -> None:
 
 def _add_and_fail(paths: Paths) -> None:
     with write_session(paths) as session:
-        repositories.add(session, "lost")
+        repositories.register(session, "lost")
         raise ValueError("rolled back")
 
 
@@ -124,9 +124,9 @@ def test_events_are_logged_once_committed(set_up: Paths, caplog: pytest.LogCaptu
     assert rolled_back.exc_info is None
     caplog.clear()
     with write_session(set_up) as session:
-        added = repositories.add(session, "kept")
+        added = repositories.register(session, "kept")
     [logged] = caplog.records
-    assert logged.getMessage() == "recorded repository.added"
+    assert logged.getMessage() == "recorded repository.registered"
     assert getattr(logged, "subject") == added.id  # noqa: B009 - an extra field
 
 
@@ -142,7 +142,7 @@ while not Path(sys.argv[3]).exists():  # all start together
     time.sleep(0.001)
 for number in range(int(sys.argv[2])):
     with write_session(paths) as session:
-        repositories.add(session, f"{sys.argv[1]}-{number}")
+        repositories.register(session, f"{sys.argv[1]}-{number}")
         time.sleep(0.002)  # holds the lock a while, so that the others wait
     time.sleep(0.001)  # lets the others take their turn
 """
@@ -169,7 +169,7 @@ def test_concurrent_writers_wait_and_keep_the_clock_in_commit_order(
         times = [
             row[0]
             for row in session.conn.execute(
-                "SELECT recorded_at FROM events WHERE kind = 'repository.added' ORDER BY rowid"
+                "SELECT recorded_at FROM events WHERE kind = 'repository.registered' ORDER BY rowid"
             )
         ]
         names = {row[0] for row in session.conn.execute("SELECT name FROM registry_repositories")}
@@ -181,7 +181,7 @@ def test_concurrent_writers_wait_and_keep_the_clock_in_commit_order(
 
 def test_reading_does_not_wait_for_a_write_session(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        repositories.add(session, "pending")
+        repositories.register(session, "pending")
         with read_session(set_up) as reading:
             assert repositories.summaries(reading) == []
     with read_session(set_up) as reading:

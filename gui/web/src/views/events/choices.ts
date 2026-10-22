@@ -79,7 +79,7 @@ const PRIORITIES: Choice[] = [
   { value: "urgent", label: "urgent" },
 ];
 
-/** Kinds by what they are about: `clone` is within reach of `clone.added` and its others. */
+/** Kinds by what they are about: `clone` is within reach of `clone.registered` and its others. */
 function kindChoices(kinds: string[]): Choice[] {
   const groups = new Map<string, Choice[]>();
   for (const kind of kinds) {

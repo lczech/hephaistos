@@ -20,9 +20,9 @@ def set_up(paths: Paths) -> Paths:
     return paths
 
 
-def test_add_and_find(set_up: Paths) -> None:
+def test_register_and_find(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        added = repositories.add(session, "proj")
+        added = repositories.register(session, "proj")
     with read_session(set_up) as session:
         assert repositories.by_name(session, "proj") == added
         [summary] = repositories.summaries(session)
@@ -33,14 +33,14 @@ def test_add_and_find(set_up: Paths) -> None:
 @pytest.mark.parametrize("name", ["", " proj", "proj "])
 def test_names_must_be_trimmed_and_not_empty(set_up: Paths, name: str) -> None:
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="empty"):
-        repositories.add(session, name)
+        repositories.register(session, name)
 
 
 def test_names_are_unique(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        repositories.add(session, "proj")
+        repositories.register(session, "proj")
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="already"):
-        repositories.add(session, "proj")
+        repositories.register(session, "proj")
 
 
 def test_unknown_name(set_up: Paths) -> None:
@@ -50,7 +50,7 @@ def test_unknown_name(set_up: Paths) -> None:
 
 def test_rename_records_an_event(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        added = repositories.add(session, "proj")
+        added = repositories.register(session, "proj")
     with write_session(set_up) as session:
         repositories.rename(session, "proj", "project")
     with read_session(set_up) as session:
@@ -63,32 +63,32 @@ def test_rename_records_an_event(set_up: Paths) -> None:
     assert json.loads(row["payload"]) == {"name": {"old": "proj", "new": "project"}}
 
 
-def test_remove_frees_the_name(set_up: Paths) -> None:
+def test_unregister_frees_the_name(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        added = repositories.add(session, "proj")
+        added = repositories.register(session, "proj")
     with write_session(set_up) as session:
-        repositories.remove(session, "proj")
+        repositories.unregister(session, "proj")
     with read_session(set_up) as session:
         assert repositories.summaries(session) == []
         row = session.conn.execute(
             "SELECT kind, subject FROM events ORDER BY recorded_at DESC LIMIT 1"
         ).fetchone()
-    assert (row["kind"], row["subject"]) == ("repository.deleted", added.id.bytes)
+    assert (row["kind"], row["subject"]) == ("repository.unregistered", added.id.bytes)
     with write_session(set_up) as session:
-        assert repositories.add(session, "proj").id != added.id
+        assert repositories.register(session, "proj").id != added.id
 
 
-def test_remove_refuses_with_clones(set_up: Paths, tmp_path: Path) -> None:
+def test_unregister_refuses_with_clones(set_up: Paths, tmp_path: Path) -> None:
     with write_session(set_up) as session:
-        repositories.add(session, "proj")
-        clones.add(session, "proj", clones.inspect(create(tmp_path / "repo")))
+        repositories.register(session, "proj")
+        clones.register(session, "proj", clones.inspect(create(tmp_path / "repo")))
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="still has"):
-        repositories.remove(session, "proj")
+        repositories.unregister(session, "proj")
 
 
 def test_change_without_difference_records_nothing(set_up: Paths) -> None:
     with write_session(set_up) as session:
-        added = repositories.add(session, "proj")
+        added = repositories.register(session, "proj")
         before = session.conn.execute("SELECT count(*) FROM events").fetchone()[0]
         records.change(
             session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_CHANGED, added, added
@@ -100,10 +100,10 @@ def test_summaries_count_clones_and_their_main_remotes(set_up: Paths, tmp_path: 
     repo = create(tmp_path / "repo", origin="git@host:me/proj.git")
     copy = clone(repo, tmp_path / "copy")  # its origin is the local path
     with write_session(set_up) as session:
-        repositories.add(session, "proj")
-        repositories.add(session, "empty")
-        clones.add(session, "proj", clones.inspect(repo))
-        clones.add(session, "proj", clones.inspect(copy))
+        repositories.register(session, "proj")
+        repositories.register(session, "empty")
+        clones.register(session, "proj", clones.inspect(repo))
+        clones.register(session, "proj", clones.inspect(copy))
     with read_session(set_up) as session:
         empty, proj = repositories.summaries(session)
     assert (empty.clones, empty.remotes) == (0, ())
@@ -115,9 +115,9 @@ def test_summaries_say_when_head_last_moved_in_any_checkout(
 ) -> None:
     repo = create(tmp_path / "repo")
     with write_session(set_up) as session:
-        repositories.add(session, "proj")
-        repositories.add(session, "empty")
-        clones.add(session, "proj", clones.inspect(repo))
+        repositories.register(session, "proj")
+        repositories.register(session, "empty")
+        clones.register(session, "proj", clones.inspect(repo))
     observer.observe(set_up)  # reading the reflogs starts at their ends
     with read_session(set_up) as session:
         [details] = clones.details(session)

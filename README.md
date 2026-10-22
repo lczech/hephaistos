@@ -20,9 +20,9 @@ uv run npm --prefix gui run build           # the GUI, served by the Daemon, and
 hephaistos setup                 # once per Machine, again to update: database, Daemon service, Desktop
 hephaistos --install-completion  # optional: tab completion
 hephaistos machine show
-hephaistos repo add hephaistos
-hephaistos clone add ~/Repos/hephaistos -r hephaistos
-hephaistos scan ~/Repos             # adds all clones there, with new Repositories where needed
+hephaistos repo register hephaistos
+hephaistos clone register ~/Repos/hephaistos -r hephaistos
+hephaistos scan ~/Repos             # registers all clones there, with new Repositories where needed
 hephaistos clone list
 hephaistos worktree list
 hephaistos observe

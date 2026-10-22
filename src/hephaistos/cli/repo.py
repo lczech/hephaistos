@@ -92,11 +92,11 @@ def show(
 
 
 @app.command()
-def add(name: NameArgument) -> None:
-    """Add a Repository; then add its Clones with `clone add`."""
+def register(name: NameArgument) -> None:
+    """Register a Repository; then register its Clones with `clone register`."""
     with write_session(Paths.from_environment()) as session:
-        repository = repositories.add(session, name)
-    typer.echo(f"Added Repository {repository.name}")
+        repository = repositories.register(session, name)
+    typer.echo(f"Registered Repository {repository.name}")
 
 
 @app.command()
@@ -111,15 +111,17 @@ def rename(
 
 
 @app.command()
-def remove(
+def unregister(
     name: NameArgument,
     *,
     with_clones: Annotated[
-        bool, typer.Option("--clones", help="Also remove its Clones, on every Machine.")
+        bool, typer.Option("--clones", help="Also unregister its Clones, on every Machine.")
     ] = False,
-    yes: Annotated[bool, typer.Option("--yes", help="Remove its Clones without asking.")] = False,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Unregister its Clones without asking.")
+    ] = False,
 ) -> None:
-    """Remove a Repository; its Clones' files stay untouched."""
+    """Unregister a Repository; its Clones' files stay untouched."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         repository = repositories.by_name(session, name)
@@ -132,13 +134,15 @@ def remove(
     if its_clones and not with_clones:
         them = "it" if len(its_clones) == 1 else "them"
         raise HephaistosError(
-            f"{name} still has {counted}:\n{listed}\nremove {them} first, or add --clones"
+            f"{name} still has {counted}:\n{listed}\nunregister {them} first, or give --clones"
         )
     if its_clones and not yes:
         typer.echo(f"{name} has {counted}:\n{listed}")
-        terminal.confirm(f"Remove {name} and its {counted}?", default=False, action="remove them")
+        terminal.confirm(
+            f"Unregister {name} and its {counted}?", default=False, action="unregister them"
+        )
     with write_session(paths) as session:
-        clones.remove_all(session, repository, [details.clone.id for details in its_clones])
-        repositories.remove(session, name)
+        clones.unregister_all(session, repository, [details.clone.id for details in its_clones])
+        repositories.unregister(session, name)
     with_text = f" and its {counted}" if its_clones else ""
-    typer.echo(f"Removed Repository {name}{with_text} (files untouched)")
+    typer.echo(f"Unregistered Repository {name}{with_text} (files untouched)")

@@ -37,9 +37,11 @@ export function actionOf(kind: string): string {
   return action.replaceAll("_", " ");
 }
 
+// Every Event kind's action has one: tests/core/events/test_kinds.py.
 const ACTIONS: Record<string, LucideIcon> = {
+  registered: CirclePlus,
+  unregistered: CircleMinus,
   added: CirclePlus,
-  deleted: CircleMinus,
   removed: CircleMinus,
   restored: ArchiveRestore,
   changed: Pencil,

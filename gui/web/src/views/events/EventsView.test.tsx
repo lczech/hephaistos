@@ -13,7 +13,7 @@ import { EventsView } from "./EventsView";
 type Event = Schemas["EventJson"];
 
 const PROJECT = "0199e000-0000-7000-8000-00000000dddd";
-const KINDS = ["machine.added", "clone.added", "clone.committed", "clone.missing"];
+const KINDS = ["machine.registered", "clone.registered", "clone.committed", "clone.missing"];
 
 /** A Server with these Events and as many Machines. */
 function serveEvents(listed: Event[] | (() => Event[]), machines = 1): Request[] {
@@ -54,7 +54,7 @@ const asked = (requests: Request[]) =>
 /** The texts of a row's cells, after the priority's square. */
 const committed = event(1, { details: [{ field: "head", text: "aaaaaaa → abc1" }] });
 const added = event(2, {
-  kind: "repository.added",
+  kind: "repository.registered",
   priority: 20,
   subject: {
     id: PROJECT,
@@ -73,7 +73,7 @@ describe("the Events View", () => {
     const rows = screen.getAllByRole("listitem");
     expect(rows.map(cells).map((row) => row.slice(1))).toEqual([
       ["committed", "project", "~/project", "Commit number 3 (abc3)"],
-      ["added", "project", "", ""], // a Repository's own Event: its name is already there
+      ["registered", "project", "", ""], // a Repository's own Event: its name is already there
       ["committed", "project", "~/project", "Commit number 1 (abc1)"],
     ]);
     expect(rows.map((row) => row.dataset.tone)).toEqual(["warning", undefined, "muted"]);
@@ -225,10 +225,12 @@ describe("the Events View's filters", () => {
   it("are its parameters, which the Server filters by", async () => {
     const requests = serveEvents([committed]);
     renderWithQueries(
-      <Events at={{ repository: PROJECT, kind: ["machine", "clone.added"], priority: "high" }} />,
+      <Events
+        at={{ repository: PROJECT, kind: ["machine", "clone.registered"], priority: "high" }}
+      />,
     );
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
-    expect(asked(requests).getAll("kind")).toEqual(["machine", "clone.added"]);
+    expect(asked(requests).getAll("kind")).toEqual(["machine", "clone.registered"]);
     expect(asked(requests).getAll("repository")).toEqual([PROJECT]);
     expect(asked(requests).get("priority")).toBe("high");
     expect(await screen.findByText("repository: project")).toBeInTheDocument();
@@ -238,8 +240,8 @@ describe("the Events View's filters", () => {
       "priority: high+",
     );
     await open("kind");
-    expect(screen.getByRole("checkbox", { name: "machine.added" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "clone.added" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "machine.registered" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "clone.registered" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "clone.missing" })).not.toBeChecked();
     await close();
     expect(setTitle).toHaveBeenLastCalledWith("Events: 3 filters");
@@ -267,7 +269,7 @@ describe("the Events View's filters", () => {
 
     await open("kind");
     await userEvent.click(screen.getByRole("checkbox", { name: "clone" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "clone.added" }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "clone.registered" }));
     await close();
     // Closing gives the focus back to the funnel.
     await vi.waitFor(() =>

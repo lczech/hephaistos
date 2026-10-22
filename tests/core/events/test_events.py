@@ -13,7 +13,7 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import Timestamp, new_id
 from hephaistos.core.utils.paths import Paths
 
-SETUP_KINDS = ["mount.added", "filesystem.added", "machine.added"]
+SETUP_KINDS = ["mount.registered", "filesystem.registered", "machine.registered"]
 
 
 @pytest.fixture
@@ -52,14 +52,18 @@ def test_read_back(set_up: Paths, session: ReadSession) -> None:
     subject = new_id()
     with write_session(set_up) as writing:
         recorded = events.record(
-            writing, EventKind.REPOSITORY_ADDED, subject, {"name": "proj"}, priority=Priority.HIGH
+            writing,
+            EventKind.REPOSITORY_REGISTERED,
+            subject,
+            {"name": "proj"},
+            priority=Priority.HIGH,
         )
     [event] = events.recent(session, limit=1)
     assert event == recorded
     assert event.recorded_by == session.machine_id
     assert isinstance(event.recorded_at, Timestamp)
     assert (event.kind, event.subject_type, event.subject) == (
-        "repository.added",
+        "repository.registered",
         "repository",
         subject,
     )
@@ -69,20 +73,20 @@ def test_read_back(set_up: Paths, session: ReadSession) -> None:
 
 def test_kind_prefix_matches_whole_parts(set_up: Paths, session: ReadSession) -> None:
     _insert(set_up, "machines.renamed")
-    assert _kinds(events.recent(session, kinds=["machine"])) == ["machine.added"]
-    assert _kinds(events.recent(session, kinds=["machine.added"])) == ["machine.added"]
+    assert _kinds(events.recent(session, kinds=["machine"])) == ["machine.registered"]
+    assert _kinds(events.recent(session, kinds=["machine.registered"])) == ["machine.registered"]
     assert _kinds(events.recent(session, kinds=["machine", "mount"])) == [
-        "mount.added",
-        "machine.added",
+        "mount.registered",
+        "machine.registered",
     ]
 
 
 def test_kind_glob(set_up: Paths, session: ReadSession) -> None:
-    _insert(set_up, "clone.deleted")
-    assert _kinds(events.recent(session, kinds=["*.added"])) == SETUP_KINDS
+    _insert(set_up, "clone.unregistered")
+    assert _kinds(events.recent(session, kinds=["*.registered"])) == SETUP_KINDS
     assert _kinds(events.recent(session, kinds=["clone.*", "m?chine.*"])) == [
-        "clone.deleted",
-        "machine.added",
+        "clone.unregistered",
+        "machine.registered",
     ]
 
 

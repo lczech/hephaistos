@@ -325,7 +325,7 @@ def test_gone_checkouts_say_what_happened(client: TestClient, repo: Path) -> Non
         },
     )
     assert client.get(f"/api/worktrees/{worktree['id']}").status_code == 410
-    assert runner.invoke(cli, ["clone", "remove", str(repo)]).exit_code == 0
+    assert runner.invoke(cli, ["clone", "unregister", str(repo)]).exit_code == 0
     unregistered = client.get("/api/changes", params={"clone": clone["id"]})
     assert (unregistered.status_code, unregistered.json()) == (
         410,
@@ -468,7 +468,7 @@ def test_a_bare_clone_has_history_and_commits(
     client: TestClient, repo: Path, tmp_path: Path
 ) -> None:
     bare = clone_of(repo, tmp_path / "bare.git", bare=True)
-    assert runner.invoke(cli, ["clone", "add", str(bare), "--repo", "proj"]).exit_code == 0
+    assert runner.invoke(cli, ["clone", "register", str(bare), "--repo", "proj"]).exit_code == 0
     found = next(found for found in _cli("clone", "list") if found["path"].endswith("bare.git"))
     history = client.get("/api/history", params={"clone": found["id"]}).json()
     assert len(history["commits"]) == 1

@@ -23,8 +23,8 @@ def repo(paths: Paths, tmp_path: Path) -> Path:
     repo = clone(create(tmp_path / "origin"), tmp_path / "repo")
     candidate = clones.inspect(repo)
     with write_session(paths) as session:
-        repositories.add(session, "proj")
-        clones.add(session, "proj", candidate)
+        repositories.register(session, "proj")
+        clones.register(session, "proj", candidate)
     return repo
 
 

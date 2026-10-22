@@ -26,8 +26,8 @@ def repo(paths: Paths, tmp_path: Path) -> Path:
     repo = clone(create(tmp_path / "origin"), tmp_path / "repo")
     candidate = clones.inspect(repo)
     with write_session(paths) as session:
-        repositories.add(session, "proj")
-        clones.add(session, "proj", candidate)
+        repositories.register(session, "proj")
+        clones.register(session, "proj", candidate)
     return repo
 
 
@@ -130,8 +130,8 @@ def test_shallow_clone_deepened(paths: Paths, tmp_path: Path) -> None:
     origin = create(tmp_path / "origin", commits=3)
     repo = clone(origin, tmp_path / "repo", depth=1)
     with write_session(paths) as session:
-        repositories.add(session, "proj")
-        clones.add(session, "proj", clones.inspect(repo))
+        repositories.register(session, "proj")
+        clones.register(session, "proj", clones.inspect(repo))
     observer.observe(paths)
     git(repo, "fetch", "--quiet", "--deepen=1")
     assert observer.observe(paths).events == []
@@ -166,8 +166,8 @@ def test_unexpected_error_fails_only_its_clone(
     other = create(tmp_path / "other")
     candidate = clones.inspect(other)
     with write_session(paths) as session:
-        repositories.add(session, "other")
-        clones.add(session, "other", candidate)
+        repositories.register(session, "other")
+        clones.register(session, "other", candidate)
     observer.observe(paths)
     real = git_facts.snapshot
 
@@ -195,8 +195,8 @@ def test_only_given_clones(paths: Paths, repo: Path, tmp_path: Path) -> None:
     other = create(tmp_path / "other")
     candidate = clones.inspect(other)
     with write_session(paths) as session:
-        repositories.add(session, "other")
-        clones.add(session, "other", candidate)
+        repositories.register(session, "other")
+        clones.register(session, "other", candidate)
         repo_id = clones.find(session, repo).clone.id
     assert observer.observe(paths).observed == 2
     assert observer.observe(paths, [repo_id]).observed == 1
@@ -384,4 +384,4 @@ def test_finding_checkouts(paths: Paths, repo: Path, tmp_path: Path) -> None:
         assert clones.find(session, tmp_path / "outside").clone.resolved_path == repo
         assert clones.find_checkout(session, repo).worktree is None
     with read_session(paths) as session, pytest.raises(HephaistosError, match="in a Worktree"):
-        clones.removable(session, tmp_path / "outside")
+        clones.find_to_unregister(session, tmp_path / "outside")

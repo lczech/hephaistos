@@ -27,7 +27,7 @@ def set_up(paths: object) -> None:
     """A Machine with Repository `project`, renamed from `proj`."""
     del paths
     runner.invoke(app, ["setup", "--name", "laptop"])
-    runner.invoke(app, ["repo", "add", "proj"])
+    runner.invoke(app, ["repo", "register", "proj"])
     runner.invoke(app, ["repo", "rename", "proj", "project"])
 
 
@@ -54,28 +54,31 @@ def test_list() -> None:
     # Repository's own Events no subject but it.
     rows = [re.split(r"\s{2,}", line) for line in lines[1:]]
     assert [row[1:] for row in rows] == [
-        ["now", "normal", "machine.added", "laptop", "laptop", socket.gethostname()],
-        ["now", "normal", "filesystem.added", "laptop", "laptop-local"],
-        ["now", "normal", "mount.added", "laptop", "/", "/"],
-        ["now", "normal", "repository.added", "project", "laptop"],
+        ["now", "normal", "machine.registered", "laptop", "laptop", socket.gethostname()],
+        ["now", "normal", "filesystem.registered", "laptop", "laptop-local"],
+        ["now", "normal", "mount.registered", "laptop", "/", "/"],
+        ["now", "normal", "repository.registered", "project", "laptop"],
         ["now", "normal", "repository.changed", "project", "laptop", "name: proj → project"],
     ]
     newest = runner.invoke(app, ["event", "list", "--reverse", "-n", "2"]).output.splitlines()
-    assert [line.split()[3] for line in newest[1:]] == ["repository.changed", "repository.added"]
+    assert [line.split()[3] for line in newest[1:]] == [
+        "repository.changed",
+        "repository.registered",
+    ]
     assert all(re.fullmatch(r"[0-9a-f]{8}", row[0]) for row in rows)
 
 
 @pytest.mark.parametrize(
     ("args", "kinds"),
     [
-        (["-k", "repository"], ["repository.added", "repository.changed"]),
-        (["-k", "machine", "-k", "mount"], ["machine.added", "mount.added"]),
-        (["--kind", "*.added", "-n", "2"], ["mount.added", "repository.added"]),
+        (["-k", "repository"], ["repository.registered", "repository.changed"]),
+        (["-k", "machine", "-k", "mount"], ["machine.registered", "mount.registered"]),
+        (["--kind", "*.registered", "-n", "2"], ["mount.registered", "repository.registered"]),
         (["-p", "high"], []),
         (["-p", "normal", "-n", "1"], ["repository.changed"]),
         (["-m", "laptop", "-s", "1h", "-n", "1"], ["repository.changed"]),
         (["-m", "laptop", "-m", "laptop", "-r", "project", "-n", "1"], ["repository.changed"]),
-        (["-n", "0", "-k", "machine"], ["machine.added"]),
+        (["-n", "0", "-k", "machine"], ["machine.registered"]),
     ],
 )
 def test_filters(args: list[str], kinds: list[str]) -> None:

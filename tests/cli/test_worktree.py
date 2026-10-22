@@ -18,9 +18,9 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A Clone `repo` of Repository `proj` with Worktree `feature` inside it, observed."""
     monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path / "home"))
     runner.invoke(app, ["setup", "--name", "laptop"])
-    runner.invoke(app, ["repo", "add", "proj"])
+    runner.invoke(app, ["repo", "register", "proj"])
     repo = create(tmp_path / "repo")
-    runner.invoke(app, ["clone", "add", str(repo), "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", str(repo), "--repo", "proj"])
     git(repo, "worktree", "add", "--quiet", "-b", "feature", str(repo / ".worktrees" / "feature"))
     runner.invoke(app, ["observe"])
     return repo
@@ -70,7 +70,7 @@ def test_names_in_several_clones(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     other = clone(repo, tmp_path / "other")
-    runner.invoke(app, ["clone", "add", str(other), "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", str(other), "--repo", "proj"])
     git(other, "worktree", "add", "--quiet", "-b", "feature2", str(tmp_path / "feature"))
     runner.invoke(app, ["observe"])
 
@@ -125,9 +125,9 @@ def test_moved_worktree_is_observed_first(repo: Path, tmp_path: Path) -> None:
 def test_clone_remove_refuses_an_unobserved_worktree(repo: Path) -> None:
     inside = repo / ".worktrees" / "new"
     git(repo, "worktree", "add", "--quiet", "-b", "new", str(inside))
-    result = runner.invoke(app, ["clone", "remove", str(inside)])
+    result = runner.invoke(app, ["clone", "unregister", str(inside)])
     assert "is in a Worktree" in str(result.exception)
-    assert runner.invoke(app, ["clone", "remove", str(repo)]).exit_code == 0
+    assert runner.invoke(app, ["clone", "unregister", str(repo)]).exit_code == 0
 
 
 @pytest.mark.usefixtures("repo")
@@ -147,8 +147,8 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
     feature = repo / ".worktrees" / "feature"
     git(feature, "commit", "--quiet", "--allow-empty", "--message", "On feature")
     git(repo, "commit", "--quiet", "--allow-empty", "--message", "On main")
-    runner.invoke(app, ["repo", "add", "other"])
-    runner.invoke(app, ["clone", "add", str(create(tmp_path / "other")), "--repo", "other"])
+    runner.invoke(app, ["repo", "register", "other"])
+    runner.invoke(app, ["clone", "register", str(create(tmp_path / "other")), "--repo", "other"])
     runner.invoke(app, ["observe"])
 
     by_worktree = _event_rows("--worktree", "feature")
@@ -161,12 +161,12 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
         "clone.committed",
         "worktree.added",
         "clone.branch_created",
-        "clone.added",
+        "clone.registered",
     }
-    assert {row[3] for row in _event_rows("--repo", "proj")} == by_clone | {"repository.added"}
+    assert {row[3] for row in _event_rows("--repo", "proj")} == by_clone | {"repository.registered"}
     assert [row[3] for row in _event_rows("--repo", "other")] == [
-        "clone.added",
-        "repository.added",
+        "clone.registered",
+        "repository.registered",
     ]
     of_both = _event_rows("--repo", "proj", "--repo", "other", "--limit", "0")
     assert len(of_both) == len(by_clone) + 3
@@ -180,7 +180,9 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
 
 def test_clone_add_can_import_history(repo: Path, tmp_path: Path) -> None:
     del repo
-    runner.invoke(app, ["repo", "add", "other"])
+    runner.invoke(app, ["repo", "register", "other"])
     other = create(tmp_path / "other", commits=2)
-    result = runner.invoke(app, ["clone", "add", str(other), "--repo", "other", "--import-history"])
+    result = runner.invoke(
+        app, ["clone", "register", str(other), "--repo", "other", "--import-history"]
+    )
     assert result.output.endswith("; imported 2 Events of its history\n")

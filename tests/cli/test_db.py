@@ -20,8 +20,8 @@ def set_up(paths: object) -> None:
     """A Machine with Repositories `one` and `two`."""
     del paths
     runner.invoke(app, ["setup", "--name", "laptop"])
-    runner.invoke(app, ["repo", "add", "one"])
-    runner.invoke(app, ["repo", "add", "two"])
+    runner.invoke(app, ["repo", "register", "one"])
+    runner.invoke(app, ["repo", "register", "two"])
 
 
 def _stdout(*args: str) -> str:
@@ -62,10 +62,10 @@ def test_dump_chosen_columns_as_a_table() -> None:
     chosen = ("dump", "events", "-c", "kind", "-c", "subject", "--short-ids", "--reverse")
     lines = _stdout(*chosen).splitlines()
     assert lines[0].split() == ["kind", "subject"]
-    assert lines[1].split()[0] == "repository.added"
+    assert lines[1].split()[0] == "repository.registered"
     assert re.fullmatch(r"[0-9a-f]{8}", lines[1].split()[1])
     blocks = _stdout("dump", "events", "-c", "kind", "--blocks", "--reverse")
-    assert blocks.startswith("kind  repository.added\n\nkind  repository.added\n")
+    assert blocks.startswith("kind  repository.registered\n\nkind  repository.registered\n")
     assert _stdout("dump", "meta", "--table").splitlines()[0].split() == ["key", "value"]
 
 
@@ -80,7 +80,10 @@ def test_dump_limit_and_json() -> None:
         "time",
         "json",
     )
-    assert [event["kind"] for event in found][:2] == ["repository.added", "repository.added"]
+    assert [event["kind"] for event in found][:2] == [
+        "repository.registered",
+        "repository.registered",
+    ]
     assert found[0]["payload"]["name"] == "two"
     assert found[0]["occurred_at"] is None
     second = json.loads(_stdout("dump", "events", "-n", "1", "--offset", "1", "--json"))

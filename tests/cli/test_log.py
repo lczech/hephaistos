@@ -29,7 +29,7 @@ def _write(paths: Paths, at: datetime, message: str, level: str = "INFO", **fiel
 def test_show(paths: Paths) -> None:
     _write(paths, NOW - timedelta(days=1), "yesterday", "WARNING")
     _write(paths, NOW - timedelta(minutes=2), "unexpected KeyError", "ERROR", error=TRACEBACK)
-    _write(paths, NOW - timedelta(minutes=1), "recorded clone.added", event="e1")
+    _write(paths, NOW - timedelta(minutes=1), "recorded clone.registered", event="e1")
     with logs.day_file(paths.state_dir, NOW.date()).open("a") as file:
         file.write("cut sho\n")
 
@@ -39,11 +39,11 @@ def test_show(paths: Paths) -> None:
     assert len(lines) == 6
     assert lines[0].endswith("WARNING cli[7] yesterday")
     assert lines[1].endswith("ERROR cli[7] unexpected KeyError")
-    assert lines[-1].endswith("INFO  cli[7] recorded clone.added event=e1")
+    assert lines[-1].endswith("INFO  cli[7] recorded clone.registered event=e1")
     assert result.stderr == "skipped 1 unreadable line\n"
 
     reverse = runner.invoke(app, ["log", "show", "--reverse", "-n", "2"]).stdout.splitlines()
-    assert reverse[0].endswith("INFO  cli[7] recorded clone.added event=e1")
+    assert reverse[0].endswith("INFO  cli[7] recorded clone.registered event=e1")
     assert reverse[1].endswith("ERROR cli[7] unexpected KeyError")
     brief = runner.invoke(app, ["log", "show", "--brief", "-n", "2", "--level", "error"])
     assert brief.stdout.splitlines()[1:] == ["    ↳ KeyError: 'branch'"]

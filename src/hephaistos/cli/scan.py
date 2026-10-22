@@ -41,7 +41,7 @@ def _print_plan(planned: list[Planned], *, verbose: bool) -> None:
         )
     fixes = [command for row in planned for command in row.fix]
     if fixes:
-        typer.echo("\nTo add the skipped ones by hand:")
+        typer.echo("\nTo register the skipped ones by hand:")
         for command in fixes:
             typer.echo(f"  {command}")
     counts = Counter(row.action for row in planned if row.action.is_quiet)
@@ -54,15 +54,15 @@ def _print_plan(planned: list[Planned], *, verbose: bool) -> None:
 
 
 def _changes_text(counts: Counter[Action], *, done: bool) -> str:
-    """What adding a plan does, e.g. `Add 5 Clones (2 new Repositories)`; past tense if `done`."""
-    adding, new, observing = (
+    """What registering a plan does: `Register 5 Clones (2 new Repositories)`; past if `done`."""
+    registering, new, observing = (
         counts[Action.JOIN] + counts[Action.NEW],
         counts[Action.NEW],
         counts[Action.OBSERVE],
     )
     parts: list[str] = []
-    if adding:
-        text = f"{'added' if done else 'add'} {number_text(adding, 'Clone')}"
+    if registering:
+        text = f"{'registered' if done else 'register'} {number_text(registering, 'Clone')}"
         if new:
             text += f" ({number_text(new, 'new Repository', 'new Repositories')})"
         parts.append(text)
@@ -89,10 +89,10 @@ def scan(
         bool,
         typer.Option("--verbose", "-v", help="Also list what needs nothing: known ones, and more."),
     ] = False,
-    yes: Annotated[bool, typer.Option("--yes", help="Add without asking.")] = False,
+    yes: Annotated[bool, typer.Option("--yes", help="Register without asking.")] = False,
     import_history: ImportHistoryOption = False,
 ) -> None:
-    """Find the git clones in a directory, and add them, with new Repositories where needed.
+    """Find the git clones in a directory, and register them, with new Repositories where needed.
 
     Stops at clones, without searching inside them, and skips hidden directories. A clone that
     matches several Repositories, or whose new Repository's name is taken, is skipped.
@@ -108,16 +108,18 @@ def scan(
 
     counts = Counter(row.action for row in planned)
     if not any(counts[action] for action in (Action.JOIN, Action.NEW, Action.OBSERVE)):
-        typer.echo("Nothing to add")
+        typer.echo("Nothing to register")
         return
     if not yes:
-        terminal.confirm(f"{_changes_text(counts, done=False)}?", default=True, action="add these")
+        terminal.confirm(
+            f"{_changes_text(counts, done=False)}?", default=True, action="register these"
+        )
 
     with write_session(paths) as session:
-        added = scanning.add(session, planned, import_history=import_history)
+        registered = scanning.register(session, planned, import_history=import_history)
     # Observing right away finds their Worktrees and starts their git activity from now.
     observing = {row.clone_id for row in planned if row.clone_id is not None}
-    result = observer.observe(paths, {*added, *observing})
+    result = observer.observe(paths, {*registered, *observing})
     done = _changes_text(counts, done=True)
     if import_history:
         done += f"; imported {number_text(len(result.events), 'Event')} of their history"

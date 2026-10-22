@@ -24,7 +24,7 @@ from support import clone, create, git, submodule
 def set_up(paths: Paths) -> Paths:
     machines.set_up(paths, "laptop")
     with write_session(paths) as session:
-        repositories.add(session, "proj")
+        repositories.register(session, "proj")
     return paths
 
 
@@ -32,7 +32,7 @@ def add(paths: Paths, path: Path, repository: str = "proj") -> CloneDetails:
     """Adds the Clone at `path` and returns it as stored."""
     candidate = clones.inspect(path)
     with write_session(paths) as session:
-        clones.add(session, repository, candidate)
+        clones.register(session, repository, candidate)
     with read_session(paths) as session:
         return clones.find(session, path)
 
@@ -44,7 +44,7 @@ def matching(paths: Paths, path: Path) -> list[str]:
         return [repository.name for repository in clones.matching(session, candidate)]
 
 
-def test_add_stores_clone_state_and_event(set_up: Paths, tmp_path: Path) -> None:
+def test_register_stores_clone_state_and_event(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo", origin="git@host:me/proj.git")
     details = add(set_up, repo)
     assert details.repository.name == "proj"
@@ -55,12 +55,12 @@ def test_add_stores_clone_state_and_event(set_up: Paths, tmp_path: Path) -> None
     assert details.state.remotes == {"origin": "git@host:me/proj.git"}
     with read_session(set_up) as session:
         row = session.conn.execute(
-            "SELECT payload FROM events WHERE kind = 'clone.added'"
+            "SELECT payload FROM events WHERE kind = 'clone.registered'"
         ).fetchone()
     assert json.loads(row["payload"])["resolved_path"] == str(repo.resolve())
 
 
-def test_add_keeps_the_typed_path(set_up: Paths, tmp_path: Path) -> None:
+def test_register_keeps_the_typed_path(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     (repo / "sub").mkdir()
     (tmp_path / "link").symlink_to(repo)
@@ -92,20 +92,20 @@ def test_shallow_clone_joins_by_remote(set_up: Paths, tmp_path: Path) -> None:
     assert add(set_up, shallow).repository.name == "proj"
 
 
-def test_add_twice_fails(set_up: Paths, tmp_path: Path) -> None:
+def test_register_twice_fails(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     add(set_up, repo)
     with pytest.raises(HephaistosError, match="already a Clone of proj"):
         add(set_up, repo)
 
 
-def test_add_refuses_unrelated_history(set_up: Paths, tmp_path: Path) -> None:
+def test_register_refuses_unrelated_history(set_up: Paths, tmp_path: Path) -> None:
     add(set_up, create(tmp_path / "repo"))
     with pytest.raises(HephaistosError, match="shares no history"):
         add(set_up, create(tmp_path / "other"))
 
 
-def test_add_without_commits_is_allowed(set_up: Paths, tmp_path: Path) -> None:
+def test_register_without_commits_is_allowed(set_up: Paths, tmp_path: Path) -> None:
     add(set_up, create(tmp_path / "repo"))
     empty = tmp_path / "empty"
     empty.mkdir()
@@ -124,7 +124,7 @@ def test_submodule_is_refused(tmp_path: Path) -> None:
     outer = create(tmp_path / "outer")
     lib = submodule(create(tmp_path / "lib"), outer, "lib")
     (lib / "src").mkdir()
-    with pytest.raises(HephaistosError, match=r"outer/lib is a submodule of .*outer; add that"):
+    with pytest.raises(HephaistosError, match=r"outer/lib is a submodule of .*outer; register"):
         clones.inspect(lib / "src")
     assert clones.inspect(outer).resolved_path == outer.resolve()
 
@@ -140,7 +140,7 @@ def test_find_innermost(set_up: Paths, tmp_path: Path) -> None:
     outer = create(tmp_path / "outer")
     add(set_up, outer)
     with write_session(set_up) as session:
-        repositories.add(session, "inner")
+        repositories.register(session, "inner")
     inner = create(outer / "inner")
     add(set_up, inner, "inner")
     with read_session(set_up) as session:
@@ -166,7 +166,7 @@ def test_paths_in_repositories_of_their_own_are_refused(set_up: Paths, tmp_path:
                 clones.find_unobserved(session, path)
         assert clones.find(session, outer / "vendor").clone.resolved_path == outer.resolve()
     with read_session(set_up) as session, pytest.raises(HephaistosError, match=nested):
-        clones.removable(session, tool)
+        clones.find_to_unregister(session, tool)
     with read_session(set_up) as session:
         assert [details.clone.resolved_path for details in clones.details(session)] == [outer]
 
@@ -182,15 +182,15 @@ def test_clone_without_its_repository_is_found_inside_another(
         assert clones.find(session, repo).clone.resolved_path == repo
 
 
-def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
+def test_unregister_and_register_again(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     first = add(set_up, repo)
     with read_session(set_up) as session:
-        removing = clones.removable(session, repo)
+        removing = clones.find_to_unregister(session, repo)
     with write_session(set_up) as session:
-        clones.remove(session, removing)
+        clones.unregister(session, removing)
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="meanwhile"):
-        clones.remove(session, removing)
+        clones.unregister(session, removing)
     with read_session(set_up) as session:
         assert clones.details(session) == []
         [summary] = repositories.summaries(session)
@@ -198,15 +198,15 @@ def test_remove_and_add_again(set_up: Paths, tmp_path: Path) -> None:
     assert add(set_up, repo).clone.id != first.clone.id
 
 
-def test_remove_all_removes_the_expected(set_up: Paths, tmp_path: Path) -> None:
+def test_unregister_all_unregisters_the_expected(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     first = add(set_up, repo)
     second = add(set_up, clone(repo, tmp_path / "copy"))
     with write_session(set_up) as session:
         repository = repositories.by_name(session, "proj")
         with pytest.raises(HephaistosError, match="changed meanwhile"):
-            clones.remove_all(session, repository, [first.clone.id])
-        clones.remove_all(session, repository, [first.clone.id, second.clone.id])
+            clones.unregister_all(session, repository, [first.clone.id])
+        clones.unregister_all(session, repository, [first.clone.id, second.clone.id])
     with read_session(set_up) as session:
         assert clones.details(session) == []
 
@@ -284,14 +284,16 @@ def test_move_onto_another_filesystem(set_up: Paths, tmp_path: Path) -> None:
     shared.mkdir()
     filesystem = Filesystem(id=new_id(), name="shared")
     with write_session(set_up) as session:
-        records.add(session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_ADDED, filesystem)
+        records.add(
+            session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_REGISTERED, filesystem
+        )
         mount = Mount(
             id=new_id(),
             machine_id=session.machine_id,
             filesystem_id=filesystem.id,
             path=shared.resolve(),
         )
-        records.add(session, Table.REGISTRY_MOUNTS, EventKind.MOUNT_ADDED, mount)
+        records.add(session, Table.REGISTRY_MOUNTS, EventKind.MOUNT_REGISTERED, mount)
     repo = create(tmp_path / "repo")
     before = add(set_up, repo)
     [details] = move(set_up, repo, repo.rename(shared / "repo"))
@@ -322,7 +324,7 @@ def test_move_refuses_a_clone_changed_meanwhile(set_up: Paths, tmp_path: Path) -
     with read_session(set_up) as session:
         planned = clones.moves(session, repo, moved)
     with write_session(set_up) as session:
-        clones.remove(session, clones.removable(session, repo))
+        clones.unregister(session, clones.find_to_unregister(session, repo))
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="meanwhile"):
         clones.move(session, planned)
 
@@ -385,7 +387,7 @@ def test_move_nested(set_up: Paths, tmp_path: Path) -> None:
     outer = create(tmp_path / "outer")
     add(set_up, outer)
     with write_session(set_up) as session:
-        repositories.add(session, "lib")
+        repositories.register(session, "lib")
     add(set_up, create(outer / "vendor" / "lib"), "lib")
     with read_session(set_up) as session:
         nested = clones.nested_clones(session, clones.find(session, outer))
@@ -399,7 +401,7 @@ def test_move_nested_moves_all_or_nothing(set_up: Paths, tmp_path: Path) -> None
     outer = create(tmp_path / "outer")
     add(set_up, outer)
     with write_session(set_up) as session:
-        repositories.add(session, "lib")
+        repositories.register(session, "lib")
     add(set_up, create(outer / "vendor" / "lib"), "lib")
     moved = outer.rename(tmp_path / "moved")
     paths = {d.clone.display_path for d in move(set_up, outer, moved, nested=True)}

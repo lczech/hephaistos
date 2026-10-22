@@ -58,11 +58,11 @@ def _check_name(session: ReadSession, name: str) -> None:
         raise HephaistosError(f"a Repository named {name} already exists")
 
 
-def add(session: WriteSession, name: str) -> Repository:
-    """Adds a Repository without Clones."""
+def register(session: WriteSession, name: str) -> Repository:
+    """Registers a Repository without Clones."""
     _check_name(session, name)
     repository = Repository(id=new_id(), name=name)
-    records.add(session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_ADDED, repository)
+    records.add(session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_REGISTERED, repository)
     return repository
 
 
@@ -87,13 +87,15 @@ def rename(session: WriteSession, name: str, new_name: str) -> Repository:
     return renamed
 
 
-def remove(session: WriteSession, name: str) -> Repository:
-    """Removes a Repository without Clones."""
+def unregister(session: WriteSession, name: str) -> Repository:
+    """Unregisters a Repository without Clones."""
     repository = by_name(session, name)
     [summary] = summaries(session, repository.id)
     if summary.clones:
-        raise HephaistosError(f"{name} still has Clones; remove them first")
-    records.delete(session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_DELETED, repository)
+        raise HephaistosError(f"{name} still has Clones; unregister them first")
+    records.delete(
+        session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_UNREGISTERED, repository
+    )
     return repository
 
 

@@ -106,11 +106,11 @@ def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901,
     # Exhaustive: the type checker reports a new kind missing here.
     match kind:
         case (
-            EventKind.FILESYSTEM_ADDED
-            | EventKind.REPOSITORY_ADDED
-            | EventKind.REPOSITORY_DELETED
-            | EventKind.CLONE_ADDED
-            | EventKind.CLONE_DELETED
+            EventKind.FILESYSTEM_REGISTERED
+            | EventKind.REPOSITORY_REGISTERED
+            | EventKind.REPOSITORY_UNREGISTERED
+            | EventKind.CLONE_REGISTERED
+            | EventKind.CLONE_UNREGISTERED
             | EventKind.CLONE_MISSING
             | EventKind.CLONE_FOUND
             | EventKind.CLONE_RECOVERED
@@ -119,9 +119,9 @@ def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901,
             | EventKind.WORKTREE_RECOVERED
         ):
             return ""
-        case EventKind.MACHINE_ADDED:
+        case EventKind.MACHINE_REGISTERED:
             return value_text(field("hostname"))
-        case EventKind.MOUNT_ADDED:
+        case EventKind.MOUNT_REGISTERED:
             return value_text(field("path"))
         case (
             EventKind.MACHINE_CHANGED

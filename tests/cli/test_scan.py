@@ -45,8 +45,8 @@ def test_plan_needs_a_terminal_or_yes(root: Path) -> None:
         [str(root / "other"), "skip", "-"],
         [str(root / "proj"), "join", "proj"],
     ]
-    assert "To add the skipped ones by hand:" in lines
-    assert "  hephaistos repo add <name>" in lines
+    assert "To register the skipped ones by hand:" in lines
+    assert "  hephaistos repo register <name>" in lines
     assert lines[-1] == "Not listed: 1 Worktree of a Clone above (-v lists them)"
 
 
@@ -57,21 +57,21 @@ def test_verbose_lists_everything(root: Path) -> None:
     assert "Not listed" not in result.output
 
 
-def test_add_with_yes_then_nothing_to_add(root: Path) -> None:
+def test_register_with_yes_then_nothing_to_register(root: Path) -> None:
     lines = _lines(str(root), "--yes")
-    assert lines[-1] == "Added 2 Clones (1 new Repository)"
+    assert lines[-1] == "Registered 2 Clones (1 new Repository)"
     lines = _lines(str(root), "--yes")
-    assert lines[-1] == "Nothing to add"
+    assert lines[-1] == "Nothing to register"
     result = runner.invoke(app, ["clone", "list"])
     assert len(result.output.splitlines()) == 3
 
 
-def test_add_after_asking(root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_after_asking(root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     lines = _lines(str(root / "org"), input="\n")
     assert lines[-2:] == [
-        "Add 1 Clone (1 new Repository)? [Y/n]: ",
-        "Added 1 Clone (1 new Repository)",
+        "Register 1 Clone (1 new Repository)? [Y/n]: ",
+        "Registered 1 Clone (1 new Repository)",
     ]
     result = runner.invoke(app, ["scan", str(root / "proj")], input="n\n")
     assert result.exit_code == 1

@@ -1,7 +1,7 @@
-"""Scanning a directory for git clones, to add them all at once.
+"""Scanning a directory for git clones, to register them all at once.
 
 Nothing is guessed: a clone that matches several Repositories, or whose new Repository's name is
-taken, is skipped, with the commands that add it by hand.
+taken, is skipped, with the commands that register it by hand.
 """
 
 import dataclasses
@@ -27,12 +27,12 @@ log = logging.getLogger(__name__)
 
 
 class Action(StrEnum):
-    """What adding a plan does with a directory found by the scan."""
+    """What registering a plan does with a directory found by the scan."""
 
-    JOIN = "join"  # adds it as a Clone of a Repository
-    NEW = "new"  # adds it as a Clone of a new Repository, named after it
+    JOIN = "join"  # registers it as a Clone of a Repository
+    NEW = "new"  # registers it as a Clone of a new Repository, named after it
     OBSERVE = "observe"  # observes its Clone: a Worktree not observed yet
-    SKIP = "skip"  # nothing, as adding it needs a choice
+    SKIP = "skip"  # nothing, as registering it needs a choice
     KNOWN = "known"  # nothing: a Clone already, or an observed Worktree of one
     WORKTREE = "worktree"  # nothing of its own: a Worktree of a Clone in the plan
     UNREADABLE = "unreadable"  # nothing: a directory that could not be searched
@@ -45,14 +45,14 @@ class Action(StrEnum):
 
 @dataclass(frozen=True)
 class Planned:
-    """A directory found by a scan, and what adding the plan does with it."""
+    """A directory found by a scan, and what registering the plan does with it."""
 
     path: Path  # as found, symlinks kept
     action: Action
     repository: str | None = None  # the Repository it joins, gets, or belongs to
     note: str = ""  # why it is skipped, or more about its action
     about: Path | None = None  # the Clone or Worktree the note names, shown after it
-    fix: tuple[str, ...] = ()  # for a skip: the commands that add it by hand
+    fix: tuple[str, ...] = ()  # for a skip: the commands that register it by hand
     candidate: Candidate | None = None  # for join and new
     clone_id: uuid.UUID | None = None  # for observe: the Clone to observe
 
@@ -101,11 +101,13 @@ def _found(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]]]:
     return found, unreadable
 
 
-def _add_by_hand(path: Path, repository: str = "<name>", *, new: bool = False) -> tuple[str, ...]:
-    """The commands that add the clone at `path` to a Repository, after creating it if `new`."""
+def _register_by_hand(
+    path: Path, repository: str = "<name>", *, new: bool = False
+) -> tuple[str, ...]:
+    """The commands that register the clone at `path` in a Repository, first that if `new`."""
     name = repository if repository == "<name>" else shlex.quote(repository)
-    created = (f"hephaistos repo add {name}",) if new else ()
-    return (*created, f"hephaistos clone add {shell_path(path)} --repo {name}")
+    created = (f"hephaistos repo register {name}",) if new else ()
+    return (*created, f"hephaistos clone register {shell_path(path)} --repo {name}")
 
 
 class _Planner:
@@ -147,7 +149,7 @@ class _Planner:
                 typed,
                 Action.SKIP,
                 note="a bare repository; scans skip those",
-                fix=_add_by_hand(typed),
+                fix=_register_by_hand(typed),
             )
             self.planned[top] = self.add(skipped)
             return
@@ -165,7 +167,7 @@ class _Planner:
         matches = self.histories.matching(candidate)
         if len(matches) > 1:
             # The note names them once the new Repositories are named.
-            index = self.add(Planned(typed, Action.SKIP, fix=_add_by_hand(typed)))
+            index = self.add(Planned(typed, Action.SKIP, fix=_register_by_hand(typed)))
             self.ambiguous[index] = matches
             return index
         key = matches[0] if matches else new_id()
@@ -175,7 +177,7 @@ class _Planner:
             moves = (
                 f"hephaistos clone move {shell_path(gone)} {shell_path(typed)}" for gone in missing
             )
-            fix = (*moves, *_add_by_hand(typed, self.names[key]))
+            fix = (*moves, *_register_by_hand(typed, self.names[key]))
             return self.add(
                 Planned(typed, Action.SKIP, note="maybe moved from", about=missing[0], fix=fix)
             )
@@ -285,7 +287,9 @@ class _Planner:
                     action=Action.SKIP,
                     repository=None,
                     note=f"{reason}; {row.note}" if row.note else reason,
-                    fix=_add_by_hand(row.path, name) if empty else _add_by_hand(row.path, new=True),
+                    fix=_register_by_hand(row.path, name)
+                    if empty
+                    else _register_by_hand(row.path, new=True),
                     candidate=None,
                 )
         return sorted(self.rows, key=lambda row: str(row.path))
@@ -307,7 +311,7 @@ def _searched(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]
         kind = "Clone" if location.main is None else "Worktree"
         raise HephaistosError(
             f"{typed} is inside the {kind} at {location.top}; scan from outside it,"
-            " or add a clone in it with `hephaistos clone add <path>`"
+            " or register a clone in it with `hephaistos clone register <path>`"
         )
     if (parent := git.superproject(typed)) is not None:
         raise HephaistosError(f"{typed} is a submodule of {parent}; scan from outside it")
@@ -315,7 +319,7 @@ def _searched(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]
 
 
 def plan(session: ReadSession, root: Path, depth: int | None = None) -> list[Planned]:
-    """What adding the git clones under `root` does, at most `depth` levels down (the setting).
+    """What registering the git clones under `root` does, at most `depth` levels down (the setting).
 
     If `root` is a Clone or a Worktree, just that one; inside one, or at a submodule, raises
     HephaistosError.
@@ -342,25 +346,25 @@ def plan(session: ReadSession, root: Path, depth: int | None = None) -> list[Pla
     return planner.finished()
 
 
-def add(
+def register(
     session: WriteSession, planned: Sequence[Planned], *, import_history: bool = False
 ) -> list[uuid.UUID]:
-    """Adds the planned Clones, after the new Repositories; returns the Clones' IDs."""
-    adding: list[tuple[str, Candidate]] = []
+    """Registers the planned Clones, after the new Repositories; returns the Clones' IDs."""
+    registering: list[tuple[str, Candidate]] = []
     for row in planned:
         match row:
             case Planned(
                 action=Action.NEW, repository=str() as name, candidate=Candidate() as candidate
             ):
-                repositories.add(session, name)
-                adding.append((name, candidate))
+                repositories.register(session, name)
+                registering.append((name, candidate))
             case Planned(
                 action=Action.JOIN, repository=str() as name, candidate=Candidate() as candidate
             ):
-                adding.append((name, candidate))
+                registering.append((name, candidate))
             case _:
                 pass
     return [
-        clones.add(session, name, candidate, import_history=import_history).id
-        for name, candidate in adding
+        clones.register(session, name, candidate, import_history=import_history).id
+        for name, candidate in registering
     ]

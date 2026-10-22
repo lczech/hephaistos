@@ -137,47 +137,47 @@ def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
 
 
 def _choose_repository(session: ReadSession, candidate: Candidate) -> str:
-    """The Repository to add `candidate` to, from the matching ones, asking the user."""
+    """The Repository to register `candidate` in, from the matching ones, asking the user."""
     matches = [repository.name for repository in clones.matching(session, candidate)]
     shown = short_path(candidate.display_path)
     if not matches:
         raise HephaistosError(
-            f"no Repository matches {shown}; add it with a new Repository:\n"
+            f"no Repository matches {shown}; register it with a new Repository:\n"
             f"  hephaistos scan {shell_path(candidate.display_path)}"
         )
     if not terminal.interactive():
         raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
     if len(matches) == 1:
-        if not typer.confirm(f"Add {shown} as a Clone of {matches[0]}?", default=True):
+        if not typer.confirm(f"Register {shown} as a Clone of {matches[0]}?", default=True):
             raise typer.Abort
         return matches[0]
     heading = f"{shown} matches several Repositories:"
-    return matches[terminal.choose(heading, matches, "Add it as a Clone of")]
+    return matches[terminal.choose(heading, matches, "Register it as a Clone of")]
 
 
 @app.command()
-def add(
+def register(
     path: PathArgument = HERE,
     *,
     repo: RepoOption = None,
     import_history: ImportHistoryOption = False,
 ) -> None:
-    """Add a git clone to an existing Repository, and observe it."""
+    """Register a git clone as a Clone of an existing Repository, and observe it."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         candidate = clones.inspect(path)
         repository = repo or _choose_repository(session, candidate)
     # Asking happens above, so the write transaction never waits for input.
     with write_session(paths) as session:
-        clone = clones.add(session, repository, candidate, import_history=import_history)
+        clone = clones.register(session, repository, candidate, import_history=import_history)
     # Observing right away finds its Worktrees and starts its git activity from now.
     result = observer.observe(paths, [clone.id])
-    added = f"Added Clone {short_path(clone.display_path)} to {repository}"
+    registered = f"Registered Clone {short_path(clone.display_path)} of {repository}"
     if result.worktrees:
-        added += f", with {number_text(result.worktrees, 'Worktree')}"
+        registered += f", with {number_text(result.worktrees, 'Worktree')}"
     if import_history:
-        added += f"; imported {number_text(len(result.events), 'Event')} of its history"
-    typer.echo(added)
+        registered += f"; imported {number_text(len(result.events), 'Event')} of its history"
+    typer.echo(registered)
 
 
 @app.command("list")
@@ -261,22 +261,21 @@ def show(
 
 
 @app.command()
-def remove(path: PathArgument = HERE) -> None:
+def unregister(path: PathArgument = HERE) -> None:
     """Unregister the Clone that a path lies in; its files stay untouched."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
-        removed = clones.removable(session, path)
+        unregistering = clones.find_to_unregister(session, path)
     with write_session(paths) as session:
-        clones.remove(session, removed)
-        [summary] = repositories.summaries(session, removed.repository.id)
-    name = removed.repository.name
-    typer.echo(
-        f"Removed Clone {short_path(removed.clone.display_path)} of {name} (files untouched)"
-    )
+        clones.unregister(session, unregistering)
+        [summary] = repositories.summaries(session, unregistering.repository.id)
+    name = unregistering.repository.name
+    shown = short_path(unregistering.clone.display_path)
+    typer.echo(f"Unregistered Clone {shown} of {name} (files untouched)")
     if not summary.clones:
         typer.echo(
             f"{name} has no Clones left;"
-            f" remove it with `hephaistos repo remove {shlex.quote(name)}`"
+            f" unregister it with `hephaistos repo unregister {shlex.quote(name)}`"
         )
 
 

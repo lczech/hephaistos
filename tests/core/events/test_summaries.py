@@ -54,17 +54,20 @@ WORKTREE = WorktreePayload(ID, Path("/w"))
 
 # Payloads as the code that records them builds them, with their summaries.
 SUMMARIES: dict[EventKind, tuple[object, str]] = {
-    EventKind.MACHINE_ADDED: (
+    EventKind.MACHINE_REGISTERED: (
         Machine(id=ID, name="m", hostname="m.lan", chassis="laptop", os_machine_id=None),
         "m.lan",
     ),
     EventKind.MACHINE_CHANGED: ({"chassis": Change(None, "laptop")}, "chassis: null → laptop"),
-    EventKind.FILESYSTEM_ADDED: (Filesystem(id=ID, name="m-local"), ""),
-    EventKind.MOUNT_ADDED: (Mount(id=ID, machine_id=ID, filesystem_id=ID, path=Path("/")), "/"),
-    EventKind.REPOSITORY_ADDED: (Repository(id=ID, name="proj"), ""),
+    EventKind.FILESYSTEM_REGISTERED: (Filesystem(id=ID, name="m-local"), ""),
+    EventKind.MOUNT_REGISTERED: (
+        Mount(id=ID, machine_id=ID, filesystem_id=ID, path=Path("/")),
+        "/",
+    ),
+    EventKind.REPOSITORY_REGISTERED: (Repository(id=ID, name="proj"), ""),
     EventKind.REPOSITORY_CHANGED: ({"name": Change("proj", "project")}, "name: proj → project"),
-    EventKind.REPOSITORY_DELETED: (Repository(id=ID, name="proj"), ""),
-    EventKind.CLONE_ADDED: (
+    EventKind.REPOSITORY_UNREGISTERED: (Repository(id=ID, name="proj"), ""),
+    EventKind.CLONE_REGISTERED: (
         Clone(
             id=ID,
             repository_id=ID,
@@ -74,7 +77,7 @@ SUMMARIES: dict[EventKind, tuple[object, str]] = {
         ),
         "",
     ),
-    EventKind.CLONE_DELETED: ({}, ""),
+    EventKind.CLONE_UNREGISTERED: ({}, ""),
     EventKind.CLONE_MOVED: (
         {
             "display_path": Change(Path("/a/r"), Path("/b/r")),

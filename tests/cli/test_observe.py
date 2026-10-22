@@ -21,11 +21,11 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A set-up Machine with Clone `repo` of Repository `proj`, as the working directory."""
     monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path / "home"))
     runner.invoke(app, ["setup", "--name", "laptop"])
-    runner.invoke(app, ["repo", "add", "proj"])
+    runner.invoke(app, ["repo", "register", "proj"])
     repo = clone(create(tmp_path / "origin"), tmp_path / "repo")
     monkeypatch.chdir(repo)
     monkeypatch.setenv("PWD", str(repo))
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     return repo
 
 

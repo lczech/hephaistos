@@ -119,7 +119,7 @@ def _not_found(what: str, entity_id: uuid.UUID) -> HTTPException:
 
 def _absent_clone(session: ReadSession, clone_id: uuid.UUID) -> HTTPException:
     """Why a Clone isn't among the current ones: 410 if it was unregistered, else 404."""
-    if not clones.was_deleted(session, clone_id):
+    if not clones.was_unregistered(session, clone_id):
         return _not_found("Clone", clone_id)
     where = short_path(clones.paths(session, [clone_id])[clone_id])
     return CheckoutError(
@@ -136,7 +136,7 @@ def _absent_worktree(session: ReadSession, worktree_id: uuid.UUID) -> HTTPExcept
         return _not_found("Worktree", worktree_id)
     where = f"the Worktree at {short_path(worktrees.paths(session, [worktree_id])[worktree_id])}"
     gone: Literal["clone", "worktree"]
-    if clones.was_deleted(session, clone_id):
+    if clones.was_unregistered(session, clone_id):
         gone, message = "clone", f"the Clone of {where} was unregistered; its files are untouched"
     elif worktrees.was_removed(session, worktree_id):
         gone, message = "worktree", f"{where} was removed"

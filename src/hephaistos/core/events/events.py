@@ -70,7 +70,7 @@ class Event:
 
     @property
     def subject_type(self) -> str:
-        """The type of thing the Event is about, from its kind: `clone` for `clone.added`."""
+        """The type of thing the Event is about, from its kind: `clone` for `clone.registered`."""
         return self.kind.partition(".")[0]
 
     @classmethod
@@ -179,7 +179,8 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
 
     `before` pages back: only Events older than that one, which must exist.
 
-    A kind like `clone` matches `clone.added` but not `clones.added`; `*.deleted` is a glob.
+    A kind like `clone` matches `clone.registered` but not `clones.registered`; `*.unregistered`
+    is a glob.
     Events about a Repository include those about its Clones, and those about a Clone those
     about its Worktrees.
     """

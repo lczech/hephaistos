@@ -26,8 +26,8 @@ def _add(paths: Paths, repo: Path, *, import_history: bool = False) -> None:
     candidate = clones.inspect(repo)
     with write_session(paths) as session:
         if not repositories.summaries(session):
-            repositories.add(session, "proj")
-        clones.add(session, "proj", candidate, import_history=import_history)
+            repositories.register(session, "proj")
+        clones.register(session, "proj", candidate, import_history=import_history)
 
 
 @pytest.fixture

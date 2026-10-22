@@ -173,9 +173,9 @@ def set_up(paths: Paths, name: str | None = None, *, reset: bool = False) -> Mac
     filesystem = Filesystem(id=new_id(), name=f"{machine.name}-local")
     mount = Mount(id=new_id(), machine_id=machine.id, filesystem_id=filesystem.id, path=Path("/"))
     with create_database(paths, machine.id, replace=reset) as session:
-        add(session, Table.REGISTRY_MACHINES, EventKind.MACHINE_ADDED, machine)
-        add(session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_ADDED, filesystem)
-        add(session, Table.REGISTRY_MOUNTS, EventKind.MOUNT_ADDED, mount)
+        add(session, Table.REGISTRY_MACHINES, EventKind.MACHINE_REGISTERED, machine)
+        add(session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_REGISTERED, filesystem)
+        add(session, Table.REGISTRY_MOUNTS, EventKind.MOUNT_REGISTERED, mount)
     return machine
 
 

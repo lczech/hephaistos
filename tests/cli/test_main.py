@@ -68,9 +68,9 @@ def test_runs_are_logged_with_their_events(
     lines = logged(paths)
     assert [line["message"] for line in lines] == [
         "start: hephaistos setup --name laptop",
-        "recorded machine.added",
-        "recorded filesystem.added",
-        "recorded mount.added",
+        "recorded machine.registered",
+        "recorded filesystem.registered",
+        "recorded mount.registered",
         "end: ok",
         "start: hephaistos machine show --nope",
         "end: usage",

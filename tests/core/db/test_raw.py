@@ -18,9 +18,9 @@ def set_up(paths: Paths) -> Paths:
     """A Machine with Repositories `one` and `two`."""
     machines.set_up(paths, "laptop")
     with write_session(paths) as session:
-        repositories.add(session, "one")
+        repositories.register(session, "one")
     with write_session(paths) as session:
-        repositories.add(session, "two")
+        repositories.register(session, "two")
     return paths
 
 
@@ -81,7 +81,7 @@ def test_rows_of_chosen_columns_and_limited(set_up: Paths) -> None:
             raw.rows(session, "nope")
     assert found.columns == ["kind", "payload"]
     [[kind, payload]] = found.values
-    assert kind == "repository.added"
+    assert kind == "repository.registered"
     assert isinstance(payload, dict)
     assert payload["name"] == "two"
 

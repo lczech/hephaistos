@@ -32,17 +32,17 @@ def actions(planned: list[Planned], root: Path) -> dict[str, tuple[Action, str |
     }
 
 
-def add(paths: Paths, planned: list[Planned]) -> None:
+def register(paths: Paths, planned: list[Planned]) -> None:
     with write_session(paths) as session:
-        scan.add(session, planned)
+        scan.register(session, planned)
 
 
-def add_clone(paths: Paths, path: Path, repository: str) -> None:
+def register_clone(paths: Paths, path: Path, repository: str) -> None:
     """Adds the Clone at `path` to `repository`, creating it if needed, and observes it."""
     with write_session(paths) as session:
         if repository not in {s.repository.name for s in repositories.summaries(session)}:
-            repositories.add(session, repository)
-        added = clones.add(session, repository, clones.inspect(path))
+            repositories.register(session, repository)
+        added = clones.register(session, repository, clones.inspect(path))
     observer.observe(paths, [added.id])
 
 
@@ -60,7 +60,7 @@ def test_new_repositories_and_clones_joining_them(set_up: Paths, tmp_path: Path)
     }
     assert (planned[2].note, planned[2].about) == ("new, with", first)
 
-    add(set_up, planned)
+    register(set_up, planned)
     with read_session(set_up) as session:
         found = {(d.repository.name, d.clone.display_path) for d in clones.details(session)}
     assert found == {("proj", first), ("proj", copy), ("other", root / "org" / "other")}
@@ -69,7 +69,7 @@ def test_new_repositories_and_clones_joining_them(set_up: Paths, tmp_path: Path)
 
 def test_joining_stored_repositories(set_up: Paths, tmp_path: Path) -> None:
     source = create(tmp_path / "source")
-    add_clone(set_up, source, "proj")
+    register_clone(set_up, source, "proj")
     root = tmp_path / "Repos"
     clone(source, root / "copy")
     assert actions(plan(set_up, root), root) == {"copy": (Action.JOIN, "proj")}
@@ -110,9 +110,9 @@ def test_starting_at_or_in_a_clone(set_up: Paths, tmp_path: Path) -> None:
 
 
 def test_names_are_never_guessed(set_up: Paths, tmp_path: Path) -> None:
-    add_clone(set_up, create(tmp_path / "taken"), "taken")
+    register_clone(set_up, create(tmp_path / "taken"), "taken")
     with write_session(set_up) as session:
-        repositories.add(session, "empty")
+        repositories.register(session, "empty")
     root = tmp_path / "Repos"
     for path in ("utils", "org/utils", "taken", "empty", "org/empty"):
         create(root / path)
@@ -120,17 +120,17 @@ def test_names_are_never_guessed(set_up: Paths, tmp_path: Path) -> None:
     assert {row.action for row in planned.values()} == {Action.SKIP}
     assert planned["utils"].note == "2 new Repositories would be named utils"
     assert planned["utils"].fix == (
-        "hephaistos repo add <name>",
-        f"hephaistos clone add {root / 'utils'} --repo <name>",
+        "hephaistos repo register <name>",
+        f"hephaistos clone register {root / 'utils'} --repo <name>",
     )
     assert planned["taken"].note == "the name taken is taken by an unrelated Repository"
     assert planned["empty"].note == "2 new Repositories would be named empty"
-    assert planned["empty"].fix == (f"hephaistos clone add {root / 'empty'} --repo empty",)
+    assert planned["empty"].fix == (f"hephaistos clone register {root / 'empty'} --repo empty",)
 
 
 def test_repository_without_clones_is_joined_by_name(set_up: Paths, tmp_path: Path) -> None:
     with write_session(set_up) as session:
-        repositories.add(session, "proj")
+        repositories.register(session, "proj")
     root = tmp_path / "Repos"
     first = create(root / "proj")
     clone(first, root / "proj-copy")
@@ -155,18 +155,18 @@ def test_new_repository_named_after_a_remote_not_on_this_machine(
 
 def test_matching_several_repositories_is_skipped(set_up: Paths, tmp_path: Path) -> None:
     source = create(tmp_path / "source")
-    add_clone(set_up, source, "one")
-    add_clone(set_up, clone(source, tmp_path / "copy"), "two")
+    register_clone(set_up, source, "one")
+    register_clone(set_up, clone(source, tmp_path / "copy"), "two")
     root = tmp_path / "Repos"
     clone(source, root / "third")
     [row] = plan(set_up, root)
     assert (row.action, row.note) == (Action.SKIP, "matches one, two")
-    assert row.fix == (f"hephaistos clone add {root / 'third'} --repo <name>",)
+    assert row.fix == (f"hephaistos clone register {root / 'third'} --repo <name>",)
 
 
 def test_matching_several_names_them_as_planned(set_up: Paths, tmp_path: Path) -> None:
     source = create(tmp_path / "source")
-    add_clone(set_up, source, "one")
+    register_clone(set_up, source, "one")
     root = tmp_path / "Repos"
     tool = create(root / "b-tool", origin="git@host:me/tool.git")
     clone(tool, root / "a-copy")  # named `b-tool` by its origin, until all are planned
@@ -179,13 +179,13 @@ def test_matching_several_names_them_as_planned(set_up: Paths, tmp_path: Path) -
 
 def test_moved_clone_is_skipped(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
-    add_clone(set_up, create(root / "proj"), "proj")
+    register_clone(set_up, create(root / "proj"), "proj")
     moved = (root / "proj").rename(root / "renamed")
     [row] = plan(set_up, root)
     assert (row.action, row.note, row.about) == (Action.SKIP, "maybe moved from", root / "proj")
     assert row.fix == (
         f"hephaistos clone move {root / 'proj'} {moved}",
-        f"hephaistos clone add {moved} --repo proj",
+        f"hephaistos clone register {moved} --repo proj",
     )
 
 
@@ -193,7 +193,7 @@ def test_worktrees(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
     stored = create(root / "stored")
     git(stored, "worktree", "add", "--quiet", str(root / "observed"))
-    add_clone(set_up, stored, "stored")
+    register_clone(set_up, stored, "stored")
     git(stored, "worktree", "add", "--quiet", str(root / "unobserved"))
     elsewhere = create(tmp_path / "elsewhere")
     git(elsewhere, "worktree", "add", "--quiet", str(root / "linked"))
@@ -230,10 +230,10 @@ def test_bare_repositories_are_skipped(set_up: Paths, tmp_path: Path) -> None:
     }
     skipped = next(row for row in planned if row.action is Action.SKIP)
     assert skipped.note == "a bare repository; scans skip those"
-    assert skipped.fix == (f"hephaistos clone add {bare} --repo <name>",)
+    assert skipped.fix == (f"hephaistos clone register {bare} --repo <name>",)
     [row] = plan(set_up, bare)
     assert (row.path, row.action) == (bare, Action.SKIP)
-    add(set_up, planned)
+    register(set_up, planned)
     with read_session(set_up) as session:
         assert clones.details(session) == []
 
@@ -251,14 +251,14 @@ def test_unreadable_directories(set_up: Paths, tmp_path: Path) -> None:
     assert (row.path, row.action, row.note) == (locked, Action.UNREADABLE, "Permission denied")
 
 
-def test_add_is_all_or_nothing(set_up: Paths, tmp_path: Path) -> None:
+def test_register_is_all_or_nothing(set_up: Paths, tmp_path: Path) -> None:
     root = tmp_path / "Repos"
     create(root / "first")
     second = create(root / "second")
     planned = plan(set_up, root)
-    add_clone(set_up, second, "meanwhile")
+    register_clone(set_up, second, "meanwhile")
     with pytest.raises(HephaistosError, match="already a Clone of meanwhile"):
-        add(set_up, planned)
+        register(set_up, planned)
     with read_session(set_up) as session:
         names = [summary.repository.name for summary in repositories.summaries(session)]
     assert names == ["meanwhile"]

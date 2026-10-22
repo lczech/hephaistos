@@ -18,9 +18,9 @@ def set_up(paths: object) -> None:
     runner.invoke(app, ["setup", "--name", "laptop"])
 
 
-def test_add_list_rename() -> None:
-    assert runner.invoke(app, ["repo", "add", "proj"]).output == "Added Repository proj\n"
-    runner.invoke(app, ["repo", "add", "other"])
+def test_register_list_rename() -> None:
+    assert runner.invoke(app, ["repo", "register", "proj"]).output == "Registered Repository proj\n"
+    runner.invoke(app, ["repo", "register", "other"])
     assert runner.invoke(app, ["repo", "list"]).output.splitlines() == [
         "name   clones  active  remote",
         "other  0       -       -",
@@ -32,7 +32,7 @@ def test_add_list_rename() -> None:
 
 
 def test_show() -> None:
-    runner.invoke(app, ["repo", "add", "proj"])
+    runner.invoke(app, ["repo", "register", "proj"])
     data = json.loads(runner.invoke(app, ["repo", "show", "proj", "--json"]).output)
     assert data["name"] == "proj"
     assert data["clones"] == []
@@ -43,30 +43,31 @@ def test_show_unknown() -> None:
     assert isinstance(result.exception, HephaistosError)
 
 
-def test_remove_without_clones() -> None:
-    runner.invoke(app, ["repo", "add", "proj"])
-    result = runner.invoke(app, ["repo", "remove", "proj"])
-    assert result.output == "Removed Repository proj (files untouched)\n"
+def test_unregister_without_clones() -> None:
+    runner.invoke(app, ["repo", "register", "proj"])
+    result = runner.invoke(app, ["repo", "unregister", "proj"])
+    assert result.output == "Unregistered Repository proj (files untouched)\n"
     assert runner.invoke(app, ["repo", "list", "--json"]).output.strip() == "[]"
 
 
-def test_remove_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unregister_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = create(tmp_path / "repo")
     clone(repo, tmp_path / "copy")
     runner.invoke(app, ["scan", str(tmp_path), "--yes"])
-    result = runner.invoke(app, ["repo", "remove", "repo"])
+    result = runner.invoke(app, ["repo", "unregister", "repo"])
     assert isinstance(result.exception, HephaistosError)
     assert str(result.exception).splitlines()[0] == "repo still has 2 Clones:"
-    assert str(result.exception).splitlines()[-1] == "remove them first, or add --clones"
+    assert str(result.exception).splitlines()[-1] == "unregister them first, or give --clones"
 
-    result = runner.invoke(app, ["repo", "remove", "repo", "--clones"])
+    result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"])
     assert str(result.exception).startswith("not asking without a terminal")
     monkeypatch.setattr(terminal, "interactive", lambda: True)
-    result = runner.invoke(app, ["repo", "remove", "repo", "--clones"], input="\n")
+    result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="\n")
     assert result.exit_code == 1
-    assert "Remove repo and its 2 Clones? [y/N]" in result.output
+    assert "Unregister repo and its 2 Clones? [y/N]" in result.output
 
-    result = runner.invoke(app, ["repo", "remove", "repo", "--clones"], input="y\n")
-    assert result.output.endswith("Removed Repository repo and its 2 Clones (files untouched)\n")
+    result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="y\n")
+    unregistered = "Unregistered Repository repo and its 2 Clones (files untouched)\n"
+    assert result.output.endswith(unregistered)
     assert runner.invoke(app, ["clone", "list", "--json"]).output.strip() == "[]"
     assert repo.exists()

@@ -37,7 +37,8 @@ export function RepositoriesView({ params, setParams }: ViewProps) {
       ? `Couldn't load: ${repositories.error.message}`
       : "Loading Repositories…";
   } else if (listed.length === 0) {
-    message = "No Repositories yet: add them with `hephaistos scan` or `hephaistos clone add`.";
+    message =
+      "No Repositories yet: register them with `hephaistos scan` or `hephaistos clone register`.";
   }
   return (
     <ListTable

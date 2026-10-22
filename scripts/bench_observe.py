@@ -90,8 +90,8 @@ def register(session: WriteSession, path: Path, names: set[str]) -> None:
     while name in names:
         name += "_"
     names.add(name)
-    repositories.add(session, name)
-    clones.add(session, name, clones.inspect(path))
+    repositories.register(session, name)
+    clones.register(session, name, clones.inspect(path))
 
 
 @dataclass

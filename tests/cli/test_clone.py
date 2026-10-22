@@ -19,7 +19,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A set-up Machine with Repository `proj`, and a git repository as the working directory."""
     monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path / "home"))
     runner.invoke(app, ["setup", "--name", "laptop"])
-    runner.invoke(app, ["repo", "add", "proj"])
+    runner.invoke(app, ["repo", "register", "proj"])
     repo = create(tmp_path / "repo", origin="git@host:me/hephaistos.git")
     monkeypatch.chdir(repo)
     monkeypatch.setenv("PWD", str(repo))
@@ -32,15 +32,15 @@ def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_no_match_suggests_scan(repo: Path) -> None:
-    result = runner.invoke(app, ["clone", "add"])
+    result = runner.invoke(app, ["clone", "register"])
     assert isinstance(result.exception, HephaistosError)
     assert str(result.exception).splitlines()[1:] == [f"  hephaistos scan {repo}"]
 
 
-def test_add_with_repo_then_list_and_show(repo: Path) -> None:
-    result = runner.invoke(app, ["clone", "add", "--repo", "proj"])
+def test_register_with_repo_then_list_and_show(repo: Path) -> None:
+    result = runner.invoke(app, ["clone", "register", "--repo", "proj"])
     assert result.exit_code == 0, result.output
-    assert result.output.startswith("Added Clone")
+    assert result.output.startswith("Registered Clone")
 
     result = runner.invoke(app, ["clone", "list"])
     assert result.output.splitlines()[1].split() == [
@@ -68,17 +68,17 @@ def test_add_with_repo_then_list_and_show(repo: Path) -> None:
 def test_matching_clone_needs_confirmation(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     copy = clone(repo, tmp_path / "copy")
 
-    result = runner.invoke(app, ["clone", "add", str(copy)])
+    result = runner.invoke(app, ["clone", "register", str(copy)])
     assert isinstance(result.exception, HephaistosError)
     assert "matches proj; choose one with --repo" in str(result.exception)
 
     interactive(monkeypatch)
-    result = runner.invoke(app, ["clone", "add", str(copy)], input="n\n")
+    result = runner.invoke(app, ["clone", "register", str(copy)], input="n\n")
     assert result.exit_code == 1
-    result = runner.invoke(app, ["clone", "add", str(copy)], input="\n")
+    result = runner.invoke(app, ["clone", "register", str(copy)], input="\n")
     assert result.exit_code == 0, result.output
     assert len(json.loads(runner.invoke(app, ["clone", "list", "--json"]).output)) == 2
 
@@ -86,37 +86,37 @@ def test_matching_clone_needs_confirmation(
 def test_several_matches_are_numbered(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    runner.invoke(app, ["repo", "add", "fork"])
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["repo", "register", "fork"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     fork = clone(repo, tmp_path / "fork")
     git(fork, "remote", "set-url", "origin", "git@host:someone/hephaistos.git")
-    runner.invoke(app, ["clone", "add", str(fork), "--repo", "fork"])
+    runner.invoke(app, ["clone", "register", str(fork), "--repo", "fork"])
     copy = clone(repo, tmp_path / "copy")  # shares its history with both
     interactive(monkeypatch)
-    result = runner.invoke(app, ["clone", "add", str(copy)], input="3\n1\n")
+    result = runner.invoke(app, ["clone", "register", str(copy)], input="3\n1\n")
     assert result.exit_code == 0, result.output
     assert "  1  fork\n  2  proj\n" in result.output
-    assert result.output.endswith("to fork\n")
+    assert result.output.endswith("of fork\n")
 
 
-def test_remove(repo: Path) -> None:
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
-    result = runner.invoke(app, ["clone", "remove"])
+def test_unregister(repo: Path) -> None:
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
+    result = runner.invoke(app, ["clone", "unregister"])
     assert result.exit_code == 0, result.output
     assert "files untouched" in result.output
     assert repo.exists()
     assert json.loads(runner.invoke(app, ["clone", "list", "--json"]).output) == []
     assert result.output.splitlines()[-1] == (
-        "proj has no Clones left; remove it with `hephaistos repo remove proj`"
+        "proj has no Clones left; unregister it with `hephaistos repo unregister proj`"
     )
 
 
 def test_nested_repository_is_refused(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     nested = create(repo / "vendor" / "tool")
     monkeypatch.chdir(nested)
     monkeypatch.setenv("PWD", str(nested))
-    for command in (["clone", "show"], ["clone", "remove"], ["event", "list", "--clone", "."]):
+    for command in (["clone", "show"], ["clone", "unregister"], ["event", "list", "--clone", "."]):
         result = runner.invoke(app, command)
         assert isinstance(result.exception, HephaistosError), command
         assert "is a git repository of its own, not a Clone" in str(result.exception)
@@ -127,7 +127,7 @@ def test_move_from_missing_to_found(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     git(repo, "worktree", "add", "--quiet", str(repo / ".worktrees" / "fix"))
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     runner.invoke(app, ["observe"])
     [worktree] = _json("worktree", "list")
     (tmp_path / "work").mkdir()
@@ -154,7 +154,7 @@ def test_move_from_missing_to_found(
 def test_move_with_hint_for_nested(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     runner.invoke(app, ["scan", str(create(repo / "lib")), "--yes"])
     moved = repo.rename(tmp_path / "moved")
     result = runner.invoke(app, ["clone", "move", str(repo), str(moved)])
@@ -180,7 +180,7 @@ def _fields(*args: str) -> list[list[str]]:
 
 
 def test_show_has_everything_and_list_entries_match_it(repo: Path) -> None:
-    runner.invoke(app, ["clone", "add", "--repo", "proj"])
+    runner.invoke(app, ["clone", "register", "--repo", "proj"])
     fields = _fields("clone", "show")
     for field in (
         ["resolved path", str(repo)],

@@ -35,7 +35,7 @@ KindOption = Annotated[
     typer.Option(
         "--kind",
         "-k",
-        help="Only this kind, or kinds starting with it (`clone`), or a glob (`'*.deleted'`)."
+        help="Only this kind, or kinds starting with it (`clone`), or a glob (`'*.unregistered'`)."
         " Repeat for several.",
     ),
 ]

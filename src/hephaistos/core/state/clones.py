@@ -154,7 +154,7 @@ def add(
     *,
     import_history: bool = False,
 ) -> CloneState:
-    """Stores a new Clone's first State; its `clone.added` Event says the rest.
+    """Stores a new Clone's first State; its `clone.registered` Event says the rest.
 
     Its git activity counts from the first observation on, or with `import_history` from
     what its reflogs still hold.

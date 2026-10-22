@@ -45,7 +45,11 @@ def test_setup_records_events_with_values(paths: Paths) -> None:
             " UNION ALL SELECT modified_at FROM registry_filesystems"
             " UNION ALL SELECT modified_at FROM registry_mounts"
         ).fetchall()
-    assert [row["kind"] for row in rows] == ["machine.added", "filesystem.added", "mount.added"]
+    assert [row["kind"] for row in rows] == [
+        "machine.registered",
+        "filesystem.registered",
+        "mount.registered",
+    ]
     assert all(row["recorded_by"] == machine.id.bytes for row in rows)
     assert rows[0]["subject"] == machine.id.bytes
     assert json.loads(rows[0]["payload"]) == {
