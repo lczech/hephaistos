@@ -16,6 +16,7 @@ interface SearchFieldProps {
   /** Enter: to search at once. */
   onSubmit?: () => void;
   onKeyDown?: (event: KeyboardEvent) => void;
+  onBlur?: () => void;
   autoFocus?: boolean;
   /** Ctrl+F comes here: the field its View searches by. */
   byCtrlF?: boolean;
@@ -31,6 +32,7 @@ export function SearchField({
   onChange,
   onSubmit,
   onKeyDown,
+  onBlur,
   autoFocus,
   byCtrlF,
 }: SearchFieldProps) {
@@ -43,6 +45,7 @@ export function SearchField({
       onChange={onChange}
       onSubmit={onSubmit}
       onKeyDown={onKeyDown}
+      onBlur={onBlur}
       autoFocus={autoFocus}
     >
       <TextIcon icon={Search} />

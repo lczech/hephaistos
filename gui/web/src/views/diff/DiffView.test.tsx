@@ -89,7 +89,7 @@ function Diff({ initial }: { initial: Params }) {
     <>
       <output>{addressText({ kind: "diff", params })}</output>
       <h1>{title}</h1>
-      <DiffView params={params} setParams={setParams} setTitle={setTitle} />
+      <DiffView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
     </>
   );
 }
@@ -342,6 +342,92 @@ describe("the Diff View", () => {
     expect(screen.getByText(/Nothing compared/)).toBeInTheDocument();
   });
 
+  describe("finding in a file's diff", () => {
+    // A change in the middle of a five-line file; `beta` in four of the patch's lines, two
+    // more in the file's others.
+    const FOUND = `diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -2,3 +2,3 @@
+ beta one
+-alpha beta
++alpha Beta
+ betamax
+`;
+    const OLD = "zero beta\nbeta one\nalpha beta\nbetamax\nlast beta\n";
+
+    function serveFound() {
+      serve({
+        "GET /api/diff": () => json({ change: change(), patch: FOUND }),
+        "GET /api/diff/files": () =>
+          json({ old: OLD, new: OLD.replace("alpha beta", "alpha Beta") }),
+        "GET /api/config": () =>
+          json({
+            host: "laptop",
+            settings: [],
+            sources: [],
+            other_hosts: [],
+            unknown_variables: [],
+          }),
+      });
+    }
+
+    const address = () => screen.getAllByRole("status")[0]; // the Panel's, before the bar's
+    // Its landmark by name: jsdom's ARIA roles don't know `<search>`.
+    const bar = () => screen.getByLabelText("Find", { selector: "search" });
+    const status = () => within(bar()).getByRole("status");
+
+    it("finds in the patch's lines as typed, stepping round by Enter and Shift+Enter", async () => {
+      serveFound();
+      renderWithQueries(<Diff initial={STAGED} />);
+      await screen.findByText(/^diff --git/);
+      await userEvent.click(screen.getByRole("button", { name: "Find in this diff" }));
+      const field = within(bar()).getByRole("textbox", { name: "Find in the diff" });
+      expect(field).toHaveFocus();
+      expect(address()).toHaveTextContent(/find=&/);
+      await userEvent.type(field, "beta");
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
+      expect(address()).toHaveTextContent("find=beta");
+      await userEvent.keyboard("{Enter}");
+      expect(status()).toHaveTextContent("2 of 4");
+      await userEvent.keyboard("{Shift>}{Enter}{Enter}{/Shift}");
+      expect(status()).toHaveTextContent("4 of 4"); // round, to the last
+      await userEvent.click(within(bar()).getByRole("button", { name: "Next match" }));
+      expect(status()).toHaveTextContent("1 of 4");
+    });
+
+    it("matches case or whole words if asked, and the whole file's lines while it shows", async () => {
+      serveFound();
+      renderWithQueries(<Diff initial={{ ...STAGED, find: "beta" }} />);
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
+      await userEvent.click(within(bar()).getByRole("button", { name: "Match case" }));
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 3"));
+      expect(address()).toHaveTextContent("case=1");
+      await userEvent.click(within(bar()).getByRole("button", { name: "Match case" }));
+      await userEvent.click(within(bar()).getByRole("button", { name: "Match whole words" }));
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 3")); // not betamax
+      await userEvent.click(screen.getByRole("button", { name: "Whole file" }));
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 5")); // + zero, last beta
+    });
+
+    it("says why a regular expression is invalid", async () => {
+      serveFound();
+      renderWithQueries(<Diff initial={{ ...STAGED, find: "(beta", regex: "1" }} />);
+      expect(await within(bar()).findByText(/Unterminated group/)).toBeInTheDocument();
+      expect(within(bar()).getByRole("button", { name: "Next match" })).toBeDisabled();
+    });
+
+    it("closes by Escape, back to its button, leaving nothing of it in the address", async () => {
+      serveFound();
+      renderWithQueries(<Diff initial={{ ...STAGED, find: "beta", word: "1" }} />);
+      await userEvent.click(within(bar()).getByRole("textbox", { name: "Find in the diff" }));
+      await userEvent.keyboard("{Escape}");
+      expect(screen.queryByLabelText("Find", { selector: "search" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Find in this diff" })).toHaveFocus();
+      expect(address()).not.toHaveTextContent(/find|word/);
+    });
+  });
+
   describe("of all files", () => {
     const SINCE_HEAD = { clone: "clone-proj", from: "HEAD", to: "working-tree" };
     const GROUP = {
@@ -443,7 +529,7 @@ describe("the Diff View", () => {
     it("isn't dimmed once one file shows in its place", async () => {
       serveAll();
       const view = (params: Params) => (
-        <DiffView params={params} setParams={() => {}} setTitle={() => {}} />
+        <DiffView params={params} setParams={() => {}} endTyping={() => {}} setTitle={() => {}} />
       );
       const { container, client, rerender } = renderWithQueries(view(SINCE_HEAD));
       expect(await screen.findByRole("region", { name: "src/b.py" })).toBeInTheDocument();

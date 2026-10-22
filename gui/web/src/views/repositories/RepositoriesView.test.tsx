@@ -42,7 +42,12 @@ function Repositories({ open = () => {} }: { open?: OpenView }) {
   return (
     <OpenViewContext value={open}>
       <output>{addressText({ kind: "repositories", params })}</output>
-      <RepositoriesView params={params} setParams={setParams} setTitle={() => {}} />
+      <RepositoriesView
+        params={params}
+        setParams={setParams}
+        endTyping={() => {}}
+        setTitle={() => {}}
+      />
     </OpenViewContext>
   );
 }

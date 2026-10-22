@@ -43,7 +43,7 @@ function Db({ at = {} }: { at?: Params }) {
   return (
     <>
       <output>{addressText({ kind: "db", params })}</output>
-      <DbView params={params} setParams={setParams} setTitle={vi.fn()} />
+      <DbView params={params} setParams={setParams} endTyping={() => {}} setTitle={vi.fn()} />
     </>
   );
 }

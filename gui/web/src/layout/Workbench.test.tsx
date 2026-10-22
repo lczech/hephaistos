@@ -1,11 +1,13 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchField } from "../components/SearchField";
 import { saveViews as save } from "../test/layout";
 import { daemon, json, renderWithQueries, serve } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
+import { useKeyTarget } from "../views/keys";
 import { useIsShown } from "../views/opening";
 import { ViewLink } from "../views/ViewLink";
 import { savedLayout } from "./saved";
@@ -26,12 +28,13 @@ function Probe({ params, setParams, setTitle }: ViewProps) {
 }
 
 /** A View with a field whose text is a parameter, changed at each key, as a search's. */
-function Typer({ params, setParams }: ViewProps) {
+function Typer({ params, setParams, endTyping }: ViewProps) {
   return (
     <input
       aria-label="Text"
       value={typeof params.text === "string" ? params.text : ""}
       onChange={(event) => setParams({ text: event.target.value }, true)}
+      onBlur={endTyping}
     />
   );
 }
@@ -396,6 +399,25 @@ describe("the Workbench", () => {
       }
     });
 
+    it("takes keys typed after leaving the field as another step", async () => {
+      VIEWS.typer = Typer;
+      try {
+        save("typer");
+        await renderWorkbench();
+        const go = (key: string) => userEvent.keyboard(`{Alt>}{${key}}{/Alt}`);
+        const field = () => screen.getByRole("textbox", { name: "Text" });
+        await userEvent.type(field(), "ab");
+        field().blur();
+        await userEvent.type(field(), "c");
+        await go("ArrowLeft");
+        expect(field()).toHaveValue("ab");
+        await go("ArrowLeft");
+        expect(field()).toHaveValue("");
+      } finally {
+        delete VIEWS.typer;
+      }
+    });
+
     it("restores a preview as one", async () => {
       const { unmount } = await renderWorkbench();
       await altClick(screen.getByRole("button", { name: "Probe 1" }));
@@ -449,6 +471,34 @@ describe("the Workbench", () => {
     } finally {
       delete VIEWS.searcher;
       delete VIEWS.probe;
+    }
+  });
+
+  it("presses the button opening the active Panel's search field on Ctrl+F, until it is open", async () => {
+    VIEWS.opener = function Opener() {
+      const [open, setOpen] = useState(false);
+      const button = useKeyTarget(open ? undefined : "search");
+      return open ? (
+        <SearchField label="Find" value="" onChange={() => {}} byCtrlF autoFocus />
+      ) : (
+        <button ref={button} type="button" onClick={() => setOpen(true)}>
+          Open
+        </button>
+      );
+    };
+    try {
+      save("opener");
+      await renderWorkbench();
+      await screen.findByRole("button", { name: "Open" });
+      await userEvent.click(screen.getByRole("tab", { name: "opener" }));
+      expect(pressCtrlF().defaultPrevented).toBe(true);
+      const field = await screen.findByRole("searchbox", { name: "Find" });
+      await waitFor(() => expect(field).toHaveFocus());
+      field.blur();
+      pressCtrlF();
+      expect(field).toHaveFocus();
+    } finally {
+      delete VIEWS.opener;
     }
   });
 

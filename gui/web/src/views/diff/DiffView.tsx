@@ -8,6 +8,7 @@ import {
   StretchHorizontal,
   StretchVertical,
   TableOfContents,
+  TextSearch,
   TextWrap,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -18,12 +19,16 @@ import {
   KEYS,
   useChanges,
   useDiff,
+  useDiffFiles,
   useRepositories,
   useSetting,
 } from "../../api/queries";
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
+import { diffLines } from "../../components/diff/lines";
 import { codeThemes } from "../../components/diff/themes";
-import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { FindBar } from "../../components/find/FindBar";
+import { useCurrentMatch, useFind } from "../../components/find/useFind";
+import { BarButton, BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -40,8 +45,10 @@ import {
   isFolder,
   pathParts,
 } from "../changes/rows";
+import { findOf, NOTHING_TYPED, withFind } from "../find";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
+import { useKeyTarget } from "../keys";
 import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
@@ -117,7 +124,7 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
  * More of a file shows on asking. Large diffs wait to be shown; untracked files, to be opened;
  * one file without changes says where its changes are now.
  */
-export function DiffView({ params, setParams, setTitle }: ViewProps) {
+export function DiffView({ params, setParams, endTyping, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
   const [commit] = paramValues(params.commit);
   const [path] = paramValues(params.path);
@@ -133,7 +140,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const error = useKeptError(listed, listQuery);
   // One file's diff, as its section asks for it: also says whether the Checkout is gone.
   const fileQuery = path === undefined ? undefined : query;
-  const fileError = useKeptError(useDiff(fileQuery), fileQuery);
+  const fileDiff = useDiff(fileQuery);
+  const fileError = useKeptError(fileDiff, fileQuery);
   const gone = [error, fileError].find(isGone);
   const shown = commit === undefined ? undefined : listed.data?.commit;
   const [details, setDetails] = useState(false);
@@ -148,6 +156,22 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   const [look, setLook] = useAtom(diffLook());
   const [{ nested }] = useAtom(changesLook());
   const view = useRef<HTMLElement>(null);
+  // Finding in one file's lines as shown: with the whole file, all of them, once its versions
+  // came, as its section asked for them (read here only).
+  const finding = findOf(params);
+  const setFinding = (next: typeof finding, typed = false) =>
+    setParams(withFind(params, next), typed);
+  const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
+  const patch = fileDiff.data?.patch;
+  const newText = look.whole ? versions.data?.new : undefined;
+  const lines =
+    query && finding && typeof patch === "string"
+      ? diffLines(patch, newText).map((line) => line.text)
+      : undefined;
+  const found = useFind(lines, finding);
+  const [current, step] = useCurrentMatch(found);
+  const findKey = useKeyTarget(finding ? undefined : "search"); // the field's, once open
+  const findButton = useRef<HTMLButtonElement>(null); // focused again once the bar closes
   const narrow = useNarrow(view, NARROW);
   const [themes, unknown] = codeThemes({
     light: textSetting(useSetting("gui.code.theme_light")),
@@ -245,6 +269,19 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           />
         )}
         <BarEnd>
+          {query && (
+            <BarButton
+              ref={(button) => {
+                findButton.current = button;
+                return findKey(button);
+              }}
+              icon={TextSearch}
+              label="Find in this diff"
+              title="Find in this diff (Ctrl+F)"
+              pressed={finding !== undefined}
+              onClick={() => setFinding(finding ? undefined : NOTHING_TYPED)}
+            />
+          )}
           <Choice
             label="Side by side"
             on={look.split && !narrow}
@@ -340,6 +377,21 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       </ViewBar>
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
+      )}
+      {query && finding && (
+        <FindBar
+          label="Find in the diff"
+          query={finding}
+          onChange={setFinding}
+          onTypingEnd={endTyping}
+          finding={found}
+          current={current}
+          onStep={step}
+          onClose={() => {
+            setFinding(undefined);
+            findButton.current?.focus();
+          }}
+        />
       )}
       {unknown.length > 0 && (
         <p className={styles.note}>

@@ -1,6 +1,6 @@
 import { createContext, type RefCallback, useContext } from "react";
 
-/** What keys the Workbench takes go to in a View: Ctrl+F, to its search field. */
+/** What keys the Workbench takes go to in a View: Ctrl+F, to its search field, or the button opening it. */
 export type KeyTarget = "search";
 
 /**

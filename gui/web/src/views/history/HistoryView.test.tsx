@@ -70,7 +70,7 @@ function History({ initial }: { initial: Params }) {
     <>
       <output>{addressText({ kind: "history", params })}</output>
       <h1>{title}</h1>
-      <HistoryView params={params} setParams={setParams} setTitle={setTitle} />
+      <HistoryView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
     </>
   );
 }

@@ -1,0 +1,61 @@
+/* A row to find in, below a View's bar, as small and quiet: its field looks as a search field,
+ * its icons as the bar's. */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--text-muted);
+  font-size: var(--chrome-size);
+}
+
+.field {
+  composes: field from "../SearchField.module.css";
+  flex: 0 1 18rem;
+}
+
+.input {
+  composes: input from "../SearchField.module.css";
+}
+
+.tools {
+  display: flex;
+  gap: 2px;
+}
+
+.tool {
+  composes: button from "../ViewBar.module.css";
+}
+
+/* As large as the bar's Choices'; the options' a size larger, as Lucide draws them as small
+ * letters within their box. */
+.tool svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.tool[aria-pressed] svg {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+.tool:disabled {
+  background: none;
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Which match of how many: wide enough for a few digits, so the icons after it stay put. */
+.status {
+  min-width: 6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status[data-error] {
+  color: var(--danger);
+}
+
+.bar[data-busy] .status {
+  opacity: 0.6;
+}

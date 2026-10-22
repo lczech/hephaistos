@@ -41,7 +41,7 @@ function Log({ at = {} }: { at?: Params }) {
   return (
     <>
       <output>{addressText({ kind: "log", params })}</output>
-      <LogView params={params} setParams={setParams} setTitle={setTitle} />
+      <LogView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
     </>
   );
 }

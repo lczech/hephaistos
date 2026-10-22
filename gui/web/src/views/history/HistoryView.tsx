@@ -42,7 +42,7 @@ const SEARCH_DELAY = 300; // ms after the last key typed
  * following a file's renames; with `search`, only those whose message has all its words, in
  * any order and case. A commit's row opens all about it; its hash, its changes.
  */
-export function HistoryView({ params, setParams, setTitle }: ViewProps) {
+export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
   const isShown = useIsShown();
   const [ref] = paramValues(params.ref);
@@ -149,7 +149,11 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
             byCtrlF
             title="Only commits whose message has all these words, in any order and case; or for a hash, its commit"
             value={search}
-            onSubmit={searchNow}
+            onSubmit={() => {
+              searchNow();
+              endTyping();
+            }}
+            onBlur={endTyping}
             onChange={(text) =>
               setParams(
                 searchWords(text).length > 0 ? { ...params, search: text } : without("search"),

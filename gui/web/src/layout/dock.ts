@@ -76,17 +76,23 @@ export function keyTarget(panel: IDockviewPanel | undefined, target: KeyTarget) 
   return panel && keyTargets.get(panel.id)?.get(target);
 }
 
-// The Panels whose View was last changed by a key, e.g. typing a search; see `layout/visits.ts`.
-const typedInto = new WeakSet<object>();
+// The run of keys going on in each Panel's View, e.g. typing a search, by its number; see
+// `layout/visits.ts`.
+const typing = new WeakMap<object, number>();
+let runs = 0;
 
-/** Notes whether a Panel's View is changed by a key: a run of them is one step back. */
+/**
+ * Notes whether a Panel's View is changed by a key: a run of them is one step back, until
+ * something else changes it or typing is done, e.g. on leaving the field.
+ */
 export function noteTyped(panel: Pick<IDockviewPanel, "api">, typed: boolean): void {
-  if (typed) typedInto.add(panel.api);
-  else typedInto.delete(panel.api);
+  if (!typed) typing.delete(panel.api);
+  else if (!typing.has(panel.api)) typing.set(panel.api, ++runs);
 }
 
-export function wasTyped(panel: Pick<IDockviewPanel, "api">): boolean {
-  return typedInto.has(panel.api);
+/** The run of keys a Panel's View was last changed by, while it goes on. */
+export function typingRun(panel: Pick<IDockviewPanel, "api">): number | undefined {
+  return typing.get(panel.api);
 }
 
 /** Shows another View in a Panel. */

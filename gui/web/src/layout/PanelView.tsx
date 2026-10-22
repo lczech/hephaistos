@@ -34,6 +34,7 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
     noteTyped({ api }, typed);
     api.updateParameters({ kind: name, params: changed, [PREVIEW]: undefined });
   };
+  const endTyping = () => noteTyped({ api }, false);
   const setTitle = (title: string) => api.setTitle(title);
   const open = (other: Address, opening?: Opening) =>
     openView(containerApi, other, opening, api.group);
@@ -48,7 +49,12 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
         <Boundary>
           <OpenViewContext value={open}>
             <KeyTargetContext value={noteTarget}>
-              <View params={address.params} setParams={setParams} setTitle={setTitle} />
+              <View
+                params={address.params}
+                setParams={setParams}
+                endTyping={endTyping}
+                setTitle={setTitle}
+              />
             </KeyTargetContext>
           </OpenViewContext>
         </Boundary>

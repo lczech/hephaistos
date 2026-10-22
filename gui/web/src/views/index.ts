@@ -17,6 +17,8 @@ export interface ViewProps {
   // Shows others instead, e.g. when filtered; `typed`: by a key, going on with the step of the
   // key before (`layout/visits.ts`).
   setParams: (params: Params, typed?: boolean) => void;
+  // Typing is done, e.g. on Enter or leaving the field: the next key is another step back.
+  endTyping: () => void;
   setTitle: (title: string) => void; // if not just the kind's name
 }
 

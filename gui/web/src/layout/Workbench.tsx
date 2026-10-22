@@ -48,17 +48,19 @@ function closeByKey(api: DockviewApi): { dispose: () => void } {
 
 /**
  * Ctrl+F goes to the active Panel's search field, the one its View names (`views/keys.ts`), its
- * text selected to type over; without one, the browser finds in the page as usual.
+ * text selected to type over, or presses the button opening one; without either, the browser
+ * finds in the page as usual.
  */
 function searchByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== "f" || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
       return;
-    const field = keyTarget(api.activePanel, "search");
-    if (!(field instanceof HTMLInputElement)) return;
+    const target = keyTarget(api.activePanel, "search");
+    if (!(target instanceof HTMLElement)) return;
     event.preventDefault();
-    field.focus();
-    field.select();
+    if (!(target instanceof HTMLInputElement)) return target.click();
+    target.focus();
+    target.select();
   };
   window.addEventListener("keydown", onKey);
   return { dispose: () => window.removeEventListener("keydown", onKey) };

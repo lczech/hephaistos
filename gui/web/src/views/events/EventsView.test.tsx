@@ -36,7 +36,7 @@ function Events({ at = {} }: { at?: Params }) {
   return (
     <>
       <output>{addressText({ kind: "events", params })}</output>
-      <EventsView params={params} setParams={setParams} setTitle={setTitle} />
+      <EventsView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
     </>
   );
 }

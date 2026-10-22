@@ -65,9 +65,9 @@
   translate: 0 -50%;
 }
 
-.refresh {
+/* An icon that does something: Refresh, at the end; marked while what it opens is open. */
+.button {
   display: flex;
-  margin-left: auto;
   padding: 2px;
   border: none;
   border-radius: var(--radius);
@@ -76,15 +76,20 @@
   cursor: pointer;
 }
 
-.refresh:hover,
-.refresh:focus-visible {
+.button:hover,
+.button:focus-visible,
+.button[aria-pressed="true"] {
   background: color-mix(in srgb, var(--text) 12%, transparent);
   color: var(--text);
 }
 
-.refresh svg {
+.button svg {
   width: 1em;
   height: 1em;
+}
+
+.refresh {
+  margin-left: auto;
 }
 
 .refresh[data-busy] svg {

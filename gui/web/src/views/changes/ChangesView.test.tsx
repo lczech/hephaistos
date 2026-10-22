@@ -99,7 +99,7 @@ function Changes({ initial }: { initial: Params }) {
     <>
       <output>{addressText({ kind: "changes", params })}</output>
       <h1>{title}</h1>
-      <ChangesView params={params} setParams={setParams} setTitle={setTitle} />
+      <ChangesView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
     </>
   );
 }

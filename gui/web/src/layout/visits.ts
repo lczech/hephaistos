@@ -1,13 +1,13 @@
 import type { DockviewApi, IDockviewGroupPanel } from "dockview-react";
 import { createContext, type MouseEvent, type RefObject, useContext } from "react";
 import { type Address, addressText, asAddress } from "../views/address";
-import { noteTyped, openView, showIn, wasTyped } from "./dock";
+import { noteTyped, openView, showIn, typingRun } from "./dock";
 
-/** A View a Group showed: its Panel, its address as last seen, and whether typed into it. */
+/** A View a Group showed: its Panel, its address as last seen, and the run of keys typed into it. */
 interface Visit {
   panel: string;
   address: Address;
-  typed: boolean;
+  typed: number | undefined;
 }
 
 /** A Group's Views before and after the one it shows, as a browser tab's pages. */
@@ -25,7 +25,7 @@ const FORWARD = 4;
 function visitOf(group: IDockviewGroupPanel): Visit | undefined {
   const panel = group.activePanel;
   const address = asAddress(panel?.params);
-  return panel && address ? { panel: panel.id, address, typed: wasTyped(panel) } : undefined;
+  return panel && address ? { panel: panel.id, address, typed: typingRun(panel) } : undefined;
 }
 
 const same = (a: Visit | undefined, b: Visit | undefined) =>
@@ -81,7 +81,8 @@ export function keepVisits(api: DockviewApi): Visits {
       const visit = visitOf(group);
       const { now } = trail;
       if (visit === undefined || same(visit, now)) continue;
-      const typing = now?.panel === visit.panel && now.typed && visit.typed;
+      const typing =
+        now?.panel === visit.panel && now.typed !== undefined && now.typed === visit.typed;
       if (!moving && now !== undefined && !typing) {
         trail.past = [...trail.past, now].slice(-KEPT);
         trail.future = [];
