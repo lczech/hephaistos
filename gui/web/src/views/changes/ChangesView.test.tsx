@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -467,6 +467,30 @@ describe("the Changes View", () => {
     expect(screen.queryByRole("button", { name: "Commit history of this Checkout" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "The Worktree's Events" }));
     expect(opened).toEqual([{ kind: "events", params: { worktree: "wt-side" } }]);
+  });
+
+  it("keeps saying a Checkout is gone while asking again, e.g. on focus", async () => {
+    const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "worktree" } as const;
+    const gone = () => json({ error: "the Worktree at ~/side was removed", checkout }, 410);
+    let answer = (): Response | Promise<Response> => gone();
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => answer(),
+    });
+    const { client } = renderWithQueries(<Changes initial={{ worktree: "wt-side" }} />);
+    await screen.findByText(/was removed/);
+    let reply = (_: Response) => {};
+    answer = () => new Promise((resolve) => (reply = resolve));
+    await act(async () => {
+      void client.invalidateQueries(); // answered below
+      await new Promise((resolve) => setTimeout(resolve, 50)); // the View updated meanwhile
+    });
+    expect(screen.getByText(/was removed/)).toBeInTheDocument();
+    expect(screen.queryByText("Loading changes…")).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
+    await act(async () => reply(gone()));
+    expect(screen.getByText(/was removed/)).toBeInTheDocument();
   });
 
   it("notes an error above the table, with the Checkout's Events", async () => {

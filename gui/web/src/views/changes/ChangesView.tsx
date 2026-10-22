@@ -8,7 +8,7 @@ import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { HEAD, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
-import { Gone, isGone, LoadNote } from "../CheckoutError";
+import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
@@ -51,6 +51,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   const compared = commit === undefined && !grouped ? picked : undefined;
   const query = { ...checkout, ...(commit === undefined ? compared : { commit }) };
   const changes = useChanges(query);
+  const error = useKeptError(changes, query);
   const client = useQueryClient();
   const repositories = useRepositories();
   const now = useNow(10_000);
@@ -99,7 +100,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   if (checkout === undefined) {
     message = "No Checkout: open Changes from a Clone or Worktree in Repositories.";
   } else if (changes.data === undefined) {
-    message = changes.isError ? null : "Loading changes…"; // an error: above the table
+    message = error ? null : "Loading changes…"; // an error: above the table
   } else if (commit !== undefined) {
     if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
   } else if (groups.length === 0) {
@@ -118,10 +119,10 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   // A commit's changes, to compare other Revisions from: its first parent to it.
   const [parent] = shown?.commit?.parents ?? [];
   const ofCommit = parent && shown?.commit ? { from: parent, to: shown.commit.hash } : undefined;
-  if (isGone(changes.error)) {
+  if (isGone(error)) {
     return (
       <section className={styles.view}>
-        <Gone error={changes.error} />
+        <Gone error={error} />
       </section>
     );
   }
@@ -188,14 +189,14 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
       )}
-      {changes.isError && <LoadNote error={changes.error} />}
+      {error && <LoadNote error={error} />}
       <ListTable
         table={table}
         className={`${styles.changes} ${styles.columns}`}
         oneLine
         choices={{}}
         message={message}
-        stale={changes.isError || changes.isPlaceholderData}
+        stale={error !== null || changes.isPlaceholderData}
         older="changes"
         detailsLabel="Details"
         details={() => null}

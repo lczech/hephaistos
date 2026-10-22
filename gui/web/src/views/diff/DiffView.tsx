@@ -27,7 +27,7 @@ import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
-import { Gone, isGone, LoadNote } from "../CheckoutError";
+import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
 import { foldedBy, unfolding, useFolds } from "../changes/folds";
@@ -130,9 +130,11 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       ? {}
       : { ...checkout, ...base, ...(path !== undefined && { path }) };
   const listed = useChanges(listQuery);
+  const error = useKeptError(listed, listQuery);
   // One file's diff, as its section asks for it: also says whether the Checkout is gone.
-  const file = useDiff(path === undefined ? undefined : query);
-  const gone = [listed.error, file.error].find(isGone);
+  const fileQuery = path === undefined ? undefined : query;
+  const fileError = useKeptError(useDiff(fileQuery), fileQuery);
+  const gone = [error, fileError].find(isGone);
   const shown = commit === undefined ? undefined : listed.data?.commit;
   const [details, setDetails] = useState(false);
   const now = useNow(10_000);
@@ -196,7 +198,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
     );
   } else if (listed.data === undefined) {
     // An error: above it.
-    body = listed.isError ? null : <p className={styles.note}>Loading changes…</p>;
+    body = error ? null : <p className={styles.note}>Loading changes…</p>;
   } else if (groups.length === 0) {
     body = (
       <p className={styles.note}>
@@ -226,7 +228,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       </section>
     );
   }
-  const stale = listed.isError || listed.isPlaceholderData;
+  const stale = error !== null || listed.isPlaceholderData;
   return (
     <section ref={view} className={styles.view} data-stale={stale || undefined}>
       <ViewBar>
@@ -346,7 +348,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           Shiki does.
         </p>
       )}
-      {listed.isError && <LoadNote error={listed.error} />}
+      {error && <LoadNote error={error} />}
       <LazyDiffScroll className={styles.diff} themes={themes}>
         {body}
       </LazyDiffScroll>

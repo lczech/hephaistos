@@ -17,7 +17,7 @@ import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
-import { Gone, isGone, LoadNote } from "../CheckoutError";
+import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
@@ -58,6 +58,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     ...(words.length === 0 ? {} : { search: words.join(" ") }),
   };
   const history = useHistory(query);
+  const error = useKeptError(history, query);
   const client = useQueryClient();
   const repositories = useRepositories();
   const name = checkout && checkoutName(repositories.data, checkout);
@@ -93,16 +94,16 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
   let message: string | null = null;
   if (checkout === undefined) {
     message = "No Checkout: open History from a Clone or Worktree in Repositories.";
-  } else if (history.data === undefined && !history.isError) {
+  } else if (history.data === undefined && error === null) {
     message = "Loading commits…";
   } else if (history.data !== undefined && listed.length === 0) {
     if (words.length > 0) message = noneFoundText(words, path);
     else message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
   }
-  if (isGone(history.error)) {
+  if (isGone(error)) {
     return (
       <section className={styles.view}>
-        <Gone error={history.error} />
+        <Gone error={error} />
       </section>
     );
   }
@@ -164,8 +165,8 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
           />
         </BarEnd>
       </ViewBar>
-      {history.isError && (
-        <LoadNote error={history.error}>
+      {error && (
+        <LoadNote error={error}>
           {ref !== undefined && (
             <button
               type="button"
@@ -182,7 +183,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
         className={styles.history}
         choices={{}}
         message={message}
-        stale={history.isError || history.isPlaceholderData}
+        stale={error !== null || history.isPlaceholderData}
         paging={history}
         older="commits"
         detailsLabel="Commit details"
