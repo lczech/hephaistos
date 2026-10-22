@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 from hephaistos.cli.main import app as cli
 from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon.server import token
 from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
@@ -69,7 +69,7 @@ def test_needs_the_token(
     missing = client.get("/api/info", headers={"Authorization": ""})
     assert (missing.status_code, missing.json()) == (
         401,
-        {"error": "no token; see `hephaistos daemon token`"},
+        {"error": "no token; see `hephaistos daemon token`", "checkout": None},
     )
     assert missing.headers["www-authenticate"] == "Bearer"
     wrong = client.get("/api/info?x=1", headers={"Authorization": "Bearer nope"})
@@ -300,8 +300,44 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
     outside = client.get("/api/changes", params={"clone": clone["id"], "path": "../x"})
     assert outside.status_code == 400
     shutil.rmtree(repo)
-    gone = client.get("/api/changes", params={"clone": clone["id"]})
-    assert (gone.status_code, gone.json()["error"]) == (404, f"{repo} doesn't exist")
+    missing = client.get("/api/changes", params={"clone": clone["id"]})
+    assert (missing.status_code, missing.json()) == (
+        404,
+        {
+            "error": f"the Clone at {short_path(repo)} is missing: nothing is at its path",
+            "checkout": {"clone": clone["id"], "worktree": None, "gone": None},
+        },
+    )
+
+
+def test_gone_checkouts_say_what_happened(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    [worktree] = _cli("worktree", "list")
+    side = short_path(repo.parent / "side")
+    git(repo, "worktree", "remove", str(repo.parent / "side"))
+    assert runner.invoke(cli, ["observe"]).exit_code == 0
+    removed = client.get("/api/history", params={"worktree": worktree["id"]})
+    assert (removed.status_code, removed.json()) == (
+        410,
+        {
+            "error": f"the Worktree at {side} was removed",
+            "checkout": {"clone": clone["id"], "worktree": worktree["id"], "gone": "worktree"},
+        },
+    )
+    assert client.get(f"/api/worktrees/{worktree['id']}").status_code == 410
+    assert runner.invoke(cli, ["clone", "remove", str(repo)]).exit_code == 0
+    unregistered = client.get("/api/changes", params={"clone": clone["id"]})
+    assert (unregistered.status_code, unregistered.json()) == (
+        410,
+        {
+            "error": f"the Clone at {short_path(repo)} was unregistered; its files are untouched",
+            "checkout": {"clone": clone["id"], "worktree": None, "gone": "clone"},
+        },
+    )
+    assert client.get(f"/api/clones/{clone['id']}").status_code == 410
+    of_clone = client.get("/api/changes", params={"worktree": worktree["id"]})
+    assert (of_clone.status_code, of_clone.json()["checkout"]["gone"]) == (410, "clone")
+    assert of_clone.json()["error"].startswith(f"the Clone of the Worktree at {side} was")
 
 
 def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
@@ -456,7 +492,7 @@ def test_an_unexpected_error_is_logged_not_shown(
     response = client.get("/api/machines")
     assert (response.status_code, response.json()) == (
         500,
-        {"error": "internal error; see the log on laptop"},
+        {"error": "internal error; see the log on laptop", "checkout": None},
     )
     [record] = [record for record in caplog.records if record.levelno == logging.ERROR]
     assert record.getMessage() == "failed: GET /api/machines"
@@ -470,7 +506,7 @@ def test_observe_has_the_watcher_pass(client: TestClient, watcher: FakeWatcher) 
     failed = client.post("/api/observe")
     assert (failed.status_code, failed.json()) == (
         503,
-        {"error": "the pass failed: the database is busy"},
+        {"error": "the pass failed: the database is busy", "checkout": None},
     )
     assert watcher.triggers == ["api", "api"]
     assert client.get("/api/observe").status_code == 405

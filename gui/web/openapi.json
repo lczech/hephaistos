@@ -765,16 +765,69 @@
         "title": "DiffJson",
         "type": "object"
       },
-      "ErrorJson": {
-        "description": "An answer other than success (400, 401, 404, 500, \u2026), with the CLI's message.",
+      "ErrorCheckoutJson": {
+        "description": "The Checkout an error is about: a Clone, or a Worktree with its Clone.",
         "properties": {
+          "clone": {
+            "title": "Clone",
+            "type": "string"
+          },
+          "gone": {
+            "anyOf": [
+              {
+                "enum": [
+                  "clone",
+                  "worktree"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gone"
+          },
+          "worktree": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worktree"
+          }
+        },
+        "required": [
+          "clone",
+          "worktree",
+          "gone"
+        ],
+        "title": "ErrorCheckoutJson",
+        "type": "object"
+      },
+      "ErrorJson": {
+        "description": "An answer other than success (400, 401, 404, 410, 500, \u2026), with the CLI's message.",
+        "properties": {
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCheckoutJson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "error": {
             "title": "Error",
             "type": "string"
           }
         },
         "required": [
-          "error"
+          "error",
+          "checkout"
         ],
         "title": "ErrorJson",
         "type": "object"
@@ -2235,7 +2288,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.18"
+    "version": "0.19"
   },
   "openapi": "3.1.0",
   "paths": {

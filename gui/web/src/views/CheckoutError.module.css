@@ -1,0 +1,5 @@
+/* As the Views' own notes: why nothing shows, and what would. */
+.note {
+  margin: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+}

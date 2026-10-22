@@ -313,6 +313,14 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
     return recorded
 
 
+def was_removed(session: ReadSession, worktree_id: uuid.UUID) -> bool | None:
+    """Whether this Worktree was removed; None if there never was one with this ID."""
+    row = session.conn.execute(
+        "SELECT removed FROM state_worktrees WHERE id = ?", (worktree_id,)
+    ).fetchone()
+    return None if row is None else bool(row[0])
+
+
 def paths(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
     """These Worktrees' paths, the last one if removed."""
     found: dict[uuid.UUID, Path] = {}

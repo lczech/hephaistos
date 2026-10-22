@@ -448,6 +448,49 @@ describe("the Changes View", () => {
     ]);
   });
 
+  it("says a removed Worktree is gone, in place of its changes, with its Events", async () => {
+    const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "worktree" } as const;
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () =>
+        json({ error: "the Worktree at ~/side was removed", checkout }, 410),
+    });
+    const opened: Address[] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address) => opened.push(address)}>
+        <Changes initial={{ worktree: "wt-side" }} />
+      </OpenViewContext.Provider>,
+    );
+    expect(await screen.findByText(/^The Worktree at ~\/side was removed\.$/)).toBeInTheDocument();
+    expect(screen.queryByRole("list")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Commit history of this Checkout" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "The Worktree's Events" }));
+    expect(opened).toEqual([{ kind: "events", params: { worktree: "wt-side" } }]);
+  });
+
+  it("notes an error above the table, with the Checkout's Events", async () => {
+    const checkout = { clone: "clone-proj", worktree: null, gone: null };
+    const error = "the Clone at ~/proj is missing: nothing is at its path";
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ error, checkout }, 404),
+    });
+    const opened: Address[] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address) => opened.push(address)}>
+        <Changes initial={{ clone: "clone-proj" }} />
+      </OpenViewContext.Provider>,
+    );
+    expect(
+      await screen.findByText(`Couldn't load: ${error}`, { exact: false }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Commit history of this Checkout" })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "The Clone's Events" }));
+    expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
+  });
+
   it("says when a Checkout isn't named", () => {
     serve({});
     renderWithQueries(<Changes initial={{}} />);

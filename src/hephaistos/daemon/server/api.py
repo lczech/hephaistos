@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from hephaistos.core import config, serialize
 from hephaistos.core.db import raw
-from hephaistos.core.db.sessions import read_session
+from hephaistos.core.db.sessions import ReadSession, read_session
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import Priority, PriorityName
 from hephaistos.core.registry import clones, machines
@@ -41,12 +41,13 @@ from hephaistos.core.serialize import (
     TablesJson,
     WorktreeJson,
 )
+from hephaistos.core.state import worktrees
 from hephaistos.core.utils import changes, history, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon import report
 from hephaistos.daemon.report import DaemonJson
-from hephaistos.daemon.server.errors import ErrorJson
+from hephaistos.daemon.server.errors import CheckoutError, ErrorCheckoutJson, ErrorJson
 from hephaistos.daemon.server.live import Hint, Live
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
@@ -114,6 +115,35 @@ class InfoJson(TypedDict):
 def _not_found(what: str, entity_id: uuid.UUID) -> HTTPException:
     """The error for an ID that names nothing."""
     return HTTPException(404, f"no {what} with ID {entity_id}")
+
+
+def _absent_clone(session: ReadSession, clone_id: uuid.UUID) -> HTTPException:
+    """Why a Clone isn't among the current ones: 410 if it was unregistered, else 404."""
+    if not clones.was_deleted(session, clone_id):
+        return _not_found("Clone", clone_id)
+    where = short_path(clones.paths(session, [clone_id])[clone_id])
+    return CheckoutError(
+        410,
+        f"the Clone at {where} was unregistered; its files are untouched",
+        ErrorCheckoutJson(clone=str(clone_id), worktree=None, gone="clone"),
+    )
+
+
+def _absent_worktree(session: ReadSession, worktree_id: uuid.UUID) -> HTTPException:
+    """Why a Worktree isn't among the current ones: 410 if it or its Clone is gone, else 404."""
+    clone_id = worktrees.clone_ids(session, [worktree_id]).get(worktree_id)
+    if clone_id is None:
+        return _not_found("Worktree", worktree_id)
+    where = f"the Worktree at {short_path(worktrees.paths(session, [worktree_id])[worktree_id])}"
+    gone: Literal["clone", "worktree"]
+    if clones.was_deleted(session, clone_id):
+        gone, message = "clone", f"the Clone of {where} was unregistered; its files are untouched"
+    elif worktrees.was_removed(session, worktree_id):
+        gone, message = "worktree", f"{where} was removed"
+    else:
+        return _not_found("Worktree", worktree_id)
+    checkout = ErrorCheckoutJson(clone=str(clone_id), worktree=str(worktree_id), gone=gone)
+    return CheckoutError(410, message, checkout)
 
 
 def _paths(request: Request) -> Paths:
@@ -190,8 +220,8 @@ def clone_show(paths: PathsOf, clone_id: uuid.UUID) -> CloneJson:
     """A Clone, as `clone show --json`."""
     with read_session(paths) as session:
         found = serialize.clones_json(session, clone_id=clone_id)
-    if not found:
-        raise _not_found("Clone", clone_id)
+        if not found:
+            raise _absent_clone(session, clone_id)
     return found[0]
 
 
@@ -207,10 +237,10 @@ def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
     """A Worktree, as `worktree show --json`."""
     with read_session(paths) as session:
         found = serialize.worktrees_json(session)
-    for worktree in found:
-        if worktree["id"] == str(worktree_id):
-            return worktree
-    raise _not_found("Worktree", worktree_id)
+        for worktree in found:
+            if worktree["id"] == str(worktree_id):
+                return worktree
+        raise _absent_worktree(session, worktree_id)
 
 
 def _working_tree(
@@ -222,25 +252,35 @@ def _working_tree(
     """
     if (clone is None) == (worktree is None):
         raise HTTPException(400, "give either clone or worktree")
-    what, entity_id = ("Clone", clone) if clone is not None else ("Worktree", worktree)
     with read_session(paths) as session:
         local = {details.clone.id for details in clones.on_this_machine(session)}
-        known = clones.details(session)
-    for details in known:
-        if details.clone.id == clone:
-            if details.state.bare and not bare:
-                raise HTTPException(400, f"{details.clone.display_path} is bare: no working tree")
-            top = details.clone.resolved_path
-        elif found := next((wt for wt in details.worktrees if wt.id == worktree), None):
-            top = found.path
-        else:
-            continue
-        if details.clone.id not in local:
-            raise HTTPException(404, f"the {what} with ID {entity_id} is on another Machine")
-        if not top.is_dir():
-            raise HTTPException(404, f"{top} doesn't exist")
-        return top
-    raise _not_found(what, cast("uuid.UUID", entity_id))
+        for details in clones.details(session):
+            if details.clone.id == clone:
+                if details.state.bare and not bare:
+                    raise HTTPException(
+                        400, f"{details.clone.display_path} is bare: no working tree"
+                    )
+                top, lock = details.clone.resolved_path, None
+                what = f"the Clone at {short_path(details.clone.display_path)}"
+                about = ErrorCheckoutJson(clone=str(clone), worktree=None, gone=None)
+            elif found := next((wt for wt in details.worktrees if wt.id == worktree), None):
+                top, lock = found.path, found.lock_reason
+                what = f"the Worktree at {short_path(found.path)}"
+                about = ErrorCheckoutJson(
+                    clone=str(details.clone.id), worktree=str(worktree), gone=None
+                )
+            else:
+                continue
+            if details.clone.id not in local:
+                raise CheckoutError(404, f"{what} is on another Machine", about)
+            if not top.is_dir():
+                # A locked Worktree may be away for a while; any other was moved or deleted.
+                missing = ": nothing is at its path" if lock is None else f" (locked: {lock})"
+                raise CheckoutError(404, f"{what} is missing{missing}", about)
+            return top
+        if clone is not None:
+            raise _absent_clone(session, clone)
+        raise _absent_worktree(session, cast("uuid.UUID", worktree))
 
 
 def _commits_only(from_: str | None, to: str | None, commit: str | None) -> bool:

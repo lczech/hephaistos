@@ -17,6 +17,7 @@ import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
+import { Gone, isGone, LoadNote } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
@@ -98,6 +99,13 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
     if (words.length > 0) message = noneFoundText(words, path);
     else message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
   }
+  if (isGone(history.error)) {
+    return (
+      <section className={styles.view}>
+        <Gone error={history.error} />
+      </section>
+    );
+  }
   return (
     <section className={styles.view}>
       <ViewBar>
@@ -157,8 +165,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
         </BarEnd>
       </ViewBar>
       {history.isError && (
-        <p className={styles.note}>
-          Couldn't load: {history.error.message}{" "}
+        <LoadNote error={history.error}>
           {ref !== undefined && (
             <button
               type="button"
@@ -168,7 +175,7 @@ export function HistoryView({ params, setParams, setTitle }: ViewProps) {
               From HEAD
             </button>
           )}
-        </p>
+        </LoadNote>
       )}
       <ListTable
         table={table}

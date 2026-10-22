@@ -15,6 +15,7 @@ import { type DiffRows, diffRows, lineCount } from "../../components/diff/height
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import type { CodeThemes } from "../../components/diff/themes";
 import type { Params } from "../address";
+import { LoadNote } from "../CheckoutError";
 import { ChangePath, DirectoryPath, Lines } from "../changes/columns";
 import {
   type Change,
@@ -111,11 +112,7 @@ export function FileBody({ query, known, show, unchanged, estimate }: BodyProps)
     <p className={styles.note}>Loading the diff…</p>
   );
   if (diff.data === undefined) {
-    return diff.isError ? (
-      <p className={styles.note}>Couldn't load: {diff.error.message}</p>
-    ) : (
-      asking
-    );
+    return diff.isError ? <LoadNote error={diff.error} /> : asking;
   }
   if (change === null || change === undefined) {
     return unchanged ?? <p className={styles.note}>No changes to this file so, now.</p>;

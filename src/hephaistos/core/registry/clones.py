@@ -556,6 +556,14 @@ def move(session: WriteSession, planned: Sequence[Move]) -> None:
         records.change(session, Table.REGISTRY_CLONES, EventKind.CLONE_MOVED, old, new)
 
 
+def was_deleted(session: ReadSession, clone_id: uuid.UUID) -> bool | None:
+    """Whether this Clone was unregistered; None if there never was one with this ID."""
+    row = session.conn.execute(
+        "SELECT deleted FROM registry_clones WHERE id = ?", (clone_id,)
+    ).fetchone()
+    return None if row is None else bool(row[0])
+
+
 def paths(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, Path]:
     """These Clones' paths as given, deleted ones included."""
     found = records.column_values(session, Table.REGISTRY_CLONES, "display_path", ids)

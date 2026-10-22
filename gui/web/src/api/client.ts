@@ -6,11 +6,12 @@ import type { components, paths } from "./schema";
 
 export type Schemas = components["schemas"];
 
-/** An answer other than success, with the Server's message. */
+/** An answer other than success, with the Server's message, and the Checkout it is about. */
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly checkout: Schemas["ErrorCheckoutJson"] | null = null,
   ) {
     super(message);
   }
@@ -39,9 +40,9 @@ api.use(auth);
 export function unwrap<T>(answer: { data?: T; error?: unknown; response: Response }): T {
   if (answer.data !== undefined) return answer.data;
   const { error, response } = answer;
-  const message =
-    typeof error === "object" && error !== null && "error" in error
-      ? String(error.error)
-      : `${response.status} ${response.statusText}`;
-  throw new ApiError(response.status, message);
+  // Ours as the schema says, unless something else answered, e.g. a proxy.
+  const ours = typeof error === "object" && error !== null && "error" in error ? error : undefined;
+  const message = ours ? String(ours.error) : `${response.status} ${response.statusText}`;
+  const checkout = ours && "checkout" in ours ? (ours as Schemas["ErrorJson"]).checkout : null;
+  throw new ApiError(response.status, message, checkout);
 }

@@ -17,6 +17,7 @@ import {
   type DiffQuery,
   KEYS,
   useChanges,
+  useDiff,
   useRepositories,
   useSetting,
 } from "../../api/queries";
@@ -26,6 +27,7 @@ import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
+import { Gone, isGone, LoadNote } from "../CheckoutError";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
 import { foldedBy, unfolding, useFolds } from "../changes/folds";
@@ -128,6 +130,9 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       ? {}
       : { ...checkout, ...base, ...(path !== undefined && { path }) };
   const listed = useChanges(listQuery);
+  // One file's diff, as its section asks for it: also says whether the Checkout is gone.
+  const file = useDiff(path === undefined ? undefined : query);
+  const gone = [listed.error, file.error].find(isGone);
   const shown = commit === undefined ? undefined : listed.data?.commit;
   const [details, setDetails] = useState(false);
   const now = useNow(10_000);
@@ -190,11 +195,8 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
       />
     );
   } else if (listed.data === undefined) {
-    body = (
-      <p className={styles.note}>
-        {listed.isError ? `Couldn't load: ${listed.error.message}` : "Loading changes…"}
-      </p>
-    );
+    // An error: above it.
+    body = listed.isError ? null : <p className={styles.note}>Loading changes…</p>;
   } else if (groups.length === 0) {
     body = (
       <p className={styles.note}>
@@ -217,8 +219,16 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
   }
 
   const choose = (key: keyof typeof look) => (on: boolean) => setLook({ ...look, [key]: on });
+  if (gone) {
+    return (
+      <section ref={view} className={styles.view}>
+        <Gone error={gone} />
+      </section>
+    );
+  }
+  const stale = listed.isError || listed.isPlaceholderData;
   return (
-    <section ref={view} className={styles.view} data-stale={listed.isPlaceholderData || undefined}>
+    <section ref={view} className={styles.view} data-stale={stale || undefined}>
       <ViewBar>
         {checkout && compared && (
           <ComparedPickers checkout={checkout} compared={compared} onChange={compare} />
@@ -336,6 +346,7 @@ export function DiffView({ params, setParams, setTitle }: ViewProps) {
           Shiki does.
         </p>
       )}
+      {listed.isError && <LoadNote error={listed.error} />}
       <LazyDiffScroll className={styles.diff} themes={themes}>
         {body}
       </LazyDiffScroll>

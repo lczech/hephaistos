@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 18)
+API_VERSION = ApiVersion(0, 19)
 
 
 class Ref(TypedDict):

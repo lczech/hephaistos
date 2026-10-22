@@ -8,6 +8,7 @@ import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { HEAD, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
+import { Gone, isGone, LoadNote } from "../CheckoutError";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
@@ -98,7 +99,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   if (checkout === undefined) {
     message = "No Checkout: open Changes from a Clone or Worktree in Repositories.";
   } else if (changes.data === undefined) {
-    message = changes.isError ? `Couldn't load: ${changes.error.message}` : "Loading changes…";
+    message = changes.isError ? null : "Loading changes…"; // an error: above the table
   } else if (commit !== undefined) {
     if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
   } else if (groups.length === 0) {
@@ -117,6 +118,13 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   // A commit's changes, to compare other Revisions from: its first parent to it.
   const [parent] = shown?.commit?.parents ?? [];
   const ofCommit = parent && shown?.commit ? { from: parent, to: shown.commit.hash } : undefined;
+  if (isGone(changes.error)) {
+    return (
+      <section className={styles.view}>
+        <Gone error={changes.error} />
+      </section>
+    );
+  }
   return (
     <section className={styles.view}>
       <ViewBar>
@@ -180,6 +188,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
       )}
+      {changes.isError && <LoadNote error={changes.error} />}
       <ListTable
         table={table}
         className={`${styles.changes} ${styles.columns}`}

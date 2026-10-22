@@ -52,7 +52,7 @@ const PATCH = "diff --git a/src/main.py b/src/main.py\n@@ -1 +1 @@\n-a\n+b\n";
 
 /** The Server, answering for the diff and the settings; returns the requests asked. */
 function serveDiff(
-  diff: Schemas["DiffJson"],
+  diff: Schemas["DiffJson"] | (() => Response), // the answer, or how to give it
   {
     theme = "github-dark",
     changes = [] as Schemas["ChangeGroupJson"][],
@@ -60,7 +60,7 @@ function serveDiff(
   } = {},
 ): Request[] {
   return serve({
-    "GET /api/diff": () => json(diff),
+    "GET /api/diff": () => (typeof diff === "function" ? diff() : json(diff)),
     "GET /api/diff/files": () => json({ old: "a\n", new: "b\n" }),
     "GET /api/changes": () => json({ branch: null, groups: changes, commit }),
     "GET /api/config": () =>
@@ -278,6 +278,24 @@ describe("the Diff View", () => {
     expect(await screen.findByText(/Nothing left/)).toHaveTextContent(
       "No staged changes. Nothing left: committed or undone.",
     );
+  });
+
+  it("says a file's Checkout is gone, in place of its diff, with the Events of its Clone", async () => {
+    const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "clone" } as const;
+    const error = "the Clone of the Worktree at ~/side was unregistered; its files are untouched";
+    serveDiff(() => json({ error, checkout }, 410));
+    const opened: Address[] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address) => opened.push(address)}>
+        <Diff initial={{ worktree: "wt-side", from: "HEAD", to: "index", path: "src/main.py" }} />
+      </OpenViewContext.Provider>,
+    );
+    expect(await screen.findByText(/^The Clone of the Worktree at ~\/side/)).toHaveTextContent(
+      `T${error.slice(1)}.`,
+    );
+    expect(screen.queryByRole("button", { name: "Side by side" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "The Clone's Events" }));
+    expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
   });
 
   it("names a code theme it doesn't know", async () => {

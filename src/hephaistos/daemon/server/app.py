@@ -14,7 +14,7 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import api, live, web
 from hephaistos.daemon.server.api import Observe
-from hephaistos.daemon.server.errors import error_response
+from hephaistos.daemon.server.errors import CheckoutError, error_response
 from hephaistos.daemon.server.guard import Counts, Guard
 
 
@@ -22,7 +22,8 @@ async def _http_error(_: Request, error: Exception) -> Response:
     """An error the app or its routing raised on purpose, e.g. 404."""
     if not isinstance(error, HTTPException):
         raise error
-    return error_response(str(error.detail), error.status_code)
+    checkout = error.checkout if isinstance(error, CheckoutError) else None
+    return error_response(str(error.detail), error.status_code, checkout=checkout)
 
 
 async def _invalid_request(_: Request, error: Exception) -> Response:
