@@ -9,7 +9,8 @@ declare module "vitest" {
 }
 
 // WebKit's tests have no workers, so diffs highlight on the page, as where there are none
-// (`components/diff/Diff.tsx`). Playwright's WebKit, its WPE build, segfaults now and then while
-// workers highlight (a null pointer in libWPEWebKit, about one run in six): its bug, as no page
-// should be able to crash it. Chromium and Firefox test the workers.
+// (`components/diff/Diff.tsx`). Playwright's WebKit, its WPE build, segfaults now and then when
+// several workers load their modules at once, as Vite serves them in tests (about one run in
+// six): its bug, https://github.com/microsoft/playwright/issues/43582. Chromium and Firefox test
+// the workers.
 if (!inject("workers")) Reflect.deleteProperty(globalThis, "Worker");
