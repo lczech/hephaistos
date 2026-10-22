@@ -138,6 +138,7 @@ def test_json() -> None:
         "type": "repository",
         "name": "project",
         "path": None,
+        "chassis": None,
     }
     assert event["repository"] == {"id": subject, "name": "project"}
     assert event["details"] == [{"field": "name", "text": "proj → project"}]
@@ -148,6 +149,14 @@ def test_json() -> None:
 
     shown = json.loads(runner.invoke(app, ["event", "show", event["id"], "--json"]).output)
     assert shown == event
+
+
+def test_a_machines_events_say_its_chassis() -> None:
+    [machine] = json.loads(runner.invoke(app, ["machine", "list", "--json"]).output)
+    listed = runner.invoke(app, ["event", "list", "--kind", "machine", "--json"]).output
+    [event] = json.loads(listed)
+    assert machine["chassis"] is not None
+    assert event["subject"]["chassis"] == machine["chassis"]
 
 
 def test_kinds() -> None:

@@ -149,7 +149,7 @@ describe("the Workbench", () => {
       [...element.querySelectorAll("svg")].map((icon) => icon.getAttribute("class"));
     const [repositories, events] = screen.getAllByRole("tab");
     expect(icons(repositories as HTMLElement)).toContainEqual(
-      expect.stringMatching(/lucide-folder-git/),
+      expect.stringMatching(/lucide-book-copy/),
     );
     expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
     const [add] = screen.getAllByRole("button", { name: "Open a View" });

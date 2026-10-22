@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 19
+    "minor": 20
   },
   "shapes": {
     "components": {
@@ -1854,6 +1854,17 @@
         "SubjectRef": {
           "description": "What an Event is about: its ID, type (`clone`), and its name or its path, if known.",
           "properties": {
+            "chassis": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chassis"
+            },
             "id": {
               "title": "Id",
               "type": "string"
@@ -1889,7 +1900,8 @@
             "id",
             "type",
             "name",
-            "path"
+            "path",
+            "chassis"
           ],
           "title": "SubjectRef",
           "type": "object"

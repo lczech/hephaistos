@@ -1,18 +1,28 @@
-// Monochrome icons (Lucide) for what Events do and what they're about.
+// Monochrome icons (Lucide) for what Events do and what they're about. Each entity has its own,
+// a Machine by its chassis; the Registry's actions show the entity's with + and −, where it has
+// them, else a square's; git's adding and removing, a diamond's, as git's logo; what an
+// observation finds, a circle's (ADR 005).
 
 import {
   ArchiveRestore,
   ArrowDownToLine,
   ArrowRightLeft,
   ArrowUpFromLine,
-  BookBookmark,
+  Book,
+  BookMinus,
+  BookPlus,
+  Box,
   CircleCheck,
-  CircleMinus,
-  CirclePlus,
   CircleQuestionMark,
+  Computer,
+  Cpu,
   Crosshair,
+  DiamondMinus,
+  DiamondPlus,
   Dot,
   FolderGit2,
+  FolderMinus,
+  FolderPlus,
   FolderSymlink,
   FolderTree,
   GitBranch,
@@ -25,10 +35,17 @@ import {
   HardDrive,
   Laptop,
   type LucideIcon,
+  Monitor,
   MoveRight,
   Pencil,
+  Server,
+  Smartphone,
+  SquareMinus,
+  SquarePlus,
+  Tablet,
   TriangleAlert,
   Undo2,
+  Watch,
 } from "lucide-react";
 
 /** What an Event of this kind did: `clone.branch_created` → `branch created`. */
@@ -37,12 +54,19 @@ export function actionOf(kind: string): string {
   return action.replaceAll("_", " ");
 }
 
-// Every Event kind's action has one: tests/core/events/test_kinds.py.
+// Every Event kind has one, of its own or of its action: tests/core/events/test_kinds.py.
+const KINDS: Record<string, LucideIcon> = {
+  "repository.registered": BookPlus,
+  "repository.unregistered": BookMinus,
+  "clone.registered": FolderPlus,
+  "clone.unregistered": FolderMinus,
+};
+
 const ACTIONS: Record<string, LucideIcon> = {
-  registered: CirclePlus,
-  unregistered: CircleMinus,
-  added: CirclePlus,
-  removed: CircleMinus,
+  registered: SquarePlus,
+  unregistered: SquareMinus,
+  added: DiamondPlus,
+  removed: DiamondMinus,
   restored: ArchiveRestore,
   changed: Pencil,
   moved: MoveRight,
@@ -65,20 +89,34 @@ const ACTIONS: Record<string, LucideIcon> = {
 };
 
 const ENTITIES: Record<string, LucideIcon> = {
-  machine: Laptop,
   filesystem: HardDrive,
   mount: FolderSymlink,
-  repository: BookBookmark,
+  repository: Book,
   clone: FolderGit2,
   worktree: FolderTree,
 };
 
-/** The icon of an action, or a dot for one without its own. */
-export function actionIcon(action: string): LucideIcon {
-  return ACTIONS[action] ?? Dot;
+// systemd's chassis types; each has one: tests/core/events/test_kinds.py.
+const CHASSIS: Record<string, LucideIcon> = {
+  desktop: Monitor,
+  laptop: Laptop,
+  convertible: Laptop,
+  server: Server,
+  tablet: Tablet,
+  handset: Smartphone,
+  watch: Watch,
+  embedded: Cpu,
+  vm: Box,
+  container: Box,
+};
+
+/** The icon of an Event's kind: its own, else its action's, else a dot. */
+export function kindIcon(kind: string): LucideIcon {
+  return KINDS[kind] ?? ACTIONS[actionOf(kind)] ?? Dot;
 }
 
-/** The icon of an entity type (`clone`), or a dot for one without its own. */
-export function entityIcon(type: string): LucideIcon {
+/** The icon of an entity type (`clone`), a Machine's by its chassis; a dot for one without. */
+export function entityIcon(type: string, chassis: string | null = null): LucideIcon {
+  if (type === "machine") return (chassis !== null && CHASSIS[chassis]) || Computer;
   return ENTITIES[type] ?? Dot;
 }

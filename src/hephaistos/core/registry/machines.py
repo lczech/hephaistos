@@ -202,3 +202,8 @@ def local_setup(session: ReadSession, paths: Paths) -> LocalSetup:
 def names(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
     """These Machines' names."""
     return records.column_values(session, Table.REGISTRY_MACHINES, "name", ids)
+
+
+def chassis_of(session: ReadSession, ids: Collection[uuid.UUID]) -> dict[uuid.UUID, str]:
+    """These Machines' chassis, as systemd names them, where known."""
+    return records.column_values(session, Table.REGISTRY_MACHINES, "chassis", ids)

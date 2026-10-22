@@ -1849,6 +1849,17 @@
       "SubjectRef": {
         "description": "What an Event is about: its ID, type (`clone`), and its name or its path, if known.",
         "properties": {
+          "chassis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chassis"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -1884,7 +1895,8 @@
           "id",
           "type",
           "name",
-          "path"
+          "path",
+          "chassis"
         ],
         "title": "SubjectRef",
         "type": "object"
@@ -2288,7 +2300,7 @@
   "info": {
     "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.19"
+    "version": "0.20"
   },
   "openapi": "3.1.0",
   "paths": {

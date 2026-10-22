@@ -61,6 +61,7 @@ const added = event(2, {
     type: "repository",
     name: "project",
     path: null,
+    chassis: null,
   },
   summary: "",
 });

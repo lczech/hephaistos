@@ -91,22 +91,22 @@ def delete(session: WriteSession, table: Table, kind: EventKind, record: Record)
     events.record(session, kind, record.id, record)
 
 
-# The columns that name or place a record, which `column_values` reads.
-type NameColumn = Literal["name", "path", "display_path"]
+# The columns of text that `column_values` reads: what names or places a record, a Machine's kind.
+type TextColumn = Literal["name", "path", "display_path", "chassis"]
 
 
 # SQLite allows at most 32766 parameters per statement.
 def column_values(
-    session: ReadSession, table: Table, column: NameColumn, ids: Collection[uuid.UUID]
+    session: ReadSession, table: Table, column: TextColumn, ids: Collection[uuid.UUID]
 ) -> dict[uuid.UUID, str]:
-    """The values of `column` for these records, deleted ones included, by ID."""
+    """The values of `column` for these records, where set, deleted ones included, by ID."""
     _check(table)
     found: dict[uuid.UUID, str] = {}
     for chunk in chunks(ids):
         placeholders = ", ".join("?" * len(chunk))
         rows = session.conn.execute(
-            f"SELECT id, {column} FROM {table} WHERE id IN ({placeholders})",  # noqa: S608 - table and column come from our Table enum and NameColumn
+            f"SELECT id, {column} FROM {table} WHERE id IN ({placeholders})",  # noqa: S608 - table and column come from our Table enum and TextColumn
             chunk,
         )
-        found |= {uuid.UUID(bytes=row[0]): row[1] for row in rows}
+        found |= {uuid.UUID(bytes=row[0]): row[1] for row in rows if row[1] is not None}
     return found

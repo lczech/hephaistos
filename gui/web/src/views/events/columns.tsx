@@ -2,7 +2,7 @@ import type { Schemas } from "../../api/client";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
-import { actionIcon, actionOf, entityIcon } from "../../icons";
+import { actionOf, entityIcon, kindIcon } from "../../icons";
 import { ago, fullTime } from "../../time";
 import styles from "./EventsView.module.css";
 import { machineText, repositoryText, subjectText, subjectTitle } from "./eventText";
@@ -43,7 +43,7 @@ export const columns = column.columns([
     meta: { filter: { param: "kind", many: "kinds" } },
     cell: ({ row }) => {
       const action = actionOf(row.original.kind);
-      const Action = actionIcon(action);
+      const Action = kindIcon(row.original.kind);
       return (
         <span title={row.original.kind}>
           <TextIcon icon={Action} className={styles.icon} />
@@ -76,7 +76,7 @@ export const columns = column.columns([
       // A Repository's own Events: its name is in the column before.
       if (event.subject.type === "repository") return "";
       const home = table.options.meta?.home;
-      const Entity = entityIcon(event.subject.type);
+      const Entity = entityIcon(event.subject.type, event.subject.chassis);
       return (
         <span title={subjectTitle(event, home)}>
           <TextIcon icon={Entity} className={styles.icon} />

@@ -102,6 +102,7 @@ export function event(n: number, fields: Partial<Schemas["EventJson"]> = {}): Sc
       type: "clone",
       name: null,
       path: "/home/me/project",
+      chassis: null,
     },
     repository: { id: "0199e000-0000-7000-8000-00000000dddd", name: "project" },
     summary: `Commit number ${n} (abc${n})`,

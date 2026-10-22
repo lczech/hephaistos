@@ -27,6 +27,7 @@ describe("Event texts", () => {
         type: "clone",
         name: null,
         path: null,
+        chassis: null,
       },
       recorded_by: { id: "0199e000-0000-7000-8000-00000000feed", name: null },
     });

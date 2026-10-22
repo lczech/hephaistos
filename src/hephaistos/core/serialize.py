@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 19)
+API_VERSION = ApiVersion(0, 20)
 
 
 class Ref(TypedDict):
@@ -159,6 +159,7 @@ class SubjectRef(TypedDict):
     type: str
     name: str | None  # Machines, Filesystems, Repositories
     path: str | None  # Mounts, Clones, Worktrees
+    chassis: str | None  # Machines: what kind of computer, as systemd names it, if known
 
 
 class DetailJson(TypedDict):
@@ -371,6 +372,7 @@ class EventContext:
     repositories: Mapping[uuid.UUID, uuid.UUID]  # by subject
     repository_names: Mapping[uuid.UUID, str]
     machine_names: Mapping[uuid.UUID, str]
+    chassis: Mapping[uuid.UUID, str]  # of Machines that are subjects
 
     @classmethod
     def of(cls, session: ReadSession, listed: Sequence[Event]) -> "EventContext":
@@ -382,6 +384,9 @@ class EventContext:
             repositories=repository_ids,
             repository_names=repositories.names(session, set(repository_ids.values())),
             machine_names=machines.names(session, {event.recorded_by for event in listed}),
+            chassis=machines.chassis_of(
+                session, {event.subject for event in listed if event.subject_type == "machine"}
+            ),
         )
 
     def repository(self, event: Event) -> Ref | None:
@@ -405,6 +410,7 @@ def event_json(event: Event, context: EventContext) -> EventJson:
             type=event.subject_type,
             name=context.names.get(event.subject),
             path=None if path is None else str(path),
+            chassis=context.chassis.get(event.subject),
         ),
         repository=context.repository(event),
         summary=summaries.summary(event),

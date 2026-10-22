@@ -1,9 +1,9 @@
 import {
   Activity,
+  BookCopy,
   Calendar,
   Database,
   FileDiff,
-  FolderGit2,
   GitCommitVertical,
   GitCompareArrows,
   type LucideIcon,
@@ -22,7 +22,7 @@ export interface ViewKind {
 }
 
 const kinds = {
-  repositories: { name: "Repositories", icon: FolderGit2 },
+  repositories: { name: "Repositories", icon: BookCopy },
   events: { name: "Events", icon: Calendar },
   changes: { name: "Changes", icon: GitCompareArrows },
   diff: {
