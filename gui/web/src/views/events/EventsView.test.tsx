@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
-import { columnWidths } from "../../components/table/widths";
+import { columnWidths } from "../../components/table/kept";
 import { cells } from "../../test/list";
 import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { InPanel } from "../../test/view";
@@ -178,10 +178,9 @@ describe("the Events View's columns", () => {
   afterEach(() => columnWidths("events").set({}));
 
   const grid = (list: HTMLElement) => list.parentElement?.style.getPropertyValue("--columns");
-  /** The columns, all as wide as at first but the time of recording. */
+  /** The columns, all as wide as at first but the time of recording; then the room left. */
   const columns = (recorded: number) =>
-    `var(--square) minmax(40px, ${recorded}px) minmax(40px, 140px) minmax(40px, 120px) ` +
-    "minmax(40px, 200px) minmax(8rem, 1fr)";
+    `var(--square) ${recorded}px 140px 120px 200px 480px minmax(0, 1fr)`;
 
   it("resize by dragging their edge, in every Events View, and are kept", async () => {
     serveEvents([committed]);
@@ -199,16 +198,36 @@ describe("the Events View's columns", () => {
     fireEvent.mouseMove(document, { clientX: 130 });
     fireEvent.mouseUp(document, { clientX: 130 });
     expect(lists.map(grid)).toEqual([columns(118), columns(118)]);
-    expect(localStorage.getItem("hephaistos.columns.events")).toBe('{"recorded":118}');
+    expect(localStorage.getItem("hephaistos.lists.events.widths")).toBe('{"recorded":118}');
     fireEvent.doubleClick(recorded as HTMLElement);
     expect(grid(lists[0] as HTMLElement)).toBe(columns(88));
+  });
+
+  it("show in columns or two lines, as the bar chooses, kept for every Events View", async () => {
+    serveEvents([committed]);
+    renderWithQueries(
+      <>
+        <Events />
+        <Events />
+      </>,
+    );
+    await screen.findAllByText("Commit number 1 (abc1)");
+    const frames = () => screen.getAllByRole("list").map((list) => list.closest("[data-layout]"));
+    expect(frames().map((frame) => frame?.getAttribute("data-layout"))).toEqual([
+      "columns",
+      "columns",
+    ]); // jsdom's pointer is no finger
+    const [choice] = screen.getAllByRole("button", { name: "Columns" });
+    await userEvent.click(choice as HTMLElement);
+    expect(frames().map((frame) => frame?.getAttribute("data-layout"))).toEqual(["lines", "lines"]);
+    expect(localStorage.getItem("hephaistos.lists.events.layout")).toBe('"lines"');
   });
 
   it("include the Machine's once there are several", async () => {
     serveEvents([committed], 2);
     renderWithQueries(<Events />);
     const list = await screen.findByRole("list");
-    await vi.waitFor(() => expect(grid(list)).toContain("minmax(40px, 120px) minmax(40px, 120px)"));
+    await vi.waitFor(() => expect(grid(list)).toContain(" 140px 120px 120px 200px "));
   });
 });
 

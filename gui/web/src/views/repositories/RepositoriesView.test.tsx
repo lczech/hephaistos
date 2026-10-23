@@ -88,6 +88,7 @@ describe("the Repositories View", () => {
       "branch",
       "status",
       "active",
+      "observed",
     ]);
   });
 

@@ -1,9 +1,3 @@
-.view {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-}
-
 /* What happened to a file, by its icon's colour; directories grey. */
 .kind {
   display: inline-flex;
@@ -141,36 +135,34 @@
     color-mix(in srgb, var(--text) 8%, transparent);
 }
 
-/* Narrow: still one line, as high as when wide, the path taking what the others leave; the
+/* In lines: still one line, as high as in columns, the path taking what the others leave; the
  * bars' room kept in rows without, so that all lines line up. In any list of changes. */
-@container list (width < 44rem) {
-  .columns li [data-column="path"] {
-    flex: 1 1 0;
-    order: 1;
-  }
-
-  .columns li [data-column="lines"] {
-    order: 2;
-  }
-
-  .columns li [data-column="meter"] {
-    order: 3;
-    width: 3rem;
-  }
-
-  /* Over the lines, before the bars. */
-  .columns [data-column="lines"]:not(li *) {
-    margin-right: calc(3rem + var(--column-gap));
-  }
+.columns[data-layout="lines"] li [data-column="path"] {
+  flex: 1 1 0;
+  order: 1;
 }
 
-/* Very narrow: no bars, as the names need the room more. */
+.columns[data-layout="lines"] li [data-column="lines"] {
+  order: 2;
+}
+
+.columns[data-layout="lines"] li [data-column="meter"] {
+  order: 3;
+  width: 3rem;
+}
+
+/* Over the lines, before the bars. */
+.columns[data-layout="lines"] [data-column="lines"]:not(li *) {
+  margin-right: calc(3rem + var(--column-gap));
+}
+
+/* In lines, very narrow: no bars, as the names need the room more. */
 @container list (width < 30rem) {
-  .columns li [data-column="meter"] {
+  .columns[data-layout="lines"] li [data-column="meter"] {
     display: none;
   }
 
-  .columns [data-column="lines"]:not(li *) {
+  .columns[data-layout="lines"] [data-column="lines"]:not(li *) {
     margin-right: 0;
   }
 }

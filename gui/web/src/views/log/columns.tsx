@@ -24,8 +24,7 @@ function Message({ entry }: { entry: LogEntry }) {
 }
 
 /**
- * The Log list's columns; the message takes the width the others leave. Their filters are
- * those of `/api/log`, by the same names.
+ * The Log list's columns. Their filters are those of `/api/log`, by the same names.
  */
 export const columns = column.columns([
   column.display({
@@ -56,7 +55,6 @@ export const columns = column.columns([
     id: "message",
     header: "message",
     cell: ({ row }) => <Message entry={row.original} />,
-    enableResizing: false,
-    meta: { width: "minmax(8rem, 1fr)" },
+    size: 560,
   }),
 ]);

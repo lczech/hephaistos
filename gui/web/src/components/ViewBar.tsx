@@ -2,6 +2,11 @@ import { type LucideIcon, RefreshCw } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import styles from "./ViewBar.module.css";
 
+/** A View of a bar and what is below it, as high as its Panel: a list there scrolls itself. */
+export function ViewPage({ children }: { children: ReactNode }) {
+  return <section className={styles.page}>{children}</section>;
+}
+
 /** A View's bar above what it shows: what it shows and how, and its buttons. */
 export function ViewBar({ children }: { children: ReactNode }) {
   return <header className={styles.bar}>{children}</header>;

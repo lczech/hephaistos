@@ -6,15 +6,13 @@
 }
 
 /* The name close to the forge's logo before it, as an icon's label; its header too, while the
- * header is a row of columns (not in narrow Panels). */
+ * header is a row of columns (not in lines). */
 .repositories li [data-column="name"] {
   margin-left: calc(var(--space-1) - var(--column-gap));
 }
 
-@container list (width >= 44rem) {
-  .repositories [data-column="name"] {
-    margin-left: calc(var(--space-1) - var(--column-gap));
-  }
+.repositories[data-layout="columns"] [data-column="name"] {
+  margin-left: calc(var(--space-1) - var(--column-gap));
 }
 
 /* Clones within their Repository, Worktrees within their Clone. */
@@ -34,7 +32,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Narrow: the name and status on one line, beside the icons; the branch below them, quieter,
+/* In lines: the name and status on one line, beside the icons; the branch below them, quieter,
  * from where the name starts: after the square and the forge's logo; when active at its end. A
  * Repository row, without either, is one line. */
 .repositories {
@@ -51,61 +49,56 @@
   align-items: center;
 }
 
-@container list (width < 44rem) {
-  .repositories li [data-column="remote"] {
-    order: 1;
-    width: calc(1em + 4px);
-  }
+.repositories[data-layout="lines"] li [data-column="remote"] {
+  order: 1;
+  width: calc(1em + 4px);
+}
 
-  .repositories li [data-column="name"] {
-    flex: 1 1 0;
-    order: 2;
-  }
+.repositories[data-layout="lines"] li [data-column="name"] {
+  flex: 1 1 0;
+  order: 2;
+}
 
-  .repositories li [data-column="status"] {
-    order: 3;
-  }
+.repositories[data-layout="lines"] li [data-column="status"] {
+  order: 3;
+}
 
-  .repositories li [data-column="views"] {
-    order: 4;
-  }
+.repositories[data-layout="lines"] li [data-column="views"] {
+  order: 4;
+}
 
-  .repositories li [data-column="branch"] {
-    flex: 0 1 auto;
-    order: 11;
-  }
+.repositories[data-layout="lines"] li [data-column="branch"] {
+  flex: 0 1 auto;
+  order: 11;
+  margin-left: calc(var(--space-1) - var(--column-gap)); /* where the name starts, as below */
+}
 
-  /* At the end, where times of any length line up. */
-  .repositories li [data-column="active"] {
-    order: 12;
-    margin-left: auto;
-  }
+/* At the end, where times of any length line up. */
+.repositories[data-layout="lines"] li [data-column="active"] {
+  order: 12;
+  margin-left: auto;
+}
 
-  /* A Repository's has the room of the status it lacks, on its one line. */
-  .repositories li:not([data-depth]) [data-column="active"] {
-    order: 3;
-  }
+/* A Repository's has the room of the status it lacks, on its one line. */
+.repositories[data-layout="lines"] li:not([data-depth]) [data-column="active"] {
+  order: 3;
+}
 
-  .repositories li [data-column="observed"],
-  .repositories li:not([data-depth]) [data-column="branch"] {
-    display: none;
-  }
+.repositories[data-layout="lines"] li [data-column="observed"],
+.repositories[data-layout="lines"] li:not([data-depth]) [data-column="branch"] {
+  display: none;
+}
 
-  .repositories li :is([data-column="branch"], [data-column="active"]) {
-    color: var(--text-muted);
-    font-size: var(--text-small);
-  }
+.repositories[data-layout="lines"] li :is([data-column="branch"], [data-column="active"]) {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
 
-  /* The second line starts where the name does, indented as it is. */
-  .repositories li [data-column="branch"] {
-    margin-left: calc(var(--space-1) - var(--column-gap));
-  }
+/* The second line starts where the name does, indented as it is. */
+.repositories[data-layout="lines"] li[data-depth="1"] [data-column="branch"] {
+  padding-left: var(--space-4);
+}
 
-  .repositories li[data-depth="1"] [data-column="branch"] {
-    padding-left: var(--space-4);
-  }
-
-  .repositories li[data-depth="2"] [data-column="branch"] {
-    padding-left: calc(2 * var(--space-4));
-  }
+.repositories[data-layout="lines"] li[data-depth="2"] [data-column="branch"] {
+  padding-left: calc(2 * var(--space-4));
 }

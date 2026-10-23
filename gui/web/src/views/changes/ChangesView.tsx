@@ -4,7 +4,7 @@ import { LayoutList, List } from "lucide-react";
 import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
-import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Choice, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { revisionText, SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
@@ -67,7 +67,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
 
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
-  const { table, folds } = useChangesTable({
+  const { table, folds, layout } = useChangesTable({
     query,
     groups,
     folded,
@@ -119,13 +119,13 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   const ofCommit = parent && shown?.commit ? { from: parent, to: shown.commit.hash } : undefined;
   if (isGone(error)) {
     return (
-      <section className={styles.view}>
+      <ViewPage>
         <Gone error={error} />
-      </section>
+      </ViewPage>
     );
   }
   return (
-    <section className={styles.view}>
+    <ViewPage>
       <ViewBar>
         {checkout && commit === undefined && (
           <ComparedPickers
@@ -191,6 +191,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       <ListTable
         table={table}
         className={`${styles.changes} ${styles.columns}`}
+        layout={layout}
         oneLine
         choices={{}}
         message={message}
@@ -203,6 +204,6 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
         opens={opens}
         showing={showing}
       />
-    </section>
+    </ViewPage>
   );
 }

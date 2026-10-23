@@ -12,8 +12,7 @@ type Event = Schemas["EventJson"];
 const column = listColumnHelper<Event>();
 
 /**
- * The Events list's columns; the summary takes the width the others leave. Their filters are
- * those of `/api/events`, by the same names.
+ * The Events list's columns. Their filters are those of `/api/events`, by the same names.
  */
 export const columns = column.columns([
   column.display({
@@ -89,7 +88,6 @@ export const columns = column.columns([
     id: "summary",
     header: "summary",
     cell: ({ row }) => row.original.summary,
-    enableResizing: false,
-    meta: { width: "minmax(8rem, 1fr)" },
+    size: 480,
   }),
 ]);

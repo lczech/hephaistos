@@ -1,3 +1,11 @@
+/* A View of a bar and what is below it: as high as its Panel, so that a list below the bar takes
+   the rest and scrolls itself; what is taller than the Panel lets the Panel scroll. */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 /* A View's bar above what it shows: what and how, small and quiet; asking again at its end. */
 .bar {
   display: flex;

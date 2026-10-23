@@ -33,3 +33,17 @@ export const GitCommits = createLucideIcon({
     ["path", { d: "M12 20v2", key: "below" }],
   ],
 });
+
+/** A list with each row in two lines: Lucide's `table` with two rows, a long and a short line
+ * in each, beside `table` for columns. */
+export const TableLines = createLucideIcon({
+  name: "table-lines",
+  node: [
+    ["rect", { width: "18", height: "18", x: "3", y: "3", rx: "2", key: "frame" }],
+    ["path", { d: "M3 12h18", key: "between" }],
+    ["path", { d: "M7 6.5h10", key: "first" }],
+    ["path", { d: "M7 9.5h5", key: "first-second" }],
+    ["path", { d: "M7 15.5h10", key: "second" }],
+    ["path", { d: "M7 18.5h5", key: "second-second" }],
+  ],
+});

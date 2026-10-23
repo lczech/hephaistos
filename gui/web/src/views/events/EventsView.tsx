@@ -1,9 +1,11 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
+import { columnWidths, useListLayout } from "../../components/table/kept";
+import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable, type Tone } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
-import { columnWidths } from "../../components/table/widths";
+import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
@@ -37,6 +39,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   const now = useNow(10_000);
   const listed = events.data?.pages.flat() ?? NONE;
   const filters = eventColumnFilters(params);
+  const [layout, setLayout] = useListLayout("events");
   const table = useListTable({
     columns,
     data: listed,
@@ -59,18 +62,26 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
     message = filters.length > 0 ? "No Events match." : "No Events yet.";
   }
   return (
-    <ListTable
-      table={table}
-      className={styles.events}
-      choices={choices}
-      message={message}
-      stale={events.isError || events.isPlaceholderData}
-      paging={events}
-      older="Events"
-      tone={(event) => TONES[priorityName(event.priority)]}
-      squareTitle={(event) => `${priorityName(event.priority)} priority`}
-      detailsLabel="Event details"
-      details={(event) => <EventDetails event={event} now={now} home={home} />}
-    />
+    <ViewPage>
+      <ViewBar>
+        <BarEnd>
+          <LayoutChoice layout={layout} onChange={setLayout} />
+        </BarEnd>
+      </ViewBar>
+      <ListTable
+        table={table}
+        className={styles.events}
+        layout={layout}
+        choices={choices}
+        message={message}
+        stale={events.isError || events.isPlaceholderData}
+        paging={events}
+        older="Events"
+        tone={(event) => TONES[priorityName(event.priority)]}
+        squareTitle={(event) => `${priorityName(event.priority)} priority`}
+        detailsLabel="Event details"
+        details={(event) => <EventDetails event={event} now={now} home={home} />}
+      />
+    </ViewPage>
   );
 }

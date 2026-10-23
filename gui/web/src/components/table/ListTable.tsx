@@ -13,6 +13,7 @@ import {
 import { ColumnHeader } from "./ColumnHeader";
 import { gridColumns } from "./columns";
 import type { Choice } from "./filters";
+import type { ListLayout } from "./kept";
 import type { ListFeatures } from "./list";
 import styles from "./table.module.css";
 
@@ -28,9 +29,10 @@ interface Paging {
 
 interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;
-  className?: string; // the View's, e.g. for its two lines per row in narrow Panels
-  wide?: boolean; // scrolls sideways instead, for more columns than fit
-  oneLine?: boolean; // its rows stay in one line in narrow Panels, as high as when wide
+  className?: string; // the View's, e.g. for its look in two lines per row
+  layout: ListLayout;
+  embedded?: boolean; // part of a page that scrolls: then it only scrolls sideways itself
+  oneLine?: boolean; // its rows stay in one line in the two lines' layout, as high as in columns
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
@@ -55,14 +57,17 @@ interface Props<TData extends RowData> {
  * square, which a first column of `Chevron`s fills (plain rows open nothing); more
  * rows as the end comes into view. A row opens by its first cell's button, or by a click
  * anywhere else on it but on its cells' own buttons and links; one opening a View, also by
- * the middle button. Cells show their whole text when hovered. Narrow Panels show each row in the View's two lines (or one, keeping its
- * height), unless the list is wide: then it scrolls sideways, its details staying in view.
+ * the middle button. Cells show their whole text when hovered. In columns, each as wide as set,
+ * those beyond the list's width scroll sideways, its details staying in view; in lines, each row
+ * shows in the View's two lines (or one, keeping its height). It scrolls itself, its header
+ * staying in view, filling what its View leaves below its bar, unless it is part of a page.
  * A row whose View is shown, in any Group, is marked.
  */
 export function ListTable<TData extends RowData>({
   table,
   className,
-  wide,
+  layout,
+  embedded,
   oneLine,
   choices,
   message,
@@ -115,7 +120,8 @@ export function ListTable<TData extends RowData>({
     <div
       className={`${styles.frame} ${className ?? ""}`}
       data-stale={stale || undefined}
-      data-wide={wide || undefined}
+      data-layout={layout}
+      data-embedded={embedded || undefined}
       data-one-line={oneLine || undefined}
     >
       <div className={styles.grid} style={grid}>

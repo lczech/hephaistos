@@ -22,7 +22,7 @@ export interface FoundActions {
 
 /**
  * The History list's columns: a commit's hash, with its Changes and Diff; its subject after its
- * branches and tags, which takes the width the others leave; who wrote it, and when. A rename's
+ * branches and tags; who wrote it, and when. A rename's
  * row says only where the file was before.
  */
 export function historyColumns(
@@ -59,8 +59,7 @@ export function historyColumns(
     column.display({
       id: "subject",
       header: "subject",
-      enableResizing: false,
-      meta: { width: "minmax(8rem, 1fr)" },
+      size: 480,
       cell: ({ row }) => {
         const entry = row.original;
         if (entry.type === "uncommitted")

@@ -23,24 +23,22 @@ pre.traceback {
   margin: var(--space-2) 0 0;
 }
 
-/* Narrow: the message on one line, its time and process below it, quieter. */
-@container list (width < 44rem) {
-  .log li [data-column="message"] {
-    flex: 1 1 0;
-    order: 1;
-  }
+/* In lines: the message on one line, its time and process below it, quieter. */
+.log[data-layout="lines"] li [data-column="message"] {
+  flex: 1 1 0;
+  order: 1;
+}
 
-  .log li [data-column="time"] {
-    order: 11;
-  }
+.log[data-layout="lines"] li [data-column="time"] {
+  order: 11;
+}
 
-  .log li [data-column="process"] {
-    flex: 1 1 0;
-    order: 12;
-  }
+.log[data-layout="lines"] li [data-column="process"] {
+  flex: 1 1 0;
+  order: 12;
+}
 
-  .log li :is([data-column="time"], [data-column="process"]) {
-    color: var(--text-muted);
-    font-size: var(--text-small);
-  }
+.log[data-layout="lines"] li :is([data-column="time"], [data-column="process"]) {
+  color: var(--text-muted);
+  font-size: var(--text-small);
 }

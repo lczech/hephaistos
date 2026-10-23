@@ -3,7 +3,7 @@ import styles from "./table.module.css";
 
 /** How a column is laid out, beyond TanStack's sizes: `tableFeatures({ columnMeta: {} as ColumnLook })`. */
 export interface ColumnLook {
-  width?: string; // a CSS grid track instead of the column's size, e.g. one taking the rest
+  width?: string; // a CSS grid track instead of the column's size, for one not resized: a square
   filter?: ColumnFilterLook; // if the list can be filtered by it
   description?: string; // what it shows, if its label doesn't say: in the header's tooltip
   end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
@@ -11,20 +11,16 @@ export interface ColumnLook {
 
 interface LaidOut {
   getSize: () => number;
-  columnDef: { minSize?: number; meta?: ColumnLook };
+  columnDef: { meta?: ColumnLook };
 }
 
 /**
- * The `grid-template-columns` for these columns, in order: the widths they ask for, or their sizes,
- * which give way down to their minimum before a column taking the rest goes below its own.
+ * The `grid-template-columns` for these columns, in order: the widths they ask for, else their
+ * sizes; then the room left, blank, so that rows and their header reach across the list.
  */
 export function gridColumns(columns: LaidOut[]): string {
-  return columns
-    .map((column) => {
-      const { minSize = 0, meta } = column.columnDef;
-      return meta?.width ?? `minmax(${minSize}px, ${column.getSize()}px)`;
-    })
-    .join(" ");
+  const widths = columns.map((column) => column.columnDef.meta?.width ?? `${column.getSize()}px`);
+  return [...widths, "minmax(0, 1fr)"].join(" ");
 }
 
 interface Resizable {

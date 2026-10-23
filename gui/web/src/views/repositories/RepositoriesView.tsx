@@ -1,8 +1,10 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import { useInfo, useRepositories } from "../../api/queries";
+import { columnWidths, useListLayout } from "../../components/table/kept";
+import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
-import { columnWidths } from "../../components/table/widths";
+import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import type { ViewProps } from "../index";
 import { columns } from "./columns";
@@ -20,6 +22,7 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
   const now = useNow(10_000);
   const listed = entries(repositories.data ?? []);
   const sorted = sorting(fragment);
+  const [layout, setLayout] = useListLayout("repositories");
   const table = useListTable({
     columns,
     data: listed,
@@ -42,16 +45,24 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
       "No Repositories yet: register them with `hephaistos scan` or `hephaistos clone register`.";
   }
   return (
-    <ListTable
-      table={table}
-      className={styles.repositories}
-      choices={{}}
-      message={message}
-      stale={repositories.isError}
-      older="Repositories"
-      tone={tone}
-      detailsLabel="Details"
-      details={(entry) => <RepositoryDetails entry={entry} now={now} home={home} />}
-    />
+    <ViewPage>
+      <ViewBar>
+        <BarEnd>
+          <LayoutChoice layout={layout} onChange={setLayout} />
+        </BarEnd>
+      </ViewBar>
+      <ListTable
+        table={table}
+        className={styles.repositories}
+        layout={layout}
+        choices={{}}
+        message={message}
+        stale={repositories.isError}
+        older="Repositories"
+        tone={tone}
+        detailsLabel="Details"
+        details={(entry) => <RepositoryDetails entry={entry} now={now} home={home} />}
+      />
+    </ViewPage>
   );
 }

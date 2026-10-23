@@ -153,7 +153,7 @@ function Untracked(props: UntrackedProps) {
   const { groups, query, base, show, nested, folded, onFoldedChange, findIn, onUntrackedOpen } =
     props;
   const [sorted, setSorted] = useState(BY_PATH);
-  const { table, folds, listed, openAll } = useChangesTable({
+  const { table, folds, listed, openAll, layout } = useChangesTable({
     query,
     groups,
     folded,
@@ -199,6 +199,8 @@ function Untracked(props: UntrackedProps) {
       <ListTable
         table={table}
         className={changesStyles.columns}
+        layout={layout}
+        embedded
         oneLine
         choices={{}}
         message={null}

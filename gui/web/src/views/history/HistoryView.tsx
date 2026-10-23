@@ -9,10 +9,11 @@ import {
 } from "../../api/queries";
 import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { SearchField } from "../../components/SearchField";
+import { columnWidths, useListLayout } from "../../components/table/kept";
+import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
-import { columnWidths } from "../../components/table/widths";
-import { BarEnd, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
@@ -83,6 +84,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const showOn = (other: string) => setParams({ ...params, ref: other });
   const allFiles = () => setParams(withParam(params, "path", []));
   const columns = historyColumns(checkout, first?.head, { walked, path, showOn, allFiles });
+  const [layout, setLayout] = useListLayout("history");
   const table = useListTable({
     columns,
     data: listed,
@@ -103,13 +105,13 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   }
   if (isGone(error)) {
     return (
-      <section className={styles.view}>
+      <ViewPage>
         <Gone error={error} />
-      </section>
+      </ViewPage>
     );
   }
   return (
-    <section className={styles.view}>
+    <ViewPage>
       <ViewBar>
         {checkout && (
           <GitRevisionPicker
@@ -164,6 +166,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           />
         )}
         <BarEnd>
+          <LayoutChoice layout={layout} onChange={setLayout} />
           <Refresh
             busy={history.isFetching}
             onClick={() => void client.invalidateQueries({ queryKey: KEYS.history })}
@@ -186,6 +189,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
       <ListTable
         table={table}
         className={styles.history}
+        layout={layout}
         choices={{}}
         message={message}
         stale={error !== null || history.isPlaceholderData}
@@ -203,7 +207,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           changesViews(checkout, entry.commit.hash).some((address) => isShown(address))
         }
       />
-    </section>
+    </ViewPage>
   );
 }
 

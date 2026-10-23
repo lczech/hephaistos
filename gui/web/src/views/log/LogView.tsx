@@ -1,8 +1,10 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import { useLog } from "../../api/queries";
+import { columnWidths, useListLayout } from "../../components/table/kept";
+import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
-import { columnWidths } from "../../components/table/widths";
+import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { withParam } from "../address";
 import type { ViewProps } from "../index";
@@ -26,6 +28,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   const pages = log.data?.pages;
   const listed = pages?.flatMap((page) => page.entries) ?? NONE;
   const columnFilters = logColumnFilters(params);
+  const [layout, setLayout] = useListLayout("log");
   const table = useListTable({
     columns,
     data: listed,
@@ -56,18 +59,26 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
     return () => setParams(withParam(withParam(params, "process", process), "pid", [pid]));
   };
   return (
-    <ListTable
-      table={table}
-      className={styles.log}
-      choices={choices}
-      message={message}
-      stale={log.isError || log.isPlaceholderData}
-      paging={log}
-      older="records"
-      tone={(entry) => levelTone(entry.record)}
-      squareTitle={(entry) => levelName(entry.record)}
-      detailsLabel="Record details"
-      details={(entry) => <LogDetails entry={entry} now={now} onlyProcess={onlyProcess(entry)} />}
-    />
+    <ViewPage>
+      <ViewBar>
+        <BarEnd>
+          <LayoutChoice layout={layout} onChange={setLayout} />
+        </BarEnd>
+      </ViewBar>
+      <ListTable
+        table={table}
+        className={styles.log}
+        layout={layout}
+        choices={choices}
+        message={message}
+        stale={log.isError || log.isPlaceholderData}
+        paging={log}
+        older="records"
+        tone={(entry) => levelTone(entry.record)}
+        squareTitle={(entry) => levelName(entry.record)}
+        detailsLabel="Record details"
+        details={(entry) => <LogDetails entry={entry} now={now} onlyProcess={onlyProcess(entry)} />}
+      />
+    </ViewPage>
   );
 }

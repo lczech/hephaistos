@@ -209,8 +209,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
       id: "path",
       header: "path",
       enableSorting: true,
-      enableResizing: false,
-      meta: { width: "minmax(10rem, 1fr)" },
+      size: 360,
       cell: ({ row }) => {
         const entry = row.original;
         if (entry.type === "total")

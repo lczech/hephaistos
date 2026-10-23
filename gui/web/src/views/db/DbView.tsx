@@ -1,9 +1,9 @@
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
 import { Fields } from "../../components/table/Fields";
+import { columnWidths } from "../../components/table/kept";
 import { Chevron, ListTable } from "../../components/table/ListTable";
 import { listColumnHelper, useListTable } from "../../components/table/list";
-import { columnWidths } from "../../components/table/widths";
 import { paramValues, withParam } from "../address";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
@@ -151,7 +151,7 @@ function Rows({ table, show }: RowsProps) {
       </nav>
       <ListTable
         table={listTable}
-        wide
+        layout="columns" // no two lines for a table's rows, which may have any columns
         choices={{}}
         message={message}
         stale={rows.isError}

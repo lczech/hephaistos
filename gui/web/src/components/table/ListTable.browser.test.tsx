@@ -21,6 +21,7 @@ function Fruits({ fetchNextPage }: { fetchNextPage: () => void }) {
     <div style={{ height: 200, overflow: "auto" }}>
       <ListTable
         table={table}
+        layout="columns"
         choices={{}}
         message={null}
         paging={{ hasNextPage: true, isFetchingNextPage: false, fetchNextPage }}

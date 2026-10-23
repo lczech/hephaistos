@@ -2,7 +2,7 @@
 .frame {
   --square: calc(1lh + 4px); /* as wide as a row is high */
   --column-gap: var(--space-2);
-  container: list / inline-size; /* the rows fit the Panel's width, not the window's */
+  container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
   transition: opacity 0.2s;
 }
@@ -445,30 +445,44 @@
   text-decoration: underline;
 }
 
-/* Wider than the Panel: it scrolls itself, so its scrollbars stay at the Panel's edges. */
-.frame[data-wide] {
-  container-name: wide-list; /* no two lines per row */
-  height: 100%;
+/* A list scrolls itself, filling what its View leaves below its bar, so that its header and
+   its sideways scrollbar stay in view; one that is part of a page scrolls only sideways. */
+.frame:not([data-embedded]) {
+  flex: 1 1 0;
+  min-height: 0;
   overflow: auto;
 }
 
-.frame[data-wide] .grid {
+.frame:not([data-embedded]) .head {
+  position: sticky;
+  top: calc(-1 * var(--space-2)); /* at the list's edge: it sticks within the frame's padding */
+  z-index: 1;
+  background: var(--background);
+}
+
+.frame[data-embedded][data-layout="columns"] {
+  overflow-x: auto;
+}
+
+/* In columns: each as wide as set; those beyond the list's width scroll sideways, the details
+   staying in view, as wide as the list. */
+.frame[data-layout="columns"] .grid {
   width: max-content;
   min-width: 100%;
 }
 
-.frame[data-wide] .details {
+.frame[data-layout="columns"] .details {
   position: sticky;
   left: 0;
   width: calc(100cqw - var(--square) - var(--column-gap) - var(--space-3));
 }
 
-.frame[data-wide] .details[data-bare] {
+.frame[data-layout="columns"] .details[data-bare] {
   width: 100cqw;
 }
 
 /*
- * Narrow: each row in two lines, with more room around them. The first holds the square, what
+ * In lines: each row in two lines, with more room around them. The first holds the square, what
  * the row is and its icons; the second its details, one after the other, from where what the row
  * is starts (`--narrow-indent` from the row's start, else the square's width). The View orders
  * its cells (`order`, below 10 for the first line, above for the second) and lets one cell in
@@ -476,81 +490,79 @@
  * filter or sort, without their widths. A list whose rows stay in one line keeps its rows'
  * height and its header's look.
  */
-@container list (width < 44rem) {
-  .grid {
-    grid-template-columns: minmax(0, 1fr); /* as wide as the Panel, whatever the rows hold */
-  }
+.frame[data-layout="lines"] .grid {
+  grid-template-columns: minmax(0, 1fr); /* as wide as the Panel, whatever the rows hold */
+}
 
-  .row {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: var(--column-gap);
-    padding-block: var(--space-1);
-  }
+.frame[data-layout="lines"] .row {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--column-gap);
+  padding-block: var(--space-1);
+}
 
-  /* Cells as wide as their text, cut off where they must shrink; the square as when wide. */
-  .row > * {
-    flex: none;
-    min-width: 0;
-  }
+/* Cells as wide as their text, cut off where they must shrink; the square as when wide. */
+.frame[data-layout="lines"] .row > * {
+  flex: none;
+  min-width: 0;
+}
 
-  .row > :first-child {
-    width: var(--square);
-  }
+.frame[data-layout="lines"] .row > :first-child {
+  width: var(--square);
+}
 
-  /* The break between the lines, and the room before the second. */
-  .row::after {
-    flex-basis: 100%;
-    order: 10;
-    content: "";
-  }
+/* The break between the lines, and the room before the second. */
+.frame[data-layout="lines"] .row::after {
+  flex-basis: 100%;
+  order: 10;
+  content: "";
+}
 
-  .row::before {
-    width: var(--narrow-indent, var(--square));
-    order: 11;
-    content: "";
-  }
+.frame[data-layout="lines"] .row::before {
+  width: var(--narrow-indent, var(--square));
+  order: 11;
+  content: "";
+}
 
-  .head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-4);
-    padding: 0 var(--space-3) var(--space-1) var(--space-2);
-    font-size: var(--text-small);
-  }
+.frame[data-layout="lines"] .head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: 0 var(--space-3) var(--space-1) var(--space-2);
+  font-size: var(--text-small);
+}
 
-  .head > .header:not([data-filterable], [data-sortable]),
-  .resizer {
-    display: none;
-  }
+.frame[data-layout="lines"] .head > .header:not([data-filterable], [data-sortable]),
+.frame[data-layout="lines"] .resizer {
+  display: none;
+}
 
-  .head > .header[data-end] {
-    margin-left: auto;
-  }
+.frame[data-layout="lines"] .head > .header[data-end] {
+  margin-left: auto;
+}
 
-  .frame[data-one-line] .row {
-    padding-block: 2px;
-  }
+.frame[data-layout="lines"][data-one-line] .row {
+  padding-block: 2px;
+}
 
-  .frame[data-one-line] .head {
-    padding: 2px var(--space-3) 2px calc(var(--square) + var(--column-gap));
-    font-size: inherit;
-  }
+.frame[data-layout="lines"][data-one-line] .head {
+  padding: 2px var(--space-3) 2px calc(var(--square) + var(--column-gap));
+  font-size: inherit;
+}
 
-  /* Nothing is cut off here: the funnels come after their labels. */
-  .head .filter {
-    position: static;
-    padding: 0 var(--space-1);
-    background: none;
-  }
+/* Nothing is cut off here: the funnels come after their labels. */
+.frame[data-layout="lines"] .head .filter {
+  position: static;
+  padding: 0 var(--space-1);
+  background: none;
+}
 
-  /* One without a label, the square's, would be a gap that nobody finds. */
-  .head .filter:first-child {
-    opacity: 1;
-  }
+/* One without a label, the square's, would be a gap that nobody finds. */
+.frame[data-layout="lines"] .head .filter:first-child {
+  opacity: 1;
+}
 
-  .clear {
-    position: static;
-    margin-left: auto;
-  }
+.frame[data-layout="lines"] .clear {
+  position: static;
+  margin-left: auto;
 }

@@ -81,8 +81,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
 
 /**
  * The Repositories list's columns: Repository rows only name themselves and say when they were
- * last active; their Clones and Worktrees, within them, say the rest. The last column takes the
- * width the others leave.
+ * last active; their Clones and Worktrees, within them, say the rest.
  */
 export const columns = column.columns([
   column.display({
@@ -151,8 +150,8 @@ export const columns = column.columns([
   column.display({
     id: "observed",
     header: "observed",
-    enableResizing: false,
-    meta: { width: "minmax(88px, 1fr)", description: "When the Checkout was last observed" },
+    size: 88,
+    meta: { description: "When the Checkout was last observed" },
     cell: ({ row, table }) => {
       const state = checkout(row.original);
       return state && <Ago at={state.observed_at} now={table.options.meta?.now} />;

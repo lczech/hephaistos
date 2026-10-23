@@ -28,6 +28,7 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
   return (
     <ListTable
       table={table}
+      layout="columns"
       choices={{}}
       message={null}
       older="fruits"
