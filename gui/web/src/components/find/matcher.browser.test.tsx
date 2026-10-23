@@ -29,8 +29,11 @@ describe.skipIf(typeof Worker === "undefined")("finding in a worker", () => {
     // Each of the a's in one group or another: twice as many ways for each more, before the b.
     const runaway = pattern("^(a+)+$", true);
     const started = performance.now();
+    // Stopped at the limit, or by the engine first: Firefox's gives up on its own under load.
     expect(await found([`${"a".repeat(40)}b`], runaway)).toEqual({
-      error: "Stopped after 5 s: the expression takes too long",
+      error: expect.stringMatching(
+        /^(Stopped after 5 s: the expression takes too long|Couldn't search: too much recursion)$/,
+      ),
     });
     expect(performance.now() - started).toBeLessThan(6_000);
     expect(await found(["a"], pattern("a"))).toEqual({
