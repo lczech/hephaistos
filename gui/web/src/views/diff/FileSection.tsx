@@ -39,18 +39,18 @@ export interface DiffShow {
 const AHEAD = "1500px"; // how far beyond the scrolled area a diff is asked for
 
 /** A height for CSS to size, as `.waiting` and `.holding` do. */
-function heightOf({ rows, bands, ends }: DiffRows): CSSProperties {
-  return { "--rows": rows, "--bands": bands, "--ends": ends } as CSSProperties;
+function heightOf({ rows, separators, ends }: DiffRows): CSSProperties {
+  return { "--rows": rows, "--separators": separators, "--ends": ends } as CSSProperties;
 }
 
-/** A diff's rows and bands, guessed from its lines changed until its patch is there: a few
- * lines around its changes, a band or two. */
+/** A diff's rows and separators, guessed from its lines changed until its patch is there: a few
+ * lines around its changes, a separator or two. */
 function guessed(change: Change | undefined, show: DiffShow): DiffRows {
   const { added, removed } = change ?? { added: 0, removed: 0 };
   const changed = show.look.split
     ? Math.max(added ?? 0, removed ?? 0)
     : (added ?? 0) + (removed ?? 0);
-  return { rows: Math.min(changed, show.large ?? changed) + 6, bands: 2, ends: 0 };
+  return { rows: Math.min(changed, show.large ?? changed) + 6, separators: 2, ends: 0 };
 }
 
 /** Whether the element has come near the scrolled area, once; then stays so. */
@@ -187,45 +187,45 @@ function Holding({ estimate, children }: { estimate: CSSProperties; children: Re
 interface SectionProps extends BodyProps {
   lazy?: boolean; // asks for the diff only once near the scrolled area, as one of many
   alone?: boolean; // the file's own Diff, so no link to it
-  collapsed?: boolean; // only its header shown: one of many, collapsed by clicking it
-  onCollapsedChange?: (collapsed: boolean) => void;
+  folded?: boolean; // only its header shown: one of many, folded by clicking its header
+  onFoldedChange?: (folded: boolean) => void;
 }
 
 /**
  * A file's diff under its header, which stays in view while the diff scrolls: what happened to
  * the file, its path, its lines added and removed. One of many waits as high as its lines would
- * be, until near the scrolled area; and collapses to its header, which stays where it is.
+ * be, until near the scrolled area; and folds to its header, which stays where it is.
  */
 export function FileSection({
   lazy = false,
   alone = false,
-  collapsed = false,
-  onCollapsedChange,
+  folded = false,
+  onFoldedChange,
   ...body
 }: SectionProps) {
   const section = useRef<HTMLElement>(null);
-  const near = useNear(section, lazy && !collapsed);
+  const near = useNear(section, lazy && !folded);
   const asked = !lazy || near;
   // The change once its diff came, as git has it now; the list's until then.
   const diff = useDiff(asked ? body.query : undefined);
   const change = diff.data ? (diff.data.change ?? undefined) : body.known;
   const waiting = heightOf(guessed(change, body.show));
-  const toggle = useFolding(section, collapsed, onCollapsedChange);
+  const toggle = useFolding(section, folded, onFoldedChange);
   return (
     <section
       ref={section}
       className={styles.file}
       aria-label={body.query.path}
-      data-collapsed={collapsed || undefined}
+      data-folded={folded || undefined}
     >
       <FileHeader
         change={change}
         path={body.query.path}
         query={alone ? undefined : body.query}
-        collapsed={collapsed}
+        folded={folded}
         onToggle={toggle}
       />
-      {collapsed ? null : asked ? (
+      {folded ? null : asked ? (
         <FileBody {...body} estimate={lazy ? waiting : undefined} />
       ) : (
         <div className={styles.waiting} style={waiting} />
@@ -235,27 +235,27 @@ export function FileSection({
 }
 
 /**
- * How a section collapses: a toggle, if it can. Collapsing one scrolled past its top keeps its
+ * How a section folds: a toggle, if it can. Folding one scrolled past its top keeps its
  * header where it was, stuck at the top.
  */
 function useFolding(
   section: RefObject<HTMLElement | null>,
-  collapsed: boolean,
-  onCollapsedChange: ((collapsed: boolean) => void) | undefined,
+  folded: boolean,
+  onFoldedChange: ((folded: boolean) => void) | undefined,
 ): (() => void) | undefined {
   const stuck = useRef(false);
   const scrollsIn = useDiffScroller();
   useLayoutEffect(() => {
     const element = section.current;
-    if (!collapsed || !stuck.current || element === null) return;
+    if (!folded || !stuck.current || element === null) return;
     stuck.current = false;
     const scroller = scrollsIn();
     if (scroller === undefined) return;
     const past = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
     // To the nearest whole pixel: WebKit scrolls by whole ones, dropping a fraction.
     scroller.scrollTop = Math.round(scroller.scrollTop + past);
-  }, [section, collapsed, scrollsIn]);
-  if (onCollapsedChange === undefined) return undefined;
+  }, [section, folded, scrollsIn]);
+  if (onFoldedChange === undefined) return undefined;
   return () => {
     const element = section.current;
     const scroller = scrollsIn();
@@ -264,45 +264,45 @@ function useFolding(
         scroller &&
         element.getBoundingClientRect().top < scroller.getBoundingClientRect().top,
     );
-    onCollapsedChange(!collapsed);
+    onFoldedChange(!folded);
   };
 }
 
 interface DirectoryProps {
   entry: Extract<Entry, { type: "directory" }>;
-  collapsed: boolean;
-  foldedWith?: string | undefined; // the directory above it whose fold collapses it
-  onCollapsedChange: (collapsed: boolean) => void;
+  folded: boolean;
+  foldedWith?: string | undefined; // the directory above it whose fold folds it too
+  onFoldedChange: (folded: boolean) => void;
   children: ReactNode; // its files' sections, and nested, its directories'
 }
 
 /**
  * A directory's files, nested its directories too, under its header, which stays in view above
- * theirs while they show: its path, how many files and lines changed. Collapses to its header;
+ * theirs while they show: its path, how many files and lines changed. Folds to its header;
  * folded with a directory above it, it shows with that.
  */
 export function DirectorySection({
   entry,
-  collapsed,
+  folded,
   foldedWith,
-  onCollapsedChange,
+  onFoldedChange,
   children,
 }: DirectoryProps) {
   const section = useRef<HTMLElement>(null);
-  const toggle = useFolding(section, collapsed, onCollapsedChange);
+  const toggle = useFolding(section, folded, onFoldedChange);
   const files = entry.changes.filter((change) => !isFolder(change)).length;
   return (
     <section
       ref={section}
       className={styles.directory}
       aria-label={entry.path}
-      data-collapsed={collapsed || undefined}
+      data-folded={folded || undefined}
     >
       <FoldHeader
         className={styles.folder}
         label={`Files in ${entry.path}`}
         what={foldedWith ? `${foldedWith} and all in it` : "the files in this directory"}
-        collapsed={collapsed}
+        folded={folded}
         onToggle={toggle}
         end={
           <>
@@ -317,7 +317,7 @@ export function DirectorySection({
       >
         <DirectoryPath shown={entry.path} path={entry.path} />
       </FoldHeader>
-      {!collapsed && children}
+      {!folded && children}
     </section>
   );
 }
@@ -335,21 +335,21 @@ interface HeaderProps {
   change?: Change;
   path: string;
   query?: DiffQuery; // for a link to the file's own Diff
-  collapsed: boolean;
-  onToggle?: () => void; // collapses or shows the diff, by the chevron or a click on the header
+  folded: boolean;
+  onToggle?: () => void; // folds or unfolds the diff, by the chevron or a click on the header
 }
 
 /**
  * Above a diff: what happened to the file, its path, its lines added and removed; for one of
- * many, a chevron that collapses it, and a link to its own Diff. What is compared, the bar says.
+ * many, a chevron that folds it, and a link to its own Diff. What is compared, the bar says.
  */
-function FileHeader({ change, path, query, collapsed, onToggle }: HeaderProps) {
+function FileHeader({ change, path, query, folded, onToggle }: HeaderProps) {
   return (
     <FoldHeader
       className={styles.header}
       label={`Diff of ${path}`}
       what="this file's diff"
-      collapsed={collapsed}
+      folded={folded}
       onToggle={onToggle}
       end={
         <>
@@ -376,23 +376,15 @@ function FileHeader({ change, path, query, collapsed, onToggle }: HeaderProps) {
 interface FoldHeaderProps {
   className: string | undefined;
   label: string; // its chevron's: `Diff of src/a.py`
-  what: string; // what it collapses: `this file's diff`
-  collapsed: boolean;
-  onToggle?: () => void; // collapses or shows, by the chevron or a click on the header
+  what: string; // what it folds: `this file's diff`
+  folded: boolean;
+  onToggle?: () => void; // folds or unfolds, by the chevron or a click on the header
   end: ReactNode; // at its end: numbers, links
   children: ReactNode; // what it is about
 }
 
-/** A header that collapses what is below it: by its chevron, or a click anywhere else on it. */
-function FoldHeader({
-  className,
-  label,
-  what,
-  collapsed,
-  onToggle,
-  end,
-  children,
-}: FoldHeaderProps) {
+/** A header that folds what is below it: by its chevron, or a click anywhere else on it. */
+function FoldHeader({ className, label, what, folded, onToggle, end, children }: FoldHeaderProps) {
   // Anywhere on the header but its links, and not a click ending a text selection.
   const click = (event: MouseEvent) => {
     if ((event.target as Element).closest("button, a")) return;
@@ -400,19 +392,19 @@ function FoldHeader({
     onToggle?.();
   };
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its chevron collapses it by keyboard
+    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its chevron folds it by keyboard
     <div
       className={className}
-      data-collapsible={onToggle ? true : undefined}
+      data-foldable={onToggle ? true : undefined}
       onClick={onToggle && click}
     >
       {onToggle && (
         <button
           type="button"
-          className={styles.collapse}
-          aria-expanded={!collapsed}
+          className={styles.fold}
+          aria-expanded={!folded}
           aria-label={label}
-          title={collapsed ? `Show ${what}` : `Collapse ${what}`}
+          title={folded ? `Unfold ${what}` : `Fold ${what}`}
           onClick={onToggle}
         >
           <ChevronRight aria-hidden="true" />

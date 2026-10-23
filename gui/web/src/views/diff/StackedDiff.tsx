@@ -45,7 +45,7 @@ interface Props {
 /**
  * All files' diffs of a comparison or commit, one under the other in the order Changes lists
  * them, under their directories' headers (nested, theirs too), each asked for as it comes near;
- * untracked files last, listed, each shown on asking. Files and directories collapse.
+ * untracked files last, listed, each shown on asking. Files and directories fold.
  */
 export function StackedDiff(props: Props) {
   const { groups, query, base, show, nested, folded, onFoldedChange } = props;
@@ -62,7 +62,7 @@ export function StackedDiff(props: Props) {
   // Groups cut at the setting's cap, which their lists reached.
   const cut = groups.filter((group) => group.count > group.changes.length);
   const more = cut.reduce((sum, group) => sum + group.count - group.changes.length, 0);
-  const collapse = (path: string) => (on: boolean) =>
+  const fold = (path: string) => (on: boolean) =>
     onFoldedChange({ ...folded, paths: withFolded(folded.paths, path, on) });
   const stacked = (within: Entry[]): ReactNode =>
     within.map((row) => {
@@ -73,9 +73,9 @@ export function StackedDiff(props: Props) {
           <DirectorySection
             key={row.path}
             entry={row}
-            collapsed={by !== undefined}
+            folded={by !== undefined}
             foldedWith={by === row.path ? undefined : by}
-            onCollapsedChange={collapse(row.path)}
+            onFoldedChange={fold(row.path)}
           >
             {stacked(row.subRows)}
           </DirectorySection>
@@ -89,8 +89,8 @@ export function StackedDiff(props: Props) {
           query={{ ...base, path: row.change.path }}
           known={row.change}
           show={show}
-          collapsed={folded.paths.has(row.change.path)}
-          onCollapsedChange={collapse(row.change.path)}
+          folded={folded.paths.has(row.change.path)}
+          onFoldedChange={fold(row.change.path)}
         />
       );
     });

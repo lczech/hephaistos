@@ -165,8 +165,9 @@ export function DiffView({
   const [{ nested }] = useAtom(changesLook());
   const view = useRef<HTMLElement>(null);
   // Finding in one file's lines: all of them once its versions came, as its section asked for
-  // them (read here only), the patch's until then; matches count where their lines show: the
-  // patch's, or all with the whole file, until the renderer tells, e.g. once a band is opened.
+  // them (read here only), the patch's until then; matches count where they are the diff's
+  // lines: the patch's, or all with Whole file, until the renderer tells, e.g. once collapsed
+  // lines are expanded.
   const finding = findOf(fragment);
   const setFinding = (next: typeof finding, typed = false) =>
     setFragment(withFind(fragment, next), typed);
@@ -204,8 +205,8 @@ export function DiffView({
     : name && what && `Diff: ${name}, ${what}`;
   useTitle(setTitle, title);
   const groups = path === undefined ? (listed.data?.groups ?? []) : [];
-  // Files and directories (their paths ending in `/`) collapsed in the Checkout's stacks, in
-  // every comparison; a directory's files keep theirs. All files, to collapse at once: not
+  // Files and directories (their paths ending in `/`) folded in the Checkout's stacks, in
+  // every comparison; a directory's files keep theirs. All files, to fold at once: not
   // untracked ones, which are listed.
   const [folded, setFolded] = useFolds("diff", checkout);
   const of = JSON.stringify(listQuery);
@@ -325,15 +326,15 @@ export function DiffView({
             on={look.whole}
             onChange={choose("whole")}
             ways={[
-              { icon: ListChevronsUpDown, title: "Show complete files" },
+              { icon: ListChevronsUpDown, title: "Show whole files" },
               { icon: ListChevronsDownUp, title: "Show context around changes only" },
             ]}
           />
-          {/* All files: collapsed at once, to their headers; in Changes' order, which
+          {/* All files: folded at once, to their headers; in Changes' order, which
               directories nested change. */}
           {!query && stackedFiles.length > 0 && (
             <Choice
-              label="All files collapsed"
+              label="All files folded"
               on={
                 hidden.length === stackedFiles.length
                   ? true
@@ -350,8 +351,8 @@ export function DiffView({
                 })
               }
               ways={[
-                { icon: ChevronsDownUp, title: "Collapse all files to their headers" },
-                { icon: ChevronsUpDown, title: "Expand all files and directories" },
+                { icon: ChevronsDownUp, title: "Fold all files to their headers" },
+                { icon: ChevronsUpDown, title: "Unfold all files and directories" },
               ]}
             />
           )}

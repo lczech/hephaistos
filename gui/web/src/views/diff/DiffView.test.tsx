@@ -499,7 +499,7 @@ describe("the Diff View", () => {
       expect(
         within(first).getByRole("button", { name: "Diff of src/b.py alone" }),
       ).toBeInTheDocument();
-      // A click on a header collapses its file, its chevron saying so; another shows it again.
+      // A click on a header folds its file, its chevron saying so; another unfolds it.
       await userEvent.click(within(first).getByText("b.py"));
       expect(within(first).queryByRole("figure")).toBeNull();
       const chevron = within(first).getByRole("button", { name: "Diff of src/b.py" });
@@ -577,22 +577,22 @@ describe("the Diff View", () => {
       expect(shown()).toEqual(["src/", "src/a.py", "src/app/", "src/app/main.py", "top.txt"]);
       await userEvent.click(screen.getByRole("button", { name: "Directories as a tree" }));
       expect(shown()).toEqual(["src/", "src/app/", "src/app/main.py", "src/a.py", "top.txt"]);
-      // A file collapsed, then its directory's parent: all below it gone, but its header.
+      // A file folded, then its directory's parent: all below it gone, but its header.
       await userEvent.click(within(region("src/app/main.py")).getByText("main.py"));
       const folder = screen.getByRole("button", { name: "Files in src/" });
       await userEvent.click(folder);
       expect(folder).toHaveAttribute("aria-expanded", "false");
       expect(shown()).toEqual(["src/", "top.txt"]);
-      // Shown again, the file stays collapsed as it was.
+      // Unfolded, the file stays folded as it was.
       await userEvent.click(within(region("src/")).getByText("2 files"));
       expect(shown()).toEqual(["src/", "src/app/", "src/app/main.py", "src/a.py", "top.txt"]);
       expect(screen.getByRole("button", { name: "Diff of src/app/main.py" })).toHaveAttribute(
         "aria-expanded",
         "false",
       );
-      // All at once: one file collapsed is neither all nor none; a click collapses all files,
+      // All at once: one file folded is neither all nor none; a click folds all files,
       // directories shown; another shows all again.
-      const all = screen.getByRole("button", { name: "All files collapsed" });
+      const all = screen.getByRole("button", { name: "All files folded" });
       expect(all).toHaveAttribute("aria-pressed", "mixed");
       await userEvent.click(all);
       expect(all).toHaveAttribute("aria-pressed", "true");
@@ -645,15 +645,15 @@ describe("the Diff View", () => {
       expect(app).toHaveTextContent("folded with src/");
       expect(within(app).getByRole("button", { name: "Files in src/app/" })).toHaveAttribute(
         "title",
-        "Show src/ and all in it",
+        "Unfold src/ and all in it",
       );
       // Shown, src/app/ shows src/ too; all files shown at once, top.txt too.
       await userEvent.click(within(app).getByText("1 file"));
       expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByRole("region", { name: "src/app/main.py" })).toBeInTheDocument();
       await userEvent.click(chevron("Files in src/"));
-      // Every file folded, by its own or its directory's: all collapsed, until all are shown.
-      const all = screen.getByRole("button", { name: "All files collapsed" });
+      // Every file folded, by its own or its directory's: all folded, until all are unfolded.
+      const all = screen.getByRole("button", { name: "All files folded" });
       expect(all).toHaveAttribute("aria-pressed", "true");
       await userEvent.click(all);
       expect(all).toHaveAttribute("aria-pressed", "false");

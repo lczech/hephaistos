@@ -55,8 +55,8 @@ export interface DiffMark {
 export interface DiffFind {
   marks: readonly DiffMark[];
   current: DiffMark | undefined;
-  /** Which marks are on lines shown, by their place, told as that changes: e.g. once a band of
-   * lines left out is opened. */
+  /** Which marks are on lines shown, by their place, told as that changes: e.g. once collapsed
+   * lines are expanded. */
   onShown: (shown: readonly number[]) => void;
 }
 
@@ -391,9 +391,8 @@ function currentLine(mark: DiffMark | undefined): SelectedLineRange | null {
 
 /**
  * A file's diff from git's patch, highlighted, with words changed within lines marked; once its
- * versions are known, with where it ends and all of it to show. Lines shown on asking stay so
- * until the whole file is shown or no longer is: the renderer can't fold them again, so it
- * starts anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
+ * versions are known, with where it ends and its collapsed lines to expand. Lines expanded stay so
+ * until Whole file is turned on or off: the renderer can't collapse them again, so it starts anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
  */
 export default function Diff({ patch, look, themes, versions, find }: Props) {
   const lineHeight = useContext(LineHeight);

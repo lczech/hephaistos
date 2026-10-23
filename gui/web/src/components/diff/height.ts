@@ -1,14 +1,14 @@
 // How high the renderer draws a diff, about, to hold its place until drawn: counted here, sized
-// by CSS (rows of code, bands where lines are left out between hunks, and the room at the ends
+// by CSS (rows of code, separators standing for lines collapsed between hunks, and the room at the ends
 // without one). Lines that wrap make it higher. Apart from `Diff`, which would load the renderer.
 
 import type { DiffLook } from "./Diff";
 
-/** A diff's rows of code, its bands of lines left out, and its ends without a band. */
+/** A diff's rows of code, its separators standing for collapsed lines, and its ends without one. */
 export interface DiffRows {
   rows: number;
-  bands: number;
-  ends: number; // of its two: the renderer pads each, a band in its place
+  separators: number;
+  ends: number; // of its two: the renderer pads each, a separator in its place
 }
 
 const HUNK = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
@@ -20,9 +20,9 @@ export function lineCount(text: string): number {
 }
 
 /**
- * The rows and bands of git's patch for one file, as the renderer shows it: side by side, each
- * run of lines removed beside the lines added after it; with the whole file (`newLines`, its new
- * version's), all of it. Bands before the first hunk, between hunks, and after the last, where
+ * The rows and separators of git's patch for one file, as the renderer shows it: side by side,
+ * each run of lines removed beside the lines added after it; with the whole file (`newLines`, its
+ * new version's), all of it. Separators before the first hunk, between hunks, and after the last, where
  * the file goes on (known only with `newLines`).
  */
 export function diffRows(patch: string, look: DiffLook, newLines?: number): DiffRows {
@@ -53,11 +53,12 @@ export function diffRows(patch: string, look: DiffLook, newLines?: number): Diff
     }
   }
   run();
-  if (look.whole && newLines !== undefined) return { rows: newLines + extra, bands: 0, ends: 2 };
+  if (look.whole && newLines !== undefined)
+    return { rows: newLines + extra, separators: 0, ends: 2 };
   const [first] = hunks;
   const last = hunks.at(-1);
-  if (first === undefined || last === undefined) return { rows, bands: 0, ends: 0 };
+  if (first === undefined || last === undefined) return { rows, separators: 0, ends: 0 };
   const before = first[0] > 1 ? 1 : 0;
   const after = newLines !== undefined && last[0] + last[1] - 1 < newLines ? 1 : 0;
-  return { rows, bands: hunks.length - 1 + before + after, ends: 2 - before - after };
+  return { rows, separators: hunks.length - 1 + before + after, ends: 2 - before - after };
 }

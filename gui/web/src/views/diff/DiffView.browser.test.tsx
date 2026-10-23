@@ -202,14 +202,14 @@ describe("finding in a file's diff", () => {
     });
   });
 
-  it("counts the lines a band opens", async () => {
-    // `line 2` alone: before the hunk at 20, in the band of lines left out above it.
+  it("counts collapsed lines once expanded", async () => {
+    // `line 2` alone: before the hunk at 20, in the lines collapsed above it.
     serveFiles({ "f.txt": changed("f.txt", 40, [20]) });
     renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "line 2", word: "1" });
     const diff = await drawnAlone("f.txt");
     await waitFor(() => expect(count()).toHaveTextContent("No results"));
-    const band = diff.shadowRoot?.querySelector<HTMLElement>("[data-expand-button]");
-    band?.click();
+    const separator = diff.shadowRoot?.querySelector<HTMLElement>("[data-expand-button]");
+    separator?.click();
     await waitFor(() => expect(count()).toHaveTextContent("1 of 1"));
     // Unchanged, on both sides.
     await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 2", "line 2"]));
@@ -233,10 +233,10 @@ describe("the renderer draws a diff", () => {
       const body = await drawn(path);
       // The place held for it, as `FileBody` sizes it.
       const known = file.status === "A" ? undefined : lineCount(file.new);
-      const { rows, bands, ends } = diffRows(file.patch, look, known);
+      const { rows, separators, ends } = diffRows(file.patch, look, known);
       const held = document.createElement("div");
       held.className = styles.waiting ?? "";
-      held.style.cssText = `--rows: ${rows}; --bands: ${bands}; --ends: ${ends}`;
+      held.style.cssText = `--rows: ${rows}; --separators: ${separators}; --ends: ${ends}`;
       body.after(held);
       expect(body.getBoundingClientRect().height, path).toBe(held.getBoundingClientRect().height);
       held.remove();
@@ -255,8 +255,8 @@ describe("the renderer draws a diff", () => {
     await drawn("f29.txt");
   });
 
-  it("collapsed when scrolled past its top, keeping its header where it was", async () => {
-    // Files enough below it to stay scrolled so once it is collapsed.
+  it("folded when scrolled past its top, keeping its header where it was", async () => {
+    // Files enough below it to stay scrolled so once it is folded.
     const below = Array.from({ length: 10 }, (_, at) => [
       `b${at}.txt`,
       changed(`b${at}.txt`, 40, [20]),

@@ -22,14 +22,14 @@
 
 /* A directory's files below its header, which stays at the top while they show, theirs below
  * it; nested, an inner one's over its parent's, as high, so that one shows, saying its path. */
-/* Below a directory's header or the totals, its first file or directory. A collapsed directory
- * keeps the next directory as close, so that collapsing it moves nothing below but what it held,
- * and collapsed ones read as a list; a file after it stays apart, as it isn't in it. Collapsed
+/* Below a directory's header or the totals, its first file or directory. A folded directory
+ * keeps the next directory as close, so that folding it moves nothing below but what it held,
+ * and folded ones read as a list; a file after it stays apart, as it isn't in it. Folded
  * files after each other read as a list too. */
 .folder + *,
 .totals + *,
-.directory[data-collapsed] + .directory,
-.file[data-collapsed] + .file[data-collapsed] {
+.directory[data-folded] + .directory,
+.file[data-folded] + .file[data-folded] {
   margin-top: var(--space-2);
 }
 
@@ -55,7 +55,7 @@
   background: var(--background);
 }
 
-.folder[data-collapsible] {
+.folder[data-foldable] {
   cursor: pointer;
 }
 
@@ -90,12 +90,12 @@
   top: var(--folder-height);
 }
 
-/* One of many: a click on it collapses its diff, or shows it again. */
-.header[data-collapsible] {
+/* One of many: a click on it folds its diff, or unfolds it. */
+.header[data-foldable] {
   cursor: pointer;
 }
 
-.collapse {
+.fold {
   display: flex;
   margin-right: calc(-1 * var(--space-2));
   padding: 0;
@@ -105,13 +105,13 @@
   cursor: pointer;
 }
 
-.collapse svg {
+.fold svg {
   width: 1em;
   height: 1em;
   transition: rotate 0.15s;
 }
 
-.collapse[aria-expanded="true"] svg {
+.fold[aria-expanded="true"] svg {
   rotate: 90deg;
 }
 
@@ -123,12 +123,20 @@
 }
 
 /* A diff not yet asked for, as high as it is likely to be; and one given to the renderer, at
- * least so high until drawn: its rows of code; its bands of lines left out, the renderer's 32px
- * and 8px on either side; and its padding of 8px at each end without a band
+ * least so high until drawn: its rows of code; its separators standing for collapsed lines, the renderer's 32px
+ * and 8px on either side; and its padding of 8px at each end without a separator
  * (`components/diff/height.ts`). */
 .waiting,
 .holding {
-  --height: calc(var(--rows) * var(--code-size) * 1.5 + var(--bands) * 48px + var(--ends) * 8px);
+  --height: calc(
+    var(--rows) *
+    var(--code-size) *
+    1.5 +
+    var(--separators) *
+    48px +
+    var(--ends) *
+    8px
+  );
 }
 
 .waiting {
