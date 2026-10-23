@@ -103,17 +103,18 @@ function serveFiles(files: Record<string, File>): string[] {
 
 const SINCE_HEAD = { clone: "clone-proj", from: "HEAD", to: "working-tree" };
 
-/** The View of all files in a Panel of this size. */
-function renderDiff(size: CSSProperties) {
+/** The View, of all files unless of one (`path`), in a Panel of this size. */
+function renderDiff(size: CSSProperties, path?: string, at: Params = {}) {
   function Panel() {
-    const [params, setParams] = useState<Params>(SINCE_HEAD);
+    const [params, setParams] = useState<Params>({ ...SINCE_HEAD, ...(path && { path }) });
+    const [fragment, setFragment] = useState<Params>(at);
     return (
       <div data-testid="panel" style={size}>
         <DiffView
           params={params}
           setParams={setParams}
-          fragment={{}}
-          setFragment={() => {}}
+          fragment={fragment}
+          setFragment={setFragment}
           endTyping={() => {}}
           setTitle={() => {}}
         />
@@ -137,6 +138,83 @@ async function drawn(path: string): Promise<HTMLElement> {
     { timeout: 10_000 },
   );
 }
+
+/** The text of what a highlight of the page marks: matches found, or the current one. */
+function marked(name: "hephaistos-found" | "hephaistos-found-current"): string[] {
+  return [...(CSS.highlights.get(name) ?? [])].map((range) => (range as Range).toString());
+}
+
+/** One file's diff once the renderer has drawn it: its element. */
+async function drawnAlone(path: string): Promise<HTMLElement> {
+  return waitFor(
+    () => {
+      const diff = screen.getByRole("region", { name: path }).querySelector("diffs-container");
+      if (!(diff instanceof HTMLElement)) throw new Error(`${path}: not drawn`);
+      expect(diff.getBoundingClientRect().height).toBeGreaterThan(0);
+      return diff;
+    },
+    { timeout: 10_000 },
+  );
+}
+
+/** The find bar's count: `3 of 12`. */
+const count = () => screen.getByLabelText("Find", { selector: "search" }).querySelector("output");
+
+describe("finding in a file's diff", () => {
+  // A change every 10 lines: a stack of hunks far longer than the Panel.
+  const MANY = changed(
+    "f.txt",
+    300,
+    Array.from({ length: 28 }, (_, at) => 20 + at * 10),
+  );
+
+  it("marks the matches drawn, the current one apart", async () => {
+    serveFiles({ "f.txt": MANY });
+    renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "LINE", case: "1" });
+    const diff = await drawnAlone("f.txt");
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 28"));
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["LINE"]));
+    // Its line too, as the renderer marks lines selected: side by side, its row.
+    const selected = diff.shadowRoot?.querySelectorAll("[data-line][data-selected-line]") ?? [];
+    expect([...selected].map((line) => line.textContent)).toEqual(["line 20", "LINE 20"]);
+    // The others drawn, those near it: not all of them, far further down.
+    const others = marked("hephaistos-found");
+    expect(others.length).toBeGreaterThan(0);
+    expect(others.length).toBeLessThan(27);
+    expect(new Set(others)).toEqual(new Set(["LINE"]));
+  });
+
+  it("brings a match it steps to into view, also one not drawn yet", async () => {
+    serveFiles({ "f.txt": MANY });
+    renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "LINE 290", case: "1" });
+    await drawnAlone("f.txt");
+    const scroller = screen
+      .getByRole("region", { name: "f.txt" })
+      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["LINE 290"]));
+    // Drawn a little ahead of the view: in it once scrolled.
+    await waitFor(() => {
+      const [range] = [...(CSS.highlights.get("hephaistos-found-current") ?? [])] as Range[];
+      const line = range?.getBoundingClientRect();
+      const view = scroller.getBoundingClientRect();
+      expect(line?.top).toBeGreaterThan(view.top);
+      expect(line?.bottom).toBeLessThan(view.bottom);
+    });
+  });
+
+  it("counts the lines a band opens", async () => {
+    // `line 2` alone: before the hunk at 20, in the band of lines left out above it.
+    serveFiles({ "f.txt": changed("f.txt", 40, [20]) });
+    renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "line 2", word: "1" });
+    const diff = await drawnAlone("f.txt");
+    await waitFor(() => expect(count()).toHaveTextContent("No results"));
+    const band = diff.shadowRoot?.querySelector<HTMLElement>("[data-expand-button]");
+    band?.click();
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 1"));
+    // Unchanged, on both sides.
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 2", "line 2"]));
+  });
+});
 
 describe("the renderer draws a diff", () => {
   it("as high as its place was held", async () => {

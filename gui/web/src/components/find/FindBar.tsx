@@ -16,7 +16,8 @@ interface FindBarProps {
   /** Typing is done, e.g. on Enter or leaving the field: the next key is another step back. */
   onTypingEnd: () => void;
   finding: Finding | undefined;
-  current: number; // which match, of those found
+  count: number; // matches found, where they count, e.g. shown
+  current: number; // which of them
   onStep: (by: 1 | -1) => void;
   onClose: () => void;
 }
@@ -38,13 +39,12 @@ export function FindBar({
   onChange,
   onTypingEnd,
   finding,
+  count,
   current,
   onStep,
   onClose,
 }: FindBarProps) {
   const target = useKeyTarget("search");
-  const found = finding && "matches" in finding ? finding : undefined;
-  const count = found?.matches.length ?? 0;
   const keys = (event: KeyboardEvent) => {
     if (event.key === "Escape") onClose();
     else if (event.key === "Enter" && event.target instanceof HTMLInputElement) {

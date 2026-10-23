@@ -3,11 +3,13 @@
 
 import { lineCount } from "./height";
 
-/** A line shown: its text, and its numbers in the old and new versions, where it is in them. */
+/** A line: its text, its numbers in the old and new versions, where it is in them, and whether
+ * it is one of the patch's, shown unless the whole file is hidden, rather than in between. */
 export interface DiffLine {
   text: string;
   old: number | null; // null: added
   new: number | null; // null: removed
+  inPatch: boolean;
 }
 
 const HUNK = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
@@ -25,7 +27,7 @@ export function diffLines(patch: string, newText?: string | null): DiffLine[] {
   // The new version's lines from `next` on, up to `to`, unchanged.
   const unchanged = (to: number) => {
     for (; whole && next <= to; next++) {
-      lines.push({ text: whole[next - 1] ?? "", old: next + delta, new: next });
+      lines.push({ text: whole[next - 1] ?? "", old: next + delta, new: next, inPatch: false });
     }
   };
   let old = 0;
@@ -46,9 +48,10 @@ export function diffLines(patch: string, newText?: string | null): DiffLine[] {
     } else if (inHunk) {
       // Within hunks, not the patch's header, whose lines start alike.
       const text = line.slice(1);
-      if (line.startsWith(" ")) lines.push({ text, old: old++, new: current++ });
-      else if (line.startsWith("-")) lines.push({ text, old: old++, new: null });
-      else if (line.startsWith("+")) lines.push({ text, old: null, new: current++ });
+      const inPatch = true;
+      if (line.startsWith(" ")) lines.push({ text, old: old++, new: current++, inPatch });
+      else if (line.startsWith("-")) lines.push({ text, old: old++, new: null, inPatch });
+      else if (line.startsWith("+")) lines.push({ text, old: null, new: current++, inPatch });
     }
   }
   if (newText) unchanged(lineCount(newText));

@@ -10,9 +10,10 @@ import {
   useState,
 } from "react";
 import { type DiffQuery, useDiff, useDiffFiles } from "../../api/queries";
-import type { DiffLook, Versions } from "../../components/diff/Diff";
+import type { DiffFind, DiffLook, Versions } from "../../components/diff/Diff";
 import { type DiffRows, diffRows, lineCount } from "../../components/diff/height";
 import { LazyDiff } from "../../components/diff/LazyDiff";
+import { useDiffScroller } from "../../components/diff/scroller";
 import type { CodeThemes } from "../../components/diff/themes";
 import type { Params } from "../address";
 import { LoadNote } from "../CheckoutError";
@@ -52,28 +53,21 @@ function guessed(change: Change | undefined, show: DiffShow): DiffRows {
   return { rows: Math.min(changed, show.large ?? changed) + 6, bands: 2, ends: 0 };
 }
 
-/** The element that scrolls `element`: the nearest of its ancestors that does. */
-function scrollerOf(element: HTMLElement): HTMLElement | null {
-  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-    if (/auto|scroll/.test(getComputedStyle(parent).overflowY)) return parent;
-  }
-  return null;
-}
-
 /** Whether the element has come near the scrolled area, once; then stays so. */
 function useNear(element: RefObject<HTMLElement | null>, enabled: boolean): boolean {
   const [near, setNear] = useState(false);
+  const scroller = useDiffScroller();
   useEffect(() => {
     if (!enabled || near || element.current === null) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) setNear(true);
       },
-      { root: scrollerOf(element.current), rootMargin: `${AHEAD} 0px` },
+      { root: scroller(), rootMargin: `${AHEAD} 0px` },
     );
     observer.observe(element.current);
     return () => observer.disconnect();
-  }, [element, enabled, near]);
+  }, [element, enabled, near, scroller]);
   return near;
 }
 
@@ -83,6 +77,7 @@ interface BodyProps {
   show: DiffShow;
   unchanged?: ReactNode; // what to say if the file has no changes so; by default that
   estimate?: CSSProperties; // as one of many: its height, guessed, until it is drawn
+  find?: DiffFind; // matches to mark in it
 }
 
 /**
@@ -91,7 +86,7 @@ interface BodyProps {
  * its versions, which say how much of the file follows its last change: a new patch, asked for
  * again, e.g. on focus, once they come too, so that the diff changes at most once.
  */
-export function FileBody({ query, known, show, unchanged, estimate }: BodyProps) {
+export function FileBody({ query, known, show, unchanged, estimate, find }: BodyProps) {
   const diff = useDiff(query);
   const [shownLarge, setShownLarge] = useState(false);
   const change = diff.data ? diff.data.change : known;
@@ -160,6 +155,7 @@ export function FileBody({ query, known, show, unchanged, estimate }: BodyProps)
       look={show.look}
       themes={show.themes}
       versions={pair.versions}
+      find={find}
       fallback={fallback}
     />
   );
@@ -248,20 +244,21 @@ function useFolding(
   onCollapsedChange: ((collapsed: boolean) => void) | undefined,
 ): (() => void) | undefined {
   const stuck = useRef(false);
+  const scrollsIn = useDiffScroller();
   useLayoutEffect(() => {
     const element = section.current;
     if (!collapsed || !stuck.current || element === null) return;
     stuck.current = false;
-    const scroller = scrollerOf(element);
-    if (scroller === null) return;
+    const scroller = scrollsIn();
+    if (scroller === undefined) return;
     const past = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
     // To the nearest whole pixel: WebKit scrolls by whole ones, dropping a fraction.
     scroller.scrollTop = Math.round(scroller.scrollTop + past);
-  }, [section, collapsed]);
+  }, [section, collapsed, scrollsIn]);
   if (onCollapsedChange === undefined) return undefined;
   return () => {
     const element = section.current;
-    const scroller = element && scrollerOf(element);
+    const scroller = scrollsIn();
     stuck.current = Boolean(
       element &&
         scroller &&

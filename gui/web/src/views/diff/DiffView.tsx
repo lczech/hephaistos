@@ -23,11 +23,11 @@ import {
   useRepositories,
   useSetting,
 } from "../../api/queries";
+import type { DiffFind, DiffMark } from "../../components/diff/Diff";
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
-import { diffLines } from "../../components/diff/lines";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
-import { useCurrentMatch, useFind } from "../../components/find/useFind";
+import { useCurrentMatch } from "../../components/find/useFind";
 import { BarButton, BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
@@ -53,6 +53,7 @@ import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 import { type DiffShow, FileSection } from "./FileSection";
+import { useFileFind } from "./fileFind";
 import { diffLook } from "./look";
 import { StackedDiff } from "./StackedDiff";
 
@@ -163,20 +164,26 @@ export function DiffView({
   const [look, setLook] = useAtom(diffLook());
   const [{ nested }] = useAtom(changesLook());
   const view = useRef<HTMLElement>(null);
-  // Finding in one file's lines as shown: with the whole file, all of them, once its versions
-  // came, as its section asked for them (read here only).
+  // Finding in one file's lines: all of them once its versions came, as its section asked for
+  // them (read here only), the patch's until then; matches count where their lines show: the
+  // patch's, or all with the whole file, until the renderer tells, e.g. once a band is opened.
   const finding = findOf(fragment);
   const setFinding = (next: typeof finding, typed = false) =>
     setFragment(withFind(fragment, next), typed);
   const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
-  const patch = fileDiff.data?.patch;
-  const newText = look.whole ? versions.data?.new : undefined;
-  const lines =
-    query && finding && typeof patch === "string"
-      ? diffLines(patch, newText).map((line) => line.text)
-      : undefined;
-  const found = useFind(lines, finding);
-  const [current, step] = useCurrentMatch(found);
+  const patch = query && fileDiff.data?.patch;
+  const { finding: found, marks } = useFileFind(patch ?? undefined, versions.data?.new, finding);
+  const [told, setTold] = useState<{ marks: readonly DiffMark[]; shown: readonly number[] }>();
+  const shownMarks =
+    told?.marks === marks
+      ? told.shown
+      : marks.flatMap((mark, at) => (look.whole || mark.inPatch ? [at] : []));
+  const [current, step] = useCurrentMatch(marks, shownMarks.length);
+  const diffFind: DiffFind | undefined = finding && {
+    marks,
+    current: marks[shownMarks[current] ?? -1],
+    onShown: (shown) => setTold({ marks, shown }),
+  };
   const findKey = useKeyTarget(finding ? undefined : "search"); // the field's, once open
   const findButton = useRef<HTMLButtonElement>(null); // focused again once the bar closes
   const narrow = useNarrow(view, NARROW);
@@ -218,6 +225,7 @@ export function DiffView({
         alone
         query={query}
         show={show}
+        find={diffFind}
         unchanged={
           revisions ? (
             <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
@@ -392,6 +400,7 @@ export function DiffView({
           onChange={setFinding}
           onTypingEnd={endTyping}
           finding={found}
+          count={shownMarks.length}
           current={current}
           onStep={step}
           onClose={() => {

@@ -37,19 +37,14 @@ export function useFind(
 }
 
 /**
- * Which of the matches is the current one, and a way to step to the next or the one before,
- * round; the first again once the matches are others.
+ * Which of `count` matches is the current one, and a way to step to the next or the one before,
+ * round; the first again once the matches are others (`of`, which stays the same as long).
  */
-export function useCurrentMatch(finding: Finding | undefined): [number, (by: 1 | -1) => void] {
-  const matches = finding && "matches" in finding ? finding.matches : undefined;
-  const [current, setCurrent] = useState<{ of: typeof matches; at: number }>({
-    of: undefined,
-    at: 0,
-  });
-  const at = current.of === matches ? current.at : 0;
+export function useCurrentMatch(of: unknown, count: number): [number, (by: 1 | -1) => void] {
+  const [current, setCurrent] = useState<{ of: unknown; at: number }>({ of: undefined, at: 0 });
+  const at = current.of === of && current.at < count ? current.at : 0;
   const step = (by: 1 | -1) => {
-    const count = matches?.length ?? 0;
-    if (count > 0) setCurrent({ of: matches, at: (at + by + count) % count });
+    if (count > 0) setCurrent({ of, at: (at + by + count) % count });
   };
   return [at, step];
 }

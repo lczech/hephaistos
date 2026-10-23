@@ -22,15 +22,16 @@ const text = (lines: ReturnType<typeof diffLines>) => lines.map((line) => line.t
 
 describe("a diff's lines", () => {
   it("are the patch's, each unchanged one once, with their numbers in both versions", () => {
+    const inPatch = true;
     expect(diffLines(PATCH)).toEqual([
-      { text: "2", old: 2, new: 2 },
-      { text: "3", old: 3, new: null },
-      { text: "three", old: null, new: 3 },
-      { text: "3½", old: null, new: 4 },
-      { text: "4", old: 4, new: 5 },
-      { text: "8", old: 8, new: 9 },
-      { text: "9", old: 9, new: null },
-      { text: "10", old: 10, new: 10 },
+      { text: "2", old: 2, new: 2, inPatch },
+      { text: "3", old: 3, new: null, inPatch },
+      { text: "three", old: null, new: 3, inPatch },
+      { text: "3½", old: null, new: 4, inPatch },
+      { text: "4", old: 4, new: 5, inPatch },
+      { text: "8", old: 8, new: 9, inPatch },
+      { text: "9", old: 9, new: null, inPatch },
+      { text: "10", old: 10, new: 10, inPatch },
     ]);
   });
 
@@ -52,23 +53,24 @@ describe("a diff's lines", () => {
       "11",
       "12",
     ]);
-    expect(lines[0]).toEqual({ text: "1", old: 1, new: 1 });
-    expect(lines[6]).toEqual({ text: "5", old: 5, new: 6 });
-    expect(lines[13]).toEqual({ text: "12", old: 12, new: 12 });
+    expect(lines[0]).toEqual({ text: "1", old: 1, new: 1, inPatch: false });
+    expect(lines[1]).toEqual({ text: "2", old: 2, new: 2, inPatch: true });
+    expect(lines[6]).toEqual({ text: "5", old: 5, new: 6, inPatch: false });
+    expect(lines[13]).toEqual({ text: "12", old: 12, new: 12, inPatch: false });
   });
 
   it("are a new file's added lines, and a deleted file's removed ones", () => {
     const added =
       "diff --git a/n b/n\nnew file mode 100644\n--- /dev/null\n+++ b/n\n@@ -0,0 +1,2 @@\n+a\n+b\n";
     expect(diffLines(added, "a\nb\n")).toEqual([
-      { text: "a", old: null, new: 1 },
-      { text: "b", old: null, new: 2 },
+      { text: "a", old: null, new: 1, inPatch: true },
+      { text: "b", old: null, new: 2, inPatch: true },
     ]);
     const deleted =
       "diff --git a/d b/d\ndeleted file mode 100644\n--- a/d\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n";
     expect(diffLines(deleted, null)).toEqual([
-      { text: "a", old: 1, new: null },
-      { text: "b", old: 2, new: null },
+      { text: "a", old: 1, new: null, inPatch: true },
+      { text: "b", old: 2, new: null, inPatch: true },
     ]);
   });
 

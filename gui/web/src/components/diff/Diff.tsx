@@ -2,10 +2,16 @@
 // git's patch and options in its own terms, so that another renderer could take its place.
 // Large, with its highlighter: loaded only once a diff shows (`LazyDiff`).
 
-import { DEFAULT_VIRTUAL_FILE_METRICS, getSingularPatch, hydratePartialDiff } from "@pierre/diffs";
-import type { FileDiffMetadata, WorkerPoolOptions } from "@pierre/diffs/react";
+import {
+  DEFAULT_VIRTUAL_FILE_METRICS,
+  getSingularPatch,
+  hydratePartialDiff,
+  VirtualizedFileDiff,
+} from "@pierre/diffs";
+import type { FileDiffMetadata, SelectedLineRange, WorkerPoolOptions } from "@pierre/diffs/react";
 import {
   FileDiff,
+  useVirtualizer,
   useWorkerPool,
   Virtualizer,
   WorkerPoolContextProvider,
@@ -20,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { DiffScrollerContext, useDiffScroller } from "./scroller";
 import type { CodeThemes } from "./themes";
 
 /** How a diff shows: side by side, long lines wrapped, the whole file around its changes. */
@@ -35,11 +42,30 @@ export interface Versions {
   new: string | null;
 }
 
+/** A match to mark: its line, by its numbers in the old and new versions, and where in it. */
+export interface DiffMark {
+  old: number | null;
+  new: number | null;
+  start: number; // UTF-16 offsets, as JS strings
+  end: number;
+  inPatch: boolean; // on one of the patch's lines, which always show
+}
+
+/** Matches found in a diff's lines: marked where drawn, the current one scrolled into view. */
+export interface DiffFind {
+  marks: readonly DiffMark[];
+  current: DiffMark | undefined;
+  /** Which marks are on lines shown, by their place, told as that changes: e.g. once a band of
+   * lines left out is opened. */
+  onShown: (shown: readonly number[]) => void;
+}
+
 interface Props {
   patch: string; // git's, for one file
   look: DiffLook;
   themes: CodeThemes;
   versions: Versions | undefined; // once known: to show where the file ends, and more of it
+  find?: DiffFind;
 }
 
 // A line of code's height: the renderer's, and ours to hold diffs' places (`height.ts`).
@@ -56,6 +82,8 @@ const PAGE_LOOK = `:host {
   --diffs-font-family: var(--font-mono);
   --diffs-font-size: var(--code-size);
   --diffs-line-height: ${LINE_HEIGHT};
+  --diffs-bg-selection-override: var(--accent);
+  --diffs-bg-selection-number-override: var(--accent);
 }
 [data-separator=line-info] {
   box-shadow: inset 0 1px var(--line), inset 0 -1px var(--line);
@@ -64,6 +92,14 @@ const PAGE_LOOK = `:host {
 [data-separator=line-info] [data-separator-content],
 [data-separator=line-info] [data-expand-button] {
   background: none;
+}
+::highlight(hephaistos-found) {
+  background-color: var(--found);
+  color: var(--found-text);
+}
+::highlight(hephaistos-found-current) {
+  background-color: var(--found-current);
+  color: var(--found-text);
 }`;
 
 /** The patch's lines filled in with both versions, so that all of the file can show; the patch
@@ -145,7 +181,9 @@ export function DiffScroll({
   const scroll = (
     <Virtualizer className={className}>
       <div ref={line} style={{ position: "absolute", height: LINE_HEIGHT }} aria-hidden />
-      <LineHeight.Provider value={lineHeight}>{children}</LineHeight.Provider>
+      <LineHeight.Provider value={lineHeight}>
+        <Scroller>{children}</Scroller>
+      </LineHeight.Provider>
     </Virtualizer>
   );
   if (POOL === undefined) return scroll;
@@ -158,6 +196,16 @@ export function DiffScroll({
       {scroll}
     </WorkerPoolContextProvider>
   );
+}
+
+/** Tells what lies within the renderer's element that scrolls (`useDiffScroller`). */
+function Scroller({ children }: { children: ReactNode }) {
+  const virtualizer = useVirtualizer();
+  const root = () => {
+    const element = virtualizer?.getRoot();
+    return element instanceof HTMLElement ? element : undefined;
+  };
+  return <DiffScrollerContext value={root}>{children}</DiffScrollerContext>;
 }
 
 /** A diff given to the renderer, and what it was made of. */
@@ -173,13 +221,181 @@ function diffOf(patch: string, versions: Versions | undefined): FileDiffMetadata
   return bothSides(versions ? withVersions(partial, versions) : partial);
 }
 
+// The page's marks of matches found, in all diffs, by the CSS Custom Highlight API: text marked
+// without changing the renderer's elements, styled in `PAGE_LOOK`. None where a browser lacks it.
+function highlight(name: string): Highlight | undefined {
+  if (typeof Highlight === "undefined") return undefined;
+  let found = CSS.highlights.get(name);
+  if (found === undefined) {
+    found = new Highlight();
+    CSS.highlights.set(name, found);
+  }
+  return found;
+}
+
+const lineKey = (old: number | null, current: number | null) => `${old}:${current}`;
+
+/** A drawn line's numbers in the old and new versions, as the renderer's attributes say. */
+function drawnLineKey(element: HTMLElement): string {
+  const line = Number(element.dataset.line);
+  const other = element.dataset.altLine === undefined ? null : Number(element.dataset.altLine);
+  if (element.dataset.lineType === "change-deletion") return lineKey(line, null);
+  if (element.dataset.lineType === "change-addition") return lineKey(null, line);
+  // Unchanged: its number on its own side, the other's besides; side by side, the left is old.
+  return element.closest("[data-deletions]") ? lineKey(line, other) : lineKey(other, line);
+}
+
+/** Takes these ranges out of the page's marks. */
+function unmark(ranges: readonly Range[]): void {
+  for (const range of ranges) {
+    highlight("hephaistos-found")?.delete(range);
+    highlight("hephaistos-found-current")?.delete(range);
+  }
+}
+
+/** The range of a line's text from `start` to `end`, across the renderer's spans of it. */
+function rangeIn(element: HTMLElement, start: number, end: number): Range | undefined {
+  const range = new Range();
+  const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let at = 0;
+  for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
+    const length = node.textContent?.length ?? 0;
+    if (start >= at && start <= at + length) range.setStart(node, start - at);
+    if (end >= at && end <= at + length) {
+      range.setEnd(node, end - at);
+      return range;
+    }
+    at += length;
+  }
+  return undefined;
+}
+
+/**
+ * A diff's matches marked on its drawn lines, again whenever the renderer draws, e.g. lines that
+ * scroll into view; the current one scrolled to; which are on lines shown, told. Gives the
+ * renderer's `onPostRender`, which hands over its diff as drawn.
+ */
+function useFound(find: DiffFind | undefined) {
+  const scroller = useDiffScroller();
+  const drawn = useRef<{ node: HTMLElement; diff: VirtualizedFileDiff }>(undefined);
+  const latest = useRef(find);
+  const ranges = useRef<Range[]>([]);
+  const told = useRef<{ marks: readonly DiffMark[]; shown: string }>(undefined);
+  const lastCurrent = useRef<DiffMark>(undefined); // the current match, as at the last render
+  const scrollTo = useRef<DiffMark>(undefined); // the current match, once it can be scrolled to
+  const resized = useRef<ResizeObserver>(undefined);
+
+  const mark = (node: HTMLElement, find: DiffFind) => {
+    unmark(ranges.current);
+    ranges.current = [];
+    const byLine = new Map<string, DiffMark[]>();
+    for (const mark of find.marks) {
+      const key = lineKey(mark.old, mark.new);
+      byLine.set(key, [...(byLine.get(key) ?? []), mark]);
+    }
+    for (const element of node.shadowRoot?.querySelectorAll<HTMLElement>("[data-line]") ?? []) {
+      for (const mark of byLine.get(drawnLineKey(element)) ?? []) {
+        const range = rangeIn(element, mark.start, mark.end);
+        if (range === undefined) continue;
+        ranges.current.push(range);
+        const current = mark === find.current;
+        highlight(current ? "hephaistos-found-current" : "hephaistos-found")?.add(range);
+      }
+    }
+  };
+  const tellShown = (diff: VirtualizedFileDiff, find: DiffFind) => {
+    const shown = find.marks.flatMap((mark, at) =>
+      mark.inPatch || mark.new === null || diff.isLineRenderable(mark.new) ? [at] : [],
+    );
+    const text = shown.join();
+    if (told.current?.marks === find.marks && told.current.shown === text) return;
+    told.current = { marks: find.marks, shown: text };
+    find.onShown(shown);
+  };
+  // Brought into view, unless it is well within it already: a third down, below the headers.
+  // Whether it is in view: until then, tried again as the diff is drawn or grows, since the
+  // renderer gives it its height after drawing it, and may draw it anew, e.g. once its line
+  // height is measured, scrolled back to its top meanwhile.
+  const show = (mark: DiffMark): boolean => {
+    const { node, diff } = drawn.current ?? {};
+    const line = mark.new ?? mark.old;
+    const root = scroller();
+    if (node === undefined || diff === undefined || line === null || root === undefined)
+      return true;
+    const position = diff.getLinePosition(line, mark.new === null ? "deletions" : "additions");
+    if (position === undefined) return true;
+    // Where the diff is in what scrolls, by where both are now: the renderer's own offset is off
+    // in WebKit once scrolled.
+    const offset = node.getBoundingClientRect().top - root.getBoundingClientRect().top;
+    const top = root.scrollTop + offset + position.top;
+    const height = root.clientHeight;
+    if (
+      top > root.scrollTop + height * 0.2 &&
+      top + position.height < root.scrollTop + height * 0.8
+    )
+      return true;
+    // The element's own: the renderer's clamps by its height as last measured.
+    if (top + position.height <= root.scrollHeight) root.scrollTo({ top: top - height / 3 });
+    return false;
+  };
+  const update = () => {
+    const find = latest.current;
+    if (drawn.current === undefined) return;
+    if (find === undefined) {
+      unmark(ranges.current);
+      ranges.current = [];
+      return;
+    }
+    mark(drawn.current.node, find);
+    tellShown(drawn.current.diff, find);
+    if (scrollTo.current !== undefined && show(scrollTo.current)) scrollTo.current = undefined;
+  };
+
+  // After each render: the matches as now, and another current one to bring into view.
+  useEffect(() => {
+    latest.current = find;
+    if (find?.current !== lastCurrent.current) {
+      lastCurrent.current = find?.current;
+      scrollTo.current = find?.current;
+    }
+    update();
+  });
+  useEffect(
+    () => () => {
+      unmark(ranges.current);
+      resized.current?.disconnect();
+    },
+    [],
+  );
+  return (node: HTMLElement, diff: unknown) => {
+    if (!(diff instanceof VirtualizedFileDiff)) return;
+    // The renderer gives the diff its height after drawing it, without drawing again: once it
+    // grows, the current match may be brought into view.
+    if (drawn.current?.node !== node) {
+      resized.current?.disconnect();
+      resized.current = new ResizeObserver(update);
+      resized.current.observe(node);
+    }
+    drawn.current = { node, diff };
+    update();
+  };
+}
+
+/** A match's line as the renderer selects lines, to mark the current one's: side by side, its
+ * row, both sides. */
+function currentLine(mark: DiffMark | undefined): SelectedLineRange | null {
+  const line = mark?.new ?? mark?.old;
+  if (mark === undefined || line === undefined || line === null) return null;
+  return { start: line, end: line, side: mark.new === null ? "deletions" : "additions" };
+}
+
 /**
  * A file's diff from git's patch, highlighted, with words changed within lines marked; once its
  * versions are known, with where it ends and all of it to show. Lines shown on asking stay so
  * until the whole file is shown or no longer is: the renderer can't fold them again, so it
- * starts anew. Within a `DiffScroll`.
+ * starts anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
  */
-export default function Diff({ patch, look, themes, versions }: Props) {
+export default function Diff({ patch, look, themes, versions, find }: Props) {
   const lineHeight = useContext(LineHeight);
   // The diff the renderer was given, kept while its patch and versions' text stay: a new one,
   // even an equal one, has it draw the file anew, e.g. for versions asked for again, unchanged.
@@ -191,11 +407,13 @@ export default function Diff({ patch, look, themes, versions }: Props) {
     given?.patch === patch && given.known === known && given.old === old && given.new === current;
   const fileDiff = same ? given.fileDiff : diffOf(patch, known ? { old, new: current } : undefined);
   if (!same) setGiven({ patch, known, old, new: current, fileDiff });
+  const onPostRender = useFound(find);
   // The renderer takes its line height once: a new one starts it anew.
   return (
     <FileDiff
       key={`${look.whole ? "whole" : "changes"} ${lineHeight}`}
       fileDiff={fileDiff}
+      selectedLines={currentLine(find?.current)}
       metrics={lineHeight > 0 ? { ...DEFAULT_VIRTUAL_FILE_METRICS, lineHeight } : undefined}
       options={{
         theme: themes,
@@ -207,6 +425,7 @@ export default function Diff({ patch, look, themes, versions }: Props) {
         diffIndicators: "bars",
         disableFileHeader: true,
         unsafeCSS: PAGE_LOOK,
+        onPostRender,
       }}
     />
   );

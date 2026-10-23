@@ -45,6 +45,12 @@
   --success: #15803d;
   --warning: #a16207;
   --danger: #b91c1c;
+  /* Matches found, e.g. in a diff, and the current one, as browsers mark them: opaque, their
+   * text dark, so that they stand out over code's colours and diffs' red and green, in either
+   * theme. The icon's yellow, lighter; the current one in the accent. */
+  --found: #ffd38a;
+  --found-current: var(--accent);
+  --found-text: #1e1e1e;
 }
 
 @media (prefers-color-scheme: dark) {
