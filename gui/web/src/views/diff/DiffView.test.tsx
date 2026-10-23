@@ -696,9 +696,36 @@ describe("the Diff View", () => {
         "true",
       );
       expect(JSON.parse(localStorage.getItem("hephaistos.folds.diff") ?? "")).toEqual({
-        "clone:clone-proj": { paths: ["top.txt"], groups: [], opened: [] },
+        "clone:clone-proj": { paths: { stack: ["top.txt"] }, groups: [], opened: [] },
       });
       expect(localStorage.getItem("hephaistos.folds.changes")).toBeNull();
+    });
+
+    it("folds a directory in the stack apart from the same in the untracked files", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      const changes = [change({ path: "src/a.py" }), change({ path: "src/new.txt", status: "?" })];
+      serve({
+        "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 2 }] }),
+        "GET /api/diff": (request) => {
+          const path = new URL(request.url).searchParams.get("path") ?? "";
+          return json({ change: change({ path }), patch: `diff --git a/${path} b/${path}\n` });
+        },
+      });
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      const stacked = await screen.findByRole("button", { name: "Files in src/" });
+      const untracked = screen.getByRole("region", { name: "Untracked" });
+      const srcRow = () => within(untracked).getAllByTitle("src/")[0] as HTMLElement;
+      // Folding the untracked files' src/ leaves the stack's open, and the other way round.
+      await userEvent.click(srcRow());
+      expect(within(untracked).queryByText("new.txt")).toBeNull();
+      expect(stacked).toHaveAttribute("aria-expanded", "true");
+      await userEvent.click(stacked);
+      await userEvent.click(srcRow());
+      expect(within(untracked).getByText("new.txt")).toBeInTheDocument();
+      expect(stacked).toHaveAttribute("aria-expanded", "false");
+      expect(JSON.parse(localStorage.getItem("hephaistos.folds.diff") ?? "")).toEqual({
+        "clone:clone-proj": { paths: { stack: ["src/"] }, groups: [], opened: [] },
+      });
     });
 
     it("asks for a file's diff only as it comes near", async () => {
@@ -759,6 +786,39 @@ describe("the Diff View", () => {
         await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
         await userEvent.click(within(untracked).getByText("notes.txt"));
         await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
+      });
+
+      it("unfolds an untracked file's directory a match is stepped to, in its list only", async () => {
+        vi.stubGlobal("IntersectionObserver", Near);
+        const changes = [
+          change({ path: "src/b.py" }),
+          change({ path: "src/notes.txt", status: "?" }),
+        ];
+        const diffOf = (path: string) => ({
+          change: change({ path }),
+          patch: `diff --git a/${path} b/${path}\n@@ -0,0 +1 @@\n+${path === "src/b.py" ? "other" : "found"}\n`,
+        });
+        serve({
+          "GET /api/changes": () =>
+            json({ branch: null, groups: [{ ...GROUP, changes, count: 2 }], commit: null }),
+          "GET /api/diff": (request) =>
+            json(diffOf(new URL(request.url).searchParams.get("path") ?? "")),
+          "GET /api/diffs": () =>
+            json({ diffs: [diffOf("src/b.py")], new: { "src/b.py": null }, next: null }),
+        });
+        renderWithQueries(<Diff initial={SINCE_HEAD} />);
+        const stacked = await screen.findByRole("button", { name: "Files in src/" });
+        const untracked = screen.getByRole("region", { name: "Untracked" });
+        await userEvent.click(within(untracked).getByText("notes.txt")); // open, to find in
+        await userEvent.click(within(untracked).getAllByTitle("src/")[0] as HTMLElement);
+        await userEvent.click(stacked);
+        expect(within(untracked).queryByText("notes.txt")).toBeNull();
+        await userEvent.click(screen.getByRole("button", { name: "Find in this diff" }));
+        await userEvent.type(within(bar()).getByRole("textbox"), "found");
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 1"));
+        await userEvent.keyboard("{Enter}");
+        expect(within(untracked).getByText("notes.txt")).toBeInTheDocument();
+        expect(stacked).toHaveAttribute("aria-expanded", "false");
       });
 
       it("unfolds a folded file a match is stepped to, and shows a large diff", async () => {

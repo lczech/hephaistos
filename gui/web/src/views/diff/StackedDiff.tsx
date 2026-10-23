@@ -4,7 +4,7 @@ import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import changesStyles from "../changes/ChangesView.module.css";
 import { Lines } from "../changes/columns";
-import { type Folds, foldedBy, withFolded } from "../changes/folds";
+import { type Folds, foldedBy, partFolded, withFolded, withPart } from "../changes/folds";
 import {
   type Change,
   type Entry,
@@ -48,6 +48,11 @@ export function stackedPaths(groups: Group[], nested: boolean): string[] {
   return filesOf(stackRows(groups, nested)).map((row) => row.change.path);
 }
 
+/** The parts of a stack that fold apart, as their folds are kept: the files' diffs above, and
+ * the untracked files listed below them, which may show the same directories. */
+export const STACK = "stack";
+export const UNTRACKED = "untracked";
+
 interface Props {
   groups: Group[]; // the changes compared, as `/api/changes` has them
   query: ChangesQuery; // which, to ask for the files in new folders
@@ -75,13 +80,14 @@ export function StackedDiff(props: Props) {
   // Groups cut at the setting's cap, which their lists reached.
   const cut = groups.filter((group) => group.count > group.changes.length);
   const more = cut.reduce((sum, group) => sum + group.count - group.changes.length, 0);
+  const paths = partFolded(folded, STACK);
   const fold = (path: string) => (on: boolean) =>
-    onFoldedChange({ ...folded, paths: withFolded(folded.paths, path, on) });
+    onFoldedChange(withPart(folded, STACK, withFolded(paths, path, on)));
   const stacked = (within: Entry[]): ReactNode =>
     within.map((row) => {
       if (row.type === "directory") {
         // Folded by a directory above it, where each shows by its path.
-        const by = foldedBy(folded.paths, row.path);
+        const by = foldedBy(paths, row.path);
         return (
           <DirectorySection
             key={row.path}
@@ -102,7 +108,7 @@ export function StackedDiff(props: Props) {
           query={{ ...base, path: row.change.path }}
           known={row.change}
           show={show}
-          folded={folded.paths.has(row.change.path)}
+          folded={paths.has(row.change.path)}
           onFoldedChange={fold(row.change.path)}
           find={findIn?.(row.change.path)}
         />
@@ -156,6 +162,7 @@ function Untracked(props: UntrackedProps) {
     onSortedChange: setSorted,
     ungrouped: true,
     nested,
+    part: UNTRACKED,
   });
   // All shown: every file's row open, those found in new folders too, but those closed again.
   const [all, setAll] = useState(false);

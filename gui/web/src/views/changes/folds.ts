@@ -4,18 +4,33 @@ import type { Checkout } from "./checkout";
 
 /**
  * What is folded in a Checkout's Views of a kind: paths (files; directories ending in `/`, with
- * all below them), groups by name; and new folders opened, which are closed unless.
+ * all below them) by the part of the View they are in, groups by name; and new folders opened,
+ * which are closed unless. A part folds apart from others showing the same paths: each group of
+ * Changes, the Diff's stack and its untracked files.
  */
 export type Folds = {
-  paths: ReadonlySet<string>;
+  paths: Readonly<Record<string, ReadonlySet<string>>>;
   groups: ReadonlySet<string>;
   opened: ReadonlySet<string>;
 };
 
-type Saved = Record<string, { paths: string[]; groups: string[]; opened: string[] }>;
+type Saved = Record<
+  string,
+  { paths: Record<string, string[]>; groups: string[]; opened: string[] }
+>;
 
 const NONE: ReadonlySet<string> = new Set();
-const NO_FOLDS: Folds = { paths: NONE, groups: NONE, opened: NONE };
+const NO_FOLDS: Folds = { paths: {}, groups: NONE, opened: NONE };
+
+/** The paths folded in a part of the View. */
+export function partFolded(folds: Folds, part: string): ReadonlySet<string> {
+  return folds.paths[part] ?? NONE;
+}
+
+/** The folds with a part's paths folded these, the others' as they were. */
+export function withPart(folds: Folds, part: string, paths: ReadonlySet<string>): Folds {
+  return { ...folds, paths: { ...folds.paths, [part]: paths } };
+}
 
 /** Folds of each Checkout's Views of a kind, kept in this browser, until unfolded. */
 function keptFolds(kind: "changes" | "diff"): Atom<Saved> {
@@ -24,7 +39,7 @@ function keptFolds(kind: "changes" | "diff"): Atom<Saved> {
     if (typeof saved !== "object" || saved === null) return valid;
     for (const [key, entry] of Object.entries(saved)) {
       const { paths, groups, opened } = (entry ?? {}) as Record<string, unknown>;
-      valid[key] = { paths: strings(paths), groups: strings(groups), opened: strings(opened) };
+      valid[key] = { paths: parts(paths), groups: strings(groups), opened: strings(opened) };
     }
     return valid;
   });
@@ -32,6 +47,12 @@ function keptFolds(kind: "changes" | "diff"): Atom<Saved> {
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+}
+
+/** The paths kept by part; none if kept otherwise. */
+function parts(value: unknown): Record<string, string[]> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([part, paths]) => [part, strings(paths)]));
 }
 
 function checkoutKey(checkout: Checkout): string {
@@ -50,7 +71,13 @@ export function useFolds(
   const key = checkout && checkoutKey(checkout);
   const entry = key === undefined ? undefined : saved[key];
   const folds = entry
-    ? { paths: new Set(entry.paths), groups: new Set(entry.groups), opened: new Set(entry.opened) }
+    ? {
+        paths: Object.fromEntries(
+          Object.entries(entry.paths).map(([part, paths]) => [part, new Set(paths)]),
+        ),
+        groups: new Set(entry.groups),
+        opened: new Set(entry.opened),
+      }
     : NO_FOLDS;
   const setFolds = (next: Folds) => {
     if (key === undefined) return;
@@ -62,9 +89,13 @@ export function useFolds(
 /** What is kept, with a Checkout's folds; none left out. */
 function savedWith(saved: Saved, key: string, next: Folds): Saved {
   const { [key]: _, ...others } = saved;
-  if (next.paths.size + next.groups.size + next.opened.size === 0) return others;
-  const kept = { paths: [...next.paths], groups: [...next.groups], opened: [...next.opened] };
-  return { ...others, [key]: kept };
+  const paths = Object.fromEntries(
+    Object.entries(next.paths).flatMap(([part, folded]) =>
+      folded.size > 0 ? [[part, [...folded]]] : [],
+    ),
+  );
+  if (Object.keys(paths).length + next.groups.size + next.opened.size === 0) return others;
+  return { ...others, [key]: { paths, groups: [...next.groups], opened: [...next.opened] } };
 }
 
 /**

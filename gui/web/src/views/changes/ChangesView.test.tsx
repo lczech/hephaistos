@@ -163,6 +163,40 @@ describe("the Changes View", () => {
     expect(new URL(asked.at(-1)?.url ?? "").searchParams.get("to")).toBe("refs/tags/v1");
   });
 
+  it("folds a directory in each group apart", async () => {
+    const group = (name: "staged" | "unstaged", path: string) => ({
+      name,
+      from: name === "staged" ? "HEAD" : "index",
+      to: name === "staged" ? "index" : "working-tree",
+      changes: [change(path)],
+      count: 1,
+    });
+    serve({
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () =>
+        json({
+          branch: BRANCH,
+          commit: null,
+          groups: [group("staged", "src/a.py"), group("unstaged", "src/b.py")],
+        }),
+    });
+    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    await screen.findByTitle("src/b.py");
+    const [staged, unstaged] = screen.getAllByTitle("src/");
+    await userEvent.click(staged as HTMLElement);
+    expect(screen.queryByTitle("src/a.py")).toBeNull();
+    expect(screen.getByTitle("src/b.py")).toBeInTheDocument(); // not staged: still open
+    await userEvent.click(unstaged as HTMLElement);
+    expect(screen.queryByTitle("src/b.py")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("hephaistos.folds.changes") ?? "")).toEqual({
+      "clone:clone-proj": {
+        paths: { staged: ["src/"], unstaged: ["src/"] },
+        groups: [],
+        opened: [],
+      },
+    });
+  });
+
   it("opens a new folder, asking for the files in it, and closes a group, kept so", async () => {
     const requests = serveChanges();
     const first = renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
@@ -189,7 +223,7 @@ describe("the Changes View", () => {
     await screen.findByTitle("new/a.txt");
     expect(rows()).toEqual(before);
     expect(JSON.parse(localStorage.getItem("hephaistos.folds.changes") ?? "")).toEqual({
-      "clone:clone-proj": { paths: ["src/app/"], groups: [], opened: ["new/"] },
+      "clone:clone-proj": { paths: { staged: ["src/app/"] }, groups: [], opened: ["new/"] },
     });
     expect(localStorage.getItem("hephaistos.folds.diff")).toBeNull();
   });

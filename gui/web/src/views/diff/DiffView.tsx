@@ -35,7 +35,7 @@ import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
-import { foldedBy, unfolding, useFolds, withFolded } from "../changes/folds";
+import { foldedBy, partFolded, unfolding, useFolds, withFolded, withPart } from "../changes/folds";
 import { changesLook, NestedChoice } from "../changes/look";
 import {
   arrowText,
@@ -55,7 +55,7 @@ import styles from "./DiffView.module.css";
 import { type FileText, useDiffFind } from "./diffFind";
 import { type DiffShow, FileSection } from "./FileSection";
 import { diffLook } from "./look";
-import { StackedDiff, stackedPaths } from "./StackedDiff";
+import { STACK, StackedDiff, stackedPaths, UNTRACKED } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
 
@@ -196,7 +196,8 @@ export function DiffView({
     .flatMap((group) => group.changes)
     .filter((change) => change.status !== "?" && !isFolder(change))
     .map((change) => change.path);
-  const hidden = stackedFiles.filter((file) => foldedBy(folded.paths, file) !== undefined);
+  const stackFolded = partFolded(folded, STACK);
+  const hidden = stackedFiles.filter((file) => foldedBy(stackFolded, file) !== undefined);
   // Finding in the diff's lines (`diffFind.ts`). One file's: all of them once its versions came,
   // as its section asked for them (read here only), the patch's until then. A stack's: all its
   // files', asked for at once as the find row opens, in the stack's order; untracked ones only
@@ -226,9 +227,12 @@ export function DiffView({
     });
     files = [...tracked, ...opened];
   }
+  // In the part it shows in: an untracked file while open, listed below the stack.
   const reveal = (path: string) => {
-    if (foldedBy(folded.paths, path) === undefined) return;
-    setFolded({ ...folded, paths: withFolded(folded.paths, path, false) });
+    const part = untrackedOpen.includes(path) ? UNTRACKED : STACK;
+    const paths = partFolded(folded, part);
+    if (foldedBy(paths, path) === undefined) return;
+    setFolded(withPart(folded, part, withFolded(paths, path, false)));
   };
   const found = useDiffFind(files, finding, show.look.whole, reveal);
 
@@ -361,12 +365,15 @@ export function DiffView({
                     : undefined
               }
               onChange={(on) =>
-                setFolded({
-                  ...folded,
-                  paths: on
-                    ? new Set([...folded.paths, ...stackedFiles])
-                    : unfolding(folded.paths, stackedFiles),
-                })
+                setFolded(
+                  withPart(
+                    folded,
+                    STACK,
+                    on
+                      ? new Set([...stackFolded, ...stackedFiles])
+                      : unfolding(stackFolded, stackedFiles),
+                  ),
+                )
               }
               ways={[
                 { icon: ChevronsDownUp, title: "Fold all files to their headers" },

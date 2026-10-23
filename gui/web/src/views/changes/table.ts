@@ -3,7 +3,7 @@ import { type ChangesQuery, useChangesWithin } from "../../api/queries";
 import { useListTable } from "../../components/table/list";
 import { columnWidths } from "../../components/table/widths";
 import { changesColumns } from "./columns";
-import { type Folds, foldedBy, unfolding, withFolded } from "./folds";
+import { type Folds, foldedBy, partFolded, unfolding, withFolded, withPart } from "./folds";
 import {
   type Change,
   changedLines,
@@ -25,6 +25,7 @@ interface Options {
   totalled?: boolean; // all groups' totals in a first row
   folded: Folds; // what is folded and opened, kept per Checkout
   onFoldedChange: (folded: Folds) => void;
+  part?: string; // the View's part its directories fold in; else each group's own
 }
 
 /**
@@ -35,6 +36,8 @@ interface Options {
 export function useChangesTable(options: Options) {
   const { query, groups, sorted, onSortedChange, ungrouped, nested, totalled } = options;
   const { folded, onFoldedChange } = options;
+  // Where a directory folds: apart from the same path in other groups or parts of the View.
+  const partOf = (group: Group) => options.part ?? group.name;
   // New folders are closed until opened, so only those opened are asked about.
   const paths = groups.flatMap((group) =>
     group.changes
@@ -57,7 +60,7 @@ export function useChangesTable(options: Options) {
   // Directories in new folders too, once their files are there.
   const holding = holdingRows(grouped);
   const expanded = Object.fromEntries(
-    [...holding].map(([id, entry]) => [id, isOpen(entry, folded)]),
+    [...holding].map(([id, entry]) => [id, isOpen(entry, folded, partOf)]),
   );
   const total: Entry[] =
     totalled && groups.length > 0 ? [{ type: "total", groups, subRows: [] }] : [];
@@ -68,7 +71,7 @@ export function useChangesTable(options: Options) {
   const folds = (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry));
   const columns = changesColumns(most, folds, ungrouped ? 0 : 1);
   // Every row that holds rows open, new folders too.
-  const openAll = () => onFoldedChange(opening(folded, [...holding.values()]));
+  const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
   const table = useListTable({
     columns,
     data: listed,
@@ -86,7 +89,7 @@ export function useChangesTable(options: Options) {
       let changed = folded;
       for (const [id, entry] of holding) {
         const open = next[id] === true;
-        if (open !== expanded[id]) changed = toggled(changed, entry, open);
+        if (open !== expanded[id]) changed = toggled(changed, entry, open, partOf);
       }
       onFoldedChange(changed);
     },
@@ -96,14 +99,21 @@ export function useChangesTable(options: Options) {
 
 /** Whether a row that holds rows is open: a group or directory unless folded, a new folder if
  * opened. */
-function isOpen(entry: Entry, folded: Folds): boolean {
+function isOpen(entry: Entry, folded: Folds, partOf: (group: Group) => string): boolean {
   if (entry.type === "group") return !folded.groups.has(entry.group.name);
-  if (entry.type === "directory") return foldedBy(folded.paths, entry.path) === undefined;
+  if (entry.type === "directory") {
+    return foldedBy(partFolded(folded, partOf(entry.group)), entry.path) === undefined;
+  }
   return entry.type === "change" && folded.opened.has(entry.change.path);
 }
 
 /** The folds with a row that holds rows opened or closed. */
-function toggled(folded: Folds, entry: Entry, open: boolean): Folds {
+function toggled(
+  folded: Folds,
+  entry: Entry,
+  open: boolean,
+  partOf: (group: Group) => string,
+): Folds {
   if (entry.type === "group") {
     const groups = new Set(folded.groups);
     if (open) groups.delete(entry.group.name);
@@ -111,7 +121,8 @@ function toggled(folded: Folds, entry: Entry, open: boolean): Folds {
     return { ...folded, groups };
   }
   if (entry.type === "directory") {
-    return { ...folded, paths: withFolded(folded.paths, entry.path, !open) };
+    const part = partOf(entry.group);
+    return withPart(folded, part, withFolded(partFolded(folded, part), entry.path, !open));
   }
   if (entry.type !== "change") return folded;
   const opened = new Set(folded.opened);
@@ -121,17 +132,22 @@ function toggled(folded: Folds, entry: Entry, open: boolean): Folds {
 }
 
 /** The folds with all these rows open: groups and directories unfolded, new folders opened. */
-function opening(folded: Folds, rows: Entry[]): Folds {
+function opening(folded: Folds, rows: Entry[], partOf: (group: Group) => string): Folds {
   const names = new Set<string>(
     rows.flatMap((row) => (row.type === "group" ? [row.group.name] : [])),
   );
   const folders = rows.flatMap((row) => (row.type === "change" ? [row.change.path] : []));
-  const directories = rows.flatMap((row) => (row.type === "directory" ? [row.path] : []));
-  return {
-    paths: unfolding(folded.paths, directories),
+  let next: Folds = {
+    ...folded,
     groups: new Set([...folded.groups].filter((name) => !names.has(name))),
     opened: new Set([...folded.opened, ...folders]),
   };
+  for (const row of rows) {
+    if (row.type !== "directory") continue;
+    const part = partOf(row.group);
+    next = withPart(next, part, unfolding(partFolded(next, part), [row.path]));
+  }
+  return next;
 }
 
 /** Each file's lines changed, as far as known, those in new folders opened too. */
