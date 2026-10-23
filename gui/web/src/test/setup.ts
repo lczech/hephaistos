@@ -40,10 +40,18 @@ Element.prototype.checkVisibility ??= function (this: Element, options?: CheckVi
   return !(options?.visibilityProperty && ["hidden", "collapse"].includes(visibility));
 };
 
-// Live connections stay connecting, unless a test opens them.
+// No test reaches a Server: requests fail unless a test answers them (`serve`), and live
+// connections stay connecting unless it opens them. Set once rather than stubbed, so that what
+// the GUI asks for after a test ended, e.g. a diff scrolled near, meets them too, not the
+// browser's own.
+globalThis.fetch = async (input: RequestInfo | URL) => {
+  const url = input instanceof Request ? input.url : String(input);
+  throw new Error(`no Server in tests: ${url}; answer it with serve()`);
+};
+globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket;
+
 beforeEach(() => {
   FakeSocket.opened = [];
-  vi.stubGlobal("WebSocket", FakeSocket);
 });
 
 afterEach(() => {
