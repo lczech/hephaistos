@@ -20,14 +20,14 @@ import {
   useChanges,
   useDiff,
   useDiffFiles,
+  useDiffs,
+  useDiffsOf,
   useRepositories,
   useSetting,
 } from "../../api/queries";
-import type { DiffFind, DiffMark } from "../../components/diff/Diff";
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
-import { useCurrentMatch } from "../../components/find/useFind";
 import { BarButton, BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
@@ -35,7 +35,7 @@ import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
-import { foldedBy, unfolding, useFolds } from "../changes/folds";
+import { foldedBy, unfolding, useFolds, withFolded } from "../changes/folds";
 import { changesLook, NestedChoice } from "../changes/look";
 import {
   arrowText,
@@ -52,10 +52,10 @@ import { useKeyTarget } from "../keys";
 import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
+import { type FileText, useDiffFind } from "./diffFind";
 import { type DiffShow, FileSection } from "./FileSection";
-import { useFileFind } from "./fileFind";
 import { diffLook } from "./look";
-import { StackedDiff } from "./StackedDiff";
+import { StackedDiff, stackedPaths } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
 
@@ -164,27 +164,9 @@ export function DiffView({
   const [look, setLook] = useAtom(diffLook());
   const [{ nested }] = useAtom(changesLook());
   const view = useRef<HTMLElement>(null);
-  // Finding in one file's lines: all of them once its versions came, as its section asked for
-  // them (read here only), the patch's until then; matches count where they are the diff's
-  // lines: the patch's, or all with Whole file, until the renderer tells, e.g. once collapsed
-  // lines are expanded.
   const finding = findOf(fragment);
   const setFinding = (next: typeof finding, typed = false) =>
     setFragment(withFind(fragment, next), typed);
-  const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
-  const patch = query && fileDiff.data?.patch;
-  const { finding: found, marks } = useFileFind(patch ?? undefined, versions.data?.new, finding);
-  const [told, setTold] = useState<{ marks: readonly DiffMark[]; shown: readonly number[] }>();
-  const shownMarks =
-    told?.marks === marks
-      ? told.shown
-      : marks.flatMap((mark, at) => (look.whole || mark.inPatch ? [at] : []));
-  const [current, step] = useCurrentMatch(marks, shownMarks.length);
-  const diffFind: DiffFind | undefined = finding && {
-    marks,
-    current: marks[shownMarks[current] ?? -1],
-    onShown: (shown) => setTold({ marks, shown }),
-  };
   const findKey = useKeyTarget(finding ? undefined : "search"); // the field's, once open
   const findButton = useRef<HTMLButtonElement>(null); // focused again once the bar closes
   const narrow = useNarrow(view, NARROW);
@@ -215,6 +197,40 @@ export function DiffView({
     .filter((change) => change.status !== "?" && !isFolder(change))
     .map((change) => change.path);
   const hidden = stackedFiles.filter((file) => foldedBy(folded.paths, file) !== undefined);
+  // Finding in the diff's lines (`diffFind.ts`). One file's: all of them once its versions came,
+  // as its section asked for them (read here only), the patch's until then. A stack's: all its
+  // files', asked for at once as the find row opens, in the stack's order; untracked ones only
+  // while open, after them. A match stepped to in a folded file unfolds it, for good.
+  const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
+  const stack = query === undefined && checkout && base ? { ...checkout, ...base } : undefined;
+  const all = useDiffs(finding && stack);
+  const [untrackedOpen, setUntrackedOpen] = useState<readonly string[]>([]);
+  const untrackedDiffs = useDiffsOf(stack ?? {}, finding ? untrackedOpen : []);
+  let files: FileText[] | undefined;
+  if (query !== undefined) {
+    const patch = fileDiff.data?.patch;
+    if (patch === null) files = [];
+    else if (patch !== undefined) {
+      files = [{ path: query.path, patch, newText: versions.data?.new }];
+    }
+  } else if (all.data) {
+    const { diffs, texts } = all.data;
+    const patches = new Map(diffs.map((diff) => [diff.change?.path, diff.patch]));
+    const tracked = stackedPaths(groups, nested).flatMap((path) => {
+      const patch = patches.get(path);
+      return patch ? [{ path, patch, newText: texts[path] }] : [];
+    });
+    const opened = untrackedOpen.flatMap((path, at) => {
+      const patch = untrackedDiffs[at]?.data?.patch;
+      return patch ? [{ path, patch, newText: undefined }] : [];
+    });
+    files = [...tracked, ...opened];
+  }
+  const reveal = (path: string) => {
+    if (foldedBy(folded.paths, path) === undefined) return;
+    setFolded({ ...folded, paths: withFolded(folded.paths, path, false) });
+  };
+  const found = useDiffFind(files, finding, show.look.whole, reveal);
 
   let body: ReactNode;
   if (checkout === undefined || base === undefined) {
@@ -226,7 +242,7 @@ export function DiffView({
         alone
         query={query}
         show={show}
-        find={diffFind}
+        find={found.findIn(query.path)}
         unchanged={
           revisions ? (
             <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
@@ -256,6 +272,8 @@ export function DiffView({
         nested={nested}
         folded={folded}
         onFoldedChange={setFolded}
+        findIn={found.findIn}
+        onUntrackedOpen={setUntrackedOpen}
       />
     );
   }
@@ -285,7 +303,7 @@ export function DiffView({
           />
         )}
         <BarEnd>
-          {query && (
+          {checkout && base && (
             <BarButton
               ref={(button) => {
                 findButton.current = button;
@@ -394,16 +412,16 @@ export function DiffView({
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
       )}
-      {query && finding && (
+      {finding && (
         <FindBar
           label="Find in the diff"
           query={finding}
           onChange={setFinding}
           onTypingEnd={endTyping}
-          finding={found}
-          count={shownMarks.length}
-          current={current}
-          onStep={step}
+          finding={found.finding}
+          count={found.count}
+          current={found.current}
+          onStep={found.step}
           onClose={() => {
             setFinding(undefined);
             findButton.current?.focus();

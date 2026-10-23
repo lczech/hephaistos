@@ -30,6 +30,7 @@ from hephaistos.core.serialize import (
     ConfigJson,
     DiffFilesJson,
     DiffJson,
+    DiffsJson,
     EventJson,
     EventKindJson,
     HistoryJson,
@@ -84,6 +85,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/changes": ("data", "focus"),  # focus: files edited, which change no State
     "/api/diff": ("data", "focus"),
     "/api/diff/files": ("data", "focus"),
+    "/api/diffs": ("data", "focus"),
     "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
@@ -360,6 +362,40 @@ def diff_show(  # noqa: PLR0913 - one parameter per choice
     max_bytes = config.settings().gui.diff.max_bytes
     found = changes.diff(top, base, target, path, max_bytes=max_bytes, context=context)
     return serialize.diff_json(found)
+
+
+@router.get("/diffs")
+def diffs_show(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    from_: Annotated[str | None, Query(alias="from")] = None,
+    to: str | None = None,
+    commit: str | None = None,
+    context: Annotated[int, Query(ge=0)] = 3,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    new: bool = False,
+) -> DiffsJson:
+    """The diffs of a comparison's files, as `/api/diff` gives each, but untracked files'.
+
+    A page of them, from `skip` on, up to `gui.diff.max_bytes` in all; `next` asks for the rest.
+    With `new`, the files' new versions too, as `/api/diff/files` has them.
+    """
+    top = _working_tree(paths, clone, worktree, bare=_commits_only(from_, to, commit))
+    base, target = _revisions(top, from_, to, commit)
+    limits = config.settings().gui.diff
+    found = changes.diffs(
+        top,
+        base,
+        target,
+        max_files=limits.max_files,
+        max_bytes=limits.max_bytes,
+        context=context,
+        skip=skip,
+        new=new,
+    )
+    return serialize.diffs_json(found)
 
 
 @router.get("/diff/files")

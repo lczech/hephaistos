@@ -2,12 +2,13 @@
 
 A revision is `index`, `working-tree`, or a commit, by anything git resolves to one (`HEAD`,
 `main~2`); a commit alone is compared with its first parent. Without revisions, the changes come
-in the groups `git status` shows; for one file, also git's patch and both its versions. Only
-git's commands meant for scripts run, never external diff tools or text conversions, and none
-takes a lock.
+in the groups `git status` shows; for one file, also git's patch and both its versions; for all
+of a comparison's files, their patches, a page at a time. Only git's commands meant for scripts
+run, never external diff tools or text conversions, and none takes a lock.
 """
 
 import functools
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -565,3 +566,66 @@ def versions(top: Path, base: str, target: str, path: str, *, max_bytes: int) ->
         _contents(top, resolved[0], old_path, max_bytes),
         _contents(top, resolved[1], new_path, max_bytes),
     )
+
+
+@dataclass(frozen=True)
+class Diffs:
+    """A page of a comparison's diffs, each as `diff` gives it, in path order."""
+
+    diffs: tuple[Diff, ...]
+    new: dict[str, str | None] | None  # by path, the files' new versions, if asked for
+    next: int | None  # where the next page starts, if there is one
+
+
+_PATCH_WORKERS = 8  # patches made at once: git mostly waits for the disk
+
+
+def diffs(  # noqa: PLR0913 - the comparison, then how
+    top: Path,
+    base: str,
+    target: str,
+    *,
+    max_files: int,
+    max_bytes: int,
+    context: int = 3,
+    skip: int = 0,
+    new: bool = False,
+) -> Diffs:
+    """The diffs of the files changed from `base` to `target`, a page of them from `skip` on.
+
+    The files `changes` lists, up to `max_files`, but untracked ones; each with git's patch as
+    `diff` makes it, and with `new` its new version as `versions` reads it: None without a patch,
+    or if larger than `max_bytes`. A page holds up to `max_bytes` of them in all, at least one file.
+    """
+    resolved = (_resolved(top, base), _resolved(top, target))
+    arguments = diff_arguments(*resolved)
+    found = [] if arguments is None else _diff(top, arguments, [])
+    listed = sorted(found, key=lambda change: change.path)[:max_files]
+
+    def made(change: Change) -> tuple[Diff, str | None]:
+        found = Diff(change, _patch(top, arguments or [], change, max_bytes, context))
+        if not new or found.patch is None:  # no lines to show more of
+            return found, None
+        try:
+            return found, _contents(top, resolved[1], change.path, max_bytes)
+        except ChangesError:  # too large
+            return found, None
+
+    page: list[tuple[Diff, str | None]] = []
+    held = 0
+    at = skip
+    with ThreadPoolExecutor(max_workers=_PATCH_WORKERS) as pool:
+        while at < len(listed):
+            for found, text in pool.map(made, listed[at : at + _PATCH_WORKERS]):
+                size = len((found.patch or "").encode()) + len((text or "").encode())
+                if page and held + size > max_bytes:
+                    return _page(page, at, new=new)
+                page.append((found, text))
+                held += size
+                at += 1
+    return _page(page, None, new=new)
+
+
+def _page(page: list[tuple[Diff, str | None]], at: int | None, *, new: bool) -> Diffs:
+    texts = {found.change.path: text for found, text in page if found.change} if new else None
+    return Diffs(tuple(found for found, _ in page), texts, at)

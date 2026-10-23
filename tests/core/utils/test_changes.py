@@ -9,10 +9,12 @@ from hephaistos.core.utils.changes import (
     Change,
     Changes,
     ChangesError,
+    Diffs,
     Versions,
     changes,
     diff,
     diff_arguments,
+    diffs,
     versions,
 )
 from support import create, git
@@ -404,6 +406,63 @@ def test_diff_is_of_a_file(repo: Path) -> None:
         diff(repo, "index", "working-tree", "src/", max_bytes=1000)
     with pytest.raises(ChangesError, match="within"):
         diff(repo, "index", "working-tree", "../a.txt", max_bytes=1000)
+
+
+def _changed_files(repo: Path) -> None:
+    """A file changed, one renamed, one deleted, one binary, and one untracked."""
+    _write(repo, "a.txt", "one\n2\n")
+    git(repo, "mv", "old.txt", "new.txt")
+    (repo / "gone.txt").unlink()
+    _write(repo, "image.bin", b"\0\1\2")
+    git(repo, "add", "--all")
+    _write(repo, "notes.md", "untracked\n")
+
+
+def test_diffs_are_each_files_diff(repo: Path) -> None:
+    _changed_files(repo)
+    found = diffs(repo, "HEAD", "working-tree", max_files=100, max_bytes=1000)
+    paths = ["a.txt", "gone.txt", "image.bin", "new.txt"]  # in path order, but untracked
+    assert found == Diffs(
+        tuple(diff(repo, "HEAD", "working-tree", path, max_bytes=1000) for path in paths),
+        None,
+        None,
+    )
+    cut = diffs(repo, "HEAD", "working-tree", max_files=2, max_bytes=1000)
+    assert [found.change.path for found in cut.diffs if found.change] == paths[:2]
+    assert diffs(repo, "HEAD", "HEAD", max_files=100, max_bytes=1000) == Diffs((), None, None)
+
+
+def test_diffs_with_new_versions(repo: Path) -> None:
+    _changed_files(repo)
+    _write(repo, "big.txt", "big\n" * 300)  # its patch is too large
+    git(repo, "add", "big.txt")
+    found = diffs(repo, "HEAD", "index", max_files=100, max_bytes=1000, new=True)
+    assert found.new == {
+        "a.txt": "one\n2\n",
+        "big.txt": None,
+        "gone.txt": None,
+        "image.bin": None,
+        "new.txt": "same\n" * 5,
+    }
+
+
+def test_diffs_in_pages(repo: Path) -> None:
+    _commit(repo, {f"{n}.txt": "x\n" for n in range(10)})
+    for n in range(10):
+        _write(repo, f"{n}.txt", f"{n}\n" * (n * 20))  # the last over max_bytes alone
+    patches: list[str] = []
+    skip: int | None = 0
+    pages = 0
+    while skip is not None:
+        page = diffs(repo, "HEAD", "working-tree", max_files=100, max_bytes=400, skip=skip)
+        assert page.diffs  # at least one
+        held = sum(len((found.patch or "").encode()) for found in page.diffs)
+        assert held <= 400 or len(page.diffs) == 1
+        patches += [found.change.path for found in page.diffs if found.change]
+        skip = page.next
+        pages += 1
+    assert patches == sorted(f"{n}.txt" for n in range(10))
+    assert pages > 2
 
 
 def test_versions_in_each_state(repo: Path) -> None:

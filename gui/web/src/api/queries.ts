@@ -9,6 +9,7 @@ import {
   useMutation,
   useQueries,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 import { api, type Schemas, unwrap } from "./client";
 import type { paths } from "./schema";
@@ -104,20 +105,81 @@ export function useChangesWithin(query: ChangesQuery, folders: string[]) {
 /** Which file's change, compared how; the lines around each change come from the settings. */
 export type DiffQuery = NonNullable<paths["/api/diff/files"]["get"]["parameters"]["query"]>;
 
+/** The lines around each hunk, from the settings once known; undefined while they aren't. */
+function useDiffContext(): { context?: number } | undefined {
+  const config = useConfig();
+  if (config.isPending) return undefined;
+  const context = config.data?.settings.find(({ key }) => key === "gui.diff.context")?.applied;
+  return typeof context === "number" ? { context } : {};
+}
+
+// Undefined while it can't be asked yet, for a disabled query.
+function diffQuery(asked: DiffQuery | undefined) {
+  return {
+    queryKey: [...KEYS.diff, "patch", asked],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/diff", { params: { query: asked as DiffQuery } })),
+  };
+}
+
 /**
  * A file's change and git's patch, with `gui.diff.context` lines around each hunk, asked once
  * the settings are known (or can't be); again as the Checkout's changes are.
  */
 export function useDiff(query: DiffQuery | undefined) {
-  const config = useConfig();
-  const context = config.data?.settings.find(({ key }) => key === "gui.diff.context")?.applied;
-  const asked = query && { ...query, ...(typeof context === "number" && { context }) };
+  const context = useDiffContext();
+  const asked = query && context && { ...query, ...context };
   return useQuery({
-    queryKey: [...KEYS.diff, "patch", asked],
-    queryFn: async () =>
-      unwrap(await api.GET("/api/diff", { params: { query: asked as DiffQuery } })),
+    ...diffQuery(asked),
     placeholderData: keepPreviousData,
-    enabled: asked !== undefined && !config.isPending,
+    enabled: asked !== undefined,
+  });
+}
+
+/** These files' diffs, as `useDiff` asks for each: e.g. those its sections show. */
+export function useDiffsOf(base: Omit<DiffQuery, "path">, paths: readonly string[]) {
+  const context = useDiffContext();
+  return useQueries({
+    queries: paths.map((path) => ({
+      ...diffQuery(context && { ...base, path, ...context }),
+      enabled: context !== undefined,
+    })),
+  });
+}
+
+/** Which comparison's diffs: `/api/diffs`'s parameters, but the page's. */
+export type DiffsQuery = Omit<DiffQuery, "path">;
+
+/**
+ * All diffs of a comparison but its untracked files', with the files' new versions, page after
+ * page: e.g. to find in. Each file's is kept as `useDiff` would ask for it, unless it was asked
+ * already, so that its section has it at once.
+ */
+export function useDiffs(query: DiffsQuery | undefined) {
+  const context = useDiffContext();
+  const client = useQueryClient();
+  const asked = query && context && { ...query, ...context };
+  return useQuery({
+    queryKey: [...KEYS.diff, "all", asked],
+    queryFn: async () => {
+      const diffs: Schemas["DiffJson"][] = [];
+      const texts: Record<string, string | null> = {};
+      for (let skip: number | null = 0; skip !== null; ) {
+        const page: Schemas["DiffsJson"] = unwrap(
+          await api.GET("/api/diffs", { params: { query: { ...asked, skip, new: true } } }),
+        );
+        diffs.push(...page.diffs);
+        Object.assign(texts, page.new);
+        skip = page.next;
+      }
+      for (const diff of diffs) {
+        if (!diff.change) continue;
+        const { queryKey } = diffQuery({ ...(asked as DiffsQuery), path: diff.change.path });
+        if (client.getQueryData(queryKey) === undefined) client.setQueryData(queryKey, diff);
+      }
+      return { diffs, texts };
+    },
+    enabled: asked !== undefined,
   });
 }
 

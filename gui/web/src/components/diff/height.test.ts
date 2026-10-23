@@ -28,9 +28,12 @@ describe("a diff's height", () => {
   });
 
   it("has separators before, between and after its hunks, where the file goes on", () => {
-    expect(diffRows(PATCH, look)).toMatchObject({ separators: 2, ends: 1 }); // after: unknown
-    expect(diffRows(PATCH, look, 20)).toMatchObject({ separators: 3, ends: 0 });
-    expect(diffRows(PATCH, look, 11)).toMatchObject({ separators: 2, ends: 1 }); // ends with the last hunk
+    expect(diffRows(PATCH, look)).toEqual({ rows: 8, separators: 2, ends: 1 }); // after: unknown
+    // Known: line 1, alone before the first hunk, a row rather than a separator; so a line alone
+    // after the last.
+    expect(diffRows(PATCH, look, 20)).toEqual({ rows: 9, separators: 2, ends: 1 });
+    expect(diffRows(PATCH, look, 11)).toEqual({ rows: 9, separators: 1, ends: 2 }); // ends with it
+    expect(diffRows(PATCH, look, 12)).toEqual({ rows: 10, separators: 1, ends: 2 });
   });
 
   it("is the whole file, and the lines removed, once the file is shown whole", () => {

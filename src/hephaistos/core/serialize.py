@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 20)
+API_VERSION = ApiVersion(0, 21)
 
 
 class Ref(TypedDict):
@@ -879,6 +879,21 @@ def diff_json(found: changes.Diff) -> DiffJson:
     return DiffJson(
         change=None if found.change is None else change_json(found.change),
         patch=found.patch,
+    )
+
+
+class DiffsJson(TypedDict):
+    """A page of a comparison's diffs, each as `/api/diff` gives it, in path order."""
+
+    diffs: list[DiffJson]
+    new: dict[str, str | None] | None  # by path, the files' new versions, if asked for
+    next: int | None  # `skip` for the next page, if there is one
+
+
+def diffs_json(found: changes.Diffs) -> DiffsJson:
+    """A page of diffs, as the API gives it."""
+    return DiffsJson(
+        diffs=[diff_json(diff) for diff in found.diffs], new=found.new, next=found.next
     )
 
 

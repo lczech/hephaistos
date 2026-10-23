@@ -365,6 +365,23 @@ def test_diff_of_a_file(client: TestClient, repo: Path) -> None:
     assert client.get("/api/diff", params={**asked, "context": -1}).status_code == 400
 
 
+def test_diffs_of_a_comparison(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    for name in ("a.txt", "b.txt"):
+        (repo / name).write_text(f"{name}\n")
+    git(repo, "add", "a.txt", "b.txt")
+    (repo / "notes.md").write_text("untracked\n")  # left out
+    asked = {"clone": clone["id"], "from": "HEAD", "to": "working-tree"}
+    found = client.get("/api/diffs", params={**asked, "new": True}).json()
+    each = [
+        client.get("/api/diff", params={**asked, "path": name}).json()
+        for name in ("a.txt", "b.txt")
+    ]
+    assert found == {"diffs": each, "new": {"a.txt": "a.txt\n", "b.txt": "b.txt\n"}, "next": None}
+    rest = client.get("/api/diffs", params={**asked, "skip": 1}).json()
+    assert rest == {"diffs": each[1:], "new": None, "next": None}
+
+
 def _commit(repo: Path, message: str, *args: str) -> str:
     git(repo, "commit", "--quiet", "--allow-empty", "--message", message, *args)
     return git(repo, "rev-parse", "HEAD")

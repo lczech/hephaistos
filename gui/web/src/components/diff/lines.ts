@@ -1,15 +1,15 @@
 // The lines a diff shows, in order, e.g. to find in: those of git's patch, or with the whole
 // file, all of them. Apart from `Diff`, which would load the renderer.
 
-import { lineCount } from "./height";
+import { lineCount, UNCOLLAPSED } from "./height";
 
-/** A line: its text, its numbers in the old and new versions, where it is in them, and whether
- * it is one of the patch's, shown unless the whole file is hidden, rather than in between. */
+/** A line: its text, its numbers in the old and new versions, and whether it is collapsed, left
+ * out between or around the patch's hunks until expanded, or Whole file is on. */
 export interface DiffLine {
   text: string;
   old: number | null; // null: added
   new: number | null; // null: removed
-  inPatch: boolean;
+  collapsed: boolean;
 }
 
 const HUNK = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
@@ -24,10 +24,11 @@ export function diffLines(patch: string, newText?: string | null): DiffLine[] {
   const lines: DiffLine[] = [];
   let next = 1; // the new version's first line not shown yet
   let delta = 0; // a line's number in the old version, less its number in the new one
-  // The new version's lines from `next` on, up to `to`, unchanged.
+  // The new version's lines from `next` on, up to `to`, unchanged: collapsed, unless few.
   const unchanged = (to: number) => {
+    const collapsed = to - next + 1 > UNCOLLAPSED;
     for (; whole && next <= to; next++) {
-      lines.push({ text: whole[next - 1] ?? "", old: next + delta, new: next, inPatch: false });
+      lines.push({ text: whole[next - 1] ?? "", old: next + delta, new: next, collapsed });
     }
   };
   let old = 0;
@@ -48,10 +49,10 @@ export function diffLines(patch: string, newText?: string | null): DiffLine[] {
     } else if (inHunk) {
       // Within hunks, not the patch's header, whose lines start alike.
       const text = line.slice(1);
-      const inPatch = true;
-      if (line.startsWith(" ")) lines.push({ text, old: old++, new: current++, inPatch });
-      else if (line.startsWith("-")) lines.push({ text, old: old++, new: null, inPatch });
-      else if (line.startsWith("+")) lines.push({ text, old: null, new: current++, inPatch });
+      const collapsed = false;
+      if (line.startsWith(" ")) lines.push({ text, old: old++, new: current++, collapsed });
+      else if (line.startsWith("-")) lines.push({ text, old: old++, new: null, collapsed });
+      else if (line.startsWith("+")) lines.push({ text, old: null, new: current++, collapsed });
     }
   }
   if (newText) unchanged(lineCount(newText));

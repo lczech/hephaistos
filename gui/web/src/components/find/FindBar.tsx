@@ -135,7 +135,7 @@ function Tool({ icon: Icon, label, keys, onClick, pressed, disabled }: ToolProps
 function statusText(finding: Finding | undefined, current: number, count: number): string {
   if (finding === undefined) return "";
   if ("error" in finding) return finding.error;
-  if (!("matches" in finding)) return "Finding…";
+  if (!("matches" in finding)) return "Searching…";
   if (count === 0) return "No results";
   const of = `${count.toLocaleString("en")}${finding.more ? "+" : ""}`;
   return `${(current + 1).toLocaleString("en")} of ${of}`;

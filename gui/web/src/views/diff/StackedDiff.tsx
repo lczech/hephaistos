@@ -1,5 +1,5 @@
 import type { SortingState } from "@tanstack/react-table";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import changesStyles from "../changes/ChangesView.module.css";
@@ -19,6 +19,7 @@ import {
 } from "../changes/rows";
 import { useChangesTable } from "../changes/table";
 import styles from "./DiffView.module.css";
+import type { FileFind } from "./diffFind";
 import { type DiffShow, DirectorySection, FileBody, FileSection } from "./FileSection";
 
 const BY_PATH: SortingState = [{ id: "path", desc: false }];
@@ -32,6 +33,21 @@ function filesOf(rows: Entry[]): Extract<Entry, { type: "change" }>[] {
 
 const isUntracked = (change: Change) => change.status === "?";
 
+/** The stack's rows: its directories and files, without the groups' rows, as a stack compares
+ * two Revisions; not untracked files, which are listed apart. */
+function stackRows(groups: Group[], nested: boolean): Entry[] {
+  const tracked = groups.map((group) => ({
+    ...group,
+    changes: group.changes.filter((change) => !isUntracked(change)),
+  }));
+  return entries(tracked, () => undefined, BY_PATH, nested).flatMap((row) => row.subRows);
+}
+
+/** The stack's files in its order, but untracked ones. */
+export function stackedPaths(groups: Group[], nested: boolean): string[] {
+  return filesOf(stackRows(groups, nested)).map((row) => row.change.path);
+}
+
 interface Props {
   groups: Group[]; // the changes compared, as `/api/changes` has them
   query: ChangesQuery; // which, to ask for the files in new folders
@@ -40,6 +56,8 @@ interface Props {
   nested: boolean; // directories in their parents, as Changes lists them
   folded: Folds; // files and directories only their headers show of, kept per Checkout
   onFoldedChange: (folded: Folds) => void;
+  findIn?: (path: string) => FileFind | undefined; // what each file's diff marks
+  onUntrackedOpen?: (paths: readonly string[]) => void; // the untracked files open, in order
 }
 
 /**
@@ -48,13 +66,8 @@ interface Props {
  * untracked files last, listed, each shown on asking. Files and directories fold.
  */
 export function StackedDiff(props: Props) {
-  const { groups, query, base, show, nested, folded, onFoldedChange } = props;
-  const tracked = groups.map((group) => ({
-    ...group,
-    changes: group.changes.filter((change) => !isUntracked(change)),
-  }));
-  // Their directories and files, without the groups' rows: the stack compares two Revisions.
-  const rows = entries(tracked, () => undefined, BY_PATH, nested).flatMap((row) => row.subRows);
+  const { groups, base, show, nested, folded, onFoldedChange, findIn } = props;
+  const rows = stackRows(groups, nested);
   const untracked = groups.flatMap((group) => {
     const changes = group.changes.filter(isUntracked);
     return changes.length > 0 ? [{ ...group, changes, count: changes.length }] : [];
@@ -91,6 +104,7 @@ export function StackedDiff(props: Props) {
           show={show}
           folded={folded.paths.has(row.change.path)}
           onFoldedChange={fold(row.change.path)}
+          find={findIn?.(row.change.path)}
         />
       );
     });
@@ -98,17 +112,7 @@ export function StackedDiff(props: Props) {
     <>
       <Totals groups={groups} />
       {stacked(rows)}
-      {untracked.length > 0 && (
-        <Untracked
-          groups={untracked}
-          query={query}
-          base={base}
-          show={show}
-          nested={nested}
-          folded={folded}
-          onFoldedChange={onFoldedChange}
-        />
-      )}
+      {untracked.length > 0 && <Untracked {...props} groups={untracked} />}
       {more > 0 && (
         <p className={styles.note}>
           {moreText(more, Math.max(...cut.map((group) => group.changes.length)))}.
@@ -140,7 +144,8 @@ interface UntrackedProps extends Omit<Props, "groups"> {
  * lists them, a file's diff shown below its row once opened, or all of them at once.
  */
 function Untracked(props: UntrackedProps) {
-  const { groups, query, base, show, nested, folded, onFoldedChange } = props;
+  const { groups, query, base, show, nested, folded, onFoldedChange, findIn, onUntrackedOpen } =
+    props;
   const [sorted, setSorted] = useState(BY_PATH);
   const { table, folds, listed, openAll } = useChangesTable({
     query,
@@ -156,8 +161,14 @@ function Untracked(props: UntrackedProps) {
   const [all, setAll] = useState(false);
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
-  const ids = filesOf(listed).map(entryId);
+  const files = filesOf(listed);
+  const ids = files.map(entryId);
   const open = all ? new Set(ids.filter((id) => !closed.has(id))) : opened;
+  // Told as the files open change, e.g. to find in them; none once gone.
+  const openFiles = files.flatMap((row) => (open.has(entryId(row)) ? [row.change.path] : []));
+  const said = openFiles.join("\0");
+  useEffect(() => onUntrackedOpen?.(said === "" ? [] : said.split("\0")), [said, onUntrackedOpen]);
+  useEffect(() => () => onUntrackedOpen?.([]), [onUntrackedOpen]);
   const showAll = () => {
     openAll();
     setAll(true);
@@ -193,6 +204,7 @@ function Untracked(props: UntrackedProps) {
               query={{ ...base, path: entry.change.path }}
               known={entry.change}
               show={show}
+              find={findIn?.(entry.change.path)}
             />
           )
         }

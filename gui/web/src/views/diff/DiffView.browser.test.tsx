@@ -43,6 +43,7 @@ interface File {
   patch: string;
   old: string | null;
   new: string;
+  changed?: number; // lines changed each way, as its list says; 1 unless given
 }
 
 /** A changed file: its lines changed, of so many, and its two versions. */
@@ -52,6 +53,7 @@ function changed(path: string, count: number, lines: number[]): File {
     patch: patchOf(path, count, lines),
     old: text(count),
     new: text(count, lines),
+    changed: lines.length,
   };
 }
 
@@ -62,8 +64,8 @@ function serveFiles(files: Record<string, File>): string[] {
     path,
     status: files[path]?.status ?? "M",
     original: null,
-    added: 1,
-    removed: 1,
+    added: files[path]?.changed ?? 1,
+    removed: files[path]?.changed ?? 1,
     binary: false,
     size: null,
     old_size: null,
@@ -94,6 +96,12 @@ function serveFiles(files: Record<string, File>): string[] {
     "GET /api/diff/files": (request) => {
       const file = files[pathOf(request)];
       return json({ old: file?.old, new: file?.new });
+    },
+    "GET /api/diffs": () => {
+      const sorted = [...paths].sort();
+      const diffs = sorted.map((path) => ({ change: change(path), patch: files[path]?.patch }));
+      const texts = Object.fromEntries(sorted.map((path) => [path, files[path]?.new ?? null]));
+      return json({ diffs, new: texts, next: null });
     },
     "GET /api/config": () =>
       json({ host: "laptop", settings: [], sources: [], other_hosts: [], unknown_variables: [] }),
@@ -216,6 +224,66 @@ describe("finding in a file's diff", () => {
   });
 });
 
+describe("finding in all files' diffs", () => {
+  it("brings a match it steps to into view, in a file not drawn yet", async () => {
+    // Far longer than the Panel, each file: the last far below, not drawn yet.
+    const names = ["a", "b", "c", "d", "e", "f"].map((name) => `${name}.txt`);
+    const lines = Array.from({ length: 28 }, (_, at) => 20 + at * 10);
+    serveFiles(Object.fromEntries(names.map((name) => [name, changed(name, 300, lines)])));
+    // Each file's first change: the first match near the top, so the view stays there.
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "LINE 20", case: "1", word: "1" });
+    await drawn("a.txt");
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 6"));
+    const field = screen.getByRole("textbox", { name: "Find in the diff" });
+    await userEvent.click(field);
+    expect(
+      screen.getByRole("region", { name: "f.txt" }).querySelector("diffs-container"),
+    ).toBeNull();
+    await userEvent.keyboard("{Shift>}{Enter}{/Shift}"); // round, to the last
+    expect(count()).toHaveTextContent("6 of 6");
+    const scroller = screen
+      .getByRole("region", { name: "a.txt" })
+      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const file = screen.getByRole("region", { name: "f.txt" });
+    await waitFor(
+      () => {
+        const [range] = [...(CSS.highlights.get("hephaistos-found-current") ?? [])] as Range[];
+        expect(range?.toString()).toBe("LINE 20");
+        expect(
+          file.contains(
+            range?.startContainer.getRootNode() instanceof ShadowRoot
+              ? (range.startContainer.getRootNode() as ShadowRoot).host
+              : null,
+          ),
+        ).toBe(true);
+        const line = range?.getBoundingClientRect();
+        const view = scroller.getBoundingClientRect();
+        expect(line?.top).toBeGreaterThan(view.top);
+        expect(line?.bottom).toBeLessThan(view.bottom);
+      },
+      { timeout: 10_000 },
+    );
+  });
+});
+
+describe("finding in all files' diffs, counted", () => {
+  it("the same wherever it is scrolled to", async () => {
+    // Changes every 20 lines, longer than the Panel: each with `line` in 7 of its patch's
+    // lines a change, 14 changes, and its other lines.
+    const names = ["a", "b", "c", "d", "e", "f"].map((name) => `${name}.txt`);
+    const lines = Array.from({ length: 14 }, (_, at) => 10 + at * 20);
+    serveFiles(Object.fromEntries(names.map((name) => [name, changed(name, 300, lines)])));
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "line", case: "1" });
+    await drawn("a.txt");
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 588"));
+    await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
+    await userEvent.keyboard("{Shift>}{Enter}{/Shift}"); // round, to the last, far below
+    await drawn("f.txt");
+    await new Promise((done) => setTimeout(done, 1000)); // as the files it passed are drawn
+    expect(count()).toHaveTextContent("588 of 588");
+  });
+});
+
 describe("the renderer draws a diff", () => {
   it("as high as its place was held", async () => {
     const files: Record<string, File> = {
@@ -225,6 +293,8 @@ describe("the renderer draws a diff", () => {
       "start.txt": changed("start.txt", 40, [2]),
       "end.txt": changed("end.txt", 40, [39]),
       "whole.txt": changed("whole.txt", 7, [4]),
+      // A line alone between hunks, and at the start: shown, not collapsed.
+      "alone.txt": changed("alone.txt", 40, [5, 13]),
     };
     serveFiles(files);
     const look = { split: true, wrap: false, whole: false };

@@ -27,6 +27,7 @@ import {
   useState,
 } from "react";
 import { MARKS_LOOK, type Marked, markMatches, rangeIn } from "../find/marks";
+import { UNCOLLAPSED } from "./height";
 import { DiffScrollerContext, useDiffScroller } from "./scroller";
 import type { CodeThemes } from "./themes";
 
@@ -49,16 +50,16 @@ export interface DiffMark {
   new: number | null;
   start: number; // UTF-16 offsets, as JS strings
   end: number;
-  inPatch: boolean; // on one of the patch's lines, which always show
+  collapsed: boolean; // on a collapsed line, which shows once expanded, or with Whole file
 }
 
 /** Matches found in a diff's lines: marked where drawn, the current one scrolled into view. */
 export interface DiffFind {
   marks: readonly DiffMark[];
   current: DiffMark | undefined;
-  /** Which marks are on lines shown, by their place, told as that changes: e.g. once collapsed
-   * lines are expanded. */
-  onShown: (shown: readonly number[]) => void;
+  /** Which marks are on the diff's lines, by their place, told as that changes: e.g. once
+   * collapsed lines are expanded; undefined once the diff is gone, e.g. folded. */
+  onShown: (shown: readonly number[] | undefined) => void;
 }
 
 interface Props {
@@ -261,7 +262,7 @@ function useFound(find: DiffFind | undefined) {
   };
   const tellShown = (diff: VirtualizedFileDiff, find: DiffFind) => {
     const shown = find.marks.flatMap((mark, at) =>
-      mark.inPatch || mark.new === null || diff.isLineRenderable(mark.new) ? [at] : [],
+      !mark.collapsed || mark.new === null || diff.isLineRenderable(mark.new) ? [at] : [],
     );
     const text = shown.join();
     if (told.current?.marks === find.marks && told.current.shown === text) return;
@@ -303,7 +304,11 @@ function useFound(find: DiffFind | undefined) {
       return;
     }
     markDrawn(drawn.current.node, find);
-    tellShown(drawn.current.diff, find);
+    // Once it has drawn lines: until then, and while a placeholder far out of view, the renderer
+    // says every line shows. The last told stays meanwhile, as its expanded lines do.
+    if (drawn.current.node.shadowRoot?.querySelector("[data-line]")) {
+      tellShown(drawn.current.diff, find);
+    }
     if (scrollTo.current !== undefined && show(scrollTo.current)) scrollTo.current = undefined;
   };
 
@@ -320,6 +325,7 @@ function useFound(find: DiffFind | undefined) {
     () => () => {
       unmark.current?.();
       resized.current?.disconnect();
+      latest.current?.onShown(undefined);
     },
     [],
   );
@@ -379,6 +385,7 @@ export default function Diff({ patch, look, themes, versions, find }: Props) {
         lineDiffType: "word-alt",
         diffIndicators: "bars",
         disableFileHeader: true,
+        collapsedContextThreshold: UNCOLLAPSED,
         unsafeCSS: PAGE_LOOK,
         onPostRender,
       }}

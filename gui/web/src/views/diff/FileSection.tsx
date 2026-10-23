@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { type DiffQuery, useDiff, useDiffFiles } from "../../api/queries";
-import type { DiffFind, DiffLook, Versions } from "../../components/diff/Diff";
+import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { type DiffRows, diffRows, lineCount } from "../../components/diff/height";
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { useDiffScroller } from "../../components/diff/scroller";
@@ -28,6 +28,7 @@ import {
 } from "../changes/rows";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
+import type { FileFind } from "./diffFind";
 
 /** How the diffs show, the same for all files: the bar's choices, the code's themes. */
 export interface DiffShow {
@@ -77,7 +78,7 @@ interface BodyProps {
   show: DiffShow;
   unchanged?: ReactNode; // what to say if the file has no changes so; by default that
   estimate?: CSSProperties; // as one of many: its height, guessed, until it is drawn
-  find?: DiffFind; // matches to mark in it
+  find?: FileFind; // matches to mark in it
 }
 
 /**
@@ -89,6 +90,8 @@ interface BodyProps {
 export function FileBody({ query, known, show, unchanged, estimate, find }: BodyProps) {
   const diff = useDiff(query);
   const [shownLarge, setShownLarge] = useState(false);
+  // A large diff shows for good once a match found in it is stepped to, as if asked to.
+  if (find?.revealed && !shownLarge) setShownLarge(true);
   const change = diff.data ? diff.data.change : known;
   const patch = diff.data?.patch;
   const waiting =
@@ -211,6 +214,17 @@ export function FileSection({
   const change = diff.data ? (diff.data.change ?? undefined) : body.known;
   const waiting = heightOf(guessed(change, body.show));
   const toggle = useFolding(section, folded, onFoldedChange);
+  // Brought near, so asked for and drawn, once a match found in it is the current one: its diff
+  // then brings the match into view.
+  const scroller = useDiffScroller();
+  const current = body.find?.current;
+  useEffect(() => {
+    const element = section.current;
+    const root = scroller();
+    if (current === undefined || asked || element === null || root === undefined) return;
+    const top = element.getBoundingClientRect().top - root.getBoundingClientRect().top;
+    root.scrollTo({ top: root.scrollTop + top });
+  }, [current, asked, scroller]);
   return (
     <section
       ref={section}

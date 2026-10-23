@@ -336,18 +336,18 @@ describe("the Diff View", () => {
   });
 
   describe("finding in a file's diff", () => {
-    // A change in the middle of a five-line file; `beta` in four of the patch's lines, two
-    // more in the file's others.
+    // A change in the middle of a seven-line file; `beta` in four of the patch's lines, two
+    // more in the lines collapsed around it (two each side: one alone would show).
     const FOUND = `diff --git a/src/main.py b/src/main.py
 --- a/src/main.py
 +++ b/src/main.py
-@@ -2,3 +2,3 @@
+@@ -3,3 +3,3 @@
  beta one
 -alpha beta
 +alpha Beta
  betamax
 `;
-    const OLD = "zero beta\nbeta one\nalpha beta\nbetamax\nlast beta\n";
+    const OLD = "zero beta\nfiller\nbeta one\nalpha beta\nbetamax\nfiller\nlast beta\n";
 
     function serveFound() {
       serve({
@@ -401,6 +401,34 @@ describe("the Diff View", () => {
       await waitFor(() => expect(status()).toHaveTextContent("1 of 3")); // not betamax
       await userEvent.click(screen.getByRole("button", { name: "Whole file" }));
       await waitFor(() => expect(status()).toHaveTextContent("1 of 5")); // + zero, last beta
+    });
+
+    it("counts a line alone between hunks before the diff is drawn: it shows, as the renderer's", async () => {
+      // Lines 1 and 5 changed, 3 alone between their hunks.
+      const patch = `diff --git a/src/main.py b/src/main.py
+@@ -1,2 +1,2 @@
+-a
++b
+ x
+@@ -4,2 +4,2 @@
+ x
+-c
++d
+`;
+      serve({
+        "GET /api/diff": () => json({ change: change(), patch }),
+        "GET /api/diff/files": () => json({ old: "a\nx\nbeta\nx\nc\n", new: "b\nx\nbeta\nx\nd\n" }),
+        "GET /api/config": () =>
+          json({
+            host: "laptop",
+            settings: [],
+            sources: [],
+            other_hosts: [],
+            unknown_variables: [],
+          }),
+      });
+      renderWithQueries(<Diff initial={STAGED} fragment={{ find: "beta" }} />);
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 1"));
     });
 
     it("says why a regular expression is invalid", async () => {
@@ -679,6 +707,85 @@ describe("the Diff View", () => {
       expect(await screen.findByRole("region", { name: "src/b.py" })).toBeInTheDocument();
       expect(screen.queryByRole("figure")).toBeNull();
       expect(asked.diffs).toEqual([]);
+    });
+
+    describe("finding in them", () => {
+      const PATCHES: Record<string, string> = {
+        "README.md": "diff --git a/README.md b/README.md\n@@ -0,0 +1 @@\n+found here\n",
+        "src/b.py": "diff --git a/src/b.py b/src/b.py\n@@ -1 +1 @@\n-x\n+found\n",
+        "notes.txt": "diff --git a/notes.txt b/notes.txt\n@@ -0,0 +1,2 @@\n+found\n+found\n",
+      };
+
+      /** The Server, with the diffs of all tracked files a page each; returns the pages asked. */
+      function serveFinding(large?: number): string[] {
+        const pages: string[] = [];
+        const tracked = ["README.md", "src/b.py"];
+        const diffOf = (path: string) => ({ change: change({ path }), patch: PATCHES[path] });
+        serve({
+          "GET /api/changes": () =>
+            json({ branch: null, groups: [{ ...GROUP, count: 4 }], commit: null }),
+          "GET /api/diff": (request) =>
+            json(diffOf(new URL(request.url).searchParams.get("path") ?? "")),
+          "GET /api/diffs": (request) => {
+            const skip = Number(new URL(request.url).searchParams.get("skip"));
+            pages.push(String(skip));
+            const path = tracked[skip] ?? "";
+            const next = skip + 1 < tracked.length ? skip + 1 : null;
+            return json({ diffs: [diffOf(path)], new: { [path]: null }, next });
+          },
+          "GET /api/config": () =>
+            json({
+              host: "laptop",
+              settings: large === undefined ? [] : [setting("gui.diff.large_lines", large)],
+              sources: [],
+              other_hosts: [],
+              unknown_variables: [],
+            }),
+        });
+        return pages;
+      }
+
+      const bar = () => screen.getByLabelText("Find", { selector: "search" });
+      const status = () => within(bar()).getByRole("status");
+
+      it("finds in all files in the stack's order, untracked ones once open", async () => {
+        vi.stubGlobal("IntersectionObserver", Near);
+        const pages = serveFinding();
+        renderWithQueries(<Diff initial={SINCE_HEAD} fragment={{ find: "found" }} />);
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
+        expect(pages).toEqual(["0", "1"]); // all of them, page by page
+        const untracked = screen.getByRole("region", { name: "Untracked" });
+        await userEvent.click(within(untracked).getByText("notes.txt"));
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
+        await userEvent.click(within(untracked).getByText("notes.txt"));
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
+      });
+
+      it("unfolds a folded file a match is stepped to, and shows a large diff", async () => {
+        vi.stubGlobal("IntersectionObserver", Near);
+        serveFinding(1);
+        renderWithQueries(<Diff initial={SINCE_HEAD} />);
+        const readme = await screen.findByRole("region", { name: "README.md" });
+        await userEvent.click(within(readme).getByText("README.md"));
+        expect(readme).toHaveAttribute("data-folded");
+        await userEvent.click(screen.getByRole("button", { name: "Find in this diff" }));
+        await userEvent.type(within(bar()).getByRole("textbox"), "found");
+        // Nested, src/ first: its file's match, then README's; typed, nothing shows yet.
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
+        const file = screen.getByRole("region", { name: "src/b.py" });
+        expect(within(file).getByText(/more than the setting/)).toBeInTheDocument(); // large
+        expect(readme).toHaveAttribute("data-folded");
+        // Stepped to: unfolded, and its large diff shown.
+        await userEvent.keyboard("{Enter}");
+        expect(status()).toHaveTextContent("2 of 2");
+        expect(readme).not.toHaveAttribute("data-folded");
+        expect(await within(readme).findByRole("figure")).toBeInTheDocument();
+        await userEvent.keyboard("{Enter}");
+        expect(await within(file).findByRole("figure")).toBeInTheDocument();
+        // Unfolded for good: as it was once the row closes.
+        await userEvent.keyboard("{Escape}");
+        expect(readme).not.toHaveAttribute("data-folded");
+      });
     });
   });
 });
