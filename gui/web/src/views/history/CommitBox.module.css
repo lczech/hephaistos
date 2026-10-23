@@ -3,6 +3,34 @@
   font-size: var(--mono-size);
 }
 
+/* A commit named: its icon, its hash, its Changes and Diff, each as wide as always, so that in a
+   list they line up, also for the uncommitted changes, which have no icon or hash. In a line of
+   text, where each lines up with the text by itself: in a grid or flex row, centred, the smaller
+   hash would sit above the text's baseline. */
+.named {
+  white-space: nowrap;
+}
+
+.named > * + * {
+  margin-inline-start: var(--space-2); /* the links' own, taking their padding back, too */
+}
+
+.named .hash {
+  display: inline-block;
+  min-width: 7ch; /* a short hash, in the hash's font */
+  margin-inline-start: var(--space-1); /* close to its icon, as in the pickers */
+}
+
+.slot {
+  display: inline-block;
+  width: 1em; /* where the icon would be */
+}
+
+/* What it names, not a button: as other icons beside their text. */
+.mark {
+  color: var(--text-muted);
+}
+
 /* Branches and tags, small and framed; the checked-out one stronger. */
 .refs {
   display: inline-flex;
@@ -138,6 +166,14 @@
 
 .icon {
   color: var(--text-muted);
+}
+
+/* In the bar's line: a commit's icon and hash, close together, as wherever they show. */
+.commit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .line[aria-expanded="true"] .chevron {

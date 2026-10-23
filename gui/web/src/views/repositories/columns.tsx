@@ -3,7 +3,9 @@ import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { forgePage } from "../../forges";
 import { ago, fullTime } from "../../time";
-import type { Address, Params } from "../address";
+import type { Address } from "../address";
+import { ChangesLinks } from "../changes/ChangesLinks";
+import type { Checkout } from "../changes/checkout";
 import { ViewLink } from "../ViewLink";
 import styles from "./RepositoriesView.module.css";
 import {
@@ -40,11 +42,14 @@ function eventsAt(entry: Entry): Address {
   return { kind: "events", params: { repository: entry.repository.id } };
 }
 
-/** A row's Views: Events for all; History for a Checkout; Changes for one with a working tree. */
+/**
+ * A row's Views: Events for all; History for a Checkout; Changes and Diff for one with a working
+ * tree.
+ */
 function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   const name = nameText(entry, home);
   const state = checkout(entry);
-  const params: Params | undefined =
+  const params: Checkout | undefined =
     state && (entry.type === "worktree" ? { worktree: state.id } : { clone: state.id });
   // Untracked files alone are often left there for good, so they don't call for a look.
   const quiet = state && !(state.staged || state.changed || state.conflicted);
@@ -58,14 +63,17 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
         <span />
       )}
       {params && state?.staged !== null ? ( // not for a bare Clone
-        <ViewLink
-          address={{ kind: "changes", params }}
+        <ChangesLinks
+          checkout={params}
           label={`Changes in ${name}`}
           quiet={quiet}
           note={quiet ? `no changes${untracked}` : undefined}
         />
       ) : (
-        <span />
+        <>
+          <span />
+          <span />
+        </>
       )}
     </span>
   );
@@ -105,7 +113,7 @@ export const columns = column.columns([
     },
   }),
   column.display({
-    id: "views", // its Events, History and Changes, each in its place, so that they line up
+    id: "views", // its Events, History, Changes and Diff, each in its place, so that they line up
     enableResizing: false,
     meta: { width: "var(--views)" },
     cell: ({ row, table }) => <Views entry={row.original} home={table.options.meta?.home} />,

@@ -4,13 +4,12 @@ import {
   Calendar,
   Database,
   FileDiff,
-  GitCommitVertical,
   GitCompareArrows,
   type LucideIcon,
   ScrollText,
   SlidersHorizontal,
 } from "lucide-react";
-import { FileDiffs } from "../drawnIcons";
+import { FileDiffs, GitCommits } from "../drawnIcons";
 import type { Address, Params } from "./address";
 import { checkoutOf } from "./changes/checkout";
 
@@ -32,7 +31,7 @@ const kinds = {
     iconOf: (params) =>
       params.path === undefined && checkoutOf(params) !== undefined ? FileDiffs : FileDiff,
   },
-  history: { name: "History", icon: GitCommitVertical },
+  history: { name: "History", icon: GitCommits },
   daemon: { name: "Daemon", icon: Activity },
   log: { name: "Log", icon: ScrollText },
   config: { name: "Config", icon: SlidersHorizontal },

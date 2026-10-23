@@ -18,6 +18,7 @@ import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
+import { changesViews } from "../changes/ChangesLinks";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
@@ -199,7 +200,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         showing={(entry) =>
           entry.type === "commit" &&
           checkout !== undefined &&
-          isShown({ kind: "changes", params: { ...checkout, commit: entry.commit.hash } })
+          changesViews(checkout, entry.commit.hash).some((address) => isShown(address))
         }
       />
     </section>

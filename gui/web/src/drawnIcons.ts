@@ -20,3 +20,16 @@ export const FileDiffs = createLucideIcon({
     ["path", { d: "M12 14h5", key: "minus" }],
   ],
 });
+
+/** Commits following each other, as History lists them: Lucide's `git-commit-vertical` with two
+ * commits of its size on its line, the line through the whole height. */
+export const GitCommits = createLucideIcon({
+  name: "git-commits",
+  node: [
+    ["path", { d: "M12 2v2", key: "above" }],
+    ["circle", { cx: "12", cy: "7", r: "3", key: "newer" }],
+    ["path", { d: "M12 10v4", key: "between" }],
+    ["circle", { cx: "12", cy: "17", r: "3", key: "older" }],
+    ["path", { d: "M12 20v2", key: "below" }],
+  ],
+});

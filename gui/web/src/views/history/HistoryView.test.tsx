@@ -96,11 +96,14 @@ describe("the History View", () => {
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
     expect(within(details).getByText("Someone <else@example.org>")).toBeInTheDocument();
     expect(within(details).getByText("parents")).toBeInTheDocument();
-    // The parents' hashes; its own is in the row above.
-    expect(within(details).getAllByRole("button", { name: /^Changes in commit / })).toHaveLength(2);
+    // The parents' hashes, each with its Changes and Diff; its own is in the row above.
+    expect(
+      within(details).getAllByRole("button", { name: /^Changes in commit \w+$/ }),
+    ).toHaveLength(2);
+    expect(within(details).getAllByRole("button", { name: /, as one Diff$/ })).toHaveLength(2);
   });
 
-  it("opens a commit's changes from its hash, as a preview", async () => {
+  it("opens a commit's Changes and Diff from beside its hash, as previews", async () => {
     serveHistory(() => json(page([HEAD])));
     const opened: [Address, Opening | undefined][] = [];
     renderWithQueries(
@@ -109,20 +112,28 @@ describe("the History View", () => {
       </OpenViewContext.Provider>,
     );
     await userEvent.click(await screen.findByRole("button", { name: "Changes in commit ccccccc" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Changes in commit ccccccc, as one Diff" }),
+    );
+    const params = { clone: "clone-proj", commit: HEAD.hash };
     expect(opened).toEqual([
       [
-        { kind: "changes", params: { clone: "clone-proj", commit: HEAD.hash } },
+        { kind: "changes", params },
+        { beside: false, preview: true },
+      ],
+      [
+        { kind: "diff", params },
         { beside: false, preview: true },
       ],
     ]);
-    expect(screen.queryByRole("region")).toBeNull(); // the hash opens no details
+    expect(screen.queryByRole("region")).toBeNull(); // the links open no details
   });
 
-  it("marks the commit whose changes are shown", async () => {
+  it.each(["changes", "diff"])("marks the commit whose %s is shown", async (kind) => {
     serveHistory(() => json(page([HEAD, commit(2)])));
-    const changes = { kind: "changes", params: { clone: "clone-proj", commit: HEAD.hash } };
+    const shownView = { kind, params: { clone: "clone-proj", commit: HEAD.hash } };
     renderWithQueries(
-      <ShownContext value={new Set([addressText(changes)])}>
+      <ShownContext value={new Set([addressText(shownView)])}>
         <History initial={{ clone: "clone-proj" }} />
       </ShownContext>,
     );
@@ -226,7 +237,11 @@ describe("the History View", () => {
       await screen.findByText("Uncommitted: 2 staged, 1 changed, 3 untracked"),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes" }));
-    expect(opened).toEqual([{ kind: "changes", params: { clone: "clone-proj" } }]);
+    await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes, as one Diff" }));
+    expect(opened).toEqual([
+      { kind: "changes", params: { clone: "clone-proj" } },
+      { kind: "diff", params: { clone: "clone-proj", from: "HEAD", to: "working-tree" } },
+    ]);
     await userEvent.click(screen.getByRole("button", { name: /^Branch, tag or commit: / }));
     await userEvent.click(await screen.findByRole("option", { name: "feature" }));
     expect(screen.queryByText(/^Uncommitted/)).toBeNull(); // not what is checked out

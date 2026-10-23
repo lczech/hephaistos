@@ -39,13 +39,14 @@
  * Repository row, without either, is one line. */
 .repositories {
   --narrow-indent: calc(var(--square) + var(--column-gap) + 1em + 4px);
-  --views: calc(3em + 2 * var(--space-2));
+  --view-links: 4; /* Events, History, Changes, Diff */
+  --views: calc(var(--view-links) * 1em + (var(--view-links) - 1) * var(--space-2));
 }
 
 /* A row's Views, each icon in its place, empty where it has none. */
 .views {
   display: grid;
-  grid-template-columns: repeat(3, 1em);
+  grid-template-columns: repeat(var(--view-links), 1em);
   gap: var(--space-2);
   align-items: center;
 }

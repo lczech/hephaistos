@@ -3,7 +3,7 @@ import type { Schemas } from "../../api/client";
 import { TextIcon } from "../../components/TextIcon";
 import { shortHash } from "../../revisions";
 import type { Checkout } from "../changes/checkout";
-import { CommitBox, CommitLink, RefLabels } from "./CommitBox";
+import { CommitBox, CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitBox.module.css";
 
 type Shown = Schemas["ShownCommitJson"];
@@ -42,8 +42,10 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
         title="Show commit details"
       >
         <ChevronRight className={styles.chevron} aria-hidden="true" />
-        <TextIcon icon={GitCommitVertical} className={styles.icon} />
-        <span className={styles.hash}>{shortHash(commit.hash)}</span>
+        <span className={styles.commit}>
+          <TextIcon icon={GitCommitVertical} className={styles.icon} />
+          <span className={styles.hash}>{shortHash(commit.hash)}</span>
+        </span>
         <RefLabels refs={commit.refs} />
         {commit.parents.length > 1 && (
           <TextIcon icon={GitMerge} className={styles.icon} label="Merge commit" />
@@ -106,7 +108,7 @@ function Amended({ shown, checkout }: { shown: Shown; checkout: Checkout }) {
   return (
     <>
       {" "}
-      Amended as <CommitLink hash={shown.amended_as} checkout={checkout} />.
+      Amended as <CommitHash hash={shown.amended_as} checkout={checkout} />.
     </>
   );
 }

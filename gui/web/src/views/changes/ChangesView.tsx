@@ -5,7 +5,7 @@ import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
-import { HEAD, revisionText, shortHash, WORKING_TREE } from "../../revisions";
+import { revisionText, SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
@@ -30,8 +30,6 @@ import {
   SORTS,
 } from "./rows";
 import { useChangesTable } from "./table";
-
-const SINCE_HEAD = { from: HEAD, to: WORKING_TREE };
 
 /**
  * What changed in a Checkout, as git reads it now: from one Revision to another (its parameters

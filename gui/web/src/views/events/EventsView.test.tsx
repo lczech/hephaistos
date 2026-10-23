@@ -98,7 +98,7 @@ describe("the Events View", () => {
     expect(screen.queryByText(committed.id)).not.toBeInTheDocument();
   });
 
-  it("shows a commit Event's commit, its message whole, with a link to its changes", async () => {
+  it("shows a commit Event's commit, its message whole, with its Changes and Diff", async () => {
     const hash = "abc1".padEnd(40, "0");
     const withBody = event(1, {
       details: [
@@ -113,9 +113,10 @@ describe("the Events View", () => {
     const details = screen.getByRole("region", { name: "Event details" });
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
     expect(within(details).queryByText("body")).toBeNull(); // the box says it whole
-    expect(
-      within(details).getByRole("button", { name: "Changes in commit abc1000" }),
-    ).toBeInTheDocument();
+    expect(within(details).getByText("abc1000")).not.toHaveRole("button"); // the hash, as text
+    for (const name of ["Changes in commit abc1000", "Changes in commit abc1000, as one Diff"]) {
+      expect(within(details).getByRole("button", { name })).toBeInTheDocument();
+    }
   });
 
   it("opens and closes with the keyboard", async () => {

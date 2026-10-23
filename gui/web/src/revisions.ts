@@ -4,6 +4,9 @@ export const INDEX = "index";
 export const WORKING_TREE = "working-tree";
 export const HEAD = "HEAD";
 
+/** The uncommitted changes, staged or not: from HEAD to the working tree. */
+export const SINCE_HEAD = { from: HEAD, to: WORKING_TREE };
+
 const SHORTENED = ["refs/heads/", "refs/remotes/", "refs/tags/"];
 const FULL_HASH = /^[0-9a-f]{40}$/;
 

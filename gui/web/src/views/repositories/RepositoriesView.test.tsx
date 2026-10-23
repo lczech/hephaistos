@@ -132,22 +132,29 @@ describe("the Repositories View", () => {
     ]);
   });
 
-  it("opens the Changes of a Clone or Worktree, as a preview", async () => {
+  it("opens the Changes and Diff of a Clone or Worktree, as previews", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
     await screen.findByText("recent");
     expect(screen.queryByRole("button", { name: "Changes in recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent" }));
+    await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent, as one Diff" }));
     await userEvent.click(screen.getByRole("button", { name: "Changes in .worktrees/feature" }));
     expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
       ["changes?clone=clone-recent", { beside: false, preview: true }],
+      ["diff?clone=clone-recent&from=HEAD&to=working-tree", { beside: false, preview: true }],
       ["changes?worktree=wt-recent-feature", { beside: false, preview: true }],
     ]);
-    // Greyed out without changes: the Worktree has none, the Clone 2 changed.
-    const feature = screen.getByRole("button", { name: "Changes in .worktrees/feature" });
-    expect(feature).toHaveAttribute("title", "Changes in .worktrees/feature: no changes");
-    expect(feature.className).toMatch(/quiet/);
+    // Greyed out without changes, both: the Worktree has none, the Clone 2 changed.
+    for (const name of [
+      "Changes in .worktrees/feature",
+      "Changes in .worktrees/feature, as one Diff",
+    ]) {
+      const feature = screen.getByRole("button", { name });
+      expect(feature).toHaveAttribute("title", `${name}: no changes`);
+      expect(feature.className).toMatch(/quiet/);
+    }
     expect(screen.getByRole("button", { name: "Changes in ~/recent" }).className).not.toMatch(
       /quiet/,
     );

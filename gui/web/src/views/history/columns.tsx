@@ -4,8 +4,7 @@ import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
-import { ViewLink } from "../ViewLink";
-import { CommitLink, RefLabels } from "./CommitBox";
+import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./HistoryView.module.css";
 import { type Entry, type Found, whereText } from "./rows";
 
@@ -22,7 +21,7 @@ export interface FoundActions {
 }
 
 /**
- * The History list's columns: a commit's hash, a link to its changes; its subject after its
+ * The History list's columns: a commit's hash, with its Changes and Diff; its subject after its
  * branches and tags, which takes the width the others leave; who wrote it, and when. A rename's
  * row says only where the file was before.
  */
@@ -41,19 +40,17 @@ export function historyColumns(
     column.display({
       id: "commit",
       header: "commit",
-      size: 96,
+      size: 150,
       cell: ({ row }) => {
         if (checkout === undefined) return "";
         if (row.original.type === "uncommitted") {
-          return (
-            <ViewLink address={{ kind: "changes", params: checkout }} label="Uncommitted changes" />
-          );
+          return <CommitHash hash={undefined} checkout={checkout} />;
         }
         if (row.original.type === "found") {
-          return <CommitLink hash={row.original.found.commit.hash} checkout={checkout} />;
+          return <CommitHash hash={row.original.found.commit.hash} checkout={checkout} />;
         }
         return row.original.type === "commit" ? (
-          <CommitLink hash={row.original.commit.hash} checkout={checkout} />
+          <CommitHash hash={row.original.commit.hash} checkout={checkout} />
         ) : (
           ""
         );

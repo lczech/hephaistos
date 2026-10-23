@@ -1,23 +1,33 @@
 import { GitCommitVertical, Tag } from "lucide-react";
 import type { ReactNode } from "react";
+import { TextIcon } from "../../components/TextIcon";
 import { Fields } from "../../components/table/Fields";
 import { shortHash } from "../../revisions";
 import { ago, fullTime } from "../../time";
+import { ChangesLinks } from "../changes/ChangesLinks";
 import type { Checkout } from "../changes/checkout";
-import { ViewLink } from "../ViewLink";
 import styles from "./CommitBox.module.css";
 import { type Commit, committedApart, type Ref } from "./rows";
 
-/** A commit's hash, as a link to its changes. */
-export function CommitLink({ hash, checkout }: { hash: string; checkout: Checkout }) {
+/**
+ * A commit as named wherever it is shown but in pickers and the bar: its icon and its hash, as
+ * text, then its Changes and Diff. Without a hash, the uncommitted changes, lined up the same.
+ */
+export function CommitHash({ hash, checkout }: { hash: string | undefined; checkout: Checkout }) {
   return (
-    <ViewLink
-      address={{ kind: "changes", params: { ...checkout, commit: hash } }}
-      label={`Changes in commit ${shortHash(hash)}`}
-      icon={GitCommitVertical}
-    >
-      <span className={styles.hash}>{shortHash(hash)}</span>
-    </ViewLink>
+    <span className={styles.named}>
+      {hash === undefined ? (
+        <span className={styles.slot} />
+      ) : (
+        <TextIcon icon={GitCommitVertical} className={styles.mark} />
+      )}
+      <span className={styles.hash}>{hash && shortHash(hash)}</span>
+      <ChangesLinks
+        checkout={checkout}
+        commit={hash}
+        label={hash === undefined ? "Uncommitted changes" : `Changes in commit ${shortHash(hash)}`}
+      />
+    </span>
   );
 }
 
@@ -77,7 +87,7 @@ export function CommitBox({ commit, checkout, now, heading }: Props) {
   }
   if (parents !== undefined) {
     const links = parents.map((parent) => (
-      <CommitLink key={parent} hash={parent} checkout={checkout} />
+      <CommitHash key={parent} hash={parent} checkout={checkout} />
     ));
     const shown = links.length ? (
       <span className={styles.parents}>{links}</span>
@@ -90,7 +100,7 @@ export function CommitBox({ commit, checkout, now, heading }: Props) {
     <div className={styles.box}>
       {heading && (
         <p className={styles.top}>
-          <CommitLink hash={commit.hash} checkout={checkout} />
+          <CommitHash hash={commit.hash} checkout={checkout} />
           <RefLabels refs={commit.refs ?? []} />
         </p>
       )}
