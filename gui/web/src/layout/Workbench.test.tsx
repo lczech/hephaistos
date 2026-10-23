@@ -15,15 +15,20 @@ import { Workbench } from "./Workbench";
 
 const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
 /** A View showing its address, which narrows it to the last hour when clicked, and says so. */
-function Probe({ params, setParams, setTitle }: ViewProps) {
+function Probe({ params, setParams, fragment, setFragment, setTitle }: ViewProps) {
   const narrow = () => {
     setParams({ since: "1h" });
     setTitle("Probe, 1h");
   };
   return (
-    <button type="button" onClick={narrow}>
-      {addressText({ kind: "probe", params })}
-    </button>
+    <>
+      <button type="button" onClick={narrow}>
+        {addressText({ kind: "probe", params, fragment })}
+      </button>
+      <button type="button" onClick={() => setFragment({ find: "x" })}>
+        Find x
+      </button>
+    </>
   );
 }
 
@@ -312,6 +317,24 @@ describe("the Workbench", () => {
       await altClick(screen.getByRole("button", { name: "Probe 1" }));
       expect(groups()).toEqual([["linker"], ["probe", "probe*"]]);
       expect(screen.getByText(/^shown:/)).toHaveTextContent("shown: 1");
+    });
+
+    it("marks and focuses a View however it is looked at, as it is", async () => {
+      await renderWorkbench();
+      await altClick(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Find x" }));
+      expect(await screen.findByRole("button", { name: "probe?n=1#find=x" })).toBeInTheDocument();
+      expect(screen.getByText(/^shown:/)).toHaveTextContent("shown: 1");
+      await altClick(screen.getByRole("button", { name: "Probe 1" }));
+      expect(groups()).toEqual([["linker"], ["probe"]]); // kept, as it was changed
+      expect(screen.getByRole("button", { name: "probe?n=1#find=x" })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(savedViews()).toContainEqual({
+          kind: "probe",
+          params: { n: "1" },
+          fragment: { find: "x" },
+        }),
+      );
     });
 
     it("keeps a preview whose tab is double-clicked", async () => {

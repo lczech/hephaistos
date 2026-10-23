@@ -124,7 +124,14 @@ function useNarrow(element: React.RefObject<HTMLElement | null>, rem: number): b
  * More of a file shows on asking. Large diffs wait to be shown; untracked files, to be opened;
  * one file without changes says where its changes are now.
  */
-export function DiffView({ params, setParams, endTyping, setTitle }: ViewProps) {
+export function DiffView({
+  params,
+  setParams,
+  fragment,
+  setFragment,
+  endTyping,
+  setTitle,
+}: ViewProps) {
   const checkout = checkoutOf(params);
   const [commit] = paramValues(params.commit);
   const [path] = paramValues(params.path);
@@ -158,9 +165,9 @@ export function DiffView({ params, setParams, endTyping, setTitle }: ViewProps) 
   const view = useRef<HTMLElement>(null);
   // Finding in one file's lines as shown: with the whole file, all of them, once its versions
   // came, as its section asked for them (read here only).
-  const finding = findOf(params);
+  const finding = findOf(fragment);
   const setFinding = (next: typeof finding, typed = false) =>
-    setParams(withFind(params, next), typed);
+    setFragment(withFind(fragment, next), typed);
   const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
   const patch = fileDiff.data?.patch;
   const newText = look.whole ? versions.data?.new : undefined;

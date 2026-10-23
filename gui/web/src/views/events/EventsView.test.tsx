@@ -1,13 +1,13 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/table/widths";
 import { cells } from "../../test/list";
 import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
-import { addressText, type Params } from "../address";
+import { InPanel } from "../../test/view";
+import type { Params } from "../address";
 import { EventsView } from "./EventsView";
 
 type Event = Schemas["EventJson"];
@@ -32,13 +32,7 @@ beforeEach(() => setTitle.mockClear());
 
 /** The View as a Panel holds it: with its parameters, here shown as its address. */
 function Events({ at = {} }: { at?: Params }) {
-  const [params, setParams] = useState(at);
-  return (
-    <>
-      <output>{addressText({ kind: "events", params })}</output>
-      <EventsView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
-    </>
-  );
+  return <InPanel view={EventsView} kind="events" params={at} onTitle={setTitle} />;
 }
 
 // An Event's row, its details closed: not a filter's funnel, which opens a menu.

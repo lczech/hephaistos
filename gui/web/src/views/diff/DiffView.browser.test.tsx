@@ -109,7 +109,14 @@ function renderDiff(size: CSSProperties) {
     const [params, setParams] = useState<Params>(SINCE_HEAD);
     return (
       <div data-testid="panel" style={size}>
-        <DiffView params={params} setParams={setParams} endTyping={() => {}} setTitle={() => {}} />
+        <DiffView
+          params={params}
+          setParams={setParams}
+          fragment={{}}
+          setFragment={() => {}}
+          endTyping={() => {}}
+          setTitle={() => {}}
+        />
       </div>
     );
   }

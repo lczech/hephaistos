@@ -1,10 +1,10 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
+import { InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
 import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { HistoryView } from "./HistoryView";
@@ -64,15 +64,7 @@ function serveHistory(answer: (url: URL) => Response): Request[] {
 
 /** The View as a Panel holds it: with its parameters, shown as its address, and its title. */
 function History({ initial }: { initial: Params }) {
-  const [params, setParams] = useState<Params>(initial);
-  const [title, setTitle] = useState("");
-  return (
-    <>
-      <output>{addressText({ kind: "history", params })}</output>
-      <h1>{title}</h1>
-      <HistoryView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
-    </>
-  );
+  return <InPanel view={HistoryView} kind="history" params={initial} />;
 }
 
 const rows = () =>

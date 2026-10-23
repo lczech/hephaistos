@@ -8,18 +8,18 @@ import type { ViewProps } from "../index";
 import { columns } from "./columns";
 import styles from "./RepositoriesView.module.css";
 import { RepositoryDetails } from "./RepositoryDetails";
-import { entries, entryId, sorting, sortParams, tone } from "./rows";
+import { entries, entryId, sortFragment, sorting, tone } from "./rows";
 
 /**
  * The Repositories, each with its Clones and their Worktrees within it, as `repo show` lists
- * them; the most recently active first, or as its parameter `sort` says.
+ * them; the most recently active first, or as its fragment's `sort` says.
  */
-export function RepositoriesView({ params, setParams }: ViewProps) {
+export function RepositoriesView({ fragment, setFragment }: ViewProps) {
   const repositories = useRepositories();
   const home = useInfo().data?.home;
   const now = useNow(10_000);
   const listed = entries(repositories.data ?? []);
-  const sorted = sorting(params);
+  const sorted = sorting(fragment);
   const table = useListTable({
     columns,
     data: listed,
@@ -27,7 +27,8 @@ export function RepositoriesView({ params, setParams }: ViewProps) {
     getSubRows: (entry) => entry.subRows,
     atoms: { columnSizing: columnWidths("repositories") },
     state: { sorting: sorted, expanded: true },
-    onSortingChange: (change) => setParams(sortParams(params, functionalUpdate(change, sorted))),
+    onSortingChange: (change) =>
+      setFragment(sortFragment(fragment, functionalUpdate(change, sorted))),
     enableSortingRemoval: false,
     meta: { now, home },
   });

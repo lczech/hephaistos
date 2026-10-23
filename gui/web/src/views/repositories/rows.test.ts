@@ -5,8 +5,8 @@ import {
   entries,
   nameText,
   nameTitle,
+  sortFragment,
   sorting,
-  sortParams,
   statusText,
   statusTitle,
   tone,
@@ -75,12 +75,15 @@ describe("the rows", () => {
 });
 
 describe("the order", () => {
-  it("is the most recently active first, unless the parameters say otherwise", () => {
+  it("is the most recently active first, unless its fragment says otherwise", () => {
     expect(sorting({})).toEqual([{ id: "active", desc: true }]);
     expect(sorting({ sort: "name" })).toEqual([{ id: "name", desc: false }]);
     expect(sorting({ sort: "-name" })).toEqual([{ id: "name", desc: true }]);
     expect(sorting({ sort: "size" })).toEqual([{ id: "active", desc: true }]);
-    expect(sortParams({ x: "1" }, [{ id: "name", desc: false }])).toEqual({ x: "1", sort: "name" });
-    expect(sortParams({ sort: "name" }, [{ id: "active", desc: true }])).toEqual({});
+    expect(sortFragment({ x: "1" }, [{ id: "name", desc: false }])).toEqual({
+      x: "1",
+      sort: "name",
+    });
+    expect(sortFragment({ sort: "name" }, [{ id: "active", desc: true }])).toEqual({});
   });
 });

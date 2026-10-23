@@ -29,10 +29,15 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
   }, [api, shown]);
   const address = asAddress(params);
   const name = address?.kind;
-  // Changing a preview keeps it.
+  // Changing a preview keeps it. dockview merges what is given, leaving out what is undefined.
   const setParams = (changed: Params, typed = false) => {
     noteTyped({ api }, typed);
     api.updateParameters({ kind: name, params: changed, [PREVIEW]: undefined });
+  };
+  const setFragment = (changed: Params, typed = false) => {
+    noteTyped({ api }, typed);
+    const fragment = Object.keys(changed).length > 0 ? changed : undefined;
+    api.updateParameters({ fragment, [PREVIEW]: undefined });
   };
   const endTyping = () => noteTyped({ api }, false);
   const setTitle = (title: string) => api.setTitle(title);
@@ -52,6 +57,8 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
               <View
                 params={address.params}
                 setParams={setParams}
+                fragment={address.fragment ?? {}}
+                setFragment={setFragment}
                 endTyping={endTyping}
                 setTitle={setTitle}
               />

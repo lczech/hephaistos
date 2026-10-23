@@ -1,12 +1,13 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { json, renderWithQueries, serve, setting } from "../../test/server";
-import { type Address, addressText, type Params } from "../address";
+import { InPanel } from "../../test/view";
+import type { Address, Params } from "../address";
 import { OpenViewContext } from "../opening";
 import { DiffView } from "./DiffView";
 
@@ -82,16 +83,8 @@ function serveDiff(
 const STAGED = { clone: "clone-proj", from: "HEAD", to: "index", path: "src/main.py" };
 
 /** The View as a Panel holds it: with its parameters, shown as its address, and its title. */
-function Diff({ initial }: { initial: Params }) {
-  const [params, setParams] = useState<Params>(initial);
-  const [title, setTitle] = useState("");
-  return (
-    <>
-      <output>{addressText({ kind: "diff", params })}</output>
-      <h1>{title}</h1>
-      <DiffView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
-    </>
-  );
+function Diff({ initial, fragment }: { initial: Params; fragment?: Params }) {
+  return <InPanel view={DiffView} kind="diff" params={initial} fragment={fragment} />;
 }
 
 afterEach(() => localStorage.clear());
@@ -384,7 +377,7 @@ describe("the Diff View", () => {
       await userEvent.click(screen.getByRole("button", { name: "Find in this diff" }));
       const field = within(bar()).getByRole("textbox", { name: "Find in the diff" });
       expect(field).toHaveFocus();
-      expect(address()).toHaveTextContent(/find=&/);
+      expect(address()).toHaveTextContent(/#find=$/);
       await userEvent.type(field, "beta");
       await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
       expect(address()).toHaveTextContent("find=beta");
@@ -398,7 +391,7 @@ describe("the Diff View", () => {
 
     it("matches case or whole words if asked, and the whole file's lines while it shows", async () => {
       serveFound();
-      renderWithQueries(<Diff initial={{ ...STAGED, find: "beta" }} />);
+      renderWithQueries(<Diff initial={STAGED} fragment={{ find: "beta" }} />);
       await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
       await userEvent.click(within(bar()).getByRole("button", { name: "Match case" }));
       await waitFor(() => expect(status()).toHaveTextContent("1 of 3"));
@@ -412,14 +405,14 @@ describe("the Diff View", () => {
 
     it("says why a regular expression is invalid", async () => {
       serveFound();
-      renderWithQueries(<Diff initial={{ ...STAGED, find: "(beta", regex: "1" }} />);
+      renderWithQueries(<Diff initial={STAGED} fragment={{ find: "(beta", regex: "1" }} />);
       expect(await within(bar()).findByText(/Unterminated group/)).toBeInTheDocument();
       expect(within(bar()).getByRole("button", { name: "Next match" })).toBeDisabled();
     });
 
     it("closes by Escape, back to its button, leaving nothing of it in the address", async () => {
       serveFound();
-      renderWithQueries(<Diff initial={{ ...STAGED, find: "beta", word: "1" }} />);
+      renderWithQueries(<Diff initial={STAGED} fragment={{ find: "beta", word: "1" }} />);
       await userEvent.click(within(bar()).getByRole("textbox", { name: "Find in the diff" }));
       await userEvent.keyboard("{Escape}");
       expect(screen.queryByLabelText("Find", { selector: "search" })).toBeNull();
@@ -529,7 +522,14 @@ describe("the Diff View", () => {
     it("isn't dimmed once one file shows in its place", async () => {
       serveAll();
       const view = (params: Params) => (
-        <DiffView params={params} setParams={() => {}} endTyping={() => {}} setTitle={() => {}} />
+        <DiffView
+          params={params}
+          setParams={() => {}}
+          fragment={{}}
+          setFragment={() => {}}
+          endTyping={() => {}}
+          setTitle={() => {}}
+        />
       );
       const { container, client, rerender } = renderWithQueries(view(SINCE_HEAD));
       expect(await screen.findByRole("region", { name: "src/b.py" })).toBeInTheDocument();

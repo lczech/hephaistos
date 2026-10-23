@@ -40,7 +40,7 @@ const SINCE_HEAD = { from: HEAD, to: WORKING_TREE };
  * Groups and directories open and close, and so do new folders, whose files are asked for once
  * opened.
  */
-export function ChangesView({ params, setParams, setTitle }: ViewProps) {
+export function ChangesView({ params, setParams, fragment, setFragment, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
   const [commit] = paramValues(params.commit);
   const picked = comparison(params) ?? SINCE_HEAD;
@@ -67,7 +67,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
   useTitle(setTitle, title);
   const groups = changes.data?.groups ?? [];
 
-  const sorted = sortingOf(params, SORTS, DEFAULT_SORT);
+  const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
   const { table, folds } = useChangesTable({
     query,
@@ -75,7 +75,7 @@ export function ChangesView({ params, setParams, setTitle }: ViewProps) {
     folded,
     onFoldedChange: setFolded,
     sorted,
-    onSortedChange: (next) => setParams(withSorting(params, next, DEFAULT_SORT)),
+    onSortedChange: (next) => setFragment(withSorting(fragment, next, DEFAULT_SORT)),
     nested: look.nested,
     totalled: true,
   });

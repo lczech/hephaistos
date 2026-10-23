@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressText, asAddress, paramValues, parseAddress, withParam } from "./address";
+import { addressText, asAddress, paramValues, parseAddress, viewKey, withParam } from "./address";
 
 describe("addresses", () => {
   it("are the kind, with parameters sorted", () => {
@@ -13,6 +13,30 @@ describe("addresses", () => {
     const address = { kind: "file", params: { path: "/a b/c~1.txt", line: "3" } };
     expect(parseAddress(addressText(address))).toEqual(address);
     expect(parseAddress("daemon")).toEqual({ kind: "daemon", params: {} });
+  });
+
+  it("keep any text, whatever characters it has", () => {
+    const odd = "a&b=c?d#e f+g/%25 ünï 😀 \\w+(x|y)[^z]*?{2}$.";
+    const address = { kind: "diff", params: { path: odd, [odd]: "x" }, fragment: { find: odd } };
+    const text = addressText(address);
+    expect(text).not.toContain(odd.slice(0, 5)); // encoded, not as typed
+    expect(parseAddress(text)).toEqual(address);
+  });
+
+  it("say how a View is looked at in their fragment, which leaves it the same View", () => {
+    const searched = { kind: "diff", params: { path: "a.py" }, fragment: { find: "beta" } };
+    expect(addressText(searched)).toBe("diff?path=a.py#find=beta");
+    expect(addressText({ kind: "daemon", params: {}, fragment: { sort: "name" } })).toBe(
+      "daemon#sort=name",
+    );
+    expect(parseAddress("daemon#sort=name")).toEqual({
+      kind: "daemon",
+      params: {},
+      fragment: { sort: "name" },
+    });
+    expect(parseAddress("diff?path=a.py#")).toEqual({ kind: "diff", params: { path: "a.py" } });
+    expect(viewKey(searched)).toBe(viewKey({ kind: "diff", params: { path: "a.py" } }));
+    expect(viewKey(searched)).not.toBe(viewKey({ kind: "diff", params: { path: "b.py" } }));
   });
 
   it("aren't anything else", () => {
@@ -56,6 +80,8 @@ describe("saved addresses", () => {
   it("are kept as they were", () => {
     const address = { kind: "events", params: { since: "1d" } };
     expect(asAddress(JSON.parse(JSON.stringify(address)))).toEqual(address);
+    const sorted = { ...address, fragment: { sort: "-time" } };
+    expect(asAddress(JSON.parse(JSON.stringify(sorted)))).toEqual(sorted);
   });
 
   it("aren't anything else", () => {
@@ -65,5 +91,6 @@ describe("saved addresses", () => {
     expect(asAddress({ kind: "events", params: { since: 1 } })).toBeNull();
     expect(asAddress({ kind: "events", params: ["1d"] })).toBeNull();
     expect(asAddress({ kind: "events", params: { kind: ["clone", 1] } })).toBeNull();
+    expect(asAddress({ kind: "events", params: {}, fragment: "sort=time" })).toBeNull();
   });
 });

@@ -153,16 +153,16 @@ export function tone(entry: Entry): Tone | undefined {
   return undefined;
 }
 
-// The order, as the parameter `sort`; newest first if none.
+// The order, as the fragment's `sort`; newest first if none.
 const DEFAULT_SORT = "-active";
 const SORTS = ["name", "active"];
 
-/** The order these parameters set. */
-export function sorting(params: Params): SortingState {
-  return sortingOf(params, SORTS, DEFAULT_SORT);
+/** The order this fragment sets. */
+export function sorting(fragment: Params): SortingState {
+  return sortingOf(fragment, SORTS, DEFAULT_SORT);
 }
 
-/** The parameters with this order; the default one is left out. */
-export function sortParams(params: Params, sorted: SortingState): Params {
-  return withSorting(params, sorted, DEFAULT_SORT);
+/** The fragment with this order; the default one is left out. */
+export function sortFragment(fragment: Params, sorted: SortingState): Params {
+  return withSorting(fragment, sorted, DEFAULT_SORT);
 }

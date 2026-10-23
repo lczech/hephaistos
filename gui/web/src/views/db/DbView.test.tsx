@@ -1,11 +1,11 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { cells } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
+import { InPanel } from "../../test/view";
 import { preciseTime } from "../../time";
-import { addressText, type Params } from "../address";
+import type { Params } from "../address";
 import { DbView } from "./DbView";
 
 const AT = "2026-10-14T20:27:20.096+00:00";
@@ -39,13 +39,7 @@ function serveDb(): Request[] {
 
 /** The View as a Panel holds it: with its parameters, here shown as its address. */
 function Db({ at = {} }: { at?: Params }) {
-  const [params, setParams] = useState(at);
-  return (
-    <>
-      <output>{addressText({ kind: "db", params })}</output>
-      <DbView params={params} setParams={setParams} endTyping={() => {}} setTitle={vi.fn()} />
-    </>
-  );
+  return <InPanel view={DbView} kind="db" params={at} />;
 }
 
 describe("the Database View", () => {

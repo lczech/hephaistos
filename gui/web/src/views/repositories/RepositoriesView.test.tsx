@@ -1,6 +1,5 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { cells } from "../../test/list";
 import {
@@ -13,7 +12,8 @@ import {
   serve,
   worktree,
 } from "../../test/server";
-import { addressText, type Params } from "../address";
+import { InPanel } from "../../test/view";
+import { addressText } from "../address";
 import { type OpenView, OpenViewContext } from "../opening";
 import { RepositoriesView } from "./RepositoriesView";
 
@@ -38,16 +38,9 @@ function serveRepositories() {
 
 /** The View as a Panel holds it: with its parameters, shown as its address. */
 function Repositories({ open = () => {} }: { open?: OpenView }) {
-  const [params, setParams] = useState<Params>({});
   return (
     <OpenViewContext value={open}>
-      <output>{addressText({ kind: "repositories", params })}</output>
-      <RepositoriesView
-        params={params}
-        setParams={setParams}
-        endTyping={() => {}}
-        setTitle={() => {}}
-      />
+      <InPanel view={RepositoriesView} kind="repositories" />
     </OpenViewContext>
   );
 }
@@ -98,12 +91,12 @@ describe("the Repositories View", () => {
     ]);
   });
 
-  it("sorts by name when asked, keeping the order in its parameters", async () => {
+  it("sorts by name when asked, keeping the order in its fragment", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
     await screen.findByText("recent");
     await userEvent.click(screen.getByRole("button", { name: "name" }));
-    expect(screen.getByRole("status")).toHaveTextContent("repositories?sort=name");
+    expect(screen.getByRole("status")).toHaveTextContent("repositories#sort=name");
     expect(names().filter((name) => !name?.includes("/"))).toEqual(["idle", "old", "recent"]);
   });
 

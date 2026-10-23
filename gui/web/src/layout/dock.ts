@@ -6,7 +6,7 @@ import {
   type IDockviewPanel,
   themeLight,
 } from "dockview-react";
-import { type Address, addressText, asAddress } from "../views/address";
+import { type Address, asAddress, viewKey } from "../views/address";
 import type { KeyTarget } from "../views/keys";
 import { viewTitle } from "../views/kinds";
 import type { Opening } from "../views/opening";
@@ -95,10 +95,10 @@ export function typingRun(panel: Pick<IDockviewPanel, "api">): number | undefine
   return typing.get(panel.api);
 }
 
-/** Shows another View in a Panel. */
-export function showIn(panel: IDockviewPanel, { kind, params }: Address): void {
+/** Shows another View in a Panel, as its address looks at it. */
+export function showIn(panel: IDockviewPanel, { kind, params, fragment }: Address): void {
   noteTyped(panel, false);
-  panel.api.updateParameters({ kind, params });
+  panel.api.updateParameters({ kind, params, fragment });
   panel.api.setTitle(viewTitle({ kind, params }));
 }
 
@@ -126,10 +126,11 @@ export function openView(
   opening: Opening = {},
   from: IDockviewGroupPanel | undefined = api.activeGroup,
 ): IDockviewPanel {
-  const text = addressText(address);
+  // The same View, however it is looked at there: as it is.
+  const key = viewKey(address);
   const open = api.panels.find((panel) => {
     const shown = asAddress(panel.params);
-    return shown !== null && addressText(shown) === text;
+    return shown !== null && viewKey(shown) === key;
   });
   if (open !== undefined) {
     if (!opening.preview) keep(open);
@@ -137,7 +138,7 @@ export function openView(
     flash(open);
     return open;
   }
-  const { kind, params } = address;
+  const { kind, params, fragment } = address;
   const title = viewTitle(address);
   const group = from && opening.beside ? besideGroup(api, from) : from;
   const replaced = opening.preview
@@ -152,7 +153,7 @@ export function openView(
     id: crypto.randomUUID(), // a Panel's View can change, so its ID doesn't name it
     component: PANEL,
     title,
-    params: { kind, params, ...(opening.preview && { [PREVIEW]: true }) },
+    params: { kind, params, fragment, ...(opening.preview && { [PREVIEW]: true }) },
     position:
       group !== undefined
         ? { referenceGroup: group.id }

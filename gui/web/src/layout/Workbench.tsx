@@ -2,7 +2,7 @@ import "dockview-react/dist/styles/dockview.css";
 import "./dock.css";
 import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import { useEffect, useRef, useState } from "react";
-import { addressText, asAddress } from "../views/address";
+import { asAddress, viewKey } from "../views/address";
 import { ShownContext } from "../views/opening";
 import { defaultLayout, keep, keyTarget, PANEL, THEME } from "./dock";
 import { GroupActions } from "./GroupActions";
@@ -73,12 +73,12 @@ function keepMoved(api: DockviewApi): { dispose: () => void } {
   });
 }
 
-/** The addresses of the Views shown: each Group's visible Panel's. */
+/** The Views shown, each Group's visible Panel's, by their keys (`viewKey`). */
 function shownAddresses(api: DockviewApi): ReadonlySet<string> {
   return new Set(
     api.groups.flatMap((group) => {
       const address = asAddress(group.activePanel?.params);
-      return address ? [addressText(address)] : [];
+      return address ? [viewKey(address)] : [];
     }),
   );
 }

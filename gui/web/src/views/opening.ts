@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { type Address, addressText } from "./address";
+import { type Address, viewKey } from "./address";
 
 /** Where a View opens: beside the one opening it, and as a preview, which the next replaces. */
 export interface Opening {
@@ -28,11 +28,11 @@ export function useOpenView(): OpenView {
   return useContext(OpenViewContext);
 }
 
-/** The addresses of the Views shown, each Group's visible Panel's; given by `layout/`. */
+/** The Views shown, each Group's visible Panel's, by their keys (`viewKey`); given by `layout/`. */
 export const ShownContext = createContext<ReadonlySet<string>>(new Set());
 
-/** Whether a View is shown, in any Group: e.g. to mark the row that opened it. */
+/** Whether a View is shown, in any Group, however it is looked at: e.g. to mark the row that opened it. */
 export function useIsShown(): (address: Address) => boolean {
   const shown = useContext(ShownContext);
-  return (address: Address) => shown.has(addressText(address));
+  return (address: Address) => shown.has(viewKey(address));
 }

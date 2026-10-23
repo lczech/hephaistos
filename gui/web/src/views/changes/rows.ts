@@ -129,7 +129,7 @@ function directoryLines(changes: Change[]): number | undefined {
   return counted.length ? counted.reduce((sum, lines) => sum + lines, 0) : undefined;
 }
 
-// The order, as the parameter `sort`: by path unless chosen otherwise.
+// The order, as the fragment's `sort`: by path unless chosen otherwise.
 export const DEFAULT_SORT = "path";
 export const SORTS = ["path", "lines"];
 

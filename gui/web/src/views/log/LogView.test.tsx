@@ -1,11 +1,11 @@
 import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOG_PAGE } from "../../api/queries";
 import { cells } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
-import { addressText, type Params } from "../address";
+import { InPanel } from "../../test/view";
+import type { Params } from "../address";
 import { LogView } from "./LogView";
 import type { LogEntry } from "./logText";
 
@@ -37,13 +37,7 @@ beforeEach(() => setTitle.mockClear());
 
 /** The View as a Panel holds it: with its parameters, here shown as its address. */
 function Log({ at = {} }: { at?: Params }) {
-  const [params, setParams] = useState(at);
-  return (
-    <>
-      <output>{addressText({ kind: "log", params })}</output>
-      <LogView params={params} setParams={setParams} endTyping={() => {}} setTitle={setTitle} />
-    </>
-  );
+  return <InPanel view={LogView} kind="log" params={at} onTitle={setTitle} />;
 }
 
 const address = () => screen.getByRole("status").textContent;
