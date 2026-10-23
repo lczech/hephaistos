@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { MARKS_LOOK, type Marked, markMatches, rangeIn } from "../find/marks";
 import { DiffScrollerContext, useDiffScroller } from "./scroller";
 import type { CodeThemes } from "./themes";
 
@@ -73,7 +74,8 @@ const LINE_HEIGHT = "calc(var(--code-size) * 1.5)";
 
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
 // of lines added and removed from it; and the code's font and size. The lines left out between
-// changes as gaps between two lines, rather than bars: quieter than the files' headers. The renderer's
+// changes as gaps between two lines, rather than bars: quieter than the files' headers. Matches
+// found marked as elsewhere, the marks' look within the renderer's shadow root. The renderer's
 // own variables and attributes, so check them on upgrades.
 const PAGE_LOOK = `:host {
   --diffs-light-bg: var(--background);
@@ -93,14 +95,7 @@ const PAGE_LOOK = `:host {
 [data-separator=line-info] [data-expand-button] {
   background: none;
 }
-::highlight(hephaistos-found) {
-  background-color: var(--found);
-  color: var(--found-text);
-}
-::highlight(hephaistos-found-current) {
-  background-color: var(--found-current);
-  color: var(--found-text);
-}`;
+${MARKS_LOOK}`;
 
 /** The patch's lines filled in with both versions, so that all of the file can show; the patch
  * alone where one is missing or the renderer refuses them. It doesn't check that they fit the
@@ -221,18 +216,6 @@ function diffOf(patch: string, versions: Versions | undefined): FileDiffMetadata
   return bothSides(versions ? withVersions(partial, versions) : partial);
 }
 
-// The page's marks of matches found, in all diffs, by the CSS Custom Highlight API: text marked
-// without changing the renderer's elements, styled in `PAGE_LOOK`. None where a browser lacks it.
-function highlight(name: string): Highlight | undefined {
-  if (typeof Highlight === "undefined") return undefined;
-  let found = CSS.highlights.get(name);
-  if (found === undefined) {
-    found = new Highlight();
-    CSS.highlights.set(name, found);
-  }
-  return found;
-}
-
 const lineKey = (old: number | null, current: number | null) => `${old}:${current}`;
 
 /** A drawn line's numbers in the old and new versions, as the renderer's attributes say. */
@@ -245,31 +228,6 @@ function drawnLineKey(element: HTMLElement): string {
   return element.closest("[data-deletions]") ? lineKey(line, other) : lineKey(other, line);
 }
 
-/** Takes these ranges out of the page's marks. */
-function unmark(ranges: readonly Range[]): void {
-  for (const range of ranges) {
-    highlight("hephaistos-found")?.delete(range);
-    highlight("hephaistos-found-current")?.delete(range);
-  }
-}
-
-/** The range of a line's text from `start` to `end`, across the renderer's spans of it. */
-function rangeIn(element: HTMLElement, start: number, end: number): Range | undefined {
-  const range = new Range();
-  const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let at = 0;
-  for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
-    const length = node.textContent?.length ?? 0;
-    if (start >= at && start <= at + length) range.setStart(node, start - at);
-    if (end >= at && end <= at + length) {
-      range.setEnd(node, end - at);
-      return range;
-    }
-    at += length;
-  }
-  return undefined;
-}
-
 /**
  * A diff's matches marked on its drawn lines, again whenever the renderer draws, e.g. lines that
  * scroll into view; the current one scrolled to; which are on lines shown, told. Gives the
@@ -279,15 +237,14 @@ function useFound(find: DiffFind | undefined) {
   const scroller = useDiffScroller();
   const drawn = useRef<{ node: HTMLElement; diff: VirtualizedFileDiff }>(undefined);
   const latest = useRef(find);
-  const ranges = useRef<Range[]>([]);
+  const unmark = useRef<() => void>(undefined); // the matches marked last
   const told = useRef<{ marks: readonly DiffMark[]; shown: string }>(undefined);
   const lastCurrent = useRef<DiffMark>(undefined); // the current match, as at the last render
   const scrollTo = useRef<DiffMark>(undefined); // the current match, once it can be scrolled to
   const resized = useRef<ResizeObserver>(undefined);
 
-  const mark = (node: HTMLElement, find: DiffFind) => {
-    unmark(ranges.current);
-    ranges.current = [];
+  const markDrawn = (node: HTMLElement, find: DiffFind) => {
+    const found: Marked[] = [];
     const byLine = new Map<string, DiffMark[]>();
     for (const mark of find.marks) {
       const key = lineKey(mark.old, mark.new);
@@ -296,12 +253,11 @@ function useFound(find: DiffFind | undefined) {
     for (const element of node.shadowRoot?.querySelectorAll<HTMLElement>("[data-line]") ?? []) {
       for (const mark of byLine.get(drawnLineKey(element)) ?? []) {
         const range = rangeIn(element, mark.start, mark.end);
-        if (range === undefined) continue;
-        ranges.current.push(range);
-        const current = mark === find.current;
-        highlight(current ? "hephaistos-found-current" : "hephaistos-found")?.add(range);
+        if (range !== undefined) found.push({ range, current: mark === find.current });
       }
     }
+    unmark.current?.();
+    unmark.current = markMatches(found);
   };
   const tellShown = (diff: VirtualizedFileDiff, find: DiffFind) => {
     const shown = find.marks.flatMap((mark, at) =>
@@ -342,11 +298,11 @@ function useFound(find: DiffFind | undefined) {
     const find = latest.current;
     if (drawn.current === undefined) return;
     if (find === undefined) {
-      unmark(ranges.current);
-      ranges.current = [];
+      unmark.current?.();
+      unmark.current = undefined;
       return;
     }
-    mark(drawn.current.node, find);
+    markDrawn(drawn.current.node, find);
     tellShown(drawn.current.diff, find);
     if (scrollTo.current !== undefined && show(scrollTo.current)) scrollTo.current = undefined;
   };
@@ -362,7 +318,7 @@ function useFound(find: DiffFind | undefined) {
   });
   useEffect(
     () => () => {
-      unmark(ranges.current);
+      unmark.current?.();
       resized.current?.disconnect();
     },
     [],
