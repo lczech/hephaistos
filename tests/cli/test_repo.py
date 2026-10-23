@@ -19,7 +19,10 @@ def set_up(paths: object) -> None:
 
 
 def test_register_list_rename() -> None:
-    assert runner.invoke(app, ["repo", "register", "proj"]).output == "Registered Repository proj\n"
+    assert runner.invoke(app, ["repo", "register", "proj"]).output.splitlines() == [
+        "Registered Repository proj; register its Clones with:",
+        "  hephaistos clone register <path> --repo proj",
+    ]
     runner.invoke(app, ["repo", "register", "other"])
     assert runner.invoke(app, ["repo", "list"]).output.splitlines() == [
         "name   clones  active  remote",
@@ -29,6 +32,26 @@ def test_register_list_rename() -> None:
     runner.invoke(app, ["repo", "rename", "proj", "project"])
     data = json.loads(runner.invoke(app, ["repo", "list", "--json"]).output)
     assert [repository["name"] for repository in data] == ["other", "project"]
+
+
+def test_register_a_directory_suggests_its_clone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = create(tmp_path / "repo")
+    monkeypatch.chdir(repo)
+    result = runner.invoke(app, ["repo", "register", f"{repo}/"])
+    assert str(result.exception).splitlines() == [
+        (
+            f"{repo}/ is a directory, not a Repository name; to register the git clone there,"
+            " in the Repository it matches or a new one:"
+        ),
+        f"  hephaistos clone register {repo}",
+    ]
+    result = runner.invoke(app, ["repo", "register", "."])
+    assert str(result.exception).splitlines()[-1] == f"  hephaistos clone register {repo}"
+    result = runner.invoke(app, ["repo", "register", "no/such/dir"])
+    assert str(result.exception).startswith("'no/such/dir' is not a Repository name")
+    assert runner.invoke(app, ["repo", "list", "--json"]).output.strip() == "[]"
 
 
 def test_show() -> None:

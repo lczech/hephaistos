@@ -1,3 +1,5 @@
+import shlex
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -18,7 +20,7 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import clones, repositories
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import id_datetime
-from hephaistos.core.utils.paths import Paths, short_path
+from hephaistos.core.utils.paths import Paths, absolute, shell_path, short_path
 from hephaistos.core.utils.text import number_text
 
 app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, with their Clones.")
@@ -93,10 +95,20 @@ def show(
 
 @app.command()
 def register(name: NameArgument) -> None:
-    """Register a Repository; then register its Clones with `clone register`."""
+    """Register a Repository without Clones; `clone register` and `scan` register them in one."""
+    # A name can't have `/`; one that is a directory's path was meant as its clone.
+    if ("/" in name or name in {".", ".."}) and Path(name).is_dir():
+        raise HephaistosError(
+            f"{name} is a directory, not a Repository name; to register the git clone there,"
+            " in the Repository it matches or a new one:\n"
+            f"  hephaistos clone register {shell_path(absolute(Path(name)))}"
+        )
     with write_session(Paths.from_environment()) as session:
         repository = repositories.register(session, name)
-    typer.echo(f"Registered Repository {repository.name}")
+    typer.echo(
+        f"Registered Repository {repository.name}; register its Clones with:\n"
+        f"  hephaistos clone register <path> --repo {shlex.quote(repository.name)}"
+    )
 
 
 @app.command()

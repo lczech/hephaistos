@@ -1,4 +1,6 @@
+import dataclasses
 import json
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -10,6 +12,7 @@ from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, records, repositories
 from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths
 from support import clone, create, git
 
@@ -30,17 +33,75 @@ def test_register_and_find(set_up: Paths) -> None:
     assert summary.clones == 0
 
 
-@pytest.mark.parametrize("name", ["", " proj", "proj "])
-def test_names_must_be_trimmed_and_not_empty(set_up: Paths, name: str) -> None:
-    with write_session(set_up) as session, pytest.raises(HephaistosError, match="empty"):
+INVALID_NAMES = ["", " proj", "a/b", "~/Repos/proj", ".", "..", "My Thesis", "café", "x" * 101]
+
+
+@pytest.mark.parametrize("name", INVALID_NAMES)
+def test_names_have_githubs_characters(set_up: Paths, name: str) -> None:
+    with (
+        write_session(set_up) as session,
+        pytest.raises(HephaistosError, match="not a Repository name"),
+    ):
         repositories.register(session, name)
 
 
-def test_names_are_unique(set_up: Paths) -> None:
+@pytest.mark.parametrize("name", INVALID_NAMES)
+def test_the_schema_checks_names_too(set_up: Paths, name: str) -> None:
+    with write_session(set_up) as session:
+        added = repositories.register(session, "proj")
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
+            session.conn.execute(
+                "UPDATE registry_repositories SET name = ? WHERE id = ?", (name, added.id.bytes)
+            )
+
+
+@pytest.mark.parametrize("name", ["a-b_c.d", ".github", "X" * 100])
+def test_valid_names(set_up: Paths, name: str) -> None:
+    with write_session(set_up) as session:
+        assert repositories.register(session, name).name == name
+
+
+@pytest.mark.parametrize(
+    ("text", "name"),
+    [
+        ("proj", "proj"),
+        ("My Thesis (draft)", "My-Thesis-draft"),
+        ("café au lait", "caf-au-lait"),
+        ("x" * 120, "x" * 100),
+        ("Проект", None),
+        ("..", None),
+    ],
+)
+def test_derived_names(text: str, name: str | None) -> None:
+    assert repositories.derived_name(text) == name
+
+
+def test_names_are_unique_and_found_ignoring_case(set_up: Paths) -> None:
+    with write_session(set_up) as session:
+        added = repositories.register(session, "Proj")
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match="Proj already"):
+        repositories.register(session, "proj")
+    with read_session(set_up) as session:
+        assert repositories.by_name(session, "PROJ") == added
+    with write_session(set_up) as session, pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
+        records.add(
+            session,
+            Table.REGISTRY_REPOSITORIES,
+            EventKind.REPOSITORY_REGISTERED,
+            dataclasses.replace(added, id=new_id(), name="proj"),
+        )
+
+
+def test_rename_may_change_only_the_case(set_up: Paths) -> None:
     with write_session(set_up) as session:
         repositories.register(session, "proj")
+        repositories.register(session, "other")
+    with write_session(set_up) as session:
+        assert repositories.rename(session, "proj", "Proj").name == "Proj"
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="already"):
-        repositories.register(session, "proj")
+        repositories.rename(session, "Proj", "OTHER")
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match="not a Repo"):
+        repositories.rename(session, "Proj", "a/b")
 
 
 def test_unknown_name(set_up: Paths) -> None:

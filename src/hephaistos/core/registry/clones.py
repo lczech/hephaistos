@@ -137,16 +137,21 @@ class Candidate:
         url = git.main_remote(self.snapshot.remotes)
         if url is None or git.is_local(url):
             return None
-        return git.repository_name(url) or None
+        return repositories.derived_name(git.repository_name(url))
 
     @property
-    def suggested_name(self) -> str:
-        """A name for a new Repository: from the main remote, else from the directory."""
+    def suggested_name(self) -> str | None:
+        """A name for a new Repository: from the main remote, else from the directory.
+
+        None if neither gives one, e.g. a directory named only in non-ASCII letters.
+        """
         url = git.main_remote(self.snapshot.remotes)
-        if url is not None and (name := git.repository_name(url)):
+        if url is not None and (name := repositories.derived_name(git.repository_name(url))):
             return name
         name = self.display_path.name.removesuffix(".git")
-        return self.display_path.parent.name if not name or name.startswith(".") else name
+        return repositories.derived_name(
+            self.display_path.parent.name if not name or name.startswith(".") else name
+        )
 
 
 def candidate(typed: Path, location: git.Location) -> Candidate:
@@ -214,11 +219,19 @@ class Histories:
 
 
 def matching(session: ReadSession, candidate: Candidate) -> list[Repository]:
-    """The Repositories that `candidate` shares a root commit or remote with, and may join."""
+    """The Repositories that `candidate` may join, sorted by name.
+
+    Those it shares a root commit or remote with; else one without Clones, which has no history
+    to match by, named as `candidate` suggests.
+    """
     stored = details(session)
     by_id = {existing.repository.id: existing.repository for existing in stored}
     found = [by_id[key] for key in Histories(stored).matching(candidate)]
-    return sorted(found, key=lambda repository: repository.name)
+    if not found and (name := candidate.suggested_name) is not None:
+        named = repositories.find(session, name)
+        if named is not None and named.id not in by_id:
+            found = [named]
+    return sorted(found, key=lambda repository: repositories.name_key(repository.name))
 
 
 def at(session: ReadSession, resolved_path: Path) -> CloneDetails | None:

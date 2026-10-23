@@ -95,7 +95,8 @@ def scan(
     """Find the git clones in a directory, and register them, with new Repositories where needed.
 
     Stops at clones, without searching inside them, and skips hidden directories. A clone that
-    matches several Repositories, or whose new Repository's name is taken, is skipped.
+    matches several Repositories, or whose new Repository's name is taken or missing, is
+    skipped.
     """
     paths = Paths.from_environment()
     depth = config.settings().scan.depth if depth is None else depth

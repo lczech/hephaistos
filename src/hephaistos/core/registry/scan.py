@@ -101,13 +101,13 @@ def _found(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]]]:
     return found, unreadable
 
 
-def _register_by_hand(
-    path: Path, repository: str = "<name>", *, new: bool = False
-) -> tuple[str, ...]:
-    """The commands that register the clone at `path` in a Repository, first that if `new`."""
-    name = repository if repository == "<name>" else shlex.quote(repository)
-    created = (f"hephaistos repo register {name}",) if new else ()
-    return (*created, f"hephaistos clone register {shell_path(path)} --repo {name}")
+def _register_by_hand(path: Path, repository: str | None = None) -> tuple[str, ...]:
+    """The command that registers the clone at `path` in a Repository, new or not.
+
+    Without `repository`, the user fills in its name.
+    """
+    name = "<name>" if repository is None else shlex.quote(repository)
+    return (f"hephaistos clone register {shell_path(path)} --repo {name}",)
 
 
 class _Planner:
@@ -116,13 +116,20 @@ class _Planner:
     def __init__(self, session: ReadSession) -> None:
         stored = clones.details(session)
         self.histories = Histories(stored)
-        self.names = {existing.repository.id: existing.repository.name for existing in stored}
+        # The Repositories' names; a new one's is None if its clones give none.
+        self.names: dict[uuid.UUID, str | None] = {
+            existing.repository.id: existing.repository.name for existing in stored
+        }
         self.clones = {
             existing.clone.resolved_path: existing for existing in clones.on_this_machine(session)
         }
-        # Repositories by name, with their number of Clones.
+        # Repositories by `name_key`, with their names and numbers of Clones.
         self.taken = {
-            summary.repository.name: summary.clones for summary in repositories.summaries(session)
+            repositories.name_key(summary.repository.name): (
+                summary.repository.name,
+                summary.clones,
+            )
+            for summary in repositories.summaries(session)
         }
         self.rows: list[Planned] = []
         self.planned: dict[Path, int] = {}  # resolved paths of Clones in the plan, by row
@@ -238,8 +245,8 @@ class _Planner:
             self.clone(main, main_location, typed)
         self.add(Planned(typed, Action.WORKTREE, note="a Worktree of", about=main))
 
-    def _name(self, indexes: list[int]) -> str:
-        """The name for a new Repository of these rows, sorted by path.
+    def _name(self, indexes: list[int]) -> str | None:
+        """The name for a new Repository of these rows, sorted by path; None if they give none.
 
         From the first remote that isn't a path on this machine, else as the first clone suggests.
         """
@@ -250,33 +257,44 @@ class _Planner:
     def finished(self) -> list[Planned]:
         """The plan, sorted by path, once the new Repositories are named and their names checked.
 
-        A Repository without Clones is joined by name: it has no history to match by.
+        A Repository without Clones is joined by name: it has no history to match by. Names
+        compare ignoring case.
         """
         for key, indexes in self.new.items():
             indexes.sort(key=lambda index: str(self.rows[index].path))
             self.names[key] = self._name(indexes)
         for index, keys in self.ambiguous.items():
-            names = sorted(self.names[key] for key in keys)
+            names = sorted(
+                (self.names[key] or "<unnamed>" for key in keys), key=repositories.name_key
+            )
             self.rows[index] = dataclasses.replace(
                 self.rows[index], note=f"matches {', '.join(names)}"
             )
-        counts = Counter(self.names[key] for key in self.new)
+        counts = Counter(
+            repositories.name_key(name) for name in map(self.names.get, self.new) if name
+        )
         for key, indexes in self.new.items():
             name = self.names[key]
-            empty = self.taken.get(name) == 0
-            if counts[name] > 1:
-                reason = f"{counts[name]} new Repositories would be named {name}"
-            elif name in self.taken and not empty:
-                reason = f"the name {name} is taken by an unrelated Repository"
+            existing = self.taken.get(repositories.name_key(name)) if name else None
+            # The name of the Repository without Clones that they join instead of a new one.
+            joined = existing[0] if existing is not None and existing[1] == 0 else None
+            if name is None:
+                reason = "its remote and directory give no name"
+            elif (count := counts[repositories.name_key(name)]) > 1:
+                reason = f"{count} new Repositories would be named {name}"
+            elif existing is not None and joined is None:
+                reason = f"the name {existing[0]} is taken by an unrelated Repository"
             else:
                 first = self.rows[indexes[0]].path
                 for position, index in enumerate(indexes):
                     row = self.rows[index]
-                    joining = empty or position > 0
+                    joining = joined is not None or position > 0
                     row = dataclasses.replace(
-                        row, action=Action.JOIN if joining else Action.NEW, repository=name
+                        row,
+                        action=Action.JOIN if joining else Action.NEW,
+                        repository=joined or name,
                     )
-                    if position and not row.note and not empty:
+                    if position and not row.note and joined is None:
                         row = dataclasses.replace(row, note="new, with", about=first)
                     self.rows[index] = row
                 continue
@@ -287,9 +305,7 @@ class _Planner:
                     action=Action.SKIP,
                     repository=None,
                     note=f"{reason}; {row.note}" if row.note else reason,
-                    fix=_register_by_hand(row.path, name)
-                    if empty
-                    else _register_by_hand(row.path, new=True),
+                    fix=_register_by_hand(row.path, joined),
                     candidate=None,
                 )
         return sorted(self.rows, key=lambda row: str(row.path))

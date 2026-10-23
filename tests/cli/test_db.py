@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from hephaistos.cli.main import app
+from hephaistos.core.db.sessions import SCHEMA_VERSION
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 
@@ -111,6 +112,7 @@ def test_outdated_database_gives_a_warning(paths: Paths) -> None:
     conn.close()
     result = runner.invoke(app, ["db", "tables"])
     assert result.exit_code == 0, result.output
-    assert "warning: the database's schema 2 differs from this hephaistos's" in result.stderr
+    expected = f"warning: the database's schema {SCHEMA_VERSION} differs from this hephaistos's"
+    assert expected in result.stderr
     assert "warning: 1 table not in this version's schema: old_things" in result.stderr
     assert result.stdout.splitlines()[-1].split() == ["old_things", "unknown", "0", "-"]

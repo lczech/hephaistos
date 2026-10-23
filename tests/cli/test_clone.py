@@ -31,10 +31,58 @@ def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(terminal, "interactive", lambda: True)
 
 
-def test_no_match_suggests_scan(repo: Path) -> None:
+def repository_names() -> list[str]:
+    return [r["name"] for r in json.loads(runner.invoke(app, ["repo", "list", "--json"]).output)]
+
+
+def test_no_match_offers_a_new_repository(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     result = runner.invoke(app, ["clone", "register"])
-    assert isinstance(result.exception, HephaistosError)
-    assert str(result.exception).splitlines()[1:] == [f"  hephaistos scan {repo}"]
+    assert str(result.exception) == (
+        "not asking without a terminal; add --yes to register it with a new Repository hephaistos"
+    )
+    interactive(monkeypatch)
+    result = runner.invoke(app, ["clone", "register"], input="n\n")
+    question = f"No Repository matches {repo}; register it as a Clone of a new Repository"
+    assert f"{question} hephaistos? [Y/n]" in result.output
+    assert result.exit_code == 1
+    result = runner.invoke(app, ["clone", "register"], input="\n")
+    assert result.output.endswith(f"Registered Clone {repo} of a new Repository hephaistos\n")
+    assert repository_names() == ["hephaistos", "proj"]
+
+
+def test_yes_registers_without_asking(repo: Path) -> None:
+    result = runner.invoke(app, ["clone", "register", "--yes"])
+    assert result.output == f"Registered Clone {repo} of a new Repository hephaistos\n"
+
+
+def test_repository_without_clones_matches_by_name(repo: Path) -> None:
+    runner.invoke(app, ["repo", "register", "Hephaistos"])
+    result = runner.invoke(app, ["clone", "register", "--yes"])
+    assert result.output == f"Registered Clone {repo} of Hephaistos\n"
+
+
+def test_no_match_and_a_taken_name(repo: Path, tmp_path: Path) -> None:
+    other = create(tmp_path / "other", origin="git@host:else/hephaistos.git")
+    runner.invoke(app, ["clone", "register", str(other), "--repo", "hephaistos", "--yes"])
+    result = runner.invoke(app, ["clone", "register", "--yes"])
+    assert str(result.exception) == (
+        f"no Repository matches {repo}, and the name hephaistos is taken by an unrelated"
+        " Repository; choose another with --repo"
+    )
+
+
+def test_repo_given_is_created_if_missing(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    result = runner.invoke(app, ["clone", "register", "--repo", "tool"])
+    assert str(result.exception).endswith("add --yes to register it with a new Repository tool")
+    result = runner.invoke(app, ["clone", "register", "--repo", "a/b", "--yes"])
+    assert "'a/b' is not a Repository name" in str(result.exception)
+    interactive(monkeypatch)
+    result = runner.invoke(app, ["clone", "register", "--repo", "tool"], input="\n")
+    assert "No Repository is named tool; register it as a Clone of a new Repository tool?" in (
+        result.output
+    )
+    assert result.output.endswith(f"Registered Clone {repo} of a new Repository tool\n")
+    assert repository_names() == ["proj", "tool"]
 
 
 def test_register_with_repo_then_list_and_show(repo: Path) -> None:
@@ -73,7 +121,7 @@ def test_matching_clone_needs_confirmation(
 
     result = runner.invoke(app, ["clone", "register", str(copy)])
     assert isinstance(result.exception, HephaistosError)
-    assert "matches proj; choose one with --repo" in str(result.exception)
+    assert str(result.exception).endswith("add --yes to register it as a Clone of proj")
 
     interactive(monkeypatch)
     result = runner.invoke(app, ["clone", "register", str(copy)], input="n\n")
@@ -93,6 +141,8 @@ def test_several_matches_are_numbered(
     runner.invoke(app, ["clone", "register", str(fork), "--repo", "fork"])
     copy = clone(repo, tmp_path / "copy")  # shares its history with both
     interactive(monkeypatch)
+    result = runner.invoke(app, ["clone", "register", str(copy), "--yes"])
+    assert str(result.exception) == f"{copy} matches fork, proj; choose one with --repo"
     result = runner.invoke(app, ["clone", "register", str(copy)], input="3\n1\n")
     assert result.exit_code == 0, result.output
     assert "  1  fork\n  2  proj\n" in result.output

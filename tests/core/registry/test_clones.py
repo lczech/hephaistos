@@ -78,6 +78,18 @@ def test_matching_by_root_commit_or_remote(set_up: Paths, tmp_path: Path) -> Non
     assert matching(set_up, create(tmp_path / "other")) == []
 
 
+def test_matching_a_repository_without_clones_by_name(set_up: Paths, tmp_path: Path) -> None:
+    with write_session(set_up) as session:
+        repositories.register(session, "Tool")
+        repositories.register(session, "first")
+    assert matching(set_up, create(tmp_path / "first", origin="git@host:me/tool.git")) == ["Tool"]
+    assert matching(set_up, create(tmp_path / "Tool")) == ["Tool"]
+    add(
+        set_up, create(tmp_path / "other"), "first"
+    )  # its name is taken by a Repository with Clones
+    assert matching(set_up, create(tmp_path / "elsewhere" / "first")) == []
+
+
 def test_same_remote_with_unrelated_history_does_not_match(set_up: Paths, tmp_path: Path) -> None:
     add(set_up, create(tmp_path / "first", origin="https://host/me/proj.git"))
     assert matching(set_up, create(tmp_path / "recreated", origin="https://host/me/proj")) == []

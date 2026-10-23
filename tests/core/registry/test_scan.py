@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 from pathlib import Path
 
@@ -119,10 +120,7 @@ def test_names_are_never_guessed(set_up: Paths, tmp_path: Path) -> None:
     planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
     assert {row.action for row in planned.values()} == {Action.SKIP}
     assert planned["utils"].note == "2 new Repositories would be named utils"
-    assert planned["utils"].fix == (
-        "hephaistos repo register <name>",
-        f"hephaistos clone register {root / 'utils'} --repo <name>",
-    )
+    assert planned["utils"].fix == (f"hephaistos clone register {root / 'utils'} --repo <name>",)
     assert planned["taken"].note == "the name taken is taken by an unrelated Repository"
     assert planned["empty"].note == "2 new Repositories would be named empty"
     assert planned["empty"].fix == (f"hephaistos clone register {root / 'empty'} --repo empty",)
@@ -138,6 +136,36 @@ def test_repository_without_clones_is_joined_by_name(set_up: Paths, tmp_path: Pa
         "proj": (Action.JOIN, "proj"),
         "proj-copy": (Action.JOIN, "proj"),
     }
+
+
+def test_names_compare_ignoring_case(set_up: Paths, tmp_path: Path) -> None:
+    register_clone(set_up, create(tmp_path / "taken"), "Taken")
+    with write_session(set_up) as session:
+        repositories.register(session, "Proj")
+    root = tmp_path / "Repos"
+    create(root / "proj")
+    create(root / "taken")
+    create(root / "a" / "Utils")
+    create(root / "b" / "utils")
+    planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
+    assert (planned["proj"].action, planned["proj"].repository) == (Action.JOIN, "Proj")
+    assert planned["taken"].note == "the name Taken is taken by an unrelated Repository"
+    assert planned["a/Utils"].note == "2 new Repositories would be named Utils"
+
+
+def test_new_repository_names_are_made_valid(set_up: Paths, tmp_path: Path) -> None:
+    root = tmp_path / "Repos"
+    create(root / "My Thesis (draft)")
+    create(root / "Проект")
+    planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
+    named = planned["My Thesis (draft)"]
+    assert (named.action, named.repository) == (Action.NEW, "My-Thesis-draft")
+    assert (planned["Проект"].action, planned["Проект"].note) == (
+        Action.SKIP,
+        "its remote and directory give no name",
+    )
+    path = shlex.quote(str(root / "Проект"))
+    assert planned["Проект"].fix == (f"hephaistos clone register {path} --repo <name>",)
 
 
 def test_new_repository_named_after_a_remote_not_on_this_machine(

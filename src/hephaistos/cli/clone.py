@@ -136,23 +136,61 @@ def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
     ]
 
 
-def _choose_repository(session: ReadSession, candidate: Candidate) -> str:
-    """The Repository to register `candidate` in, from the matching ones, asking the user."""
-    matches = [repository.name for repository in clones.matching(session, candidate)]
+def _confirm(question: str, action: str, *, yes: bool) -> None:
+    """Asks the user to confirm, unless `yes`; aborts unless they do."""
+    if not yes:
+        terminal.confirm(question, default=True, action=action)
+
+
+def _new_repository(name: str, why: str, *, yes: bool) -> str:
+    """`name` for a new Repository, once the user agreed; `why` it is needed starts the question."""
+    repositories.check_name(name)
+    _confirm(
+        f"{why}; register it as a Clone of a new Repository {name}?",
+        f"register it with a new Repository {name}",
+        yes=yes,
+    )
+    return name
+
+
+def _choose_repository(
+    session: ReadSession, candidate: Candidate, repo: str | None, *, yes: bool
+) -> tuple[str, bool]:
+    """The Repository to register `candidate` in, and whether it is new; asks unless `yes`.
+
+    The one given, or the matching one; a new one if none.
+    """
     shown = short_path(candidate.display_path)
-    if not matches:
-        raise HephaistosError(
-            f"no Repository matches {shown}; register it with a new Repository:\n"
-            f"  hephaistos scan {shell_path(candidate.display_path)}"
+    if repo is not None:
+        if (existing := repositories.find(session, repo)) is not None:
+            return existing.name, False
+        return _new_repository(repo, f"No Repository is named {repo}", yes=yes), True
+    matches = [repository.name for repository in clones.matching(session, candidate)]
+    if len(matches) > 1:
+        if yes or not terminal.interactive():
+            raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
+        heading = f"{shown} matches several Repositories:"
+        return matches[terminal.choose(heading, matches, "Register it as a Clone of")], False
+    if matches:
+        [match] = matches
+        _confirm(
+            f"Register {shown} as a Clone of {match}?",
+            f"register it as a Clone of {match}",
+            yes=yes,
         )
-    if not terminal.interactive():
-        raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
-    if len(matches) == 1:
-        if not typer.confirm(f"Register {shown} as a Clone of {matches[0]}?", default=True):
-            raise typer.Abort
-        return matches[0]
-    heading = f"{shown} matches several Repositories:"
-    return matches[terminal.choose(heading, matches, "Register it as a Clone of")]
+        return match, False
+    name = candidate.suggested_name
+    if name is None:
+        raise HephaistosError(
+            f"no Repository matches {shown}, and its remote and directory give no name;"
+            " choose one with --repo"
+        )
+    if (taken := repositories.find(session, name)) is not None:
+        raise HephaistosError(
+            f"no Repository matches {shown}, and the name {taken.name} is taken by an unrelated"
+            " Repository; choose another with --repo"
+        )
+    return _new_repository(name, f"No Repository matches {shown}", yes=yes), True
 
 
 @app.command()
@@ -160,19 +198,29 @@ def register(
     path: PathArgument = HERE,
     *,
     repo: RepoOption = None,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Register without asking, in a new Repository if needed.")
+    ] = False,
     import_history: ImportHistoryOption = False,
 ) -> None:
-    """Register a git clone as a Clone of an existing Repository, and observe it."""
+    """Register a git clone as a Clone of a Repository, a new one if none matches, and observe it.
+
+    It matches the Repositories it shares a root commit or remote with, else one without Clones
+    named after its remote or directory.
+    """
     paths = Paths.from_environment()
     with read_session(paths) as session:
         candidate = clones.inspect(path)
-        repository = repo or _choose_repository(session, candidate)
+        repository, new = _choose_repository(session, candidate, repo, yes=yes)
     # Asking happens above, so the write transaction never waits for input.
     with write_session(paths) as session:
+        if new:
+            repositories.register(session, repository)
         clone = clones.register(session, repository, candidate, import_history=import_history)
     # Observing right away finds its Worktrees and starts its git activity from now.
     result = observer.observe(paths, [clone.id])
-    registered = f"Registered Clone {short_path(clone.display_path)} of {repository}"
+    of = f"a new Repository {repository}" if new else repository
+    registered = f"Registered Clone {short_path(clone.display_path)} of {of}"
     if result.worktrees:
         registered += f", with {number_text(result.worktrees, 'Worktree')}"
     if import_history:

@@ -46,7 +46,7 @@ def test_plan_needs_a_terminal_or_yes(root: Path) -> None:
         [str(root / "proj"), "join", "proj"],
     ]
     assert "To register the skipped ones by hand:" in lines
-    assert "  hephaistos repo register <name>" in lines
+    assert f"  hephaistos clone register {root / 'other'} --repo <name>" in lines
     assert lines[-1] == "Not listed: 1 Worktree of a Clone above (-v lists them)"
 
 

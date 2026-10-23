@@ -222,9 +222,24 @@ def test_write_session_rolls_back_on_error(set_up: Paths) -> None:
 @pytest.mark.parametrize(
     ("version", "schema_hash", "message"),
     [
-        (SCHEMA_VERSION - 1, "old", r"has schema 1; this hephaistos needs 2: .*setup --reset"),
-        (SCHEMA_VERSION + 1, "new", r"has schema 3, newer .*`hephaistos daemon restart`"),
-        (SCHEMA_VERSION, "changed", r"schema 2 differs from this hephaistos's: .*setup --reset"),
+        (
+            SCHEMA_VERSION - 1,
+            "old",
+            (
+                rf"has schema {SCHEMA_VERSION - 1}; this hephaistos needs {SCHEMA_VERSION}:"
+                r" .*setup --reset"
+            ),
+        ),
+        (
+            SCHEMA_VERSION + 1,
+            "new",
+            rf"has schema {SCHEMA_VERSION + 1}, newer .*`hephaistos daemon restart`",
+        ),
+        (
+            SCHEMA_VERSION,
+            "changed",
+            rf"schema {SCHEMA_VERSION} differs from this hephaistos's: .*setup --reset",
+        ),
     ],
 )
 def test_another_schema_is_reported_by_how_it_differs(

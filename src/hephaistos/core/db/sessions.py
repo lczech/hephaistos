@@ -27,7 +27,7 @@ from hephaistos.core.utils.ids import Clock, Timestamp
 from hephaistos.core.utils.paths import Paths, mount_of, private_directory
 
 MIN_SQLITE = (3, 37, 0)  # STRICT tables
-SCHEMA_VERSION = 2  # one more with each change to the schema
+SCHEMA_VERSION = 3  # one more with each change to the schema
 SCHEMA = files("hephaistos.core.db").joinpath("schema.sql").read_text()
 # Until migrations exist, any change to the schema makes existing databases outdated; the hash
 # also catches a change that forgot to count up the version.

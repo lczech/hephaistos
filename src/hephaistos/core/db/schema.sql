@@ -42,7 +42,12 @@ CREATE UNIQUE INDEX registry_mounts_path ON registry_mounts (machine_id, path) W
 
 CREATE TABLE registry_repositories (
     id          BLOB PRIMARY KEY CHECK (length(id) = 16),
-    name        TEXT NOT NULL,
+    -- As GitHub's: ASCII letters, digits, `.`, `-` and `_`; compared ignoring case.
+    name        TEXT NOT NULL COLLATE NOCASE CHECK (
+        length(name) BETWEEN 1 AND 100
+        AND name NOT GLOB '*[^A-Za-z0-9._-]*'
+        AND name NOT IN ('.', '..')
+    ),
     modified_at INTEGER NOT NULL,
     modified_by BLOB NOT NULL REFERENCES registry_machines (id),
     deleted     INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
