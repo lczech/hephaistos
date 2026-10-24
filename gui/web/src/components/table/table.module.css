@@ -339,6 +339,37 @@
   color: var(--text);
 }
 
+/* In lines, the header's buttons: framed, as a picker's. A filter set fills its funnel. */
+.pick {
+  composes: field from "../controls.module.css";
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pick:hover {
+  background: var(--fill-hover);
+}
+
+.pickIcon {
+  flex: none;
+  width: var(--icon-small);
+  height: var(--icon-small);
+  color: var(--text-muted);
+  translate: 0 var(--icon-lift);
+}
+
+.pick[data-filtered] .pickIcon {
+  color: var(--accent);
+  fill: currentcolor;
+}
+
+/* At the header's end: the column sorted by, and its direction. */
+.sorting {
+  display: flex;
+  gap: var(--space-half);
+  margin-left: auto;
+}
+
 /* The funnel opens a header's filter. It floats over the label's end, which keeps its width. */
 .filter {
   position: absolute;
@@ -505,9 +536,8 @@
  * the row is and its icons; the second its details, one after the other, from where what the row
  * is starts (`--narrow-indent` from the row's start, else the square's width). The View orders
  * its cells (`order`, below 10 for the first line, above for the second) and lets one cell in
- * each line take the room left (`flex: 1 1 0`). The header in one line, of only the columns that
- * filter or sort, without their widths. A list whose rows stay in one line keeps its rows'
- * height and its header's look.
+ * each line take the room left (`flex: 1 1 0`). The header is a line of buttons for the filters
+ * and the sort, wrapping where narrow. A list whose rows stay in one line keeps its rows' height.
  */
 .frame[data-layout="lines"] .grid {
   grid-template-columns: minmax(0, 1fr); /* as wide as the Panel, whatever the rows hold */
@@ -552,43 +582,16 @@
 .frame[data-layout="lines"] .head {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+  gap: var(--space-1); /* its buttons as high as each other, those of only an icon too */
   padding: 0 var(--space-3) var(--space-1) var(--space-2);
   font-size: var(--text-small);
 }
 
-.frame[data-layout="lines"] .head > .header:not([data-filterable], [data-sortable]),
-.frame[data-layout="lines"] .resizer {
+/* Without filters or a sort, e.g. History's. */
+.frame[data-layout="lines"] .head:empty {
   display: none;
-}
-
-.frame[data-layout="lines"] .head > .header[data-end] {
-  margin-left: auto;
 }
 
 .frame[data-layout="lines"][data-one-line] .row {
   padding-block: var(--space-half);
-}
-
-.frame[data-layout="lines"][data-one-line] .head {
-  padding: var(--space-half) var(--space-3) var(--space-half)
-    calc(var(--square) + var(--column-gap));
-  font-size: inherit;
-}
-
-/* Nothing is cut off here: the funnels come after their labels. */
-.frame[data-layout="lines"] .head .filter {
-  position: static;
-  padding: 0 var(--space-1);
-  background: none;
-}
-
-/* One without a label, the square's, would be a gap that nobody finds. */
-.frame[data-layout="lines"] .head .filter:first-child {
-  opacity: 1;
-}
-
-.frame[data-layout="lines"] .clear {
-  position: static;
-  margin-left: auto;
 }

@@ -107,7 +107,6 @@ describe("a list's header menu", () => {
     localStorage.setItem("hephaistos.lists.fruits.hidden", '["colour"]');
     render(<Fruits layout="lines" />);
     expect(screen.getByText("red")).toBeInTheDocument();
-    openMenu("taste");
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(headers()).toEqual([]);
   });
 });

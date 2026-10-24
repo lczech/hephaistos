@@ -16,6 +16,7 @@ import { useColumnDrop } from "./columnDrop";
 import { arrangeable, type ColumnLook, gridColumns } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
+import { LinesHead } from "./LinesHead";
 import type { ListFeatures } from "./list";
 import styles from "./table.module.css";
 
@@ -75,9 +76,9 @@ interface Props<TData extends RowData> {
  * anywhere else on it but on its cells' own buttons and links; one opening a View, also by
  * the middle button. Cells show their whole text when hovered. In columns, each as wide as set,
  * those beyond the list's width scroll sideways, its details staying in view; in lines, each row
- * shows in the View's two lines (or one, keeping its height). It scrolls itself, its header
- * staying in view, filling what its View leaves below its bar, unless it is part of a page.
- * A row whose View is shown, in any Group, is marked. In columns, its header's menu (the
+ * shows in the View's two lines (or one, keeping its height), below buttons for its filters and
+ * its sort instead of headers. It scrolls itself, its header staying in view, filling what its
+ * View leaves below its bar, unless it is part of a page. A row whose View is shown, in any Group, is marked. In columns, its header's menu (the
  * right button, or a long press) hides, shows and moves them, or resets their look; a double
  * click on a column's edge fits it to its cells, at most as wide as the list.
  */
@@ -205,29 +206,38 @@ export function ListTable<TData extends RowData>({
           className={styles.head}
           onContextMenu={layout === "columns" ? showMenu : undefined}
         >
-          {table
-            .getHeaderGroups()
-            .flatMap((group) => group.headers)
-            .map((header) => {
-              const label = header.column.columnDef.header;
-              return (
-                <ColumnHeader
-                  key={header.id}
-                  header={header}
-                  sorted={header.column.getIsSorted()}
-                  values={(header.column.getFilterValue() as string[] | undefined) ?? NO_VALUES}
-                  resizing={header.column.getIsResizing()}
-                  moves={
-                    arrangeable(header.column.columnDef) ? carried(header.column.id) : undefined
-                  }
-                  choices={choices[header.column.id]}
-                  onFit={(element) => fitColumn(header.column.id, element)}
-                >
-                  {typeof label === "string" ? label : undefined}
-                </ColumnHeader>
-              );
-            })}
-          {filtered && (
+          {layout === "lines" ? (
+            <LinesHead
+              table={table}
+              filters={table.state.columnFilters}
+              sorting={table.state.sorting}
+              choices={choices}
+            />
+          ) : (
+            table
+              .getHeaderGroups()
+              .flatMap((group) => group.headers)
+              .map((header) => {
+                const label = header.column.columnDef.header;
+                return (
+                  <ColumnHeader
+                    key={header.id}
+                    header={header}
+                    sorted={header.column.getIsSorted()}
+                    values={(header.column.getFilterValue() as string[] | undefined) ?? NO_VALUES}
+                    resizing={header.column.getIsResizing()}
+                    moves={
+                      arrangeable(header.column.columnDef) ? carried(header.column.id) : undefined
+                    }
+                    choices={choices[header.column.id]}
+                    onFit={(element) => fitColumn(header.column.id, element)}
+                  >
+                    {typeof label === "string" ? label : undefined}
+                  </ColumnHeader>
+                );
+              })
+          )}
+          {filtered && layout === "columns" && (
             <button
               type="button"
               className={styles.clear}
