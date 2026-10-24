@@ -6,8 +6,13 @@
   height: 100%;
 }
 
-/* A View's bar above what it shows: what and how, small and quiet; asking again at its end. */
+/* A View's bar above what it shows: what and how, small and quiet; asking again at its end. Its
+   buttons and links as large as a Choice's halves, with its border: icons and boxes alike. */
 .bar {
+  --icon-size: var(--icon-large);
+  --icon-pad-y: calc(var(--space-half) + var(--space-hair));
+  --icon-pad-x: calc(var(--space-1) + var(--space-hair));
+  --inline-margin: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -17,7 +22,7 @@
   font-size: var(--chrome-size);
 }
 
-/* A choice between two ways: their icons side by side, the one taken marked. */
+/* A choice between two ways: their icons side by side, framed, the one taken on. */
 .choice {
   display: flex;
   padding: 0;
@@ -30,12 +35,12 @@
 
 .choice > span {
   display: flex;
-  padding: 2px var(--space-1);
+  padding: var(--space-half) var(--space-1);
 }
 
 .choice svg {
-  width: 1.1em;
-  height: 1.1em;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .choice:hover > span {
@@ -43,57 +48,38 @@
 }
 
 .choice > [data-taken] {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
+  background: var(--fill-on);
   color: var(--text);
 }
 
-/* Buttons at its end, Refresh last. */
+.choice:is(:hover, :focus-visible) > [data-taken] {
+  background: var(--fill-on-hover);
+}
+
+/* Buttons at its end, Refresh last: close, as their boxes keep them apart. */
 .end {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1);
   margin-left: auto;
 }
 
 /* A line between the choices of how the View shows and the buttons that lead elsewhere, with
-   the bar's gap on each side. */
+   --space-2 on each side: the gap and this margin. */
 .end > .choice + :not(.choice) {
   position: relative;
-  margin-left: calc(var(--space-3) + 1px);
+  margin-left: calc(2 * var(--space-2) + var(--space-hair) - var(--space-1));
 }
 
 .end > .choice + :not(.choice)::before {
   content: "";
   position: absolute;
   top: 50%;
-  left: calc(-1 * var(--space-3) - 1px);
-  width: 1px;
-  height: 1.1em;
+  left: calc(-1 * var(--space-2) - var(--space-hair));
+  width: var(--space-hair);
+  height: var(--icon-large);
   background: var(--line);
   translate: 0 -50%;
-}
-
-/* An icon that does something: Refresh, at the end; marked while what it opens is open. */
-.button {
-  display: flex;
-  padding: 2px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.button:hover,
-.button:focus-visible,
-.button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
-}
-
-.button svg {
-  width: 1em;
-  height: 1em;
 }
 
 .refresh {
@@ -113,6 +99,6 @@
 @media (prefers-reduced-motion: reduce) {
   .refresh[data-busy] svg {
     animation: none;
-    opacity: 0.5;
+    opacity: var(--dimmed);
   }
 }

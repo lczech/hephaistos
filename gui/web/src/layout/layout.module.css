@@ -4,24 +4,23 @@
 }
 
 .gone {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  color: var(--text-muted);
+  composes: note from "../components/text.module.css";
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  max-width: 16rem;
+  max-width: var(--tab-width);
   height: 100%;
-  padding: 0.25rem 0.5rem; /* dockview's tab's, which has none (`dock.css`) */
+  padding: var(--space-1) var(--space-2); /* dockview's tab's, which has none (`dock.css`) */
 }
 
 .tab > :global(.dv-default-tab) {
   min-width: 0;
 }
 
+/* dockview's element: cut off as text.module.css's `cut` (composing takes a class of ours). */
 .tab :global(.dv-default-tab-content) {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -32,13 +31,6 @@
   font-style: italic;
 }
 
-.icon {
-  flex: none;
-  width: 1em;
-  height: 1em;
-  vertical-align: var(--icon-drop);
-}
-
 .actions {
   display: flex;
   align-items: center;
@@ -46,52 +38,24 @@
   padding: 0 var(--space-1);
 }
 
+/* As high as the tab bar, as dockview's own icons there. */
 .add {
-  display: flex;
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  background: none;
-  color: var(--text-muted);
+  composes: icon from "../components/controls.module.css";
+  --icon-pad-y: var(--space-1);
+  --icon-pad-x: var(--space-2);
   font-size: var(--chrome-large);
-}
-
-.add:hover,
-.add:focus-visible {
-  background: var(--dv-icon-hover-background-color);
-  color: var(--text);
 }
 
 .views {
   display: grid;
-  gap: 2px;
+  gap: var(--space-half);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .choice {
-  width: 100%;
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  background: none;
-  color: var(--text);
-  text-align: left;
-}
-
-/* A menu's item: focused as the mouse moves over it, too. */
-.choice[data-focused] {
-  outline: none;
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  cursor: default;
-}
-
-.choiceIcon {
-  margin-right: var(--space-2);
-}
-
-.choice:hover,
-.choice:focus-visible {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  composes: item from "../components/controls.module.css";
 }
 
 .placeholder {
@@ -109,18 +73,10 @@
 
 .placeholder .choice {
   color: var(--accent);
+  cursor: pointer;
 }
 
 .close {
+  composes: action from "../components/controls.module.css";
   margin-top: var(--space-3);
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  background: none;
-  color: var(--text-muted);
-}
-
-.close:hover,
-.close:focus-visible {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--text);
 }

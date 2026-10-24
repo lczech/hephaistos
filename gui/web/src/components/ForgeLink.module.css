@@ -1,22 +1,8 @@
 /* A forge's logo, as small and quiet as the icons beside it. */
 .icon {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px;
-  border-radius: var(--radius);
-  color: var(--text-muted);
-  margin: -2px; /* its padding takes no room: in text, it lines up as an inline icon */
-  vertical-align: var(--icon-drop);
-}
-
-.icon:hover,
-.icon:focus-visible {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
+  composes: icon inline from "./controls.module.css";
 }
 
 .icon svg {
-  width: 1em;
-  height: 1em;
   fill: currentColor;
 }

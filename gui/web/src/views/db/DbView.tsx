@@ -3,6 +3,7 @@ import { useDbRows, useDbTables } from "../../api/queries";
 import { Fields } from "../../components/table/Fields";
 import { Chevron, ListTable } from "../../components/table/ListTable";
 import { listColumnHelper, useListTable } from "../../components/table/list";
+import { ViewBar, ViewPage } from "../../components/ViewBar";
 import { paramValues, withParam } from "../address";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
@@ -70,7 +71,7 @@ function Tables({ show }: { show: (table: string) => void }) {
   const tables = useDbTables();
   if (tables.data === undefined) {
     const text = tables.isError ? `Couldn't load: ${tables.error.message}` : "Loading tables…";
-    return <p className={styles.quiet}>{text}</p>;
+    return <p className={styles.note}>{text}</p>;
   }
   return (
     <section className={styles.tables} data-stale={tables.isError || undefined}>
@@ -129,12 +130,13 @@ function Rows({ table, show }: RowsProps) {
   }
   const shown = pages?.[0]?.columns ?? [];
   return (
-    <div className={styles.rows}>
-      <nav className={styles.bar}>
+    <ViewPage>
+      <ViewBar>
         <button type="button" className={styles.link} onClick={() => show(undefined)}>
           All tables
         </button>
         <select
+          className={styles.select}
           aria-label="Table"
           value={table}
           onChange={(event) => show(event.currentTarget.value)}
@@ -146,7 +148,7 @@ function Rows({ table, show }: RowsProps) {
           ))}
         </select>
         <Warnings warnings={pages?.[0]?.warnings ?? []} />
-      </nav>
+      </ViewBar>
       <ListTable
         table={listTable}
         layout="columns" // no two lines for a table's rows, which may have any columns
@@ -162,6 +164,6 @@ function Rows({ table, show }: RowsProps) {
           />
         )}
       />
-    </div>
+    </ViewPage>
   );
 }

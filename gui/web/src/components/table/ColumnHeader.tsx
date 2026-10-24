@@ -90,10 +90,7 @@ export function ColumnHeader({
             filter.many === undefined ? (
               <OneChoice choices={choices} values={values} set={set} name={column.id} />
             ) : (
-              <Dialog
-                className={`${popover.menu} ${styles.menu}`}
-                aria-label={`Filter by ${column.id}`}
-              >
+              <Dialog className={popover.menu} aria-label={`Filter by ${column.id}`}>
                 <ManyChoices choices={choices} values={values} set={set} />
               </Dialog>
             )
@@ -193,7 +190,7 @@ function OneChoice({ choices, values, set, name }: ChoicesProps & { name: string
   const at = entries.findIndex(({ value }) => value === chosen);
   return (
     <Menu
-      className={`${popover.menu} ${styles.menu} ${styles.choices}`}
+      className={`${popover.menu} ${styles.choices}`}
       aria-label={`Filter by ${name}`}
       selectionMode="single"
       selectedKeys={at < 0 ? [] : [at]}

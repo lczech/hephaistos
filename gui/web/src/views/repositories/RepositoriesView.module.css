@@ -1,10 +1,3 @@
-/* Each Repository starts a group: a line, with some room, above all but the first. */
-.repositories li:not([data-depth], :first-child) {
-  margin-top: var(--space-1);
-  padding-top: var(--space-1);
-  border-top: 1px solid var(--line);
-}
-
 /* The name close to the forge's logo before it, as an icon's label; its header too, while the
  * header is a row of columns (not in lines). */
 .repositories li [data-column="name"] {
@@ -17,7 +10,7 @@
 
 /* Clones within their Repository, Worktrees within their Clone. */
 .repositories li:not([data-depth]) [data-column="name"] {
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
 .repositories li[data-depth="1"] [data-column="name"] {
@@ -28,30 +21,32 @@
   padding-left: calc(2 * var(--space-4));
 }
 
-.repositories li :is([data-column="active"], [data-column="observed"]) {
-  font-variant-numeric: tabular-nums;
-}
-
 /* In lines: the name and status on one line, beside the icons; the branch below them, quieter,
  * from where the name starts: after the square and the forge's logo; when active at its end. A
  * Repository row, without either, is one line. */
 .repositories {
-  --narrow-indent: calc(var(--square) + var(--column-gap) + 1em + 4px);
+  --narrow-indent: calc(
+    var(--square) +
+    var(--column-gap) +
+    var(--icon-size) +
+    2 *
+    var(--space-half)
+  );
   --view-links: 4; /* Events, History, Changes, Diff */
-  --views: calc(var(--view-links) * 1em + (var(--view-links) - 1) * var(--space-2));
+  --views: calc(var(--view-links) * var(--icon-size) + (var(--view-links) - 1) * var(--space-2));
 }
 
 /* A row's Views, each icon in its place, empty where it has none. */
 .views {
   display: grid;
-  grid-template-columns: repeat(var(--view-links), 1em);
+  grid-template-columns: repeat(var(--view-links), var(--icon-size));
   gap: var(--space-2);
   align-items: center;
 }
 
 .repositories[data-layout="lines"] li [data-column="remote"] {
   order: 1;
-  width: calc(1em + 4px);
+  width: calc(var(--icon-size) + 2 * var(--space-half));
 }
 
 .repositories[data-layout="lines"] li [data-column="name"] {
@@ -87,11 +82,6 @@
 .repositories[data-layout="lines"] li [data-column="observed"],
 .repositories[data-layout="lines"] li:not([data-depth]) [data-column="branch"] {
   display: none;
-}
-
-.repositories[data-layout="lines"] li :is([data-column="branch"], [data-column="active"]) {
-  color: var(--text-muted);
-  font-size: var(--text-small);
 }
 
 /* The second line starts where the name does, indented as it is. */

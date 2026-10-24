@@ -1,0 +1,5 @@
+/* Out of sight, a line of code high: measured for the line height the renderer draws with. */
+.ruler {
+  position: absolute;
+  height: var(--code-line);
+}

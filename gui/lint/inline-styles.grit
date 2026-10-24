@@ -1,0 +1,13 @@
+// The look lives in the stylesheets: an inline style only hands them values known at runtime, as
+// custom properties (`components/cssVars.ts`). Tests may size what they render as they need.
+language js
+
+or {
+  `<$tag $attrs />`,
+  `<$tag $attrs>$body</$tag>`
+} where {
+  not $filename <: r".*\.test\.tsx",
+  $attrs <: contains `style={$value}` as $style,
+  not $value <: `cssVars($_)`,
+  register_diagnostic(span=$style, message="Don't style inline: give the element a class, and values known only at runtime as custom properties, by `cssVars()`.")
+}

@@ -1,14 +1,9 @@
 .view {
-  padding: var(--space-3) var(--space-4);
-  transition: opacity 0.2s;
-}
-
-.view[data-stale] {
-  opacity: 0.6;
+  composes: page dims from "../../components/text.module.css";
 }
 
 .quiet {
-  color: var(--text-muted);
+  composes: quiet from "../../components/text.module.css";
 }
 
 /* Each setting a row of key, value and source, its description below them. */
@@ -29,7 +24,7 @@
 }
 
 .key {
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
 /* Defaults are quieter, so the values set stand out. */
@@ -56,11 +51,6 @@
 
 .source[data-tone="muted"] > * {
   color: var(--text-muted);
-}
-
-.description code {
-  font-family: var(--font-mono);
-  font-size: var(--mono-size);
 }
 
 .host {

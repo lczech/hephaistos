@@ -190,7 +190,8 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       {error && <LoadNote error={error} />}
       <ListTable
         table={table}
-        className={`${styles.changes} ${styles.columns}`}
+        className={styles.columns}
+        grouped
         layout={layout}
         oneLine
         choices={{}}

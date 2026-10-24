@@ -1,5 +1,6 @@
 import { type LucideIcon, RefreshCw } from "lucide-react";
-import type { ReactNode, Ref } from "react";
+import type { ReactNode } from "react";
+import { IconButton } from "./IconButton";
 import styles from "./ViewBar.module.css";
 
 /** A View of a bar and what is below it, as high as its Panel: a list there scrolls itself. */
@@ -50,44 +51,15 @@ export function BarEnd({ children }: { children: ReactNode }) {
   return <div className={styles.end}>{children}</div>;
 }
 
-interface BarButtonProps {
-  icon: LucideIcon;
-  label: string;
-  title?: string; // at length, if more than its label
-  onClick: () => void;
-  pressed?: boolean; // whether what it opens is open
-  ref?: Ref<HTMLButtonElement>;
-}
-
-/** An icon of the bar's that does something, e.g. opens a row below it. */
-export function BarButton({ icon: Icon, label, title, onClick, pressed, ref }: BarButtonProps) {
-  return (
-    <button
-      ref={ref}
-      type="button"
-      className={styles.button}
-      onClick={onClick}
-      title={title ?? label}
-      aria-label={label}
-      aria-pressed={pressed}
-    >
-      <Icon aria-hidden="true" />
-    </button>
-  );
-}
-
 /** Asks again for what the View shows, turning while it does; at the bar's end. */
 export function Refresh({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      className={`${styles.button} ${styles.refresh}`}
+    <IconButton
+      icon={RefreshCw}
+      label="Refresh"
+      className={styles.refresh}
       onClick={onClick}
-      title="Refresh"
-      aria-label="Refresh"
       data-busy={busy || undefined}
-    >
-      <RefreshCw aria-hidden="true" />
-    </button>
+    />
   );
 }

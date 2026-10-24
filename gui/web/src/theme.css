@@ -6,6 +6,7 @@
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
   --text-size: 13px; /* what Views show */
   --code-size: 13px; /* code, e.g. in diffs */
+  --code-line: calc(var(--code-size) * 1.5); /* a line of code's height */
 
   --mono-size: 0.9em; /* monospace among text, whose letters look larger at the same size */
   --text-small: calc(var(--text-size) * 0.87);
@@ -15,13 +16,42 @@
   --chrome-size: 0.8125rem;
   --chrome-large: 1.125rem;
 
+  --weight-strong: 600;
+
+  /* Room around and between things; the smallest two for the tight padding of icons and
+     fields. A border is a hairline: 1px, written so. */
+  --space-hair: 1px;
+  --space-half: 2px;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --radius: 6px;
-  /* Two Revisions compared, or the commit in their place, in a View's bar. */
-  --comparison-width: 34rem;
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* a popover's, over what it covers */
+
+  /* Widths things keep. */
+  --comparison-width: 34rem; /* two Revisions compared, or the commit in their place, in a bar */
+  --field-width: 16rem; /* a search field or a picker in a bar */
+  --tab-width: 16rem; /* a tab at most, its title cut short */
+  --reading-width: 40rem; /* a page of text at most: a hint, an error */
+  --menu-height: min(24rem, 70vh); /* a menu at most, scrolling */
+  --picker-width: 28rem; /* a picker's list, at most */
+  --picker-height: min(20rem, 50vh); /* its rows, lower than a menu: a field and tabs above */
+  --underline-offset: 0.2em; /* a link's line, below the letters' descenders */
+
+  /* Icons: as large as the text, unless a context sizes them (--icon-size); larger in bars,
+     smaller as marks beside a label (a chevron, a sort arrow, a funnel); Lucide's letters, drawn
+     small within their box, larger still. */
+  --icon-text: 1em;
+  --icon-size: var(--icon-text);
+  --icon-large: 1.1em;
+  --icon-small: 0.9em;
+  --icon-letters: 1.4em;
+
+  /* Less there: what may be out of date, or can't be used (dimmed); what needs no look until
+     hovered (faint). */
+  --dimmed: 0.6;
+  --faint: 0.4;
 
   /* Icons beside text: their centre a little above the middle of its capitals, where they look
      centred; by `components/TextIcon`, in a line of text or a row alike, and by the links and
@@ -51,6 +81,28 @@
   --found: #ffd38a;
   --found-current: var(--accent);
   --found-text: #1e1e1e;
+
+  /* What the pointer or the keys are on, and what is marked or on (docs: ADR 005, Look):
+   * - hover: under the pointer, or, in menus and pickers, under the keys too: grey, lighter for
+   *   rows than for controls and menu items;
+   * - on: a control's lasting state, a toggle on or a choice's way taken: grey, stronger;
+   * - marked: content pointed out, lasting: a row whose View is shown, the Revision picked; the
+   *   accent.
+   * Hovered or focused, what is on or marked is a step stronger still. */
+  --fill-hover: color-mix(in srgb, var(--text) 10%, transparent);
+  --fill-hover-row: color-mix(in srgb, var(--text) 6%, transparent);
+  --fill-on: color-mix(in srgb, var(--text) 16%, transparent);
+  --fill-on-hover: color-mix(in srgb, var(--text) 22%, transparent);
+  --fill-marked: color-mix(in srgb, var(--accent) 12%, transparent);
+  --fill-marked-hover: color-mix(in srgb, var(--accent) 24%, transparent);
+  /* Behind what stands apart a little: a share's empty part, a notice's tint. */
+  --fill-faint: color-mix(in srgb, var(--text) 8%, transparent);
+  --fill-warning: color-mix(in srgb, var(--warning) 8%, transparent);
+  /* A row's square, by its tone: amber or red; filled red for alarms (`--danger`). */
+  --tint-warning: color-mix(in srgb, var(--warning) 25%, transparent);
+  --tint-danger: color-mix(in srgb, var(--danger) 25%, transparent);
+  --fill-dropping: color-mix(in srgb, var(--accent) 25%, transparent); /* a Panel dragged over */
+  --scrollbar: color-mix(in srgb, var(--text) 25%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -92,6 +144,11 @@ pre {
   font-family: var(--font-mono);
 }
 
+/* Code among text: a setting's name, a command. */
+code {
+  font-size: var(--mono-size);
+}
+
 button {
   padding: var(--space-1) var(--space-3);
   border: 1px solid var(--accent-fill);
@@ -103,6 +160,6 @@ button {
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: var(--dimmed);
   cursor: default;
 }

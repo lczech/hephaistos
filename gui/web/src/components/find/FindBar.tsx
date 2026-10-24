@@ -1,8 +1,8 @@
-import type { LucideIcon } from "lucide-react";
 import { ArrowDown, ArrowUp, CaseSensitive, Regex, Search, WholeWord, X } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { Input, TextField, Toolbar } from "react-aria-components";
 import { useKeyTarget } from "../../views/keys";
+import { IconButton } from "../IconButton";
 import { TextIcon } from "../TextIcon";
 import styles from "./FindBar.module.css";
 import type { FindQuery } from "./pattern";
@@ -72,11 +72,12 @@ export function FindBar({
       </TextField>
       <Toolbar className={styles.tools} aria-label="How to find">
         {OPTIONS.map(({ key, icon, label }) => (
-          <Tool
+          <IconButton
             key={key}
             icon={icon}
             label={label}
-            pressed={query[key]}
+            className={styles.option}
+            on={query[key]}
             onClick={() => onChange({ ...query, [key]: !query[key] }, false)}
           />
         ))}
@@ -85,49 +86,23 @@ export function FindBar({
         {statusText(finding, current, count)}
       </output>
       <Toolbar className={styles.tools} aria-label="Matches">
-        <Tool
+        <IconButton
           icon={ArrowUp}
           label="Previous match"
-          keys="Shift+Enter"
+          title="Previous match (Shift+Enter)"
           disabled={count === 0}
           onClick={() => onStep(-1)}
         />
-        <Tool
+        <IconButton
           icon={ArrowDown}
           label="Next match"
-          keys="Enter"
+          title="Next match (Enter)"
           disabled={count === 0}
           onClick={() => onStep(1)}
         />
-        <Tool icon={X} label="Close" keys="Escape" onClick={onClose} />
+        <IconButton icon={X} label="Close" title="Close (Escape)" onClick={onClose} />
       </Toolbar>
     </search>
-  );
-}
-
-interface ToolProps {
-  icon: LucideIcon;
-  label: string;
-  keys?: string; // which do the same, for its tooltip: `Shift+Enter`
-  onClick: () => void;
-  pressed?: boolean; // an option's: whether it is on
-  disabled?: boolean;
-}
-
-/** One of its icons; our own button, for its tooltip: React Aria's has none. */
-function Tool({ icon: Icon, label, keys, onClick, pressed, disabled }: ToolProps) {
-  return (
-    <button
-      type="button"
-      className={styles.tool}
-      aria-label={label}
-      title={keys ? `${label} (${keys})` : label}
-      aria-pressed={pressed}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <Icon aria-hidden="true" />
-    </button>
   );
 }
 

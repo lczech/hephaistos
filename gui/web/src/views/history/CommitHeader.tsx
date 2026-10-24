@@ -1,5 +1,6 @@
 import { ChevronRight, GitCommitVertical, GitCompare, GitMerge } from "lucide-react";
 import type { Schemas } from "../../api/client";
+import { IconButton } from "../../components/IconButton";
 import { TextIcon } from "../../components/TextIcon";
 import { shortHash } from "../../revisions";
 import type { Checkout } from "../changes/checkout";
@@ -53,15 +54,12 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
         <span className={styles.lineSubject}>{commit.subject}</span>
       </button>
       {onCompare && (
-        <button
-          type="button"
-          className={styles.compare}
-          onClick={onCompare}
-          aria-label="Compare with other Revisions"
+        <IconButton
+          icon={GitCompare}
+          label="Compare with other Revisions"
           title="Compare with other Revisions: from its first parent to it, then pick others"
-        >
-          <GitCompare aria-hidden="true" />
-        </button>
+          onClick={onCompare}
+        />
       )}
     </div>
   );

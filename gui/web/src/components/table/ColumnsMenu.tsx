@@ -68,7 +68,7 @@ export function ColumnsMenu<TData extends RowData>({
       placement="bottom start"
     >
       <Menu
-        className={`${popover.menu} ${styles.menu}`}
+        className={popover.menu}
         aria-label="Columns"
         autoFocus={keyboard ? "first" : true}
         onClose={onClose}
@@ -100,7 +100,7 @@ export function ColumnsMenu<TData extends RowData>({
             </MenuItem>
           ))}
         </MenuSection>
-        <Separator className={styles.separator} />
+        <Separator className={popover.separator} />
         {typeof name === "string" && (
           <MenuSection className={styles.moves} aria-label={`Move "${name}"`}>
             {moves.map(({ step, order, Icon, label }) => (

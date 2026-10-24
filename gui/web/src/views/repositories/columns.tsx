@@ -93,7 +93,7 @@ export const columns = column.columns([
   column.display({
     id: "remote", // a Repository's page on its forge, if a main remote is on one
     enableResizing: false,
-    meta: { width: "calc(1em + 4px)" }, // the logo, with its padding
+    meta: { width: "calc(var(--icon-size) + 2 * var(--space-half))" }, // the logo, with its padding
     cell: ({ row }) => {
       if (row.original.type !== "repository") return "";
       const [page] = row.original.repository.remotes.flatMap((remote) => forgePage(remote) ?? []);
@@ -122,6 +122,7 @@ export const columns = column.columns([
     id: "branch",
     header: "branch",
     size: 120,
+    meta: { second: true },
     cell: ({ row }) => {
       const state = checkout(row.original);
       return state && <span title={branchTitle(state)}>{branchText(state)}</span>;
@@ -145,14 +146,18 @@ export const columns = column.columns([
     sortFn: "basic",
     sortDescFirst: true,
     sortUndefined: "last",
-    meta: { description: "When HEAD last moved here; for a Repository, in any of its Checkouts" },
+    meta: {
+      second: true,
+      figures: true,
+      description: "When HEAD last moved here; for a Repository, in any of its Checkouts",
+    },
     cell: ({ row, table }) => <Ago at={activeAt(row.original)} now={table.options.meta?.now} />,
   }),
   column.display({
     id: "observed",
     header: "observed",
     size: 88,
-    meta: { description: "When the Checkout was last observed" },
+    meta: { figures: true, description: "When the Checkout was last observed" },
     cell: ({ row, table }) => {
       const state = checkout(row.original);
       return state && <Ago at={state.observed_at} now={table.options.meta?.now} />;

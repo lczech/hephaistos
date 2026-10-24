@@ -1,7 +1,6 @@
 import { FlexRender, type ReactTable, type RowData } from "@tanstack/react-table";
 import { ChevronRight, FunnelX } from "lucide-react";
 import {
-  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -10,9 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { cssVars } from "../cssVars";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
-import { arrangeable, gridColumns } from "./columns";
+import { arrangeable, type ColumnLook, gridColumns } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import type { ListFeatures } from "./list";
@@ -47,6 +47,7 @@ interface Props<TData extends RowData> {
   layout: ListLayout;
   embedded?: boolean; // part of a page that scrolls: then it only scrolls sideways itself
   oneLine?: boolean; // its rows stay in one line in the two lines' layout, as high as in columns
+  grouped?: boolean; // its rows without depth start groups, a line above each but the first
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
@@ -85,6 +86,7 @@ export function ListTable<TData extends RowData>({
   layout,
   embedded,
   oneLine,
+  grouped,
   choices,
   message,
   stale,
@@ -182,7 +184,7 @@ export function ListTable<TData extends RowData>({
   };
   const rows = table.getRowModel().rows;
   const filtered = table.state.columnFilters.length > 0;
-  const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
+  const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) };
   return (
     <div
       ref={frame}
@@ -191,8 +193,9 @@ export function ListTable<TData extends RowData>({
       data-layout={layout}
       data-embedded={embedded || undefined}
       data-one-line={oneLine || undefined}
+      data-grouped={grouped || undefined}
     >
-      <div ref={grid} className={styles.grid} style={columns}>
+      <div ref={grid} className={styles.grid} style={cssVars(columns)}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu, which the menu key opens from a header's buttons too */}
         <div
           ref={head}
@@ -231,7 +234,11 @@ export function ListTable<TData extends RowData>({
           )}
           {menu && (
             <>
-              <span ref={anchor} className={styles.anchor} style={{ left: menu.x, top: menu.y }} />
+              <span
+                ref={anchor}
+                className={styles.anchor}
+                style={cssVars({ "--x": `${menu.x}px`, "--y": `${menu.y}px` })}
+              />
               <ColumnsMenu
                 key={`${menu.x} ${menu.y}`} // opened anew where clicked again
                 table={table}
@@ -274,12 +281,12 @@ export function ListTable<TData extends RowData>({
                     onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
                   >
                     {first && still && (
-                      <span data-column={first.column.id}>
+                      <span {...cellData(first.column)}>
                         <FlexRender cell={first} />
                       </span>
                     )}
                     {first && !still && (
-                      <span data-column={first.column.id}>
+                      <span {...cellData(first.column)}>
                         <button
                           type="button"
                           className={styles.open}
@@ -295,7 +302,7 @@ export function ListTable<TData extends RowData>({
                       </span>
                     )}
                     {others.map((cell) => (
-                      <span key={cell.id} data-column={cell.column.id}>
+                      <span key={cell.id} {...cellData(cell.column)}>
                         <FlexRender cell={cell} />
                       </span>
                     ))}
@@ -324,6 +331,16 @@ export function ListTable<TData extends RowData>({
       )}
     </div>
   );
+}
+
+/** What a cell says of its column, for its look. */
+function cellData(column: { id: string; columnDef: { meta?: ColumnLook } }) {
+  const meta = column.columnDef.meta;
+  return {
+    "data-column": column.id,
+    "data-second": meta?.second || undefined,
+    "data-figures": meta?.figures || undefined,
+  };
 }
 
 function within(box: DOMRect, x: number, y: number): boolean {

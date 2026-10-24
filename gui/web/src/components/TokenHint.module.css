@@ -1,12 +1,12 @@
 .hint {
-  max-width: 36rem;
+  max-width: var(--reading-width);
   margin: 15vh auto 0;
   padding: 0 var(--space-4);
 }
 
 .title {
   font-size: var(--text-large);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
 .command {

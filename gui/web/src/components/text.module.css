@@ -1,0 +1,49 @@
+/* Text's looks, each in one place: components use them, or compose them in their own classes. */
+
+/* Quieter: what goes with something more important, or a default. */
+.quiet {
+  color: var(--text-muted);
+}
+
+/* Why nothing shows, and what would; or that more loads. */
+.note {
+  margin: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+}
+
+/* On one line, cut off with "…" where it must shrink. */
+.cut {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Code among text: paths, hashes, commands, settings. */
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--mono-size);
+}
+
+/* Figures as wide as each other, so that times and counts line up. */
+.figures {
+  font-variant-numeric: tabular-nums;
+}
+
+.strong {
+  font-weight: var(--weight-strong);
+}
+
+/* Dimmed while what it shows may be out of date (`data-stale`), until the new answer is there. */
+.dims {
+  transition: opacity 0.2s;
+}
+
+.dims[data-stale] {
+  opacity: var(--dimmed);
+}
+
+/* A page of text in a View, apart from its Panel's edges. */
+.page {
+  padding: var(--space-3) var(--space-4);
+}

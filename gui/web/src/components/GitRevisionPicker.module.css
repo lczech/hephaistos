@@ -1,36 +1,19 @@
 /* The button: the Revision picked, as wide as the place gives it, its name cut short. */
 .trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-  padding: 1px var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--background);
-  color: var(--text);
-  font: inherit;
+  composes: field from "./controls.module.css";
   text-align: left;
   cursor: pointer;
 }
 
-.trigger[data-focus-visible],
-.trigger[data-pressed] {
-  border-color: var(--accent);
-}
-
 .picked {
+  composes: cut from "./text.module.css";
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .chevron {
   flex: none;
-  width: 1em;
-  height: 1em;
+  width: var(--icon-size);
+  height: var(--icon-size);
   color: var(--text-muted);
 }
 
@@ -40,7 +23,7 @@
 
 /* The list opened: a field, the tabs, and one tab's rows, scrolling. */
 .popover {
-  width: min(28rem, calc(100vw - 2rem));
+  width: min(var(--picker-width), calc(100vw - 2 * var(--space-4)));
 }
 
 .dialog {
@@ -68,7 +51,7 @@
 
 .tab {
   padding: var(--space-1) var(--space-2);
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--space-half) solid transparent;
   color: var(--text-muted);
   cursor: pointer;
   outline: none;
@@ -94,7 +77,7 @@
 }
 
 .list {
-  max-height: min(20rem, 50vh);
+  max-height: var(--picker-height);
   overflow: auto;
   outline: none;
 }
@@ -109,28 +92,27 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px var(--space-1);
+  padding: var(--space-half) var(--space-1);
   border-radius: var(--radius);
   cursor: pointer;
   outline: none;
 }
 
 .row[data-hovered] {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+  background: var(--fill-hover-row);
 }
 
-/* The row the keys or the pointer are on: grey, as menus mark it; the accent marks the
-   Revision picked now. */
+/* The row the keys or the pointer are on, as menus mark it; the Revision picked now marked. */
 .row[data-focused] {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
+  background: var(--fill-hover);
 }
 
 .row[data-current] {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--fill-marked);
 }
 
-.row[data-current][data-focused] {
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
+.row[data-current]:is([data-focused], [data-hovered]) {
+  background: var(--fill-marked-hover);
 }
 
 /* Lines between groups: within a row or heading, as the Virtualizer places them itself,
@@ -154,7 +136,7 @@
 
 /* Of an earlier search, until this one's come. */
 .row[data-disabled] {
-  opacity: 0.5;
+  opacity: var(--dimmed);
   cursor: default;
 }
 
@@ -164,17 +146,12 @@
 }
 
 .hash {
+  composes: code quiet from "./text.module.css";
   flex: none;
-  font-family: var(--font-mono);
-  font-size: var(--mono-size);
-  color: var(--text-muted);
 }
 
 .text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  composes: cut from "./text.module.css";
 }
 
 .empty,

@@ -1,59 +1,38 @@
+/* An icon opening a View, in a line of text or a row. */
 .link {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  margin: -2px; /* its padding takes no room: in text, it lines up as an inline icon */
-  vertical-align: var(--icon-drop);
-  cursor: pointer;
-}
-
-.link:hover,
-.link:focus-visible {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
-}
-
-.link svg {
-  width: 1em;
-  height: 1em;
+  composes: icon inline from "../components/controls.module.css";
 }
 
 /* With text: on the line's baseline, as the text beside it; centred, the text would sit higher.
    Its icon, standing on the baseline, goes where TextIcon puts one in a line of text: lowered by
-   --icon-drop, which is what TextIcon's lowering and lifting come to (theme.css). */
-.named,
-.text {
+   --icon-drop, which is what TextIcon's lowering and lifting come to (theme.css). Each with
+   `.link`, to win over what that composes, wherever the build puts it. */
+.link:is(.named, .text) {
   align-items: baseline;
   vertical-align: baseline;
+  gap: var(--space-1);
+  padding: var(--space-half) var(--space-1);
 }
 
-.named svg,
-.text svg {
+.link:is(.named, .text) svg {
   translate: 0 calc(-1 * var(--icon-drop));
 }
 
-.named {
-  gap: var(--space-1);
-  margin: -2px -4px -2px var(--space-3); /* apart from the text before it */
-  padding: 2px 4px;
+/* Its padding takes no room; apart from the text before it. */
+.link.named {
+  margin: calc(-1 * var(--space-half)) calc(-1 * var(--space-1)) calc(-1 * var(--space-half))
+    var(--space-3);
 }
 
 /* With text of its own, as a link in a list: a commit's hash. */
-.text {
-  gap: var(--space-1);
-  margin: -2px -4px;
-  padding: 2px 4px;
+.link.text {
+  margin: calc(-1 * var(--space-half)) calc(-1 * var(--space-1));
 }
 
 .quiet {
-  opacity: 0.4;
+  opacity: var(--faint);
 }
 
-.quiet:hover,
-.quiet:focus-visible {
+.quiet:is(:hover, :focus-visible) {
   opacity: 1;
 }

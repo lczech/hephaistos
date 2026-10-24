@@ -8,6 +8,7 @@ import {
   useRepositories,
 } from "../../api/queries";
 import { GitRevisionPicker } from "../../components/GitRevisionPicker";
+import { IconButton } from "../../components/IconButton";
 import { SearchField } from "../../components/SearchField";
 import { useListLayout } from "../../components/table/kept";
 import { LayoutChoice } from "../../components/table/LayoutChoice";
@@ -132,15 +133,11 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         {path !== undefined && (
           <span className={styles.only} title={`Only commits that changed ${path}`}>
             {path}
-            <button
-              type="button"
-              className={styles.clear}
+            <IconButton
+              icon={X}
+              label="Show all commits"
               onClick={() => setParams(without("path"))}
-              aria-label="Show all commits"
-              title="Show all commits"
-            >
-              <X aria-hidden="true" />
-            </button>
+            />
           </span>
         )}
         {checkout && (

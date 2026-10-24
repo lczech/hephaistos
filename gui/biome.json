@@ -2,7 +2,11 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": { "includes": ["**", "!web/openapi.json"] },
-  "plugins": ["./lint/dock-elements.grit", "./lint/no-manual-memo.grit"],
+  "plugins": [
+    "./lint/dock-elements.grit",
+    "./lint/inline-styles.grit",
+    "./lint/no-manual-memo.grit"
+  ],
   "linter": {
     "rules": {
       "preset": "recommended",

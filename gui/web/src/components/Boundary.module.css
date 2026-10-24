@@ -1,5 +1,5 @@
 .failed {
-  max-width: 48rem;
+  max-width: var(--reading-width);
   margin: var(--space-3) var(--space-4);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--danger);

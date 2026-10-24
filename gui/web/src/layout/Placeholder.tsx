@@ -40,7 +40,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
                 className={styles.choice}
                 onClick={() => openView(containerApi, { kind, params: {} }, {}, group)}
               >
-                <TextIcon icon={icon} className={styles.choiceIcon} />
+                <TextIcon icon={icon} />
                 {name}
               </button>
             </li>

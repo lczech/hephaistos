@@ -27,6 +27,7 @@ import {
   useState,
 } from "react";
 import { MARKS_LOOK, type Marked, markMatches, rangeIn } from "../find/marks";
+import styles from "./Diff.module.css";
 import { UNCOLLAPSED } from "./height";
 import { DiffScrollerContext, useDiffScroller } from "./scroller";
 import type { CodeThemes } from "./themes";
@@ -71,7 +72,7 @@ interface Props {
 }
 
 // A line of code's height: the renderer's, and ours to hold diffs' places (`height.ts`).
-const LINE_HEIGHT = "calc(var(--code-size) * 1.5)";
+const LINE_HEIGHT = "var(--code-line)";
 
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
 // of lines added and removed from it; and the code's font and size. The lines left out between
@@ -176,7 +177,7 @@ export function DiffScroll({
   }, []);
   const scroll = (
     <Virtualizer className={className}>
-      <div ref={line} style={{ position: "absolute", height: LINE_HEIGHT }} aria-hidden />
+      <div ref={line} className={styles.ruler} aria-hidden />
       <LineHeight.Provider value={lineHeight}>
         <Scroller>{children}</Scroller>
       </LineHeight.Provider>

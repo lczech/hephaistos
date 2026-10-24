@@ -1,23 +1,16 @@
 /* A search field: a magnifier, what is typed, and a button to clear it while there is any. */
 .field {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-  padding: 1px var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--background);
-  color: var(--text-muted);
+  composes: field from "./controls.module.css";
 }
 
-.field[data-focus-within] {
-  border-color: var(--accent);
+/* The magnifier. */
+.field > svg {
+  color: var(--text-muted);
 }
 
 .input {
   flex: 1;
-  width: 12rem;
+  width: var(--field-width);
   min-width: 0;
   padding: 0;
   border: none;
@@ -33,26 +26,11 @@
 }
 
 .clear {
-  display: flex;
-  padding: 1px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
+  composes: icon from "./controls.module.css";
+  --icon-pad-y: var(--space-hair);
+  --icon-pad-x: var(--space-hair);
 }
 
 .field[data-empty] .clear {
   visibility: hidden;
-}
-
-.clear[data-hovered],
-.clear[data-focus-visible] {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
-}
-
-.clear svg {
-  width: 1em;
-  height: 1em;
 }

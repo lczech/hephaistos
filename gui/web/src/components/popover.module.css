@@ -4,11 +4,20 @@
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  box-shadow: var(--shadow);
 }
 
-/* What a popover lists, a menu or a dialog. */
+/* What a popover lists, a menu or a dialog: scrolling if long. */
 .menu {
+  max-height: var(--menu-height);
   padding: var(--space-1);
+  font-size: var(--text-small);
+  overflow-y: auto;
   outline: none;
+}
+
+.separator {
+  margin: var(--space-1) 0;
+  border: none;
+  border-top: 1px solid var(--border);
 }

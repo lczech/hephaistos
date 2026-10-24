@@ -1,3 +1,9 @@
+/* A share of lines changed: as long as the most in any file, and as high. */
+.columns {
+  --meter-length: 3rem;
+  --meter-height: 0.5em;
+}
+
 /* What happened to a file, by its icon's colour; directories grey. */
 .kind {
   display: inline-flex;
@@ -17,25 +23,18 @@
   color: var(--danger);
 }
 
-/* Each group starts with a line, with some room, above all but the first. */
-.changes li:not([data-depth], :first-child) {
-  margin-top: var(--space-1);
-  padding-top: var(--space-1);
-  border-top: 1px solid var(--line);
-}
-
 /* A group's row: its name, and how many of each kind of change it holds. */
 .group {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
 .counted {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-half);
   color: var(--text-muted);
   font-weight: normal;
   font-variant-numeric: tabular-nums;
@@ -56,11 +55,8 @@
 }
 
 .path {
+  composes: cut from "../../components/text.module.css";
   display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Cut off from its start, so that its end stays: the text runs right to left, but isolated, so
@@ -122,17 +118,16 @@
 
 /* As long as the lines' share of the most in any file: added, then removed. */
 .meter {
-  --length: 3rem;
   display: block;
-  width: var(--length);
-  height: 0.5em;
-  border-radius: 1px;
+  width: var(--meter-length);
+  height: var(--meter-height);
+  border-radius: var(--space-hair);
   background:
-    linear-gradient(var(--success), var(--success)) 0 0 / calc(var(--added) * var(--length)) 100%
-    no-repeat,
-    linear-gradient(var(--danger), var(--danger)) calc(var(--added) * var(--length)) 0 /
-    calc(var(--removed) * var(--length)) 100% no-repeat,
-    color-mix(in srgb, var(--text) 8%, transparent);
+    linear-gradient(var(--success), var(--success)) 0 0 / calc(var(--added) * var(--meter-length))
+    100% no-repeat,
+    linear-gradient(var(--danger), var(--danger)) calc(var(--added) * var(--meter-length)) 0 /
+    calc(var(--removed) * var(--meter-length)) 100% no-repeat,
+    var(--fill-faint);
 }
 
 /* In lines: still one line, as high as in columns, the path taking what the others leave; the
@@ -148,12 +143,12 @@
 
 .columns[data-layout="lines"] li [data-column="meter"] {
   order: 3;
-  width: 3rem;
+  width: var(--meter-length);
 }
 
 /* Over the lines, before the bars. */
 .columns[data-layout="lines"] [data-column="lines"]:not(li *) {
-  margin-right: calc(3rem + var(--column-gap));
+  margin-right: calc(var(--meter-length) + var(--column-gap));
 }
 
 /* In lines, very narrow: no bars, as the names need the room more. */

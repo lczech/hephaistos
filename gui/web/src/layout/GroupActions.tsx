@@ -21,7 +21,7 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
         {/* Our own button, for its tooltip: React Aria's has none. */}
         <Pressable>
           <button type="button" className={styles.add} title="Open a View" aria-label="Open a View">
-            <Plus className={styles.icon} aria-hidden />
+            <Plus aria-hidden />
           </button>
         </Pressable>
         <Popover className={popover.popover} placement="bottom end">
@@ -36,7 +36,7 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
               const { name, icon } = KINDS[kind];
               return (
                 <MenuItem key={kind} id={kind} className={styles.choice} textValue={name}>
-                  <TextIcon icon={icon} className={styles.choiceIcon} />
+                  <TextIcon icon={icon} />
                   {name}
                 </MenuItem>
               );

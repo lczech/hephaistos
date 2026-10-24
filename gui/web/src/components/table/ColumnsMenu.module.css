@@ -1,39 +1,16 @@
-/* The header menu's items: the clicked column's moves side by side, then the columns, ticked
-   where shown, then the reset. */
-.menu {
-  max-height: min(24rem, 70vh);
-  overflow-y: auto;
-  font-size: var(--text-small);
-}
-
+/* The header menu's items: the columns, ticked where shown, then the clicked column's moves side
+   by side, then the reset. Each item's text fills it, to give all of it a tooltip. */
 .item {
-  display: flex;
-  outline: none;
-  cursor: default;
+  composes: item from "../controls.module.css";
+  --item-padding: 0;
 }
 
-/* All of an item, to give it a tooltip. */
 .label {
   display: flex;
   flex: 1;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
-}
-
-/* The item the pointer or the keys are on: grey, as the pickers mark it. */
-.item[data-focused] {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-}
-
-.item[data-disabled] {
-  color: var(--text-muted);
-}
-
-.item svg {
-  flex: none;
-  width: 1em;
-  height: 1em;
 }
 
 .item:not([data-selected]) .tick {
@@ -50,10 +27,4 @@
 
 .moves .label {
   justify-content: center;
-}
-
-.separator {
-  margin: var(--space-1) 0;
-  border: none;
-  border-top: 1px solid var(--border);
 }

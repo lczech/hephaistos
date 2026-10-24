@@ -28,7 +28,8 @@ import {
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
-import { BarButton, BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { IconButton } from "../../components/IconButton";
+import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -308,7 +309,7 @@ export function DiffView({
         )}
         <BarEnd>
           {checkout && base && (
-            <BarButton
+            <IconButton
               ref={(button) => {
                 findButton.current = button;
                 return findKey(button);
@@ -316,7 +317,7 @@ export function DiffView({
               icon={TextSearch}
               label="Find in this diff"
               title="Find in this diff (Ctrl+F)"
-              pressed={finding !== undefined}
+              on={finding !== undefined}
               onClick={() => setFinding(finding ? undefined : NOTHING_TYPED)}
             />
           )}

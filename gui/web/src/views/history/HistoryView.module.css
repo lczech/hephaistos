@@ -1,6 +1,6 @@
 /* The branch picked and the search: as wide as each other, so they line up when the bar wraps. */
 .control {
-  width: 16rem;
+  width: var(--field-width);
   max-width: 100%;
 }
 
@@ -16,27 +16,6 @@
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--mono-size);
-}
-
-.clear {
-  display: flex;
-  padding: 2px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.clear:hover,
-.clear:focus-visible {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  color: var(--text);
-}
-
-.clear svg {
-  width: 1em;
-  height: 1em;
 }
 
 .icon {
@@ -74,29 +53,16 @@
 }
 
 .path {
-  font-family: var(--font-mono);
-  font-size: var(--mono-size);
+  composes: code from "../../components/text.module.css";
 }
 
 /* Why nothing shows, and what would. */
 .note {
-  margin: var(--space-2) var(--space-3);
-  color: var(--text-muted);
+  composes: note from "../../components/text.module.css";
 }
 
 .action {
-  padding: 1px var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.action:hover,
-.action:focus-visible {
-  background: color-mix(in srgb, var(--text) 10%, transparent);
+  composes: action from "../../components/controls.module.css";
 }
 
 /* In lines: the hash and subject on one line; below them, quieter, who wrote it, and when, at the
@@ -117,10 +83,4 @@
 
 .history[data-layout="lines"] li [data-column="authored"] {
   order: 12;
-  font-variant-numeric: tabular-nums;
-}
-
-.history[data-layout="lines"] li :is([data-column="author"], [data-column="authored"]) {
-  color: var(--text-muted);
-  font-size: var(--text-small);
 }

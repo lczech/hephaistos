@@ -1,6 +1,5 @@
 import { ChevronRight } from "lucide-react";
 import {
-  type CSSProperties,
   type MouseEvent,
   type ReactNode,
   type RefObject,
@@ -10,6 +9,7 @@ import {
   useState,
 } from "react";
 import { type DiffQuery, useDiff, useDiffFiles } from "../../api/queries";
+import { type CssVars, cssVars } from "../../components/cssVars";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { type DiffRows, diffRows, lineCount } from "../../components/diff/height";
 import { LazyDiff } from "../../components/diff/LazyDiff";
@@ -39,9 +39,14 @@ export interface DiffShow {
 
 const AHEAD = "1500px"; // how far beyond the scrolled area a diff is asked for
 
+/** A diff's place until it is asked for, as high as it is likely to be. */
+function Waiting({ height }: { height: CssVars }) {
+  return <div className={styles.waiting} style={cssVars(height)} />;
+}
+
 /** A height for CSS to size, as `.waiting` and `.holding` do. */
-function heightOf({ rows, separators, ends }: DiffRows): CSSProperties {
-  return { "--rows": rows, "--separators": separators, "--ends": ends } as CSSProperties;
+function heightOf({ rows, separators, ends }: DiffRows): CssVars {
+  return { "--rows": rows, "--separators": separators, "--ends": ends };
 }
 
 /** A diff's rows and separators, guessed from its lines changed until its patch is there: a few
@@ -77,7 +82,7 @@ interface BodyProps {
   known?: Change; // the file's change as a list has it, before its diff is asked for
   show: DiffShow;
   unchanged?: ReactNode; // what to say if the file has no changes so; by default that
-  estimate?: CSSProperties; // as one of many: its height, guessed, until it is drawn
+  estimate?: CssVars; // as one of many: its height, guessed, until it is drawn
   find?: FileFind; // matches to mark in it
 }
 
@@ -105,7 +110,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
   // The patch shown and its versions: kept until a new patch's versions came too.
   const [shown, setShown] = useState<{ patch: string; versions: Versions | undefined }>();
   const asking = estimate ? (
-    <div className={styles.waiting} style={estimate} />
+    <Waiting height={estimate} />
   ) : (
     <p className={styles.note}>Loading the diff…</p>
   );
@@ -169,7 +174,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
  * Keeps the estimated height, at least, until what it holds has a height of its own: the
  * renderer draws a diff a moment after it is given, at first as nothing.
  */
-function Holding({ estimate, children }: { estimate: CSSProperties; children: ReactNode }) {
+function Holding({ estimate, children }: { estimate: CssVars; children: ReactNode }) {
   const content = useRef<HTMLDivElement>(null);
   const [held, setHeld] = useState(true);
   useEffect(() => {
@@ -181,7 +186,7 @@ function Holding({ estimate, children }: { estimate: CSSProperties; children: Re
     return () => observer.disconnect();
   }, [held]);
   return (
-    <div className={held ? styles.holding : undefined} style={held ? estimate : undefined}>
+    <div className={held ? styles.holding : undefined} style={cssVars(held ? estimate : {})}>
       <div ref={content}>{children}</div>
     </div>
   );
@@ -242,7 +247,7 @@ export function FileSection({
       {folded ? null : asked ? (
         <FileBody {...body} estimate={lazy ? waiting : undefined} />
       ) : (
-        <div className={styles.waiting} style={waiting} />
+        <Waiting height={waiting} />
       )}
     </section>
   );

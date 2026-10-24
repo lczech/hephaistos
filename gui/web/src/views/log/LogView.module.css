@@ -1,7 +1,3 @@
-.log li :is([data-column="time"], [data-column="process"]) {
-  font-variant-numeric: tabular-nums;
-}
-
 /* What went wrong, in the row's tone. */
 .traceback {
   color: var(--tone, inherit);
@@ -36,9 +32,4 @@ pre.traceback {
 .log[data-layout="lines"] li [data-column="process"] {
   flex: 1 1 0;
   order: 12;
-}
-
-.log[data-layout="lines"] li :is([data-column="time"], [data-column="process"]) {
-  color: var(--text-muted);
-  font-size: var(--text-small);
 }

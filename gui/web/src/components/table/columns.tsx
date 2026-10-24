@@ -8,6 +8,8 @@ export interface ColumnLook {
   description?: string; // what it shows, if its label doesn't say: in the header's tooltip
   end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
   identifies?: boolean; // says what a row is: never hidden
+  second?: boolean; // in two lines, on the second line, quieter
+  figures?: boolean; // times or counts: their figures as wide as each other, to line up
 }
 
 interface LaidOut {

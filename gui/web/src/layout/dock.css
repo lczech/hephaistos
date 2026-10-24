@@ -18,9 +18,9 @@
   --dv-paneview-active-outline-color: var(--accent);
   --dv-active-sash-color: var(--accent);
   --dv-edge-dock-indicator-color: var(--accent);
-  --dv-drag-over-background-color: color-mix(in srgb, var(--accent) 25%, transparent);
-  --dv-icon-hover-background-color: color-mix(in srgb, var(--text) 12%, transparent);
-  --dv-scrollbar-background-color: color-mix(in srgb, var(--text) 25%, transparent);
+  --dv-drag-over-background-color: var(--fill-dropping);
+  --dv-icon-hover-background-color: var(--fill-hover);
+  --dv-scrollbar-background-color: var(--scrollbar);
   --dv-tabs-container-scrollbar-color: var(--text-muted);
   --dv-floating-border: 1px solid var(--border);
 }

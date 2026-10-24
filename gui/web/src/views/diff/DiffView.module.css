@@ -7,7 +7,8 @@
 }
 
 .diff {
-  --folder-height: calc(1lh + 2 * var(--space-1) + 2px); /* a directory's header, as high */
+  /* A directory's header: a line, its padding and its border's two hairlines. */
+  --folder-height: calc(1lh + 2 * var(--space-1) + 2 * var(--space-hair));
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -61,7 +62,7 @@
 
 /* Where a file's header has its link, so that the lines line up. */
 .linkRoom {
-  width: 1em;
+  width: var(--icon-size);
 }
 
 .file > .header + * {
@@ -106,8 +107,8 @@
 }
 
 .fold svg {
-  width: 1em;
-  height: 1em;
+  width: var(--icon-size);
+  height: var(--icon-size);
   transition: rotate 0.15s;
 }
 
@@ -123,19 +124,20 @@
 }
 
 /* A diff not yet asked for, as high as it is likely to be; and one given to the renderer, at
- * least so high until drawn: its rows of code; its separators standing for collapsed lines, the renderer's 32px
- * and 8px on either side; and its padding of 8px at each end without a separator
- * (`components/diff/height.ts`). */
+ * least so high until drawn: its rows of code; its separators standing for collapsed lines, the
+ * renderer's 32px and 8px on either side; and its padding of 8px at each end without a
+ * separator (`components/diff/height.ts`). The renderer's sizes, not ours. */
 .waiting,
 .holding {
+  --separator-height: 48px;
+  --end-height: 8px;
   --height: calc(
     var(--rows) *
-    var(--code-size) *
-    1.5 +
+    var(--code-line) +
     var(--separators) *
-    48px +
+    var(--separator-height) +
     var(--ends) *
-    8px
+    var(--end-height)
   );
 }
 
@@ -165,34 +167,17 @@
 
 /* Dimmed while an older answer shows, until the new one is there. */
 .view[data-stale] .diff {
-  opacity: 0.6;
+  opacity: var(--dimmed);
 }
 
 /* Why nothing shows, and what would. */
 .note {
-  margin: var(--space-2) var(--space-3);
-  color: var(--text-muted);
-}
-
-.note code {
-  font-family: var(--font-mono);
-  font-size: var(--mono-size);
+  composes: note from "../../components/text.module.css";
 }
 
 .action {
+  composes: action from "../../components/controls.module.css";
   margin-right: var(--space-2);
-  padding: 1px var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.action:hover,
-.action:focus-visible {
-  background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .heading .action {

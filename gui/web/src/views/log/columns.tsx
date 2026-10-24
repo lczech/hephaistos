@@ -37,7 +37,7 @@ export const columns = column.columns([
     id: "time",
     header: "time",
     size: 180,
-    meta: { filter: { param: "since" } },
+    meta: { second: true, figures: true, filter: { param: "since" } },
     cell: ({ row, table }) => {
       const at = String(row.original.record.at);
       const now = table.options.meta?.now ?? Date.now();
@@ -48,7 +48,7 @@ export const columns = column.columns([
     id: "process",
     header: "process",
     size: 140,
-    meta: { filter: { param: "process" } },
+    meta: { second: true, figures: true, filter: { param: "process" } },
     cell: ({ row }) => processText(row.original.record),
   }),
   column.display({

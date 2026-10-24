@@ -1,18 +1,12 @@
-/* A row to find in, below a View's bar, as small and quiet: its field looks as a search field,
+/* A row to find in, below a View's bar, looking as the bar does: its field as a search field,
  * its icons as the bar's. */
 .bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-2) var(--space-3) 0;
-  color: var(--text-muted);
-  font-size: var(--chrome-size);
+  composes: bar from "../ViewBar.module.css";
 }
 
 .field {
   composes: field from "../SearchField.module.css";
-  flex: 0 1 18rem;
+  flex: 0 1 var(--field-width);
 }
 
 .input {
@@ -21,35 +15,18 @@
 
 .tools {
   display: flex;
-  gap: 2px;
+  gap: var(--space-half);
 }
 
-.tool {
-  composes: button from "../ViewBar.module.css";
-}
-
-/* As large as the bar's Choices'; the options' a size larger, as Lucide draws them as small
- * letters within their box. */
-.tool svg {
-  width: 1.1em;
-  height: 1.1em;
-}
-
-.tool[aria-pressed] svg {
-  width: 1.4em;
-  height: 1.4em;
-}
-
-.tool:disabled {
-  background: none;
-  opacity: 0.4;
-  cursor: default;
+/* The options' icons larger, as Lucide draws them as small letters within their box. */
+.option {
+  --icon-size: var(--icon-letters);
 }
 
 /* Which match of how many: wide enough for a few digits, so the icons after it stay put. */
 .status {
-  min-width: 6rem;
-  font-variant-numeric: tabular-nums;
+  composes: figures from "../text.module.css";
+  min-width: 12ch;
 }
 
 .status[data-error] {
@@ -57,5 +34,5 @@
 }
 
 .bar[data-busy] .status {
-  opacity: 0.6;
+  opacity: var(--dimmed);
 }

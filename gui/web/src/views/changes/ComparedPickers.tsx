@@ -4,6 +4,7 @@ import {
   GitRevisionPicker,
   type KnownRefs,
 } from "../../components/GitRevisionPicker";
+import { IconButton } from "../../components/IconButton";
 import { HEAD, INDEX, WORKING_TREE } from "../../revisions";
 import styles from "./ComparedPickers.module.css";
 import type { Checkout } from "./checkout";
@@ -38,15 +39,12 @@ export function ComparedPickers({ checkout, compared, onChange, known }: Props) 
   return (
     <div className={styles.compared}>
       {picker("from", "Compare from")}
-      <button
-        type="button"
-        className={styles.swap}
-        onClick={() => onChange({ from: compared.to, to: compared.from })}
-        aria-label="Swap"
+      <IconButton
+        icon={ArrowRightLeft}
+        label="Swap"
         title="Swap: compare the other way"
-      >
-        <ArrowRightLeft aria-hidden="true" />
-      </button>
+        onClick={() => onChange({ from: compared.to, to: compared.from })}
+      />
       {picker("to", "Compare to")}
     </div>
   );

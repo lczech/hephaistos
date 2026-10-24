@@ -20,26 +20,15 @@
 }
 
 .text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  composes: cut from "./text.module.css";
 }
 
 /* The Daemon's icon, coloured by its health; it opens the Daemon View. */
 .health {
-  --icon-size: 1.1em;
-  display: flex;
-  flex: none;
-  padding: 1px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.health:hover,
-.health:focus-visible {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
+  composes: icon from "./controls.module.css";
+  --icon-size: var(--icon-large);
+  --icon-pad-y: var(--space-hair);
+  --icon-pad-x: var(--space-hair);
 }
 
 .health[data-health="good"] {

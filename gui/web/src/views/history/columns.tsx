@@ -91,6 +91,7 @@ export function historyColumns(
       id: "author",
       header: "author",
       size: 140,
+      meta: { second: true },
       cell: ({ row }) =>
         row.original.type === "commit" ? (
           <span title={row.original.commit.author.email}>{row.original.commit.author.name}</span>
@@ -103,6 +104,8 @@ export function historyColumns(
       header: "authored",
       size: 88,
       meta: {
+        second: true,
+        figures: true,
         description: "When the commit was authored; its details also show when it was committed",
       },
       cell: ({ row, table }) => {

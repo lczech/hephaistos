@@ -9,7 +9,8 @@ import {
   FolderPlus,
   type LucideIcon,
 } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { cssVars } from "../../components/cssVars";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
@@ -62,11 +63,8 @@ export function Lines({ added, removed }: { added: number; removed: number }) {
 
 /** A bar as long as the lines' share of the most in any file: added, then removed. */
 function Meter({ added, removed, most }: { added: number; removed: number; most: number }) {
-  const shares = {
-    "--added": most ? added / most : 0,
-    "--removed": most ? removed / most : 0,
-  } as CSSProperties;
-  return <span className={styles.meter} style={shares} aria-hidden="true" />;
+  const shares = { "--added": most ? added / most : 0, "--removed": most ? removed / most : 0 };
+  return <span className={styles.meter} style={cssVars(shares)} aria-hidden="true" />;
 }
 
 /** A file's lines added and removed, if counted. */
@@ -176,9 +174,11 @@ function Indented({
   moved?: boolean;
   children: ReactNode;
 }) {
-  const indent = { "--indent": Math.max(0, depth) } as CSSProperties;
   return (
-    <span className={moved ? styles.moved : styles.indented} style={indent}>
+    <span
+      className={moved ? styles.moved : styles.indented}
+      style={cssVars({ "--indent": Math.max(0, depth) })}
+    >
       {children}
     </span>
   );
@@ -251,7 +251,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
       id: "meter",
       enableResizing: false,
       // The row's padding at its end comes out of its last column, as the rows are subgrids.
-      meta: { width: "calc(3rem + var(--space-3))" },
+      meta: { width: "calc(var(--meter-length) + var(--space-3))" },
       cell: ({ row }) => {
         const lines = counted(row.original);
         return lines && <Meter {...lines} most={most} />;

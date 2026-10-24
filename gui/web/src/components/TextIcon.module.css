@@ -4,8 +4,8 @@
    (--icon-size); its own class adds only room and colour. */
 .icon {
   flex: none;
-  width: var(--icon-size, 1em);
-  height: var(--icon-size, 1em);
+  width: var(--icon-size);
+  height: var(--icon-size);
   vertical-align: calc(var(--icon-drop) + var(--icon-lift));
   translate: 0 var(--icon-lift);
 }

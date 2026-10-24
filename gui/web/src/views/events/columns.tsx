@@ -26,6 +26,8 @@ export const columns = column.columns([
     header: "recorded",
     size: 88,
     meta: {
+      second: true,
+      figures: true,
       filter: { param: "since" },
       description: "When the Event was recorded; its details show when it happened, if known",
     },
@@ -62,14 +64,14 @@ export const columns = column.columns([
     id: "machine",
     header: "machine",
     size: 120,
-    meta: { filter: { param: "machine", many: "Machines" } },
+    meta: { second: true, filter: { param: "machine", many: "Machines" } },
     cell: ({ row }) => machineText(row.original),
   }),
   column.display({
     id: "subject",
     header: "subject",
     size: 200,
-    meta: { filter: { param: "subject", linked: true } }, // as `clone=…` or `worktree=…`
+    meta: { second: true, filter: { param: "subject", linked: true } }, // as `clone=…` or `worktree=…`
     cell: ({ row, table }) => {
       const event = row.original;
       // A Repository's own Events: its name is in the column before.

@@ -1,20 +1,14 @@
 /* A list as a table: rows share the columns, sized by TanStack Table (`--columns`). */
 .frame {
-  --square: calc(1lh + 4px); /* as wide as a row is high */
+  composes: dims from "../text.module.css";
+  --square: calc(1lh + var(--space-1)); /* as wide as a row is high */
   --column-gap: var(--space-2);
   container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
-  transition: opacity 0.2s;
-}
-
-.frame[data-stale] {
-  opacity: 0.6;
 }
 
 .quiet {
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  color: var(--text-muted);
+  composes: note from "../text.module.css";
 }
 
 .grid {
@@ -34,13 +28,15 @@
 
 .head {
   position: relative; /* for clearing all filters, at its end */
-  padding: 2px var(--space-3) 2px 0;
+  padding: var(--space-half) var(--space-3) var(--space-half) 0;
   color: var(--text-muted);
 }
 
 /* Where the header was clicked, for its menu. */
 .anchor {
   position: absolute;
+  top: var(--y);
+  left: var(--x);
   width: 0;
   height: 0;
 }
@@ -66,34 +62,31 @@
 }
 
 .clear svg {
-  width: 1em;
-  height: 1em;
+  width: var(--icon-size);
+  height: var(--icon-size);
   translate: 0 var(--icon-lift);
 }
 
 /* The square, tinted by the row's tone beside the row and its details; filled for alarms. */
 .item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"]) {
   --tone: var(--warning);
-  --tint: 25%;
-  background: linear-gradient(
-    to right,
-    color-mix(in srgb, var(--tone) var(--tint), transparent) var(--square),
-    transparent 0
-  );
+  --tinted: var(--tint-warning);
+  background: linear-gradient(to right, var(--tinted) var(--square), transparent 0);
 }
 
 .item:is([data-tone="danger"], [data-tone="alarm"]) {
   --tone: var(--danger);
+  --tinted: var(--tint-danger);
 }
 
 .item[data-tone="alarm"] {
-  --tint: 100%;
+  --tinted: var(--danger);
 }
 
 .row {
   position: relative; /* for its button's outline */
   align-items: center;
-  padding: 2px var(--space-3) 2px 0;
+  padding: var(--space-half) var(--space-3) var(--space-half) 0;
   color: var(--text);
   cursor: pointer;
 }
@@ -103,12 +96,27 @@
 }
 
 .row:hover {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+  background: var(--fill-hover-row);
 }
 
 /* Its View is shown, in some Group; as VS Code marks the file of the editor shown. */
 .row[data-showing] {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--fill-marked);
+}
+
+.row[data-showing]:hover {
+  background: var(--fill-marked-hover);
+}
+
+/* Rows in groups: each starts with a line, with some room, above all but the first. */
+.frame[data-grouped] .item:not([data-depth], :first-child) {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--line);
+}
+
+.row > [data-figures] {
+  font-variant-numeric: tabular-nums;
 }
 
 .row[data-plain] {
@@ -151,6 +159,7 @@
   translate: 0 var(--icon-lift);
 }
 
+/* Cells cut off, as text.module.css's `cut` (composing takes a class of ours, not children). */
 .row > * {
   display: block;
   overflow: hidden;
@@ -165,11 +174,12 @@
 
 .chevron {
   display: block;
-  width: 0.9em;
-  height: 0.9em;
+  width: var(--icon-small);
+  height: var(--icon-small);
   margin-inline: auto;
   color: var(--text-muted);
-  translate: 1px var(--icon-lift); /* towards its point: a centred chevron looks off-centre */
+  /* towards its point: a centred chevron looks off-centre */
+  translate: var(--space-hair) var(--icon-lift);
   transition:
     rotate 0.15s,
     translate 0.15s;
@@ -185,7 +195,7 @@
 
 .open[aria-expanded="true"] .chevron {
   rotate: 90deg;
-  translate: 0 calc(1px + var(--icon-lift));
+  translate: 0 calc(var(--space-hair) + var(--icon-lift));
 }
 
 .details {
@@ -242,9 +252,9 @@
 .resizer {
   position: absolute;
   top: 0;
-  right: calc(-0.5 * var(--column-gap, 0px) - 3px);
+  right: calc(-0.5 * var(--column-gap, 0px) - 1.5 * var(--space-half));
   bottom: 0;
-  width: 6px;
+  width: calc(3 * var(--space-half));
   height: auto;
   margin: 0;
   border: none;
@@ -253,9 +263,16 @@
   user-select: none;
 }
 
-.resizer:hover,
+/* A line in the gap: grey under the pointer, the accent while dragged. */
+.resizer:hover {
+  background:
+    linear-gradient(var(--fill-on-hover), var(--fill-on-hover)) center / var(--space-half) 100%
+    no-repeat;
+}
+
 .resizer[data-resizing] {
-  background: linear-gradient(var(--accent), var(--accent)) center / 2px 100% no-repeat;
+  background:
+    linear-gradient(var(--accent), var(--accent)) center / var(--space-half) 100% no-repeat;
 }
 
 .header {
@@ -269,11 +286,8 @@
 }
 
 .label {
+  composes: cut from "../text.module.css";
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .header[data-end] > .label {
@@ -283,7 +297,7 @@
 .sort {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-half);
   padding: 0;
   border: none;
   background: none;
@@ -301,8 +315,8 @@
 .sort svg {
   translate: 0 var(--icon-lift);
   flex: none;
-  width: 0.9em;
-  height: 0.9em;
+  width: var(--icon-small);
+  height: var(--icon-small);
 }
 
 .header[data-filtered] .label {
@@ -334,14 +348,14 @@
 }
 
 .filter svg {
-  width: 0.85em;
-  height: 0.85em;
+  width: var(--icon-small);
+  height: var(--icon-small);
   translate: 0 var(--icon-lift);
 }
 
 /* The square's, in line with the chevrons below it. */
 .filter:first-child svg {
-  translate: 1px var(--icon-lift);
+  translate: var(--space-hair) var(--icon-lift);
 }
 
 /* It shows on hovering its header, with a filter set, and where nothing hovers. */
@@ -370,12 +384,6 @@
   fill: currentcolor;
 }
 
-.menu {
-  max-height: min(24rem, 70vh);
-  overflow-y: auto;
-  font-size: var(--text-small);
-}
-
 .choices {
   margin: 0;
   padding: 0;
@@ -387,35 +395,14 @@
 }
 
 .choice {
-  width: 100%;
-  padding: var(--space-1) var(--space-3);
-  border: none;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-}
-
-.choice:disabled {
-  color: var(--text-muted);
-}
-
-.choice:not(:disabled):hover,
-.choice:focus-visible,
-.choice[data-focused],
-.entry:hover {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-}
-
-.choice[data-focused] {
-  outline: none;
-  cursor: default;
+  composes: item from "../controls.module.css";
 }
 
 .choice[data-selected] {
-  font-weight: 600;
+  font-weight: var(--weight-strong);
 }
 
+/* One of many: ticked or not, or "only" this one. */
 .entry {
   display: flex;
   align-items: center;
@@ -423,16 +410,19 @@
   padding: 0 var(--space-2);
 }
 
+.entry:hover {
+  background: var(--fill-hover);
+}
+
 .tick {
   display: flex;
   flex: 1;
   align-items: center;
   gap: var(--space-2);
-  padding: 2px 0;
+  padding: var(--space-half) 0;
   white-space: nowrap;
 }
 
-/* "only": chooses just this one. */
 .only {
   padding: 0 var(--space-1);
   border: none;
@@ -520,6 +510,12 @@
   min-width: 0;
 }
 
+/* What goes on the second line, quieter. */
+.frame[data-layout="lines"] .row > [data-second] {
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}
+
 .frame[data-layout="lines"] .row > :first-child {
   width: var(--square);
 }
@@ -555,11 +551,12 @@
 }
 
 .frame[data-layout="lines"][data-one-line] .row {
-  padding-block: 2px;
+  padding-block: var(--space-half);
 }
 
 .frame[data-layout="lines"][data-one-line] .head {
-  padding: 2px var(--space-3) 2px calc(var(--square) + var(--column-gap));
+  padding: var(--space-half) var(--space-3) var(--space-half)
+    calc(var(--square) + var(--column-gap));
   font-size: inherit;
 }
 
