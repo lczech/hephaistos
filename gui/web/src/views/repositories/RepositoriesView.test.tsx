@@ -99,6 +99,14 @@ describe("the Repositories View", () => {
     await userEvent.click(screen.getByRole("button", { name: "name" }));
     expect(screen.getByRole("status")).toHaveTextContent("repositories#sort=name");
     expect(names().filter((name) => !name?.includes("/"))).toEqual(["idle", "old", "recent"]);
+    expect(screen.getByRole("button", { name: "name" })).toHaveAttribute(
+      "title",
+      expect.stringContaining("Sorted by name, ascending"),
+    );
+    expect(screen.getByRole("button", { name: "active" })).toHaveAttribute(
+      "title",
+      expect.stringContaining("Sort by active"),
+    );
   });
 
   it("opens the Events of a Repository, Clone or Worktree", async () => {

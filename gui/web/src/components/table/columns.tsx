@@ -78,19 +78,20 @@ export function movedPast(order: string[], id: string, step: -1 | 1, shown: Set<
   return moved;
 }
 
-interface Resizable {
-  getResizeHandler: () => (event: unknown) => void;
-  column: { getIsResizing: () => boolean };
+interface ResizerProps {
+  header: { getResizeHandler: () => (event: unknown) => void };
+  resizing: boolean; // whether it is dragged
+  fit: () => void;
 }
 
 /** Drag a column's edge to resize it; a double click fits it to its cells. */
-export function Resizer({ header, fit }: { header: Resizable; fit: () => void }) {
+export function Resizer({ header, resizing, fit }: ResizerProps) {
   const resize = header.getResizeHandler();
   return (
     <hr
       aria-orientation="vertical"
       className={styles.resizer}
-      data-resizing={header.column.getIsResizing() || undefined}
+      data-resizing={resizing || undefined}
       onMouseDown={resize}
       onTouchStart={resize}
       onDoubleClick={fit}

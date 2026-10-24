@@ -196,7 +196,9 @@ describe("the Events View's columns", () => {
     const [recorded] = screen.getAllByRole("separator");
     fireEvent.mouseDown(recorded as HTMLElement, { clientX: 100 });
     fireEvent.mouseMove(document, { clientX: 130 });
+    expect(recorded).toHaveAttribute("data-resizing");
     fireEvent.mouseUp(document, { clientX: 130 });
+    expect(recorded).not.toHaveAttribute("data-resizing");
     expect(lists.map(grid)).toEqual([columns(118), columns(118)]);
     expect(localStorage.getItem("hephaistos.lists.events.widths")).toBe('{"recorded":118}');
   });

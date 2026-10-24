@@ -24,6 +24,8 @@ export type Tone = "warning" | "danger" | "alarm" | "muted";
 /** A click with the right button, or the menu key's. */
 type Clicked = Pick<globalThis.MouseEvent, "target" | "clientX" | "clientY" | "preventDefault">;
 
+const NO_VALUES: string[] = [];
+
 /** Where a list's header menu opens, for which column, and whether by the keyboard. */
 interface Menu {
   x: number;
@@ -206,6 +208,9 @@ export function ListTable<TData extends RowData>({
                 <ColumnHeader
                   key={header.id}
                   header={header}
+                  sorted={header.column.getIsSorted()}
+                  values={(header.column.getFilterValue() as string[] | undefined) ?? NO_VALUES}
+                  resizing={header.column.getIsResizing()}
                   choices={choices[header.column.id]}
                   onFit={(element) => fitColumn(header.column.id, element)}
                 >

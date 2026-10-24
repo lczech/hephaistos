@@ -14,24 +14,27 @@ import { type ColumnLook, Resizer } from "./columns";
 import { type Choice, filterText, toggled } from "./filters";
 import styles from "./table.module.css";
 
-/** What TanStack Table's headers offer, of a list with column filtering, sizing and resizing. */
+/**
+ * What TanStack Table's headers offer, of a list with column filtering, sizing and resizing. The
+ * same objects whatever changes, so what changes comes as props, for React's compiler to see.
+ */
 interface Header {
   column: {
     id: string;
     columnDef: { meta?: ColumnLook };
-    getFilterValue: () => unknown;
     setFilterValue: (value: string[] | undefined) => void;
     getCanResize: () => boolean;
     getCanSort: () => boolean;
-    getIsSorted: () => false | "asc" | "desc";
     getToggleSortingHandler: () => undefined | ((event: unknown) => void);
-    getIsResizing: () => boolean;
   };
   getResizeHandler: () => (event: unknown) => void;
 }
 
 interface Props {
   header: Header;
+  sorted: false | "asc" | "desc"; // whether the list is sorted by it, and how
+  values: string[]; // what its filter is set to; none for all
+  resizing: boolean; // whether its edge is dragged
   choices?: Choice[]; // what its filter offers; none while they load
   onFit: (header: HTMLElement) => void; // fits the column to its cells
   children?: ReactNode; // the column's label
@@ -41,10 +44,17 @@ interface Props {
  * A column's header: its label, saying what its filter is set to, which sorts by the column if it
  * can; at its end a funnel opening the filter's choices, if it has one; its edge resizes it.
  */
-export function ColumnHeader({ header, choices = [], onFit, children }: Props) {
+export function ColumnHeader({
+  header,
+  sorted,
+  values,
+  resizing,
+  choices = [],
+  onFit,
+  children,
+}: Props) {
   const { column } = header;
   const own = useRef<HTMLSpanElement>(null);
-  const values = (column.getFilterValue() as string[] | undefined) ?? [];
   const look = column.columnDef.meta?.filter;
   const filter = look?.linked && values.length === 0 ? undefined : look;
   const set = (chosen: string[]) => column.setFilterValue(chosen.length ? chosen : undefined);
@@ -62,7 +72,7 @@ export function ColumnHeader({ header, choices = [], onFit, children }: Props) {
     >
       {children !== undefined &&
         (column.getCanSort() ? (
-          <SortButton column={column} description={description}>
+          <SortButton column={column} sorted={sorted} description={description}>
             {children}
           </SortButton>
         ) : (
@@ -92,7 +102,11 @@ export function ColumnHeader({ header, choices = [], onFit, children }: Props) {
         />
       )}
       {column.getCanResize() && (
-        <Resizer header={header} fit={() => own.current && onFit(own.current)} />
+        <Resizer
+          header={header}
+          resizing={resizing}
+          fit={() => own.current && onFit(own.current)}
+        />
       )}
     </span>
   );
@@ -138,13 +152,13 @@ function Filter({ header, name, text, choices, menu }: FilterProps) {
 
 interface SortProps {
   column: Header["column"];
+  sorted: Props["sorted"];
   description: string | undefined;
   children: ReactNode;
 }
 
 /** A column's label that sorts by it, or the other way round once it does. */
-function SortButton({ column, description, children }: SortProps) {
-  const sorted = column.getIsSorted();
+function SortButton({ column, sorted, description, children }: SortProps) {
   const Arrow = sorted === "desc" ? ArrowDown : ArrowUp;
   return (
     <button
