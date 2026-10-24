@@ -1,3 +1,4 @@
+import type { MouseEvent, TouchEvent } from "react";
 import type { ColumnFilterLook } from "./filters";
 import styles from "./table.module.css";
 
@@ -65,6 +66,12 @@ export function columnsOrdered(columns: readonly Defined[], moved: string[]): st
   return ids.map((id) => (placed.has(id) ? (order[next++] as string) : id));
 }
 
+/** The columns to arrange in their order, given in their first order, as `moved`. */
+export function arrangedOrder(columns: readonly Defined[], moved: string[]): string[] {
+  const movable = new Set(columns.filter(arrangeable).map(columnId));
+  return columnsOrdered(columns, moved).filter((id) => movable.has(id));
+}
+
 /**
  * The columns to arrange, in `order`, with `id` moved one place to the left (-1) or right (1),
  * past the next column `shown`, or none if no column shows there.
@@ -75,8 +82,13 @@ export function movedPast(order: string[], id: string, step: -1 | 1, shown: Set<
   while (past >= 0 && past < order.length && !shown.has(order[past] as string)) past += step;
   const other = order[past];
   if (from < 0 || other === undefined) return undefined;
+  return movedBeside(order, id, other, step > 0);
+}
+
+/** The columns to arrange, in `order`, with `id` moved just before `other`, or after it. */
+export function movedBeside(order: string[], id: string, other: string, after: boolean) {
   const moved = order.filter((each) => each !== id);
-  moved.splice(moved.indexOf(other) + (step > 0 ? 1 : 0), 0, id);
+  moved.splice(moved.indexOf(other) + (after ? 1 : 0), 0, id);
   return moved;
 }
 
@@ -86,9 +98,13 @@ interface ResizerProps {
   fit: () => void;
 }
 
-/** Drag a column's edge to resize it; a double click fits it to its cells. */
+/** Drag a column's edge to resize it, not its header to move it; a double click fits it. */
 export function Resizer({ header, resizing, fit }: ResizerProps) {
-  const resize = header.getResizeHandler();
+  const handler = header.getResizeHandler();
+  const resize = (event: MouseEvent | TouchEvent) => {
+    if (event.type === "mousedown") event.preventDefault(); // nor drags the header it is in
+    handler(event);
+  };
   return (
     <hr
       aria-orientation="vertical"

@@ -12,6 +12,7 @@ import {
 import { cssVars } from "../cssVars";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
+import { useColumnDrop } from "./columnDrop";
 import { arrangeable, type ColumnLook, gridColumns } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
@@ -165,6 +166,7 @@ export function ListTable<TData extends RowData>({
       keyboard,
     });
   };
+  const { dropProps, line, carried } = useColumnDrop(table, head, layout);
   useEffect(() => {
     if (menu === null) return;
     const again = (event: globalThis.MouseEvent) => event.defaultPrevented || showMenu(event);
@@ -198,6 +200,7 @@ export function ListTable<TData extends RowData>({
       <div ref={grid} className={styles.grid} style={cssVars(columns)}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu, which the menu key opens from a header's buttons too */}
         <div
+          {...dropProps}
           ref={head}
           className={styles.head}
           onContextMenu={layout === "columns" ? showMenu : undefined}
@@ -214,6 +217,9 @@ export function ListTable<TData extends RowData>({
                   sorted={header.column.getIsSorted()}
                   values={(header.column.getFilterValue() as string[] | undefined) ?? NO_VALUES}
                   resizing={header.column.getIsResizing()}
+                  moves={
+                    arrangeable(header.column.columnDef) ? carried(header.column.id) : undefined
+                  }
                   choices={choices[header.column.id]}
                   onFit={(element) => fitColumn(header.column.id, element)}
                 >
@@ -231,6 +237,9 @@ export function ListTable<TData extends RowData>({
             >
               <FunnelX aria-hidden="true" />
             </button>
+          )}
+          {line !== null && (
+            <span className={styles.dropLine} style={cssVars({ "--x": `${line}px` })} />
           )}
           {menu && (
             <>

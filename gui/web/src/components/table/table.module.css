@@ -32,6 +32,22 @@
   color: var(--text-muted);
 }
 
+/* Where a header dragged would go: a line in the gap, the accent while dragging. */
+.dropLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--x);
+  width: var(--space-half);
+  background: var(--accent);
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.header[data-dragging] {
+  opacity: var(--dimmed);
+}
+
 /* Where the header was clicked, for its menu. */
 .anchor {
   position: absolute;

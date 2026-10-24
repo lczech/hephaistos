@@ -40,9 +40,14 @@ function layoutChosen(kind: string): Atom<ListLayout | null> {
   );
 }
 
+/** Whether this device's main pointer is a finger, not a mouse. */
+export function fingerPointer(): boolean {
+  return globalThis.matchMedia?.("(pointer: coarse)").matches ?? false;
+}
+
 /** The layout this device starts with: two lines where the main pointer is a finger. */
 function deviceLayout(): ListLayout {
-  return globalThis.matchMedia?.("(pointer: coarse)").matches ? "lines" : "columns";
+  return fingerPointer() ? "lines" : "columns";
 }
 
 /** A kind of View's list layout, as chosen, else as the device starts with; and how to choose. */

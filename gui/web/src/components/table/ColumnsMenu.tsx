@@ -5,7 +5,7 @@ import type { RefObject } from "react";
 import { Menu, MenuItem, MenuSection, Popover, Separator } from "react-aria-components";
 import popover from "../popover.module.css";
 import styles from "./ColumnsMenu.module.css";
-import { arrangeable, columnsOrdered, movedPast } from "./columns";
+import { arrangedOrder, movedPast } from "./columns";
 import { columnOrder, hiddenColumns, resetLook } from "./kept";
 import type { ListFeatures } from "./list";
 
@@ -32,9 +32,9 @@ export function ColumnsMenu<TData extends RowData>({
   const kind = table.options.meta?.kind ?? "";
   const [hidden, setHidden] = useAtom(hiddenColumns(kind));
   const [moved, setMoved] = useAtom(columnOrder(kind));
-  const columns = columnsOrdered(table.options.columns, moved).flatMap((id) => {
+  const columns = arrangedOrder(table.options.columns, moved).flatMap((id) => {
     const column = table.getColumn(id);
-    return column && arrangeable(column.columnDef) ? [column] : [];
+    return column ? [column] : [];
   });
   const order = columns.map((column) => column.id);
   const shown = new Set(columns.filter((column) => column.getIsVisible()).map(({ id }) => id));

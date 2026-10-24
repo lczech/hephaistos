@@ -138,3 +138,48 @@ describe("a list's header menu, open", () => {
     await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 });
+
+/**
+ * Drags `from` onto `to`, dropping it `x` from its left edge, by the browser's own drag events:
+ * Vitest's dragAndDrop moves no native drag into its frame.
+ */
+function drag(from: Element, to: Element, x: number) {
+  const data = new DataTransfer();
+  const box = to.getBoundingClientRect();
+  const fire = (target: Element, type: string) =>
+    target.dispatchEvent(
+      new DragEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: data,
+        clientX: box.left + x,
+        clientY: box.top + box.height / 2,
+      }),
+    );
+  fire(from, "dragstart");
+  for (const type of ["dragenter", "dragover", "drop"]) fire(to, type);
+  fire(from, "dragend");
+}
+
+describe("a header dragged", () => {
+  const headers = () =>
+    [...document.querySelectorAll("[data-column]")]
+      .filter((cell) => cell.closest("ol") === null)
+      .map((cell) => cell.getAttribute("data-column"));
+  const header = (id: string) => document.querySelector(`[data-column="${id}"]`) as Element;
+
+  it("moves its column to the gap it is dropped nearest, keeping it so", async () => {
+    render(<Coloured />);
+    drag(header("colour"), header("name"), 4); // before the name's middle
+    await waitFor(() => expect(headers()).toEqual(["square", "colour", "name"]));
+    expect(localStorage.getItem("hephaistos.lists.coloured.order")).toBe('["colour","name"]');
+    drag(header("colour"), header("name"), 140); // after it
+    await waitFor(() => expect(headers()).toEqual(["square", "name", "colour"]));
+  });
+
+  it("not by its edge, which resizes it", () => {
+    render(<Coloured />);
+    const edge = header("name").querySelector("hr") as Element;
+    expect(fireEvent.mouseDown(edge)).toBe(false); // a drag can't start
+  });
+});
