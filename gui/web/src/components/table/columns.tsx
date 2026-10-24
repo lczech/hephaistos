@@ -7,29 +7,84 @@ export interface ColumnLook {
   filter?: ColumnFilterLook; // if the list can be filtered by it
   description?: string; // what it shows, if its label doesn't say: in the header's tooltip
   end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
+  identifies?: boolean; // says what a row is: never hidden
 }
 
 interface LaidOut {
+  id: string;
   getSize: () => number;
   columnDef: { meta?: ColumnLook };
 }
 
 /**
  * The `grid-template-columns` for these columns, in order: the widths they ask for, else their
- * sizes; then the room left, blank, so that rows and their header reach across the list.
+ * sizes; then the room left, blank, so that rows and their header reach across the list, at
+ * least their padding at the end. The column `fitting` as wide as its widest cell, to measure it.
  */
-export function gridColumns(columns: LaidOut[]): string {
-  const widths = columns.map((column) => column.columnDef.meta?.width ?? `${column.getSize()}px`);
-  return [...widths, "minmax(0, 1fr)"].join(" ");
+export function gridColumns(columns: LaidOut[], fitting?: string): string {
+  const widths = columns.map((column) => {
+    if (column.id === fitting) return "max-content";
+    return column.columnDef.meta?.width ?? `${column.getSize()}px`;
+  });
+  return [...widths, "minmax(var(--space-3), 1fr)"].join(" ");
+}
+
+/**
+ * Whether a column is one to arrange: shown or hidden, moved. Those with a header are; those
+ * without are a row's fixed parts, such as its square or its links, always in their place.
+ */
+export function arrangeable(column: { header?: unknown }): boolean {
+  return typeof column.header === "string";
+}
+
+interface Defined {
+  id?: string;
+  accessorKey?: unknown;
+  header?: unknown;
+}
+
+/** A column's ID, as TanStack Table gives it: as set, else its key, else its header. */
+function columnId({ id, accessorKey, header }: Defined): string {
+  if (id !== undefined) return id;
+  if (accessorKey !== undefined) return String(accessorKey).replaceAll(".", "_");
+  return typeof header === "string" ? header : "";
+}
+
+/**
+ * The order of all columns, given in their first order, with those to arrange as `moved`: each
+ * takes the place of one of them, in that order; the others stay, as do columns not moved yet.
+ */
+export function columnsOrdered(columns: readonly Defined[], moved: string[]): string[] {
+  const ids = columns.map(columnId);
+  const movable = new Set(columns.filter(arrangeable).map(columnId));
+  const order = moved.filter((id) => movable.has(id));
+  const placed = new Set(order);
+  let next = 0;
+  return ids.map((id) => (placed.has(id) ? (order[next++] as string) : id));
+}
+
+/**
+ * The columns to arrange, in `order`, with `id` moved one place to the left (-1) or right (1),
+ * past the next column `shown`, or none if no column shows there.
+ */
+export function movedPast(order: string[], id: string, step: -1 | 1, shown: Set<string>) {
+  const from = order.indexOf(id);
+  let past = from + step;
+  while (past >= 0 && past < order.length && !shown.has(order[past] as string)) past += step;
+  const other = order[past];
+  if (from < 0 || other === undefined) return undefined;
+  const moved = order.filter((each) => each !== id);
+  moved.splice(moved.indexOf(other) + (step > 0 ? 1 : 0), 0, id);
+  return moved;
 }
 
 interface Resizable {
   getResizeHandler: () => (event: unknown) => void;
-  column: { getIsResizing: () => boolean; resetSize: () => void };
+  column: { getIsResizing: () => boolean };
 }
 
-/** Drag a column's edge to resize it; a double click gives it its first size again. */
-export function Resizer({ header }: { header: Resizable }) {
+/** Drag a column's edge to resize it; a double click fits it to its cells. */
+export function Resizer({ header, fit }: { header: Resizable; fit: () => void }) {
   const resize = header.getResizeHandler();
   return (
     <hr
@@ -38,7 +93,7 @@ export function Resizer({ header }: { header: Resizable }) {
       data-resizing={header.column.getIsResizing() || undefined}
       onMouseDown={resize}
       onTouchStart={resize}
-      onDoubleClick={() => header.column.resetSize()}
+      onDoubleClick={fit}
     />
   );
 }

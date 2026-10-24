@@ -1,6 +1,6 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import { useLog } from "../../api/queries";
-import { columnWidths, useListLayout } from "../../components/table/kept";
+import { useListLayout } from "../../components/table/kept";
 import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -29,11 +29,10 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   const listed = pages?.flatMap((page) => page.entries) ?? NONE;
   const columnFilters = logColumnFilters(params);
   const [layout, setLayout] = useListLayout("log");
-  const table = useListTable({
+  const table = useListTable("log", layout, {
     columns,
     data: listed,
     getRowId: (entry) => entry.position,
-    atoms: { columnSizing: columnWidths("log") },
     // The Server filters: the filters are the View's parameters, and changing one changes those.
     manualFiltering: true,
     state: { columnFilters },

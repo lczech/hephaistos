@@ -24,7 +24,10 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
     }),
     column.accessor("name", { header: "name", meta: { description: "What it is called" } }),
   ]);
-  const table = useListTable({ columns, data: [{ name: "apple" }, { name: "pear" }] });
+  const table = useListTable("fruits", "columns", {
+    columns,
+    data: [{ name: "apple" }, { name: "pear" }],
+  });
   return (
     <ListTable
       table={table}

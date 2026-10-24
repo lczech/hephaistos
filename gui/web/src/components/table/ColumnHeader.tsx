@@ -26,7 +26,6 @@ interface Header {
     getIsSorted: () => false | "asc" | "desc";
     getToggleSortingHandler: () => undefined | ((event: unknown) => void);
     getIsResizing: () => boolean;
-    resetSize: () => void;
   };
   getResizeHandler: () => (event: unknown) => void;
 }
@@ -34,6 +33,7 @@ interface Header {
 interface Props {
   header: Header;
   choices?: Choice[]; // what its filter offers; none while they load
+  onFit: (header: HTMLElement) => void; // fits the column to its cells
   children?: ReactNode; // the column's label
 }
 
@@ -41,7 +41,7 @@ interface Props {
  * A column's header: its label, saying what its filter is set to, which sorts by the column if it
  * can; at its end a funnel opening the filter's choices, if it has one; its edge resizes it.
  */
-export function ColumnHeader({ header, choices = [], children }: Props) {
+export function ColumnHeader({ header, choices = [], onFit, children }: Props) {
   const { column } = header;
   const own = useRef<HTMLSpanElement>(null);
   const values = (column.getFilterValue() as string[] | undefined) ?? [];
@@ -91,7 +91,9 @@ export function ColumnHeader({ header, choices = [], children }: Props) {
           menu={filter.many === undefined}
         />
       )}
-      {column.getCanResize() && <Resizer header={header} />}
+      {column.getCanResize() && (
+        <Resizer header={header} fit={() => own.current && onFit(own.current)} />
+      )}
     </span>
   );
 }

@@ -1,6 +1,6 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import { useInfo, useRepositories } from "../../api/queries";
-import { columnWidths, useListLayout } from "../../components/table/kept";
+import { useListLayout } from "../../components/table/kept";
 import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -23,12 +23,11 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
   const listed = entries(repositories.data ?? []);
   const sorted = sorting(fragment);
   const [layout, setLayout] = useListLayout("repositories");
-  const table = useListTable({
+  const table = useListTable("repositories", layout, {
     columns,
     data: listed,
     getRowId: entryId,
     getSubRows: (entry) => entry.subRows,
-    atoms: { columnSizing: columnWidths("repositories") },
     state: { sorting: sorted, expanded: true },
     onSortingChange: (change) =>
       setFragment(sortFragment(fragment, functionalUpdate(change, sorted))),

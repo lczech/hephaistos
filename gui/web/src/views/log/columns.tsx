@@ -56,5 +56,6 @@ export const columns = column.columns([
     header: "message",
     cell: ({ row }) => <Message entry={row.original} />,
     size: 560,
+    meta: { identifies: true },
   }),
 ]);

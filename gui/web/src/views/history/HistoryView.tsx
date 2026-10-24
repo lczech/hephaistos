@@ -9,7 +9,7 @@ import {
 } from "../../api/queries";
 import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { SearchField } from "../../components/SearchField";
-import { columnWidths, useListLayout } from "../../components/table/kept";
+import { useListLayout } from "../../components/table/kept";
 import { LayoutChoice } from "../../components/table/LayoutChoice";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
@@ -85,11 +85,10 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const allFiles = () => setParams(withParam(params, "path", []));
   const columns = historyColumns(checkout, first?.head, { walked, path, showOn, allFiles });
   const [layout, setLayout] = useListLayout("history");
-  const table = useListTable({
+  const table = useListTable("history", layout, {
     columns,
     data: listed,
     getRowId: entryId,
-    atoms: { columnSizing: columnWidths("history") },
     meta: { now },
   });
 

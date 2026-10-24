@@ -89,5 +89,9 @@ export const columns = column.columns([
     header: "summary",
     cell: ({ row }) => row.original.summary,
     size: 480,
+    meta: { identifies: true },
   }),
 ]);
+
+/** Those without the Machine's, for a single Machine: all its Events name the same one. */
+export const oneMachineColumns = columns.filter((column) => column.id !== "machine");

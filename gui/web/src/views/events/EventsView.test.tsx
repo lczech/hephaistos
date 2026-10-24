@@ -180,7 +180,7 @@ describe("the Events View's columns", () => {
   const grid = (list: HTMLElement) => list.parentElement?.style.getPropertyValue("--columns");
   /** The columns, all as wide as at first but the time of recording; then the room left. */
   const columns = (recorded: number) =>
-    `var(--square) ${recorded}px 140px 120px 200px 480px minmax(0, 1fr)`;
+    `var(--square) ${recorded}px 140px 120px 200px 480px minmax(var(--space-3), 1fr)`;
 
   it("resize by dragging their edge, in every Events View, and are kept", async () => {
     serveEvents([committed]);
@@ -199,8 +199,6 @@ describe("the Events View's columns", () => {
     fireEvent.mouseUp(document, { clientX: 130 });
     expect(lists.map(grid)).toEqual([columns(118), columns(118)]);
     expect(localStorage.getItem("hephaistos.lists.events.widths")).toBe('{"recorded":118}');
-    fireEvent.doubleClick(recorded as HTMLElement);
-    expect(grid(lists[0] as HTMLElement)).toBe(columns(88));
   });
 
   it("show in columns or two lines, as the bar chooses, kept for every Events View", async () => {

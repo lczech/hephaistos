@@ -60,6 +60,7 @@ export function historyColumns(
       id: "subject",
       header: "subject",
       size: 480,
+      meta: { identifies: true },
       cell: ({ row }) => {
         const entry = row.original;
         if (entry.type === "uncommitted")

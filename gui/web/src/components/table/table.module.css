@@ -38,6 +38,13 @@
   color: var(--text-muted);
 }
 
+/* Where the header was clicked, for its menu. */
+.anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
 .rows {
   margin: 0;
   padding: 0;
@@ -469,6 +476,12 @@
 .frame[data-layout="columns"] .grid {
   width: max-content;
   min-width: 100%;
+}
+
+/* Their padding at the end is the last track's, the room left: WebKit would take a subgrid's
+   from the last column with a width, when that track is empty. */
+.frame[data-layout="columns"] :is(.head, .row) {
+  padding-right: 0;
 }
 
 .frame[data-layout="columns"] .details {

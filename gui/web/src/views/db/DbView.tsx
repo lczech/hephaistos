@@ -1,7 +1,6 @@
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
 import { Fields } from "../../components/table/Fields";
-import { columnWidths } from "../../components/table/kept";
 import { Chevron, ListTable } from "../../components/table/ListTable";
 import { listColumnHelper, useListTable } from "../../components/table/list";
 import { paramValues, withParam } from "../address";
@@ -117,11 +116,10 @@ function Rows({ table, show }: RowsProps) {
     unique.set(JSON.stringify(row), row);
   }
   const listed = [...unique.values()];
-  const listTable = useListTable({
+  const listTable = useListTable(`db.${table}`, "columns", {
     columns,
     data: listed,
     getRowId: (row) => JSON.stringify(row),
-    atoms: { columnSizing: columnWidths(`db.${table}`) },
   });
   let message: string | null = null;
   if (pages === undefined) {

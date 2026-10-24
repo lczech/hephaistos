@@ -11,7 +11,8 @@ import {
   useState,
 } from "react";
 import { ColumnHeader } from "./ColumnHeader";
-import { gridColumns } from "./columns";
+import { ColumnsMenu } from "./ColumnsMenu";
+import { arrangeable, gridColumns } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import type { ListFeatures } from "./list";
@@ -19,6 +20,17 @@ import styles from "./table.module.css";
 
 /** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
 export type Tone = "warning" | "danger" | "alarm" | "muted";
+
+/** A click with the right button, or the menu key's. */
+type Clicked = Pick<globalThis.MouseEvent, "target" | "clientX" | "clientY" | "preventDefault">;
+
+/** Where a list's header menu opens, for which column, and whether by the keyboard. */
+interface Menu {
+  x: number;
+  y: number;
+  column: string | undefined;
+  keyboard: boolean;
+}
 
 /** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
 interface Paging {
@@ -61,7 +73,9 @@ interface Props<TData extends RowData> {
  * those beyond the list's width scroll sideways, its details staying in view; in lines, each row
  * shows in the View's two lines (or one, keeping its height). It scrolls itself, its header
  * staying in view, filling what its View leaves below its bar, unless it is part of a page.
- * A row whose View is shown, in any Group, is marked.
+ * A row whose View is shown, in any Group, is marked. In columns, its header's menu (the
+ * right button, or a long press) hides, shows and moves them, or resets their look; a double
+ * click on a column's edge fits it to its cells, at most as wide as the list.
  */
 export function ListTable<TData extends RowData>({
   table,
@@ -88,7 +102,12 @@ export function ListTable<TData extends RowData>({
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
   const open = opened ?? kept;
+  const frame = useRef<HTMLDivElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLParagraphElement>(null);
+  const head = useRef<HTMLDivElement>(null);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [menu, setMenu] = useState<Menu | null>(null);
   const list = useId();
   const { hasNextPage = false, isFetchingNextPage = false, fetchNextPage } = paging ?? {};
   // Scrolling to the end of the list loads the page before it.
@@ -113,26 +132,83 @@ export function ListTable<TData extends RowData>({
     if (event.detail > 2 || (event.detail === 1 && selected)) return;
     opening();
   };
+  // Where the header was clicked, or, from the keyboard, below the header focused. While the
+  // menu is open, React Aria makes the page inert, so that a click reaches what it lays over
+  // the page, or the document: it is for what lies below by where it is, the header opening the
+  // menu there; anything else closes it.
+  const showMenu = (event: Clicked) => {
+    if (head.current === null) return;
+    const below = head.current.contains(event.target as Node)
+      ? (event.target as Element)
+      : [...head.current.querySelectorAll("[data-column]"), head.current].find((at) =>
+          within(at.getBoundingClientRect(), event.clientX, event.clientY),
+        );
+    if (below === undefined) return setMenu(null);
+    event.preventDefault();
+    const target = below.closest<HTMLElement>("[data-column]");
+    const id = target?.dataset.column;
+    const column = id === undefined ? undefined : table.getColumn(id);
+    const keyboard = event.clientX === 0 && event.clientY === 0;
+    const at =
+      keyboard && target
+        ? { x: target.getBoundingClientRect().left, y: target.getBoundingClientRect().bottom }
+        : { x: event.clientX, y: event.clientY };
+    const { left, top } = head.current.getBoundingClientRect();
+    setMenu({
+      x: at.x - left,
+      y: at.y - top,
+      column: column && arrangeable(column.columnDef) ? column.id : undefined,
+      keyboard,
+    });
+  };
+  useEffect(() => {
+    if (menu === null) return;
+    const again = (event: globalThis.MouseEvent) => event.defaultPrevented || showMenu(event);
+    document.addEventListener("contextmenu", again);
+    return () => document.removeEventListener("contextmenu", again);
+  });
+  // As wide as its widest cell, the header's too: measured with only its width given by them.
+  const fitColumn = (id: string, header: HTMLElement) => {
+    if (grid.current === null || frame.current === null) return;
+    const { style } = grid.current;
+    const columns = table.getVisibleLeafColumns();
+    style.setProperty("--columns", gridColumns(columns, id));
+    const width = header.getBoundingClientRect().width;
+    style.setProperty("--columns", gridColumns(columns));
+    const room = frame.current.clientWidth; // still all in view, scrolled to
+    table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
+  };
   const rows = table.getRowModel().rows;
   const filtered = table.state.columnFilters.length > 0;
-  const grid = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
+  const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) } as CSSProperties;
   return (
     <div
+      ref={frame}
       className={`${styles.frame} ${className ?? ""}`}
       data-stale={stale || undefined}
       data-layout={layout}
       data-embedded={embedded || undefined}
       data-one-line={oneLine || undefined}
     >
-      <div className={styles.grid} style={grid}>
-        <div className={styles.head}>
+      <div ref={grid} className={styles.grid} style={columns}>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu, which the menu key opens from a header's buttons too */}
+        <div
+          ref={head}
+          className={styles.head}
+          onContextMenu={layout === "columns" ? showMenu : undefined}
+        >
           {table
             .getHeaderGroups()
             .flatMap((group) => group.headers)
             .map((header) => {
               const label = header.column.columnDef.header;
               return (
-                <ColumnHeader key={header.id} header={header} choices={choices[header.column.id]}>
+                <ColumnHeader
+                  key={header.id}
+                  header={header}
+                  choices={choices[header.column.id]}
+                  onFit={(element) => fitColumn(header.column.id, element)}
+                >
                   {typeof label === "string" ? label : undefined}
                 </ColumnHeader>
               );
@@ -147,6 +223,19 @@ export function ListTable<TData extends RowData>({
             >
               <FunnelX aria-hidden="true" />
             </button>
+          )}
+          {menu && (
+            <>
+              <span ref={anchor} className={styles.anchor} style={{ left: menu.x, top: menu.y }} />
+              <ColumnsMenu
+                key={`${menu.x} ${menu.y}`} // opened anew where clicked again
+                table={table}
+                clicked={menu.column}
+                anchor={anchor}
+                keyboard={menu.keyboard}
+                onClose={() => setMenu(null)}
+              />
+            </>
           )}
         </div>
         {rows.length > 0 && (
@@ -230,6 +319,10 @@ export function ListTable<TData extends RowData>({
       )}
     </div>
   );
+}
+
+function within(box: DOMRect, x: number, y: number): boolean {
+  return x >= box.left && x < box.right && y >= box.top && y < box.bottom;
 }
 
 /**

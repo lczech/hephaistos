@@ -106,6 +106,7 @@ export const columns = column.columns([
     enableSorting: true,
     sortFn: "text",
     size: 280,
+    meta: { identifies: true },
     cell: ({ row, table }) => {
       const name = nameText(row.original, table.options.meta?.home);
       return <span title={nameTitle(row.original)}>{name}</span>;

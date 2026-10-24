@@ -1,6 +1,6 @@
 import { type ExpandedState, functionalUpdate, type SortingState } from "@tanstack/react-table";
 import { type ChangesQuery, useChangesWithin } from "../../api/queries";
-import { columnWidths, useListLayout } from "../../components/table/kept";
+import { useListLayout } from "../../components/table/kept";
 import { useListTable } from "../../components/table/list";
 import { changesColumns } from "./columns";
 import { type Folds, foldedBy, partFolded, unfolding, withFolded, withPart } from "./folds";
@@ -74,12 +74,11 @@ export function useChangesTable(options: Options) {
   // Every row that holds rows open, new folders too.
   const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
   const [layout] = useListLayout("changes");
-  const table = useListTable({
+  const table = useListTable("changes", layout, {
     columns,
     data: listed,
     getRowId: entryId,
     getSubRows: (entry) => entry.subRows,
-    atoms: { columnSizing: columnWidths("changes") },
     state: { sorting: sorted, expanded },
     manualSorting: true, // in each group, which keep git's order
     onSortingChange: (change) => onSortedChange(functionalUpdate(change, sorted)),
