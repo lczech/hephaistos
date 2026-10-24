@@ -9,8 +9,11 @@ const schema = JSON.parse(readFileSync(new URL("openapi.json", import.meta.url),
 // React's compiler memoizes every component and hook, so that a change re-renders only what it
 // changes, without memo, useMemo or useCallback by hand. Strictly: a component or hook it can't
 // compile, e.g. one breaking the Rules of React, or one it is told to skip ("use no memo"),
-// fails the build and the tests, rather than staying slow unnoticed. Through Babel 7: the
-// compiler misreads Babel 8's syntax trees ("Todo: … AssignmentPattern" for default values).
+// fails the build and the tests, rather than staying slow unnoticed; so does a component it
+// compiles caching nothing, as when a value it makes is handed to a function the compiler can't
+// see into, which might change it (a hook may have nothing to cache; a test's helpers don't
+// count). Through Babel 7: the compiler misreads Babel 8's syntax trees ("Todo: …
+// AssignmentPattern" for default values).
 const compiler = reactCompilerPreset({
   panicThreshold: "all_errors",
   logger: {
@@ -19,6 +22,14 @@ const compiler = reactCompilerPreset({
         const where = event.fnLoc ? `${filename}:${event.fnLoc.start.line}` : filename;
         const why = event.kind === "CompileSkip" ? event.reason : event.data;
         throw new Error(`React Compiler: not compiled, ${where}: ${why}`);
+      }
+      const component =
+        event.kind === "CompileSuccess" &&
+        /^[A-Z]/.test(event.fnName ?? "") &&
+        !/\.test\.tsx?$/.test(filename ?? "");
+      if (component && event.memoSlots === 0) {
+        const where = event.fnLoc ? `${filename}:${event.fnLoc.start.line}` : filename;
+        throw new Error(`React Compiler: ${event.fnName} caches nothing, ${where}`);
       }
     },
   },
