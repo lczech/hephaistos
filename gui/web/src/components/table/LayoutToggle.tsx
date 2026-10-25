@@ -1,6 +1,6 @@
 import { Table } from "lucide-react";
 import { TableLines } from "../../drawnIcons";
-import { Choice } from "../ViewBar";
+import { Toggle } from "../ViewBar";
 import type { ListLayout } from "./kept";
 
 interface Props {
@@ -9,9 +9,9 @@ interface Props {
 }
 
 /** In a View's bar: its list in columns, or each row in two lines. */
-export function LayoutChoice({ layout, onChange }: Props) {
+export function LayoutToggle({ layout, onChange }: Props) {
   return (
-    <Choice
+    <Toggle
       label="Columns"
       on={layout === "columns"}
       onChange={(on) => onChange(on ? "columns" : "lines")}

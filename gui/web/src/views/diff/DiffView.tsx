@@ -28,8 +28,7 @@ import {
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
-import { IconButton } from "../../components/IconButton";
-import { BarEnd, Choice, Refresh, ViewBar } from "../../components/ViewBar";
+import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -37,7 +36,7 @@ import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { ComparedPickers } from "../changes/ComparedPickers";
 import { checkoutName, checkoutOf } from "../changes/checkout";
 import { foldedBy, partFolded, unfolding, useFolds, withFolded, withPart } from "../changes/folds";
-import { changesLook, NestedChoice } from "../changes/look";
+import { changesLook, NestedToggle } from "../changes/look";
 import {
   arrowText,
   type Compared,
@@ -309,19 +308,18 @@ export function DiffView({
         )}
         <BarEnd>
           {checkout && base && (
-            <IconButton
+            <Toggle
               ref={(button) => {
                 findButton.current = button;
                 return findKey(button);
               }}
-              icon={TextSearch}
               label="Find in this diff"
-              title="Find in this diff (Ctrl+F)"
               on={finding !== undefined}
-              onClick={() => setFinding(finding ? undefined : NOTHING_TYPED)}
+              onChange={(on) => setFinding(on ? NOTHING_TYPED : undefined)}
+              ways={[{ icon: TextSearch, title: "Find in this diff (Ctrl+F)" }]}
             />
           )}
-          <Choice
+          <Toggle
             label="Side by side"
             on={look.split && !narrow}
             onChange={choose("split")}
@@ -335,7 +333,7 @@ export function DiffView({
               { icon: StretchHorizontal, title: "Show old and new inline" },
             ]}
           />
-          <Choice
+          <Toggle
             label="Wrap"
             on={look.wrap}
             onChange={choose("wrap")}
@@ -344,7 +342,7 @@ export function DiffView({
               { icon: TableOfContents, title: "Scroll long lines" },
             ]}
           />
-          <Choice
+          <Toggle
             label="Whole file"
             on={look.whole}
             onChange={choose("whole")}
@@ -356,7 +354,7 @@ export function DiffView({
           {/* All files: folded at once, to their headers; in Changes' order, which
               directories nested change. */}
           {!query && stackedFiles.length > 0 && (
-            <Choice
+            <Toggle
               label="All files folded"
               on={
                 hidden.length === stackedFiles.length
@@ -382,7 +380,7 @@ export function DiffView({
               ]}
             />
           )}
-          {!query && <NestedChoice />}
+          {!query && <NestedToggle />}
           {/* One file: all files compared so, and its history; all files: the same links as
               Changes has, the other way to see them, and the Checkout's history. */}
           {query && checkout && base && (

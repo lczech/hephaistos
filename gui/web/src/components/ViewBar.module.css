@@ -22,8 +22,8 @@
   font-size: var(--chrome-size);
 }
 
-/* A choice between two ways: their icons side by side, framed, the one taken on. */
-.choice {
+/* A toggle between two modes: their icons side by side, framed, the one in effect on. */
+.modes {
   display: flex;
   padding: 0;
   border: 1px solid var(--border);
@@ -33,26 +33,26 @@
   cursor: pointer;
 }
 
-.choice > span {
+.modes > span {
   display: flex;
   padding: var(--space-half) var(--space-1);
 }
 
-.choice svg {
+.modes svg {
   width: var(--icon-size);
   height: var(--icon-size);
 }
 
-.choice:hover > span {
+.modes:hover > span {
   color: var(--text);
 }
 
-.choice > [data-taken] {
+.modes > [data-on] {
   background: var(--fill-on);
   color: var(--text);
 }
 
-.choice:is(:hover, :focus-visible) > [data-taken] {
+.modes:is(:hover, :focus-visible) > [data-on] {
   background: var(--fill-on-hover);
 }
 
@@ -64,14 +64,14 @@
   margin-left: auto;
 }
 
-/* A line between the choices of how the View shows and the buttons that lead elsewhere, with
+/* A line between the toggles of how the View shows and the buttons that lead elsewhere, with
    --space-2 on each side: the gap and this margin. */
-.end > .choice + :not(.choice) {
+.end > .modes + :not(.modes) {
   position: relative;
   margin-left: calc(2 * var(--space-2) + var(--space-hair) - var(--space-1));
 }
 
-.end > .choice + :not(.choice)::before {
+.end > .modes + :not(.modes)::before {
   content: "";
   position: absolute;
   top: 50%;

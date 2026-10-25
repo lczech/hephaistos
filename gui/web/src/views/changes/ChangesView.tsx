@@ -4,7 +4,7 @@ import { LayoutList, List } from "lucide-react";
 import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
-import { BarEnd, Choice, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { revisionText, SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
@@ -19,7 +19,7 @@ import styles from "./ChangesView.module.css";
 import { ComparedPickers } from "./ComparedPickers";
 import { checkoutName, checkoutOf } from "./checkout";
 import { useFolds } from "./folds";
-import { changesLook, NestedChoice } from "./look";
+import { changesLook, NestedToggle } from "./look";
 import {
   arrowText,
   type Compared,
@@ -147,7 +147,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
         {checkout && (
           <BarEnd>
             {commit === undefined && sinceHead && (
-              <Choice
+              <Toggle
                 label="Groups"
                 on={look.grouped}
                 onChange={(on) => setLook({ ...look, grouped: on })}
@@ -164,7 +164,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
                 ]}
               />
             )}
-            <NestedChoice />
+            <NestedToggle />
             <ViewLink
               address={{
                 kind: "diff",

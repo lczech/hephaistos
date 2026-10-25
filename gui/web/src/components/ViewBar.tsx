@@ -1,5 +1,6 @@
 import { type LucideIcon, RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
+import controls from "./controls.module.css";
 import { IconButton } from "./IconButton";
 import styles from "./ViewBar.module.css";
 
@@ -13,35 +14,50 @@ export function ViewBar({ children }: { children: ReactNode }) {
   return <header className={styles.bar}>{children}</header>;
 }
 
-/** One of a Choice's two ways: its icon, and what it does, at length. */
+/** A toggle's icon, and what it does, at length: its one, or one of its two modes'. */
 export interface Way {
   icon: LucideIcon;
   title: string;
 }
 
-interface ChoiceProps {
-  label: string; // the first way's name
-  on: boolean | undefined; // whether the first way is taken; neither, where things are mixed
+interface ToggleProps
+  extends Omit<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    "children" | "title" | "type" | "onChange"
+  > {
+  label: string; // what it turns on, or its first mode's name
+  on: boolean | undefined; // whether it, or its first mode, is on; neither where things are mixed
   onChange: (on: boolean) => void;
-  ways: [Way, Way]; // the first, then the other
+  ways: [Way] | [Way, Way]; // its icon; or its first mode's, then the other's
+  ref?: Ref<HTMLButtonElement>;
 }
 
-/** A choice between two ways of showing something: both icons, the one taken marked; a click
- * takes the other, or where neither is, the first. */
-export function Choice({ label, on, onChange, ways }: ChoiceProps) {
+/**
+ * Something on or off, by one icon, marked while on; or two modes, by both icons, the one in
+ * effect marked: a click switches to the other, or where neither is, to the first.
+ */
+export function Toggle({ label, on, onChange, ways, className, ...props }: ToggleProps) {
+  const [first, second] = ways;
+  const look = second === undefined ? controls.icon : styles.modes;
   return (
     <button
       type="button"
-      className={styles.choice}
+      className={className ? `${look} ${className}` : look}
       aria-label={label}
+      title={second === undefined ? first.title : undefined}
       aria-pressed={on ?? "mixed"}
       onClick={() => onChange(!on)}
+      {...props}
     >
-      {ways.map(({ icon: Icon, title }, i) => (
-        <span key={title} title={title} data-taken={(i === 0) === on || undefined}>
-          <Icon aria-hidden="true" />
-        </span>
-      ))}
+      {second === undefined ? (
+        <first.icon aria-hidden="true" />
+      ) : (
+        [first, second].map(({ icon: Icon, title }, i) => (
+          <span key={title} title={title} data-on={(i === 0) === on || undefined}>
+            <Icon aria-hidden="true" />
+          </span>
+        ))
+      )}
     </button>
   );
 }

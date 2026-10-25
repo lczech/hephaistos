@@ -3,30 +3,22 @@
   composes: icon inline from "../components/controls.module.css";
 }
 
-/* With text: on the line's baseline, as the text beside it; centred, the text would sit higher.
+/* With its name: on the line's baseline, as the text beside it; centred, it would sit higher.
    Its icon, standing on the baseline, goes where TextIcon puts one in a line of text: lowered by
-   --icon-drop, which is what TextIcon's lowering and lifting come to (theme.css). Each with
-   `.link`, to win over what that composes, wherever the build puts it. */
-.link:is(.named, .text) {
+   --icon-drop, which is what TextIcon's lowering and lifting come to (theme.css). Its padding
+   takes no room, apart from the text before it. With `.link`, to win over what that composes,
+   wherever the build puts it. */
+.link.named {
   align-items: baseline;
   vertical-align: baseline;
   gap: var(--space-1);
+  margin: calc(-1 * var(--space-half)) calc(-1 * var(--space-1)) calc(-1 * var(--space-half))
+    var(--space-3);
   padding: var(--space-half) var(--space-1);
 }
 
-.link:is(.named, .text) svg {
+.link.named svg {
   translate: 0 calc(-1 * var(--icon-drop));
-}
-
-/* Its padding takes no room; apart from the text before it. */
-.link.named {
-  margin: calc(-1 * var(--space-half)) calc(-1 * var(--space-1)) calc(-1 * var(--space-half))
-    var(--space-3);
-}
-
-/* With text of its own, as a link in a list: a commit's hash. */
-.link.text {
-  margin: calc(-1 * var(--space-half)) calc(-1 * var(--space-1));
 }
 
 .quiet {

@@ -1,6 +1,6 @@
 import { type Atom, useAtom } from "@tanstack/react-store";
 import { Folders, FolderTree } from "lucide-react";
-import { Choice } from "../../components/ViewBar";
+import { Toggle } from "../../components/ViewBar";
 import { keptAtom } from "../../kept";
 
 /**
@@ -20,11 +20,11 @@ export function changesLook(): Atom<ChangesLook> {
   });
 }
 
-/** The choice of directories nested or each by its path, for Changes and Diff Views alike. */
-export function NestedChoice() {
+/** The toggle of directories nested or each by its path, for Changes and Diff Views alike. */
+export function NestedToggle() {
   const [look, setLook] = useAtom(changesLook());
   return (
-    <Choice
+    <Toggle
       label="Directories as a tree"
       on={look.nested}
       onChange={(nested) => setLook({ ...look, nested })}

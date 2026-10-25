@@ -88,5 +88,6 @@ Tabs are at most `--tab-width` wide, a longer title cut off.
 
 ## Toggles
 
-A toggle between two ways of showing, e.g. side by side or inline, is a `Choice` in the View's bar.
-It shows both ways' icons, the one taken on, each with its tooltip; a click takes the other.
+A toggle (`Toggle`, in `components/ViewBar.tsx`) of one icon looks as an icon button does, grey while on.
+A toggle of two modes shows both icons side by side, framed, each with its tooltip, the one in effect grey; a click switches to the other.
+In a View's bar, a line parts the toggles from the links after them.

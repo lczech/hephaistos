@@ -2,7 +2,7 @@ import { functionalUpdate } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
 import { useListLayout } from "../../components/table/kept";
-import { LayoutChoice } from "../../components/table/LayoutChoice";
+import { LayoutToggle } from "../../components/table/LayoutToggle";
 import { ListTable, type Tone } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
@@ -64,7 +64,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
     <ViewPage>
       <ViewBar>
         <BarEnd>
-          <LayoutChoice layout={layout} onChange={setLayout} />
+          <LayoutToggle layout={layout} onChange={setLayout} />
         </BarEnd>
       </ViewBar>
       <ListTable

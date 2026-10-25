@@ -4,6 +4,7 @@ import { Input, TextField, Toolbar } from "react-aria-components";
 import { useKeyTarget } from "../../views/keys";
 import { IconButton } from "../IconButton";
 import { TextIcon } from "../TextIcon";
+import { Toggle } from "../ViewBar";
 import styles from "./FindBar.module.css";
 import type { FindQuery } from "./pattern";
 import type { Finding } from "./useFind";
@@ -72,13 +73,13 @@ export function FindBar({
       </TextField>
       <Toolbar className={styles.tools} aria-label="How to find">
         {OPTIONS.map(({ key, icon, label }) => (
-          <IconButton
+          <Toggle
             key={key}
-            icon={icon}
             label={label}
             className={styles.option}
             on={query[key]}
-            onClick={() => onChange({ ...query, [key]: !query[key] }, false)}
+            onChange={(on) => onChange({ ...query, [key]: on }, false)}
+            ways={[{ icon, title: label }]}
           />
         ))}
       </Toolbar>

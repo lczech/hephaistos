@@ -11,7 +11,7 @@ import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { IconButton } from "../../components/IconButton";
 import { SearchField } from "../../components/SearchField";
 import { useListLayout } from "../../components/table/kept";
-import { LayoutChoice } from "../../components/table/LayoutChoice";
+import { LayoutToggle } from "../../components/table/LayoutToggle";
 import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
@@ -162,7 +162,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           />
         )}
         <BarEnd>
-          <LayoutChoice layout={layout} onChange={setLayout} />
+          <LayoutToggle layout={layout} onChange={setLayout} />
           <Refresh
             busy={history.isFetching}
             onClick={() => void client.invalidateQueries({ queryKey: KEYS.history })}
