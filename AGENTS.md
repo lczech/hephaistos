@@ -33,7 +33,9 @@ Decided in [docs/decisions/](docs/decisions/):
 - [002 Technology stack and components](docs/decisions/002-technology-stack.md): Python Core library with CLI and a per-Machine Daemon (Watcher, Sync, Server); TypeScript/React GUI with dockview panels, xterm.js and Monaco; Electron desktop shell; SQLite; tmux keeping Terminals alive; plugins for Agents, Terminals and Launchers.
 - [003 Core foundations](docs/decisions/003-core.md): package layout, setup, conventions (UUIDv7, hybrid logical clock), first tables, observers and the first CLI.
 - [004 Server](docs/decisions/004-server.md): listening on localhost only, reached through SSH; a token per Machine; the API returns the CLI's JSON, with a major and minor version.
-- [005 GUI](docs/decisions/005-gui.md): Views by kind and parameters, placed in dockview Panels and Groups only by `layout/`; addresses; the Layout saved per browser; Workspaces later.
+- [005 GUI](docs/decisions/005-gui.md): Views by kind and parameters, placed in dockview Panels and Groups only by `layout/`; addresses; the Layout saved per browser; live hints; Workspaces later.
+
+The GUI's design built on these is described in [docs/gui/](docs/gui/): [layout](docs/gui/layout.md), [interaction](docs/gui/interaction.md), [looks](docs/gui/looks.md), [lists](docs/gui/lists.md), [views](docs/gui/views.md) and [data](docs/gui/data.md). A decision that changes goes in its ADR; how the GUI works and looks, in the matching design doc, in the same commit as the code.
 
 Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each Machine should remain usable when other Machines are unreachable. Disconnected Machines should show timestamped last-known information.
 

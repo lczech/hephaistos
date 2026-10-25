@@ -82,7 +82,7 @@
   --found-current: var(--accent);
   --found-text: #1e1e1e;
 
-  /* What the pointer or the keys are on, and what is marked or on (docs: ADR 005, Look):
+  /* What the pointer or the keys are on, and what is marked or on (docs/gui/looks.md):
    * - hover: under the pointer, or, in menus and pickers, under the keys too: grey, lighter for
    *   rows than for controls and menu items;
    * - on: a control's lasting state, a toggle on or a choice's way taken: grey, stronger;

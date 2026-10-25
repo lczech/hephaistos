@@ -1,6 +1,6 @@
 // The look in one place: theme.css names colours, sizes and states; every other stylesheet uses
 // those names, or the shared looks of components/controls.module.css and text.module.css. These
-// rules fail where a stylesheet sets its own instead (ADR 005, Look).
+// rules fail where a stylesheet sets its own instead (docs/gui/looks.md).
 
 import { readFileSync } from "node:fs";
 import postcss, { type Declaration } from "postcss";

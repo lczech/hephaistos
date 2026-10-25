@@ -1,5 +1,5 @@
 // dockview's elements don't say which Panel or Group something belongs to: it draws Views over
-// their Groups, not in them. Its API and the Panel's React context do (ADR 005).
+// their Groups, not in them. Its API and the Panel's React context do (docs/gui/layout.md).
 language js
 
 `$object.element` where {

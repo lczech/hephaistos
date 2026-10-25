@@ -55,6 +55,8 @@ Vocabulary used consistently, but not stored as entities.
 - **Layout**: the arrangement of the GUI's Groups: where they are and their sizes. Each Workspace uses one; at first, all use the same one. Kept between sessions.
 - **Token**: the secret a client sends to a Machine's Server; `hephaistos daemon token` shows it.
 
+GUI design words for elements and states (link, button, toggle, picker, row; hover, focus, on, marked; fold, collapse) are lowercase and defined in [interaction](gui/interaction.md#words).
+
 ## Later
 
 - **Project**: a possible grouping of several Repositories (e.g. code, paper, analysis).

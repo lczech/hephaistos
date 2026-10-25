@@ -58,10 +58,10 @@ const sameFiles = (one: readonly FileText[], other: readonly FileText[]) =>
 
 /**
  * A query's matches in files' lines, in their order: all lines once a file's new version is
- * known, its patch's until then. They count where they are on the diffs' lines (ADR 005): the
- * patch's, or all with Whole file (`whole`), until a file's diff, drawn, tells (e.g. once
- * collapsed lines are expanded). Stepping to a match `reveal`s its file, e.g. unfolds it, and
- * says so (`revealed`).
+ * known, its patch's until then. They count where they are on the diffs' lines
+ * (docs/gui/views.md): the patch's, or all with Whole file (`whole`), until a file's diff,
+ * drawn, tells (e.g. once collapsed lines are expanded). Stepping to a match `reveal`s its
+ * file, e.g. unfolds it, and says so (`revealed`).
  * Lines and marks are held while what they come from stays, as React keeps what a render
  * showed, rather than memoized: a search starts again only once the lines or the query change,
  * and a current match stays one while the marks do.
