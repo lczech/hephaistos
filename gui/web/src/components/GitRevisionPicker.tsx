@@ -1,14 +1,4 @@
-import {
-  ChevronDown,
-  CircleChevronUp,
-  Cloud,
-  FolderPen,
-  GitBranch,
-  GitCommitVertical,
-  ListChecks,
-  type LucideIcon,
-  Tag,
-} from "lucide-react";
+import { ChevronDown, FolderPen, ListChecks, type LucideIcon } from "lucide-react";
 import { Fragment, type Key, type KeyboardEvent, type ReactNode, useState } from "react";
 import {
   Autocomplete,
@@ -30,6 +20,7 @@ import {
 } from "react-aria-components";
 import type { Schemas } from "../api/client";
 import { type HistoryQuery, resolveRevision, useHistory } from "../api/queries";
+import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../icons";
 import { HEAD, INDEX, revisionText, shortHash, WORKING_TREE } from "../revisions";
 import { useDebounced } from "../useDebounced";
 import type { Checkout } from "../views/changes/checkout";
@@ -55,11 +46,6 @@ const TAB_NAMES: Record<Shown, string> = {
   branches: "Branches",
   tags: "Tags",
   commits: "Commits",
-};
-const REF_ICONS: Record<Ref["kind"], LucideIcon> = {
-  branch: GitBranch,
-  remote: Cloud,
-  tag: Tag,
 };
 const REF_TABS: Record<Ref["kind"], PickerTab> = {
   branch: "branches",
@@ -237,7 +223,7 @@ export function GitRevisionPicker({
       key={commit.hash}
       id={commit.hash}
       value={value}
-      icon={GitCommitVertical}
+      icon={COMMIT_ICON}
       text={commit.subject}
       hash={shortHash(commit.hash)}
       disabled={stale}
@@ -480,7 +466,7 @@ function ranked<T>(items: T[], name: (item: T) => string, typed: string): T[] {
 const FIXED_ICONS: Record<FixedRow, LucideIcon> = {
   [WORKING_TREE]: FolderPen,
   [INDEX]: ListChecks,
-  [HEAD]: CircleChevronUp,
+  [HEAD]: HEAD_ICON,
 };
 
 const FIXED_WORDS: Record<FixedRow, string> = {
@@ -524,13 +510,13 @@ function foundFirst(found: Commit | undefined, commits: Commit[]): Commit[] {
 }
 
 function PickedIcon({ value, refs }: { value: string; refs: KnownRefs | undefined }) {
-  let Icon: LucideIcon = GitBranch;
+  let Icon: LucideIcon = REF_ICONS.branch;
   if (value === WORKING_TREE || value === INDEX || value === HEAD) Icon = FIXED_ICONS[value];
   else {
     const ref = refs?.refs.find((known) => known.full === value || known.name === value);
     if (ref !== undefined) Icon = REF_ICONS[ref.kind];
-    else if (value.startsWith("refs/tags/")) Icon = Tag;
-    else if (SHORT_HASH.test(value)) Icon = GitCommitVertical;
+    else if (value.startsWith("refs/tags/")) Icon = REF_ICONS.tag;
+    else if (SHORT_HASH.test(value)) Icon = COMMIT_ICON;
   }
   return <TextIcon icon={Icon} className={styles.icon} />;
 }

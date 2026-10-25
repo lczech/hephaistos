@@ -31,14 +31,17 @@ A lint rule (`gui/lint/inline-styles.grit`) rejects other inline styles.
 
 ## Fills and colours by state
 
-- Hover is grey: lighter for rows (`--fill-hover-row`) than for controls and menu items (`--fill-hover`).
+- Hover is grey: lighter for rows (`--fill-hover-row`) than for controls, fields clicked to open, and menu items (`--fill-hover`).
 - A toggle on is a stronger grey (`--fill-on`).
 - Content marked is the accent (`--fill-marked`), the only fill in it: a row whose View is shown, the Revision picked.
 - What is on or marked is a step stronger again under the pointer or the keys (`--fill-on-hover`, `--fill-marked-hover`).
 - Keyboard focus outlines a control in the accent.
 - A resize line is grey under the pointer and the accent while dragged.
 
-The accent, orange, marks what is current in the GUI: a row whose View is shown, keyboard focus, a filter in effect, a drag in progress, the tab of a View just focused.
+The accent, orange, marks important current state, in the GUI or coming from git.
+It is the highlight colour for what should be visible at a glance.
+In the GUI: a row whose View is shown, keyboard focus, a filter in effect and the button clearing filters, a drag in progress, the tab of a View just focused.
+In git: the refs at a commit, HEAD's too.
 A toggle on is grey.
 Nothing else is orange.
 
@@ -57,6 +60,7 @@ A test requires one for every Event kind and chassis.
 - A Filesystem is a drive; a Mount a linked folder.
 - A Machine is its chassis: a laptop, a monitor, a server, a box for a vm or container, …; a computer if unknown.
 - A commit is git's commit (Lucide's `git-commit-vertical`); the History View two on one line, following each other as it lists them, drawn as Lucide would (`drawnIcons.ts`, as the stacked Diff's several pages).
+- HEAD is a circle with a chevron up; a branch is git's branch, a remote branch a cloud, a tag a tag: in pickers, badges and Events alike.
 - git's branch icons stay for branches, and for a graph of them, if one comes.
 
 ### Actions

@@ -132,6 +132,7 @@ It starts from HEAD or a branch, tag or commit picked (`ref`, HEAD as none, foll
 It shows all files or one path (`path`), a file's renames marked where they happened.
 A search (`search`) keeps only commits whose message has all words searched for, in any order and case.
 For a hash, its commit comes first; else it says where it is: on other branches, offered to show it there, or not changing the path, offered with all files.
+A commit's refs show as small badges framed in orange before its subject, each with its icon: HEAD, branches, remote branches, tags.
 A row opens all about its commit: the commit box, also under a commit's Changes and in a commit Event's details.
 While HEAD's commits show, a row above them says what isn't committed, with its Changes and Diff.
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.

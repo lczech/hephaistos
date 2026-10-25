@@ -1,7 +1,8 @@
-import { ChevronRight, GitCommitVertical, GitCompare, GitMerge } from "lucide-react";
+import { ChevronRight, GitCompare, GitMerge } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { IconButton } from "../../components/IconButton";
 import { TextIcon } from "../../components/TextIcon";
+import { COMMIT_ICON } from "../../icons";
 import { shortHash } from "../../revisions";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, CommitHash, RefLabels } from "./CommitBox";
@@ -44,7 +45,7 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
       >
         <ChevronRight className={styles.chevron} aria-hidden="true" />
         <span className={styles.commit}>
-          <TextIcon icon={GitCommitVertical} className={styles.icon} />
+          <TextIcon icon={COMMIT_ICON} className={styles.icon} />
           <span className={styles.hash}>{shortHash(commit.hash)}</span>
         </span>
         <RefLabels refs={commit.refs} />

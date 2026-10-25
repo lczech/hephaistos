@@ -70,8 +70,6 @@
   --text: #3b3b3b;
   --text-muted: #616161;
   --accent: #d85d3a; /* the icon's orange */
-  --accent-fill: #b8452a; /* filled buttons, readable with --on-accent */
-  --on-accent: #ffffff;
   --success: #15803d;
   --warning: #a16207;
   --danger: #b91c1c;
@@ -118,8 +116,6 @@
     --text: #cccccc;
     --text-muted: #9d9d9d;
     --accent: #e8774f;
-    --accent-fill: #e8774f;
-    --on-accent: #1b1d20;
     --success: #4ade80;
     --warning: #facc15;
     --danger: #f87171;
@@ -147,16 +143,6 @@ pre {
 /* Code among text: a setting's name, a command. */
 code {
   font-size: var(--mono-size);
-}
-
-button {
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--accent-fill);
-  border-radius: var(--radius);
-  background: var(--accent-fill);
-  color: var(--on-accent);
-  font: inherit;
-  cursor: pointer;
 }
 
 button:disabled {

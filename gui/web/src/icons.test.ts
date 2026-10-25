@@ -5,7 +5,7 @@ import {
   DiamondPlus,
   Dot,
   GitBranchPlus,
-  GitCommitHorizontal,
+  GitCommitVertical,
   SquarePlus,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
@@ -19,8 +19,8 @@ describe("actions", () => {
   });
 
   it("have icons, shared by kinds, and a dot for new ones", () => {
-    expect(kindIcon("clone.committed")).toBe(GitCommitHorizontal);
-    expect(kindIcon("worktree.committed")).toBe(GitCommitHorizontal);
+    expect(kindIcon("clone.committed")).toBe(GitCommitVertical);
+    expect(kindIcon("worktree.committed")).toBe(GitCommitVertical);
     expect(kindIcon("clone.branch_created")).toBe(GitBranchPlus);
     expect(kindIcon("clone.teleported")).toBe(Dot);
     expect(entityIcon("terminal")).toBe(Dot);

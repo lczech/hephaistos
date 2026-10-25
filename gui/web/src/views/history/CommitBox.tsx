@@ -1,7 +1,7 @@
-import { GitCommitVertical, Tag } from "lucide-react";
 import type { ReactNode } from "react";
 import { TextIcon } from "../../components/TextIcon";
 import { Fields } from "../../components/table/Fields";
+import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
 import { shortHash } from "../../revisions";
 import { ago, fullTime } from "../../time";
 import { ChangesLinks } from "../changes/ChangesLinks";
@@ -19,7 +19,7 @@ export function CommitHash({ hash, checkout }: { hash: string | undefined; check
       {hash === undefined ? (
         <span className={styles.slot} />
       ) : (
-        <TextIcon icon={GitCommitVertical} className={styles.mark} />
+        <TextIcon icon={COMMIT_ICON} className={styles.mark} />
       )}
       <span className={styles.hash}>{hash && shortHash(hash)}</span>
       <ChangesLinks
@@ -37,21 +37,20 @@ export function RefLabels({ refs, head }: { refs: Ref[]; head?: boolean }) {
   return (
     <span className={styles.refs}>
       {head && (
-        <span className={styles.ref} data-kind="head" title="HEAD: the commit checked out">
+        <span className={styles.ref} title="HEAD: the commit checked out">
+          <HEAD_ICON aria-hidden="true" />
           HEAD
         </span>
       )}
-      {refs.map((ref) => (
-        <span
-          key={`${ref.kind}:${ref.name}`}
-          className={styles.ref}
-          data-kind={ref.kind}
-          title={REF_KINDS[ref.kind]}
-        >
-          {ref.kind === "tag" && <Tag aria-hidden="true" />}
-          {ref.name}
-        </span>
-      ))}
+      {refs.map((ref) => {
+        const Icon = REF_ICONS[ref.kind];
+        return (
+          <span key={`${ref.kind}:${ref.name}`} className={styles.ref} title={REF_KINDS[ref.kind]}>
+            <Icon aria-hidden="true" />
+            {ref.name}
+          </span>
+        );
+      })}
     </span>
   );
 }

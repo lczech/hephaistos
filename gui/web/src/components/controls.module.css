@@ -55,8 +55,12 @@
   vertical-align: var(--icon-drop);
 }
 
-/* A small button of a word or two, framed, among text: "Show all", a branch to show. */
+/* A small button of a word or two, framed, among text: "Show all", a branch to show; maybe
+   after an icon. */
 .action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   padding: var(--space-hair) var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -102,6 +106,11 @@
   background: var(--background);
   color: var(--text);
   font: inherit;
+}
+
+/* One clicked to open, rather than typed in, fills under the pointer, as buttons do. */
+.field:is(button, select):is(:hover, [data-hovered]) {
+  background: var(--fill-hover);
 }
 
 .field:is(:focus-visible, [data-focus-within], [data-focus-visible], [data-pressed]) {

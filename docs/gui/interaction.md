@@ -15,7 +15,8 @@ A link to a View that needs no look is greyed out, e.g. a Checkout's changes whe
 ### Buttons
 
 A button does something in place and has no state: refresh, close, swap, the next match.
-An icon alone is an `IconButton`; words are framed (`.action` in `components/controls.module.css`).
+An icon alone is an `IconButton`; words are framed, maybe after an icon (`.action` in `components/controls.module.css`).
+No button is filled.
 
 ### Toggles
 

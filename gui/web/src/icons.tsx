@@ -13,10 +13,11 @@ import {
   BookPlus,
   Box,
   CircleCheck,
+  CircleChevronUp,
   CircleQuestionMark,
+  Cloud,
   Computer,
   Cpu,
-  Crosshair,
   DiamondMinus,
   DiamondPlus,
   Dot,
@@ -28,7 +29,7 @@ import {
   GitBranch,
   GitBranchMinus,
   GitBranchPlus,
-  GitCommitHorizontal,
+  GitCommitVertical,
   GitMerge,
   GitPullRequestArrow,
   Globe,
@@ -43,6 +44,7 @@ import {
   SquareMinus,
   SquarePlus,
   Tablet,
+  Tag,
   TriangleAlert,
   Undo2,
   Watch,
@@ -78,13 +80,13 @@ const ACTIONS: Record<string, LucideIcon> = {
   "branch deleted": GitBranchMinus,
   "branch renamed": GitBranch,
   "branch switched": ArrowRightLeft,
-  committed: GitCommitHorizontal,
+  committed: GitCommitVertical,
   merged: GitMerge,
   pulled: ArrowDownToLine,
   pushed: ArrowUpFromLine,
   rebased: GitPullRequestArrow,
   reset: Undo2,
-  "head moved": Crosshair,
+  "head moved": CircleChevronUp,
   "remotes changed": Globe,
 };
 
@@ -108,6 +110,19 @@ const CHASSIS: Record<string, LucideIcon> = {
   embedded: Cpu,
   vm: Box,
   container: Box,
+};
+
+/** HEAD, the commit checked out: in pickers, ref badges and Events alike. */
+export const HEAD_ICON = CircleChevronUp;
+
+/** A commit: in lists, pickers and Events alike. */
+export const COMMIT_ICON = GitCommitVertical;
+
+/** A ref's icon by its kind, in pickers and badges alike. */
+export const REF_ICONS: Record<"branch" | "remote" | "tag", LucideIcon> = {
+  branch: GitBranch,
+  remote: Cloud,
+  tag: Tag,
 };
 
 /** The icon of an Event's kind: its own, else its action's, else a dot. */

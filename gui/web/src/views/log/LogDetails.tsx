@@ -44,7 +44,7 @@ export function LogDetails({ entry, now, onlyProcess }: Props) {
       )}
       {onlyProcess !== undefined && (
         <p className={styles.actions}>
-          <button type="button" onClick={onlyProcess}>
+          <button type="button" className={styles.only} onClick={onlyProcess}>
             Only this process
           </button>
         </p>

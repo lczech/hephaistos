@@ -31,7 +31,7 @@
   color: var(--text-muted);
 }
 
-/* Branches and tags, small and framed; the checked-out one stronger. */
+/* HEAD, branches and tags: git's current state, small, framed in the accent, each by its icon. */
 .refs {
   display: inline-flex;
   flex-wrap: wrap;
@@ -45,9 +45,9 @@
   align-items: center;
   gap: var(--space-half);
   padding: 0 var(--space-1);
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent);
   border-radius: var(--radius);
-  color: var(--text-muted);
+  color: var(--text);
   font-size: var(--text-small);
   line-height: 1.4;
 }
@@ -55,21 +55,6 @@
 .ref svg {
   width: var(--icon-small);
   height: var(--icon-small);
-}
-
-.ref[data-kind="branch"] {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.ref[data-kind="head"] {
-  border-color: var(--accent);
-  background: var(--accent-fill);
-  color: var(--on-accent);
-}
-
-.ref[data-kind="tag"] {
-  border-color: var(--warning);
 }
 
 .box > p {

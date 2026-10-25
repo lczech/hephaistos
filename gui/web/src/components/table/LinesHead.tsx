@@ -64,6 +64,7 @@ export function LinesHead<TData extends RowData>({
       {filters.length > 0 && (
         <button
           type="button"
+          data-clear
           className={styles.pick}
           aria-label="Clear all filters"
           title="Clear all filters"

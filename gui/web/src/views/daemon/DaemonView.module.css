@@ -49,6 +49,10 @@
   margin-top: var(--space-4);
 }
 
+.observe {
+  composes: action from "../../components/controls.module.css";
+}
+
 .quiet {
   composes: quiet from "../../components/text.module.css";
 }

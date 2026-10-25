@@ -346,10 +346,6 @@
   cursor: pointer;
 }
 
-.pick:hover {
-  background: var(--fill-hover);
-}
-
 .pickIcon {
   flex: none;
   width: var(--icon-small);
@@ -357,6 +353,11 @@
   color: var(--text-muted);
   translate: 0 var(--icon-lift);
 }
+/* Clearing the filters, there while any is set: part of what shows they are. */
+.pick[data-clear] .pickIcon {
+  color: var(--accent);
+}
+
 
 .pick[data-filtered] .pickIcon {
   color: var(--accent);

@@ -1,6 +1,8 @@
+import { Eye } from "lucide-react";
 import type { ReactNode } from "react";
 import { type Connection, useConnection } from "../../api/live";
 import { useDaemon, useObserve } from "../../api/queries";
+import { TextIcon } from "../../components/TextIcon";
 import { fullTime } from "../../time";
 import { useNow } from "../../useNow";
 import { ViewLink } from "../ViewLink";
@@ -86,7 +88,13 @@ export function DaemonView() {
           </p>
         ))}
         <div className={styles.actions}>
-          <button type="button" onClick={() => observing.mutate()} disabled={observing.isPending}>
+          <button
+            type="button"
+            className={styles.observe}
+            onClick={() => observing.mutate()}
+            disabled={observing.isPending}
+          >
+            <TextIcon icon={Eye} />
             {observing.isPending ? "Observing…" : "Observe now"}
           </button>
           {observing.isError && <p className={styles.error}>{observing.error.message}</p>}

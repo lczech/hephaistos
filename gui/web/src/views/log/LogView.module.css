@@ -19,6 +19,10 @@ pre.traceback {
   margin: var(--space-2) 0 0;
 }
 
+.only {
+  composes: action from "../../components/controls.module.css";
+}
+
 /* In lines: the message on one line, its time and process below it, quieter. */
 .log[data-layout="lines"] li [data-column="message"] {
   flex: 1 1 0;
