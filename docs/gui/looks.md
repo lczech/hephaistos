@@ -9,7 +9,7 @@ Styles are CSS modules and the custom properties of `theme.css`, with VS Code's 
 dockview's light theme gives sizes, with its colours from `theme.css` (`layout/dock.css`), so it follows the system's light or dark.
 Each look is set in one place.
 `theme.css` names the colours, sizes, widths, opacities, weights and fills.
-The controls' looks are in `components/controls.module.css`: icon buttons, word buttons, link buttons, fields, menu items.
+The controls' looks are in `components/controls.module.css`: icon buttons, word buttons, fields, menu items.
 Text's looks are in `components/text.module.css`: notes, cut-off text, code, figures, dimming, a page's padding.
 They are used directly, composed (`composes:`), or through components: `IconButton`, `ViewBar`, `ListTable`.
 `ListTable` also draws groups of rows, the quieter second line in two lines, and figures for times and counts, by column ([lists](lists.md)).

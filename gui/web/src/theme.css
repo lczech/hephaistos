@@ -37,7 +37,6 @@
   --menu-height: min(24rem, 70vh); /* a menu at most, scrolling */
   --picker-width: 28rem; /* a picker's list, at most */
   --picker-height: min(20rem, 50vh); /* its rows, lower than a menu: a field and tabs above */
-  --underline-offset: 0.2em; /* a link's line, below the letters' descenders */
 
   /* Icons: as large as the text, unless a context sizes them (--icon-size); larger in bars,
      smaller as marks beside a label (a chevron, a sort arrow, a funnel); Lucide's letters, drawn

@@ -59,7 +59,9 @@ It observes on request.
 
 ## Database
 
-The Database View lists the database's tables, and a table's rows, with their columns as the Server describes them.
+The Database View lists the database's tables, as `hephaistos db tables` does, each row led by a sheet.
+A row shows its table's rows in place, as the table picker in their bar does; its first entry, All tables, goes back to the list ([interaction](interaction.md#in-place-or-another-view)).
+A table's rows come newest first, with their columns as the Server describes them, and open their details.
 
 ## Changes
 

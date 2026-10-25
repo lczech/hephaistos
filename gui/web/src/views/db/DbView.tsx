@@ -1,5 +1,7 @@
+import { Sheet } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
+import { TextIcon } from "../../components/TextIcon";
 import { Fields } from "../../components/table/Fields";
 import { Chevron, ListTable } from "../../components/table/ListTable";
 import { listColumnHelper, useListTable } from "../../components/table/list";
@@ -12,8 +14,10 @@ import styles from "./DbView.module.css";
 
 type Row = Record<string, unknown>;
 type Column = Schemas["ColumnJson"];
+type Table = Schemas["TableJson"];
 
 const NONE: Row[] = [];
+const NO_TABLES: Table[] = [];
 const OPEN = "#"; // the square's column, named apart from any table's
 
 /** A value in a cell; NULL quieter; clocks and times stored as they are, when hovered. */
@@ -66,36 +70,73 @@ function Warnings({ warnings }: { warnings: string[] }) {
   ));
 }
 
-/** The tables, as `db tables` lists them; choosing one shows its rows. */
+const tableColumn = listColumnHelper<Table>();
+
+/** The tables' columns: a sheet in the square, as each row shows that table, then `db tables`'. */
+const TABLE_COLUMNS = tableColumn.columns([
+  tableColumn.display({
+    id: OPEN,
+    cell: () => <TextIcon icon={Sheet} className={styles.sheet} />,
+    enableResizing: false,
+    meta: { width: "var(--square)" },
+  }),
+  tableColumn.accessor("table", { header: "table", size: 200, meta: { identifies: true } }),
+  tableColumn.display({
+    id: "category",
+    header: "category",
+    size: 100,
+    cell: ({ row }) => {
+      const { category } = row.original;
+      return category === null ? <span className={styles.warning}>unknown</span> : category;
+    },
+  }),
+  tableColumn.display({
+    id: "rows",
+    header: "rows",
+    size: 80,
+    meta: { end: true, figures: true },
+    cell: ({ row }) => <span className={styles.number}>{row.original.rows ?? "missing"}</span>,
+  }),
+  tableColumn.display({
+    id: "latest",
+    header: "latest",
+    size: 220,
+    meta: { figures: true },
+    cell: ({ row }) => cellText(row.original.latest, "clock") ?? "-",
+  }),
+]);
+
+/** The tables, as `db tables` lists them; a row shows its table's rows, in place. */
 function Tables({ show }: { show: (table: string) => void }) {
   const tables = useDbTables();
+  const listTable = useListTable("db", "columns", {
+    columns: TABLE_COLUMNS,
+    data: tables.data?.tables ?? NO_TABLES,
+    getRowId: ({ table }) => table,
+  });
+  let message: string | null = null;
   if (tables.data === undefined) {
-    const text = tables.isError ? `Couldn't load: ${tables.error.message}` : "Loading tables…";
-    return <p className={styles.note}>{text}</p>;
+    message = tables.isError ? `Couldn't load: ${tables.error.message}` : "Loading tables…";
   }
   return (
-    <section className={styles.tables} data-stale={tables.isError || undefined}>
-      <Warnings warnings={tables.data.warnings} />
-      <div className={styles.grid}>
-        {["table", "category", "rows", "latest"].map((label) => (
-          <span key={label} className={styles.quiet}>
-            {label}
-          </span>
-        ))}
-        {tables.data.tables.map(({ table, category, rows, latest }) => (
-          <div key={table} className={styles.table}>
-            <button type="button" className={styles.link} onClick={() => show(table)}>
-              {table}
-            </button>
-            <span className={category === null ? styles.warning : undefined}>
-              {category ?? "unknown"}
-            </span>
-            <span className={styles.number}>{rows ?? "missing"}</span>
-            <span className={styles.quiet}>{cellText(latest, "clock") ?? "-"}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <ViewPage>
+      <Warnings warnings={tables.data?.warnings ?? []} />
+      <ListTable
+        table={listTable}
+        layout="columns"
+        choices={{}}
+        message={message}
+        stale={tables.isError}
+        older="tables"
+        detailsLabel="Table details"
+        details={() => null}
+        // Not a link: the View shows another of its tables, as its picker does.
+        opens={({ table }) =>
+          (click) =>
+            click.button === 0 && show(table)
+          }
+      />
+    </ViewPage>
   );
 }
 
@@ -132,15 +173,13 @@ function Rows({ table, show }: RowsProps) {
   return (
     <ViewPage>
       <ViewBar>
-        <button type="button" className={styles.link} onClick={() => show(undefined)}>
-          All tables
-        </button>
         <select
           className={styles.select}
           aria-label="Table"
           value={table}
-          onChange={(event) => show(event.currentTarget.value)}
+          onChange={(event) => show(event.currentTarget.value || undefined)}
         >
+          <option value="">All tables</option>
           {(tables ?? [{ table, rows: null }]).map(({ table: name, rows: count }) => (
             <option key={name} value={name}>
               {count === null ? name : `${name} (${count})`}

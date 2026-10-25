@@ -74,24 +74,6 @@
   background: var(--fill-hover);
 }
 
-/* A button that reads as a link: it shows something else in the same Panel. */
-.link {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  text-decoration: underline;
-  text-decoration-color: var(--border);
-  text-underline-offset: var(--underline-offset);
-  cursor: pointer;
-}
-
-.link:is(:hover, :focus-visible) {
-  text-decoration-color: currentcolor;
-}
-
 /* A box to type or pick in: a search field, a picker's button, a select; framed in the accent
    while the keys are in it, or it is opened. */
 .field {

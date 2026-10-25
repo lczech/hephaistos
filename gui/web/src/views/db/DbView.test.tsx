@@ -43,13 +43,13 @@ function Db({ at = {} }: { at?: Params }) {
 }
 
 describe("the Database View", () => {
-  it("lists the tables, and shows one's rows when chosen", async () => {
+  it("lists the tables, and shows one's rows in place when chosen", async () => {
     serveDb();
     renderWithQueries(<Db />);
     expect(await screen.findByText("1 table this version doesn't know: old_things")).toBeVisible();
     expect(screen.getByText("unknown")).toBeInTheDocument();
     expect(screen.getByText(`${preciseTime(AT)} #1`)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "registry_repositories" }));
+    await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
     expect(screen.getByRole("status").textContent).toBe("db?table=registry_repositories");
     expect(await screen.findByText("two")).toBeInTheDocument();
   });
@@ -73,7 +73,7 @@ describe("the Database View", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Table" }), "old_things");
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
     expect(await screen.findByText(/Couldn't load/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "All tables" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Table" }), "All tables");
     expect(screen.getByRole("status").textContent).toBe("db");
   });
 });
