@@ -61,7 +61,7 @@ def show(
     *,
     as_json: JsonOption = False,
 ) -> None:
-    """Show the settings in effect on this Machine, and where each value comes from.
+    """Show the settings in effect on this machine, and where each value comes from.
 
     One setting shows just its value. A broken config file or variable is left out, and its
     error shown; the command then fails. As JSON, each setting also comes with the value this

@@ -63,7 +63,7 @@ def test_list_and_show(repo: Path) -> None:
 def test_show_from_inside_a_clone_is_refused(repo: Path) -> None:
     result = runner.invoke(app, ["worktree", "show", str(repo)])
     assert isinstance(result.exception, HephaistosError)
-    assert "not in a Worktree" in str(result.exception)
+    assert "not in a worktree" in str(result.exception)
 
 
 def test_names_in_several_clones(
@@ -76,7 +76,7 @@ def test_names_in_several_clones(
 
     result = runner.invoke(app, ["worktree", "show", "feature"])
     assert isinstance(result.exception, HephaistosError)
-    assert "several Worktrees are named feature" in str(result.exception)
+    assert "several worktrees are named feature" in str(result.exception)
 
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     result = runner.invoke(app, ["worktree", "show", "feature"], input="1\n")
@@ -97,26 +97,26 @@ def test_new_worktrees_are_observed_first(repo: Path, tmp_path: Path) -> None:
     result = runner.invoke(app, ["worktree", "show", str(repo / ".worktrees" / "inside")])
     assert result.exit_code == 0, result.output
     # Three branches created, three Worktrees added.
-    assert result.stderr == "Observed first, because git knows more than the record (6 Events)\n"
+    assert result.stderr == "Observed first, because git knows more than the record (6 events)\n"
     assert _branch(result.stdout) == "inside"
     result = runner.invoke(app, ["worktree", "show", str(tmp_path / "outside")])
     assert (result.stderr, _branch(result.stdout)) == ("", "outside")
     git(repo, "worktree", "add", "--quiet", "-b", "later", str(tmp_path / "later"))
     result = runner.invoke(app, ["worktree", "show", "later"])
     assert result.exit_code == 0, result.output
-    assert result.stderr == "Observed first, because no Worktree named later was known (2 Events)\n"
+    assert result.stderr == "Observed first, because no worktree named later was known (2 events)\n"
     assert _branch(result.stdout) == "later"
     assert runner.invoke(app, ["worktree", "show", "later"]).stderr == ""
 
     result = runner.invoke(app, ["worktree", "show", "nowhere"])
-    assert "no Worktree at or named nowhere" in str(result.exception)
+    assert "no worktree at or named nowhere" in str(result.exception)
 
 
 def test_moved_worktree_is_observed_first(repo: Path, tmp_path: Path) -> None:
     git(repo, "worktree", "move", str(repo / ".worktrees" / "feature"), str(tmp_path / "moved"))
     result = runner.invoke(app, ["clone", "show", str(tmp_path / "moved")])
     assert result.exit_code == 0, result.output
-    assert "(1 Event)" in result.stderr
+    assert "(1 event)" in result.stderr
     assert ["worktree", f"{tmp_path / 'moved'}  feature  clean"] in [
         re.split(r"\s{2,}", line, maxsplit=1) for line in result.stdout.splitlines()
     ]
@@ -126,14 +126,14 @@ def test_clone_remove_refuses_an_unobserved_worktree(repo: Path) -> None:
     inside = repo / ".worktrees" / "new"
     git(repo, "worktree", "add", "--quiet", "-b", "new", str(inside))
     result = runner.invoke(app, ["clone", "unregister", str(inside)])
-    assert "is in a Worktree" in str(result.exception)
+    assert "is in a worktree" in str(result.exception)
     assert runner.invoke(app, ["clone", "unregister", str(repo)]).exit_code == 0
 
 
 @pytest.mark.usefixtures("repo")
 def test_observe_counts_worktrees() -> None:
     assert runner.invoke(app, ["observe"]).output == (
-        "No changes (1 Clone and 1 Worktree observed)\n"
+        "No changes (1 clone and 1 worktree observed)\n"
     )
 
 
@@ -172,7 +172,7 @@ def test_events_by_repository_clone_and_worktree(repo: Path, tmp_path: Path) -> 
     assert len(of_both) == len(by_clone) + 3
     assert {row[4] for row in of_both} == {"proj", "other"}
     refused = runner.invoke(app, ["event", "list", "--worktree", str(repo)])
-    assert "not in a Worktree" in str(refused.exception)
+    assert "not in a worktree" in str(refused.exception)
 
     shown = runner.invoke(app, ["event", "show", by_worktree[0][0]]).output
     assert re.search(r"occurred\s+\d{4}-\d\d-\d\d \d\d:\d\d:\d\d\n", shown)
@@ -185,4 +185,4 @@ def test_clone_add_can_import_history(repo: Path, tmp_path: Path) -> None:
     result = runner.invoke(
         app, ["clone", "register", str(other), "--repo", "other", "--import-history"]
     )
-    assert result.output.endswith("; imported 2 Events of its history\n")
+    assert result.output.endswith("; imported 2 events of its history\n")

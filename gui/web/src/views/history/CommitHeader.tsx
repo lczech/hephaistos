@@ -29,7 +29,7 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
   if (commit === null) {
     return (
       <p className={styles.gone}>
-        {shortHash(shown.name)} is no longer in this Checkout.
+        {shortHash(shown.name)} is no longer in this checkout.
         <Amended shown={shown} checkout={checkout} />
       </p>
     );
@@ -57,8 +57,8 @@ export function CommitLine({ shown, checkout, open, onToggle, onCompare }: LineP
       {onCompare && (
         <IconButton
           icon={GitCompare}
-          label="Compare with other Revisions"
-          title="Compare with other Revisions: from its first parent to it, then pick others"
+          label="Compare with other revisions"
+          title="Compare with other revisions: from its first parent to it, then pick others"
           onClick={onCompare}
         />
       )}

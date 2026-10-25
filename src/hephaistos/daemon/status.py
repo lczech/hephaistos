@@ -214,7 +214,7 @@ def held_lock(directory: Path) -> Generator[None]:
         if not _locked(descriptor, fcntl.LOCK_EX):
             running = read(directory)
             pid = f" (pid {running.pid})" if running else ""
-            raise NotStartedError(f"a Daemon is already running on this Machine{pid}")
+            raise NotStartedError(f"a daemon is already running on this machine{pid}")
         yield
     finally:
         os.close(descriptor)  # releases the lock

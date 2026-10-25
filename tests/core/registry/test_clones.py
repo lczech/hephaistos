@@ -107,7 +107,7 @@ def test_shallow_clone_joins_by_remote(set_up: Paths, tmp_path: Path) -> None:
 def test_register_twice_fails(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     add(set_up, repo)
-    with pytest.raises(HephaistosError, match="already a Clone of proj"):
+    with pytest.raises(HephaistosError, match="already a clone of proj"):
         add(set_up, repo)
 
 
@@ -128,7 +128,7 @@ def test_register_without_commits_is_allowed(set_up: Paths, tmp_path: Path) -> N
 def test_worktree_is_refused(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     git(repo, "worktree", "add", "--quiet", str(tmp_path / "wt"))
-    with pytest.raises(HephaistosError, match="Worktree of the Clone at"):
+    with pytest.raises(HephaistosError, match="worktree of the clone at"):
         clones.inspect(tmp_path / "wt")
 
 
@@ -158,7 +158,7 @@ def test_find_innermost(set_up: Paths, tmp_path: Path) -> None:
     with read_session(set_up) as session:
         assert clones.find(session, outer).repository.name == "proj"
         assert clones.find(session, inner).repository.name == "inner"
-        with pytest.raises(HephaistosError, match="no Clone or Worktree known"):
+        with pytest.raises(HephaistosError, match="no clone or worktree known"):
             clones.find(session, tmp_path)
 
 
@@ -168,8 +168,8 @@ def test_paths_in_repositories_of_their_own_are_refused(set_up: Paths, tmp_path:
     lib = submodule(create(tmp_path / "lib"), outer, "lib")
     (lib / "src").mkdir()
     add(set_up, outer)
-    nested = r"vendor/tool is a git repository of its own, not a Clone; run this in the Clone at"
-    inside = r"lib/src is in the submodule at .*outer/lib; run this in the Clone at"
+    nested = r"vendor/tool is a git repository of its own, not a clone; run this in the clone at"
+    inside = r"lib/src is in the submodule at .*outer/lib; run this in the clone at"
     with read_session(set_up) as session:
         for path, message in [(tool, nested), (lib / "src", inside)]:
             with pytest.raises(HephaistosError, match=message):
@@ -259,12 +259,12 @@ def test_move_refusals(set_up: Paths, tmp_path: Path) -> None:
     with pytest.raises(HephaistosError, match="repo is still a git repository"):
         move(set_up, repo, copy)
     moved = repo.rename(tmp_path / "moved")
-    with pytest.raises(HephaistosError, match="`git worktree move` moves Worktrees"):
+    with pytest.raises(HephaistosError, match="`git worktree move` moves worktrees"):
         move(set_up, tmp_path / "wt", moved)
-    with pytest.raises(HephaistosError, match="shares no history with the Clone at"):
+    with pytest.raises(HephaistosError, match="shares no history with the clone at"):
         move(set_up, repo, create(tmp_path / "other"))
     add(set_up, copy)
-    with pytest.raises(HephaistosError, match="copy is already a Clone of proj"):
+    with pytest.raises(HephaistosError, match="copy is already a clone of proj"):
         move(set_up, repo, copy)
 
 
@@ -372,12 +372,12 @@ def test_move_waits_for_worktrees_to_be_repaired(set_up: Paths, tmp_path: Path) 
     with pytest.raises(HephaistosError) as raised:
         move(set_up, repo, moved)
     assert str(raised.value).splitlines() == [
-        f"the links to Worktrees of {moved} are broken; repair them first:",
+        f"the links to worktrees of {moved} are broken; repair them first:",
         (
             f"  git -C {moved} worktree repair <new path of {tmp_path / 'deleted'}>"
             f" {moved / '.worktrees' / 'inside'}"
         ),
-        f"  (for a deleted Worktree: git -C {moved} worktree prune)",
+        f"  (for a deleted worktree: git -C {moved} worktree prune)",
     ]
 
     git(moved, "worktree", "repair", str(moved / ".worktrees" / "inside"))

@@ -298,7 +298,7 @@ def update(
     """
     old = get(session, clone_id)
     if old is None:
-        raise LookupError(f"Clone {clone_id} has no State")
+        raise LookupError(f"Clone {clone_id} has no state")
     at, by = session.tick(), session.machine_id
     match observation:
         case Missing():
@@ -310,7 +310,7 @@ def update(
                 old, observed_at=at, observed_by=by, present=True, error=error
             )
         case git.Snapshot() if not git.shares_history(observation.root_commits, old.root_commits):
-            error = "the repository here shares no history with this Clone"
+            error = "the repository here shares no history with this clone"
             new = dataclasses.replace(
                 old, observed_at=at, observed_by=by, present=True, error=error
             )

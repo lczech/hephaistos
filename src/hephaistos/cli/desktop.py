@@ -13,24 +13,24 @@ from hephaistos.core.utils.paths import Paths, own_checkout, private_directory, 
 from hephaistos.desktop import apparmor, entry, launch
 
 app = typer.Typer(
-    no_args_is_help=True, help="The Desktop: this Machine's GUI in a window of its own."
+    no_args_is_help=True, help="The desktop app: this machine's GUI in a window of its own."
 )
 
 
 @app.command("open")
 def open_desktop() -> None:
-    """Open the Desktop, or bring the open one to the front; it starts the Daemon if needed."""
+    """Open the desktop app, or bring the open one to the front; it starts the daemon if needed."""
     desktop = launch.find(own_checkout())
     if apparmor.needed() and not apparmor.is_installed(desktop.electron):
         raise HephaistosError(
-            "Electron's sandbox needs an AppArmor profile on this Machine:"
+            "Electron's sandbox needs an AppArmor profile on this machine:"
             " run `hephaistos desktop install`"
         )
     pid = launch.open_desktop(desktop, Paths.from_environment(), executable(), os.environ)
     typer.echo(
-        "The Desktop is already open; brought it to the front"
+        "The desktop app is already open; brought it to the front"
         if pid is None
-        else "Opened the Desktop"
+        else "Opened the desktop app"
     )
 
 
@@ -54,7 +54,7 @@ def _as_root(commands: list[list[str]], declined: str) -> bool:
 
 @app.command()
 def install() -> None:
-    """Install the Desktop on this Machine: its launcher entry and icon, and what it needs.
+    """Install the desktop app on this machine: its launcher entry and icon, and what it needs.
 
     The entry runs this hephaistos, by the path it was run as, with this shell's HEPHAISTOS_HOME
     and XDG directories. On Ubuntu, Chromium's sandbox also needs an AppArmor profile, which
@@ -74,7 +74,7 @@ def install() -> None:
     source = private_directory(Paths.from_environment().state_dir) / f"{apparmor.NAME}.apparmor"
     source.write_text(apparmor.profile_text(desktop.electron))
     typer.echo(
-        f"Electron's sandbox needs an AppArmor profile on this Machine; {short_path(source)}"
+        f"Electron's sandbox needs an AppArmor profile on this machine; {short_path(source)}"
         " has it. Installing and loading it takes root:"
     )
     if _as_root(apparmor.commands(source), "Run them, then `hephaistos desktop open`"):
@@ -83,7 +83,7 @@ def install() -> None:
 
 @app.command()
 def uninstall() -> None:
-    """Remove the Desktop's launcher entry and icon, and its AppArmor profile if you agree."""
+    """Remove the desktop app's launcher entry and icon, and its AppArmor profile if you agree."""
     files = entry.Files.from_environment(os.environ)
     removed = entry.uninstall(files)
     typer.echo(f"Deleted {short_path(files.entry)}" if removed else "No launcher entry installed")

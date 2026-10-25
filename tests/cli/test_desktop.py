@@ -33,11 +33,11 @@ def _restricted(monkeypatch: pytest.MonkeyPatch, *, installed: bool) -> None:
 def test_open(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(apparmor, "needed", lambda: False)
     opened = runner.invoke(app, ["desktop", "open"])
-    assert opened.output == "The Desktop is already open; brought it to the front\n"
+    assert opened.output == "The desktop app is already open; brought it to the front\n"
     _restricted(monkeypatch, installed=False)
     refused = runner.invoke(app, ["desktop", "open"])
     assert str(refused.exception) == (
-        "Electron's sandbox needs an AppArmor profile on this Machine:"
+        "Electron's sandbox needs an AppArmor profile on this machine:"
         " run `hephaistos desktop install`"
     )
 

@@ -72,7 +72,7 @@ def get(session: ReadSession, machine_id: uuid.UUID) -> Machine:
         (machine_id,),
     ).fetchone()
     if row is None:
-        raise LookupError(f"no Machine with ID {machine_id}")
+        raise LookupError(f"no machine with ID {machine_id}")
     return Machine.from_row(row)
 
 
@@ -83,7 +83,7 @@ def by_name(session: ReadSession, name: str) -> Machine:
         (name,),
     ).fetchone()
     if row is None:
-        raise HephaistosError(f"no Machine named {name}")
+        raise HephaistosError(f"no machine named {name}")
     return Machine.from_row(row)
 
 

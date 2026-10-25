@@ -27,7 +27,7 @@ describe("the Daemon card's lines", () => {
 
   it("say when the Watcher passes next", () => {
     const watcher = daemon().watcher;
-    if (watcher === null) throw new Error("no Watcher");
+    if (watcher === null) throw new Error("no watcher");
     expect(watcherText(watcher, NOW)).toBe("every 60 s; next pass in 40 s");
     expect(watcherText({ ...watcher, last_pass: null }, NOW)).toBe(
       "every 60 s; first pass running",
@@ -42,7 +42,7 @@ describe("the Daemon card's lines", () => {
 
   it("say what the Server answered", () => {
     const server = daemon().server;
-    if (server === null) throw new Error("no Server");
+    if (server === null) throw new Error("no server");
     expect(serverText(server, NOW)).toBe(
       "listening on 127.0.0.1:8264; 312 requests since start, last now; 1 live connection",
     );

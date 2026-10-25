@@ -23,7 +23,7 @@ def needed() -> bool:
 def profile_text(electron: Path) -> str:
     """Our profile for the Electron at this path: allows everything, user namespaces included."""
     return (
-        "# Written by `hephaistos desktop install`: lets the Desktop's Electron use Chromium's"
+        "# Written by `hephaistos desktop install`: lets the desktop app's Electron use Chromium's"
         " sandbox.\n"
         "abi <abi/4.0>,\n"
         "include <tunables/global>\n\n"

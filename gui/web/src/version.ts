@@ -33,7 +33,7 @@ export function apiFit(built: ApiVersion, running: ApiVersion): Fit {
   const daemonOlder =
     running.major < built.major || (running.major === built.major && running.minor < built.minor);
   const hint =
-    `This GUI is built for API ${shown(built)}; the Daemon runs ${shown(running)}: ` +
+    `This GUI is built for API ${shown(built)}; the daemon runs ${shown(running)}: ` +
     (daemonOlder ? RESTART : REBUILD);
   return { usable: built.major === running.major, hint };
 }

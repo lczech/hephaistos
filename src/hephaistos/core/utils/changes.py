@@ -90,7 +90,7 @@ def pathspec_for(path: str | None) -> list[str]:
         return []
     parts = PurePosixPath(path).parts
     if not parts or PurePosixPath(path).is_absolute() or ".." in parts:
-        raise ChangesError(f"path must lie within the Checkout, not be {path!r}")
+        raise ChangesError(f"path must lie within the checkout, not be {path!r}")
     return ["--", path]
 
 

@@ -85,7 +85,7 @@ def unit_text(executable: Path, env: Mapping[str, str]) -> str:
         [
             MARKER,
             "[Unit]",
-            "Description=hephaistos Daemon: observes this Machine in the background",
+            "Description=hephaistos daemon: observes this machine in the background",
             "",
             "[Service]",
             f"ExecStart={_quoted(str(executable))} daemon run",
@@ -134,7 +134,7 @@ def path_differences(text: str, env: Mapping[str, str]) -> list[str]:
     """Where an installed unit's path variables differ from `env`'s, e.g. this shell's."""
     unit = installed_variables(text)
     return [
-        f"{name}: the Daemon has {unit.get(name) or 'none'}, this shell {env.get(name) or 'none'}"
+        f"{name}: the daemon has {unit.get(name) or 'none'}, this shell {env.get(name) or 'none'}"
         for name in PATH_VARIABLES
         if (unit.get(name) or "") != (env.get(name) or "")
     ]
@@ -265,7 +265,7 @@ def _refuse_daemon_without_systemd(paths: Paths) -> None:
         raise SystemdError(NOT_AVAILABLE)
     if state.active != "active" and status.is_running(paths.state_dir):
         pid = _running_pid(paths.state_dir)
-        running = f"a Daemon is already running (pid {pid})" if pid else "a Daemon is running"
+        running = f"a daemon is already running (pid {pid})" if pid else "a daemon is running"
         raise SystemdError(
             f"{running}, not under systemd; stop it first with `hephaistos daemon stop`"
         )
@@ -282,10 +282,10 @@ def wait_started(paths: Paths, previous: int | None = None) -> int:
         if state is not None and state.active in {"failed", "inactive"}:
             code = f" (exit code {state.exit_code})" if state.exit_code else ""
             raise SystemdError(
-                f"the Daemon didn't start{code}; see `hephaistos log show --process daemon`"
+                f"the daemon didn't start{code}; see `hephaistos log show --process daemon`"
             )
         time.sleep(POLL)
-    raise SystemdError(f"the Daemon didn't start within {START_WAIT:g} s")
+    raise SystemdError(f"the daemon didn't start within {START_WAIT:g} s")
 
 
 def _require_installed(env: Mapping[str, str]) -> None:
@@ -296,12 +296,12 @@ def _require_installed(env: Mapping[str, str]) -> None:
     text = installed_text()
     if text is None:
         raise SystemdError(
-            "the Daemon isn't installed; run `hephaistos daemon install`,"
+            "the daemon isn't installed; run `hephaistos daemon install`,"
             " or `hephaistos daemon run` for this session"
         )
     if differences := path_differences(text, env):
         raise SystemdError(
-            f"the installed Daemon keeps its data elsewhere ({'; '.join(differences)});"
+            f"the installed daemon keeps its data elsewhere ({'; '.join(differences)});"
             " `hephaistos daemon install` installs this shell's instead"
         )
 
@@ -336,11 +336,11 @@ def stop(paths: Paths) -> int | None:
     if not status.is_running(paths.state_dir):
         return None
     if pid is None:
-        raise HephaistosError("a Daemon is running, but its status file doesn't say which")
+        raise HephaistosError("a daemon is running, but its status file doesn't say which")
     os.kill(pid, signal.SIGTERM)
     deadline = time.monotonic() + STOP_WAIT
     while status.is_running(paths.state_dir):
         if time.monotonic() >= deadline:
-            raise HephaistosError(f"the Daemon (pid {pid}) is still running after {STOP_WAIT:g} s")
+            raise HephaistosError(f"the daemon (pid {pid}) is still running after {STOP_WAIT:g} s")
         time.sleep(POLL)
     return pid

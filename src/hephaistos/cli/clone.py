@@ -28,14 +28,14 @@ from hephaistos.core.utils.ids import id_datetime, short_id
 from hephaistos.core.utils.paths import Paths, shell_path, short_path
 from hephaistos.core.utils.text import number_text
 
-app = typer.Typer(no_args_is_help=True, help="Clones: git clones of Repositories.")
+app = typer.Typer(no_args_is_help=True, help="Clones: git clones of repositories.")
 
 HERE = Path()
 PathArgument = Annotated[
     Path,
-    typer.Argument(help="A path in the Clone or its Worktrees. Default: the current directory."),
+    typer.Argument(help="A path in the clone or its worktrees. Default: the current directory."),
 ]
-RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the Repository.")]
+RepoOption = Annotated[str | None, typer.Option("--repo", "-r", help="Name of the repository.")]
 
 
 ImportHistoryOption = Annotated[
@@ -52,7 +52,7 @@ RefreshOption = Annotated[
 
 def note_observed(result: observer.Result, reason: str) -> None:
     """Says on stderr that a command observed first, unasked, and why."""
-    events = number_text(len(result.events), "Event")
+    events = number_text(len(result.events), "event")
     typer.echo(f"Observed first, because {reason} ({events})", err=True)
 
 
@@ -146,8 +146,8 @@ def _new_repository(name: str, why: str, *, yes: bool) -> str:
     """`name` for a new Repository, once the user agreed; `why` it is needed starts the question."""
     repositories.check_name(name)
     _confirm(
-        f"{why}; register it as a Clone of a new Repository {name}?",
-        f"register it with a new Repository {name}",
+        f"{why}; register it as a clone of a new repository {name}?",
+        f"register it with a new repository {name}",
         yes=yes,
     )
     return name
@@ -164,33 +164,33 @@ def _choose_repository(
     if repo is not None:
         if (existing := repositories.find(session, repo)) is not None:
             return existing.name, False
-        return _new_repository(repo, f"No Repository is named {repo}", yes=yes), True
+        return _new_repository(repo, f"No repository is named {repo}", yes=yes), True
     matches = [repository.name for repository in clones.matching(session, candidate)]
     if len(matches) > 1:
         if yes or not terminal.interactive():
             raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
-        heading = f"{shown} matches several Repositories:"
-        return matches[terminal.choose(heading, matches, "Register it as a Clone of")], False
+        heading = f"{shown} matches several repositories:"
+        return matches[terminal.choose(heading, matches, "Register it as a clone of")], False
     if matches:
         [match] = matches
         _confirm(
-            f"Register {shown} as a Clone of {match}?",
-            f"register it as a Clone of {match}",
+            f"Register {shown} as a clone of {match}?",
+            f"register it as a clone of {match}",
             yes=yes,
         )
         return match, False
     name = candidate.suggested_name
     if name is None:
         raise HephaistosError(
-            f"no Repository matches {shown}, and its remote and directory give no name;"
+            f"no repository matches {shown}, and its remote and directory give no name;"
             " choose one with --repo"
         )
     if (taken := repositories.find(session, name)) is not None:
         raise HephaistosError(
-            f"no Repository matches {shown}, and the name {taken.name} is taken by an unrelated"
-            " Repository; choose another with --repo"
+            f"no repository matches {shown}, and the name {taken.name} is taken by an unrelated"
+            " repository; choose another with --repo"
         )
-    return _new_repository(name, f"No Repository matches {shown}", yes=yes), True
+    return _new_repository(name, f"No repository matches {shown}", yes=yes), True
 
 
 @app.command()
@@ -199,13 +199,13 @@ def register(
     *,
     repo: RepoOption = None,
     yes: Annotated[
-        bool, typer.Option("--yes", help="Register without asking, in a new Repository if needed.")
+        bool, typer.Option("--yes", help="Register without asking, in a new repository if needed.")
     ] = False,
     import_history: ImportHistoryOption = False,
 ) -> None:
-    """Register a git clone as a Clone of a Repository, a new one if none matches, and observe it.
+    """Register a git clone as a clone of a repository, a new one if none matches, and observe it.
 
-    It matches the Repositories it shares a root commit or remote with, else one without Clones
+    It matches the repositories it shares a root commit or remote with, else one without clones
     named after its remote or directory.
     """
     paths = Paths.from_environment()
@@ -219,12 +219,12 @@ def register(
         clone = clones.register(session, repository, candidate, import_history=import_history)
     # Observing right away finds its Worktrees and starts its git activity from now.
     result = observer.observe(paths, [clone.id])
-    of = f"a new Repository {repository}" if new else repository
-    registered = f"Registered Clone {short_path(clone.display_path)} of {of}"
+    of = f"a new repository {repository}" if new else repository
+    registered = f"Registered clone {short_path(clone.display_path)} of {of}"
     if result.worktrees:
-        registered += f", with {number_text(result.worktrees, 'Worktree')}"
+        registered += f", with {number_text(result.worktrees, 'worktree')}"
     if import_history:
-        registered += f"; imported {number_text(len(result.events), 'Event')} of its history"
+        registered += f"; imported {number_text(len(result.events), 'event')} of its history"
     typer.echo(registered)
 
 
@@ -236,7 +236,7 @@ def list_(
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """List the Clones."""
+    """List the clones."""
     paths = Paths.from_environment()
     if refresh:
         observer.observe(paths)
@@ -272,7 +272,7 @@ def show(
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show the Clone that a path lies in, also through one of its Worktrees."""
+    """Show the clone that a path lies in, also through one of its worktrees."""
     paths = Paths.from_environment()
     observe_checkout(paths, path, refresh=refresh)
     with read_session(paths) as session:
@@ -310,7 +310,7 @@ def show(
 
 @app.command()
 def unregister(path: PathArgument = HERE) -> None:
-    """Unregister the Clone that a path lies in; its files stay untouched."""
+    """Unregister the clone that a path lies in; its files stay untouched."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         unregistering = clones.find_to_unregister(session, path)
@@ -319,26 +319,26 @@ def unregister(path: PathArgument = HERE) -> None:
         [summary] = repositories.summaries(session, unregistering.repository.id)
     name = unregistering.repository.name
     shown = short_path(unregistering.clone.display_path)
-    typer.echo(f"Unregistered Clone {shown} of {name} (files untouched)")
+    typer.echo(f"Unregistered clone {shown} of {name} (files untouched)")
     if not summary.clones:
         typer.echo(
-            f"{name} has no Clones left;"
+            f"{name} has no clones left;"
             f" unregister it with `hephaistos repo unregister {shlex.quote(name)}`"
         )
 
 
 @app.command()
 def move(
-    old: Annotated[Path, typer.Argument(help="Where the Clone was.")],
+    old: Annotated[Path, typer.Argument(help="Where the clone was.")],
     new: Annotated[Path, typer.Argument(help="Where it is now.")],
     *,
     nested: Annotated[
-        bool, typer.Option("--nested", help="Also the Clones inside it, moved along.")
+        bool, typer.Option("--nested", help="Also the clones inside it, moved along.")
     ] = False,
 ) -> None:
-    """Record that a Clone was moved: move its directory first (e.g. with `mv`).
+    """Record that a clone was moved: move its directory first (e.g. with `mv`).
 
-    Its Worktrees must be linked to it again first, with `git worktree repair`.
+    Its worktrees must be linked to it again first, with `git worktree repair`.
     """
     paths = Paths.from_environment()
     with read_session(paths) as session:
@@ -349,7 +349,7 @@ def move(
     observer.observe(paths, [moving.clone.clone.id for moving in planned])
     for moving in planned:
         typer.echo(
-            f"Moved Clone {short_path(moving.clone.clone.display_path)}"
+            f"Moved clone {short_path(moving.clone.clone.display_path)}"
             f" of {moving.clone.repository.name} to {short_path(moving.to.display_path)}"
         )
     hints = [

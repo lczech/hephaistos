@@ -149,7 +149,7 @@ export const columns = column.columns([
     meta: {
       second: true,
       figures: true,
-      description: "When HEAD last moved here; for a Repository, in any of its Checkouts",
+      description: "When HEAD last moved here; for a repository, in any of its checkouts",
     },
     cell: ({ row, table }) => <Ago at={activeAt(row.original)} now={table.options.meta?.now} />,
   }),
@@ -157,7 +157,7 @@ export const columns = column.columns([
     id: "observed",
     header: "observed",
     size: 88,
-    meta: { figures: true, description: "When the Checkout was last observed" },
+    meta: { figures: true, description: "When the checkout was last observed" },
     cell: ({ row, table }) => {
       const state = checkout(row.original);
       return state && <Ago at={state.observed_at} now={table.options.meta?.now} />;

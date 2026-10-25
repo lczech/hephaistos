@@ -21,7 +21,7 @@ export function sourceText(source: string): string {
 /** What the Daemon does differently, until it starts again; nothing if it uses the value. */
 export function appliedText({ value, applied, type }: Setting): string | undefined {
   if (applied === value) return undefined;
-  return `The Daemon uses ${valueText(applied, type)} until it restarts.`;
+  return `The daemon uses ${valueText(applied, type)} until it restarts.`;
 }
 
 type Tone = "warning" | "danger" | "muted";

@@ -29,7 +29,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.placeholder} onMouseUp={sideButtons}>
-      <p>Open a View:</p>
+      <p>Open a view:</p>
       <ul className={styles.views}>
         {SUGGESTED.map((kind) => {
           const { name, icon } = KINDS[kind];
@@ -49,7 +49,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
       </ul>
       {group && groups > 1 && (
         <button type="button" className={styles.close} onClick={() => group.api.close()}>
-          Close this Group
+          Close this group
         </button>
       )}
     </div>

@@ -330,7 +330,7 @@ describe("the Changes View", () => {
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Why.")).toBeInTheDocument();
     // Other Revisions instead: from its first parent to it, to pick others.
-    await userEvent.click(screen.getByRole("button", { name: "Compare with other Revisions" }));
+    await userEvent.click(screen.getByRole("button", { name: "Compare with other revisions" }));
     expect(screen.getByRole("status")).toHaveTextContent(
       `changes?clone=clone-proj&from=${"b".repeat(40)}&to=${hash}`,
     );
@@ -349,7 +349,7 @@ describe("the Changes View", () => {
         }),
     });
     renderWithQueries(<Changes initial={{ clone: "clone-proj", commit: "abc1234" }} />);
-    expect(await screen.findByText("abc1234 is no longer in this Checkout.")).toBeInTheDocument();
+    expect(await screen.findByText("abc1234 is no longer in this checkout.")).toBeInTheDocument();
   });
 
   it("shows the changes since HEAD together, as chosen in this browser, also after swapping", async () => {
@@ -480,7 +480,7 @@ describe("the Changes View", () => {
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
       "GET /api/changes": () =>
-        json({ error: "the Worktree at ~/side was removed", checkout }, 410),
+        json({ error: "the worktree at ~/side was removed", checkout }, 410),
     });
     const opened: Address[] = [];
     renderWithQueries(
@@ -488,16 +488,16 @@ describe("the Changes View", () => {
         <Changes initial={{ worktree: "wt-side" }} />
       </OpenViewContext.Provider>,
     );
-    expect(await screen.findByText(/^The Worktree at ~\/side was removed\.$/)).toBeInTheDocument();
+    expect(await screen.findByText(/^The worktree at ~\/side was removed\.$/)).toBeInTheDocument();
     expect(screen.queryByRole("list")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Commit history of this Checkout" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "The Worktree's Events" }));
+    expect(screen.queryByRole("button", { name: "Commit history of this checkout" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "The worktree's events" }));
     expect(opened).toEqual([{ kind: "events", params: { worktree: "wt-side" } }]);
   });
 
   it("keeps saying a Checkout is gone while asking again, e.g. on focus", async () => {
     const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "worktree" } as const;
-    const gone = () => json({ error: "the Worktree at ~/side was removed", checkout }, 410);
+    const gone = () => json({ error: "the worktree at ~/side was removed", checkout }, 410);
     let answer = (): Response | Promise<Response> => gone();
     serve({
       "GET /api/info": () => json(info()),
@@ -521,7 +521,7 @@ describe("the Changes View", () => {
 
   it("notes an error above the table, with the Checkout's Events", async () => {
     const checkout = { clone: "clone-proj", worktree: null, gone: null };
-    const error = "the Clone at ~/proj is missing: nothing is at its path";
+    const error = "the clone at ~/proj is missing: nothing is at its path";
     serve({
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
@@ -536,14 +536,14 @@ describe("the Changes View", () => {
     expect(
       await screen.findByText(`Couldn't load: ${error}`, { exact: false }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Commit history of this Checkout" })).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "The Clone's Events" }));
+    expect(screen.getByRole("button", { name: "Commit history of this checkout" })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "The clone's events" }));
     expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
   });
 
   it("says when a Checkout isn't named", () => {
     serve({});
     renderWithQueries(<Changes initial={{}} />);
-    expect(screen.getByText(/No Checkout/)).toBeInTheDocument();
+    expect(screen.getByText(/No checkout/)).toBeInTheDocument();
   });
 });

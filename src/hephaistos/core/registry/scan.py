@@ -144,10 +144,10 @@ class _Planner:
 
     def clone(self, typed: Path, location: git.Location, worktree: Path | None = None) -> None:
         """Plans the Clone at `location`, found at `typed`, or through its `worktree`."""
-        note = "for the Worktree" if worktree else ""
+        note = "for the worktree" if worktree else ""
         top = location.top
         if (existing := self.clones.get(top)) is not None:
-            self.add(Planned(typed, Action.KNOWN, existing.repository.name, "a Clone already"))
+            self.add(Planned(typed, Action.KNOWN, existing.repository.name, "a clone already"))
             return
         if top in self.planned:
             return
@@ -220,13 +220,13 @@ class _Planner:
             shown = existing.clone.display_path
             repository = existing.repository.name
             if any(worktree.path.resolve() == location.top for worktree in existing.worktrees):
-                self.add(Planned(typed, Action.KNOWN, repository, "a Worktree of", shown))
+                self.add(Planned(typed, Action.KNOWN, repository, "a worktree of", shown))
             else:
                 row = Planned(
                     typed,
                     Action.OBSERVE,
                     repository,
-                    "a new Worktree of",
+                    "a new worktree of",
                     shown,
                     clone_id=existing.clone.id,
                 )
@@ -234,7 +234,7 @@ class _Planner:
             return
         if main not in self.planned:
             if not main.is_dir():
-                self.add(Planned(typed, Action.SKIP, note="its Clone is missing:", about=main))
+                self.add(Planned(typed, Action.SKIP, note="its clone is missing:", about=main))
                 return
             try:
                 main_location = git.locate(main)
@@ -243,7 +243,7 @@ class _Planner:
                 self.add(Planned(typed, Action.SKIP, note=str(error)))
                 return
             self.clone(main, main_location, typed)
-        self.add(Planned(typed, Action.WORKTREE, note="a Worktree of", about=main))
+        self.add(Planned(typed, Action.WORKTREE, note="a worktree of", about=main))
 
     def _name(self, indexes: list[int]) -> str | None:
         """The name for a new Repository of these rows, sorted by path; None if they give none.
@@ -281,9 +281,9 @@ class _Planner:
             if name is None:
                 reason = "its remote and directory give no name"
             elif (count := counts[repositories.name_key(name)]) > 1:
-                reason = f"{count} new Repositories would be named {name}"
+                reason = f"{count} new repositories would be named {name}"
             elif existing is not None and joined is None:
-                reason = f"the name {existing[0]} is taken by an unrelated Repository"
+                reason = f"the name {existing[0]} is taken by an unrelated repository"
             else:
                 first = self.rows[indexes[0]].path
                 for position, index in enumerate(indexes):
@@ -324,7 +324,7 @@ def _searched(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]
     except git.NotInRepositoryError:
         return _found(typed, depth)
     if location.top != typed.resolve():
-        kind = "Clone" if location.main is None else "Worktree"
+        kind = "clone" if location.main is None else "worktree"
         raise HephaistosError(
             f"{typed} is inside the {kind} at {location.top}; scan from outside it,"
             " or register a clone in it with `hephaistos clone register <path>`"

@@ -20,7 +20,7 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
       <MenuTrigger>
         {/* Our own button, for its tooltip: React Aria's has none. */}
         <Pressable>
-          <button type="button" className={styles.add} title="Open a View" aria-label="Open a View">
+          <button type="button" className={styles.add} title="Open a view" aria-label="Open a view">
             <Plus aria-hidden />
           </button>
         </Pressable>

@@ -31,7 +31,7 @@ class Record:
 def _check(table: Table) -> None:
     """Raises ValueError unless `table` is a Registry table."""
     if table.category is not Category.REGISTRY:
-        raise ValueError(f"{table} is not a Registry table")
+        raise ValueError(f"{table} is not a registry table")
 
 
 def _values(session: WriteSession, record: Record) -> dict[str, object]:

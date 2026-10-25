@@ -23,8 +23,8 @@ export function daemonHealth(
   const { watcher, server, warnings } = daemon;
   const reasons = [...warnings];
   if (watcher?.last_pass?.error) reasons.push(`last pass failed: ${watcher.last_pass.error}`);
-  if (watcher?.stalled) reasons.push("the Watcher has stalled");
-  if (server?.error) reasons.push(`the Server failed: ${server.error}`);
+  if (watcher?.stalled) reasons.push("the watcher has stalled");
+  if (server?.error) reasons.push(`the server failed: ${server.error}`);
   return reasons.length > 0
     ? { health: "warning", reasons }
     : { health: "good", reasons: ["running"] };

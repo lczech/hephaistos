@@ -36,7 +36,7 @@ def _setup_fields(setup: LocalSetup) -> list[tuple[str, str]]:
 
 @app.command("list")
 def list_(*, as_json: JsonOption = False) -> None:
-    """List the Machines; `*` marks this one."""
+    """List the machines; `*` marks this one."""
     with read_session(Paths.from_environment()) as session:
         if as_json:
             print_json(serialize.machines_json(session))
@@ -60,13 +60,13 @@ def list_(*, as_json: JsonOption = False) -> None:
 @app.command()
 def show(
     name: Annotated[
-        str | None, typer.Argument(help="Name of the Machine. Default: this one.")
+        str | None, typer.Argument(help="Name of the machine. Default: this one.")
     ] = None,
     *,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show a Machine; for this one, also its setup."""
+    """Show a machine; for this one, also its setup."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         machine = machines.by_name(session, name) if name else machines.this(session)

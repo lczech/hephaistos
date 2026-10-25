@@ -3,7 +3,7 @@
 The domain terms used in code, GUI and docs. Use the preferred term and avoid the listed alternatives.
 The only tool named here is git, because its model is part of our domain. Everything else is described by its role.
 
-In docs, defined terms (Core terms, Components, Later) are capitalised, including plurals, to set them apart from everyday words. Supporting terms stay lowercase.
+In docs and code comments, defined terms (Core terms, Components, Later) are capitalised, including plurals, to set them apart from everyday words. Supporting terms stay lowercase. What users read (the GUI, the CLI's output and help, error messages) uses all terms lowercase, as ordinary English does; only a View's name keeps its capital where it names that View: "the Daemon view", a tab's title, the "+" menu.
 
 ## Core terms
 

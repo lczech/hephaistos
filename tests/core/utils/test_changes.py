@@ -154,7 +154,7 @@ def test_paths_are_literal(repo: Path) -> None:
 
 @pytest.mark.parametrize("path", ["/etc", "../x", "a/../../x", ""])
 def test_paths_stay_within(repo: Path, path: str) -> None:
-    with pytest.raises(ChangesError, match="within the Checkout"):
+    with pytest.raises(ChangesError, match="within the checkout"):
         _changes(repo, path=path)
 
 

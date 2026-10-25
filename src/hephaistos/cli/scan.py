@@ -18,7 +18,7 @@ from hephaistos.core.utils.text import number_text
 #: How the summary line counts what plans leave out.
 _QUIET = {
     Action.KNOWN: ("known", "known"),
-    Action.WORKTREE: ("Worktree of a Clone above", "Worktrees of Clones above"),
+    Action.WORKTREE: ("worktree of a clone above", "worktrees of clones above"),
     Action.UNREADABLE: ("unreadable directory", "unreadable directories"),
 }
 
@@ -62,13 +62,13 @@ def _changes_text(counts: Counter[Action], *, done: bool) -> str:
     )
     parts: list[str] = []
     if registering:
-        text = f"{'registered' if done else 'register'} {number_text(registering, 'Clone')}"
+        text = f"{'registered' if done else 'register'} {number_text(registering, 'clone')}"
         if new:
-            text += f" ({number_text(new, 'new Repository', 'new Repositories')})"
+            text += f" ({number_text(new, 'new repository', 'new repositories')})"
         parts.append(text)
     if observing:
         parts.append(
-            f"{'observed' if done else 'observe'} {number_text(observing, 'new Worktree')}"
+            f"{'observed' if done else 'observe'} {number_text(observing, 'new worktree')}"
         )
     text = ", and ".join(parts)
     return text[0].upper() + text[1:]
@@ -92,10 +92,10 @@ def scan(
     yes: Annotated[bool, typer.Option("--yes", help="Register without asking.")] = False,
     import_history: ImportHistoryOption = False,
 ) -> None:
-    """Find the git clones in a directory, and register them, with new Repositories where needed.
+    """Find the git clones in a directory, and register them, with new repositories where needed.
 
     Stops at clones, without searching inside them, and skips hidden directories. A clone that
-    matches several Repositories, or whose new Repository's name is taken or missing, is
+    matches several repositories, or whose new repository's name is taken or missing, is
     skipped.
     """
     paths = Paths.from_environment()
@@ -123,5 +123,5 @@ def scan(
     result = observer.observe(paths, {*registered, *observing})
     done = _changes_text(counts, done=True)
     if import_history:
-        done += f"; imported {number_text(len(result.events), 'Event')} of their history"
+        done += f"; imported {number_text(len(result.events), 'event')} of their history"
     typer.echo(done)

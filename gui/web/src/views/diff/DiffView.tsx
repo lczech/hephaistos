@@ -327,7 +327,7 @@ export function DiffView({
               {
                 icon: StretchVertical,
                 title: narrow
-                  ? "Show old and new side by side, once the Panel is wide enough"
+                  ? "Show old and new side by side, once the panel is wide enough"
                   : "Show old and new side by side",
               },
               { icon: StretchHorizontal, title: "Show old and new inline" },
@@ -403,7 +403,7 @@ export function DiffView({
               />
               <ViewLink
                 address={{ kind: "history", params: checkout }}
-                label="Commit history of this Checkout"
+                label="Commit history of this checkout"
               />
             </>
           )}

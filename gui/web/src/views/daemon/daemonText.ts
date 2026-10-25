@@ -20,7 +20,7 @@ export function daemonText(process: Process, now: number): string {
 
 export function lastPassText(pass: Pass | null, now: number): string {
   if (pass === null) return "none yet";
-  const by = pass.trigger === "watcher" ? "the Watcher" : "API request";
+  const by = pass.trigger === "watcher" ? "the watcher" : "API request";
   const text = `${ago(pass.finished_at, now)} (${seconds(pass.duration)}), by ${by}`;
   return pass.error === null ? text : `${text}; failed: ${pass.error}`;
 }

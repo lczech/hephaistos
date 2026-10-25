@@ -46,7 +46,7 @@ Element.prototype.checkVisibility ??= function (this: Element, options?: CheckVi
 // browser's own.
 globalThis.fetch = async (input: RequestInfo | URL) => {
   const url = input instanceof Request ? input.url : String(input);
-  throw new Error(`no Server in tests: ${url}; answer it with serve()`);
+  throw new Error(`no server in tests: ${url}; answer it with serve()`);
 };
 globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket;
 

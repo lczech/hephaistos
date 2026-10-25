@@ -122,11 +122,11 @@ def _not_found(what: str, entity_id: uuid.UUID) -> HTTPException:
 def _absent_clone(session: ReadSession, clone_id: uuid.UUID) -> HTTPException:
     """Why a Clone isn't among the current ones: 410 if it was unregistered, else 404."""
     if not clones.was_unregistered(session, clone_id):
-        return _not_found("Clone", clone_id)
+        return _not_found("clone", clone_id)
     where = short_path(clones.paths(session, [clone_id])[clone_id])
     return CheckoutError(
         410,
-        f"the Clone at {where} was unregistered; its files are untouched",
+        f"the clone at {where} was unregistered; its files are untouched",
         ErrorCheckoutJson(clone=str(clone_id), worktree=None, gone="clone"),
     )
 
@@ -135,15 +135,15 @@ def _absent_worktree(session: ReadSession, worktree_id: uuid.UUID) -> HTTPExcept
     """Why a Worktree isn't among the current ones: 410 if it or its Clone is gone, else 404."""
     clone_id = worktrees.clone_ids(session, [worktree_id]).get(worktree_id)
     if clone_id is None:
-        return _not_found("Worktree", worktree_id)
-    where = f"the Worktree at {short_path(worktrees.paths(session, [worktree_id])[worktree_id])}"
+        return _not_found("worktree", worktree_id)
+    where = f"the worktree at {short_path(worktrees.paths(session, [worktree_id])[worktree_id])}"
     gone: Literal["clone", "worktree"]
     if clones.was_unregistered(session, clone_id):
-        gone, message = "clone", f"the Clone of {where} was unregistered; its files are untouched"
+        gone, message = "clone", f"the clone of {where} was unregistered; its files are untouched"
     elif worktrees.was_removed(session, worktree_id):
         gone, message = "worktree", f"{where} was removed"
     else:
-        return _not_found("Worktree", worktree_id)
+        return _not_found("worktree", worktree_id)
     checkout = ErrorCheckoutJson(clone=str(clone_id), worktree=str(worktree_id), gone=gone)
     return CheckoutError(410, message, checkout)
 
@@ -183,7 +183,7 @@ def machine_show(paths: PathsOf, machine_id: uuid.UUID) -> MachineJson:
         try:
             machine = machines.get(session, machine_id)
         except LookupError:
-            raise _not_found("Machine", machine_id) from None
+            raise _not_found("machine", machine_id) from None
         this = machine.id == session.machine_id
         return serialize.machine_json(
             machine,
@@ -206,7 +206,7 @@ def repository_show(paths: PathsOf, repository_id: uuid.UUID) -> RepositoryJson:
     with read_session(paths) as session:
         found = serialize.repositories_json(session, repository_id)
     if not found:
-        raise _not_found("Repository", repository_id)
+        raise _not_found("repository", repository_id)
     return found[0]
 
 
@@ -263,18 +263,18 @@ def _working_tree(
                         400, f"{details.clone.display_path} is bare: no working tree"
                     )
                 top, lock = details.clone.resolved_path, None
-                what = f"the Clone at {short_path(details.clone.display_path)}"
+                what = f"the clone at {short_path(details.clone.display_path)}"
                 about = ErrorCheckoutJson(clone=str(clone), worktree=None, gone=None)
             elif found := next((wt for wt in details.worktrees if wt.id == worktree), None):
                 top, lock = found.path, found.lock_reason
-                what = f"the Worktree at {short_path(found.path)}"
+                what = f"the worktree at {short_path(found.path)}"
                 about = ErrorCheckoutJson(
                     clone=str(details.clone.id), worktree=str(worktree), gone=None
                 )
             else:
                 continue
             if details.clone.id not in local:
-                raise CheckoutError(404, f"{what} is on another Machine", about)
+                raise CheckoutError(404, f"{what} is on another machine", about)
             if not top.is_dir():
                 # A locked Worktree may be away for a while; any other was moved or deleted.
                 missing = ": nothing is at its path" if lock is None else f" (locked: {lock})"
@@ -501,7 +501,7 @@ def event_show(paths: PathsOf, event_id: uuid.UUID) -> EventJson:
     with read_session(paths) as session:
         event = events.get(session, event_id)
         if event is None:
-            raise _not_found("Event", event_id)
+            raise _not_found("event", event_id)
         return serialize.events_json(session, [event])[0]
 
 

@@ -113,7 +113,7 @@ def test_path_now_a_worktree_fails(paths: Paths, repo: Path, tmp_path: Path) -> 
     git(other, "worktree", "add", "--quiet", str(repo))
     result = observer.observe(paths)
     assert _kinds(result) == ["clone.failed"]
-    assert result.events[0].payload["error"] == f"it is now a Worktree of {other}"
+    assert result.events[0].payload["error"] == f"it is now a worktree of {other}"
 
 
 def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
@@ -370,7 +370,7 @@ def test_finding_checkouts(paths: Paths, repo: Path, tmp_path: Path) -> None:
     inside = repo / ".worktrees" / "inside"
     git(repo, "worktree", "add", "--quiet", "-b", "inside", str(inside))
     with read_session(paths) as session:
-        with pytest.raises(HephaistosError, match="no Clone or Worktree known"):
+        with pytest.raises(HephaistosError, match="no clone or worktree known"):
             clones.find_checkout(session, tmp_path / "outside")
         assert clones.find_checkout(session, inside).worktree is None  # not observed yet
         assert clones.outdated_clone(session, inside) == clones.find(session, repo)
@@ -383,5 +383,5 @@ def test_finding_checkouts(paths: Paths, repo: Path, tmp_path: Path) -> None:
         assert _worktree(paths, inside / "sub").name == "inside"
         assert clones.find(session, tmp_path / "outside").clone.resolved_path == repo
         assert clones.find_checkout(session, repo).worktree is None
-    with read_session(paths) as session, pytest.raises(HephaistosError, match="in a Worktree"):
+    with read_session(paths) as session, pytest.raises(HephaistosError, match="in a worktree"):
         clones.find_to_unregister(session, tmp_path / "outside")

@@ -47,7 +47,7 @@ def test_plan_needs_a_terminal_or_yes(root: Path) -> None:
     ]
     assert "To register the skipped ones by hand:" in lines
     assert f"  hephaistos clone register {root / 'other'} --repo <name>" in lines
-    assert lines[-1] == "Not listed: 1 Worktree of a Clone above (-v lists them)"
+    assert lines[-1] == "Not listed: 1 worktree of a clone above (-v lists them)"
 
 
 def test_verbose_lists_everything(root: Path) -> None:
@@ -59,7 +59,7 @@ def test_verbose_lists_everything(root: Path) -> None:
 
 def test_register_with_yes_then_nothing_to_register(root: Path) -> None:
     lines = _lines(str(root), "--yes")
-    assert lines[-1] == "Registered 2 Clones (1 new Repository)"
+    assert lines[-1] == "Registered 2 clones (1 new repository)"
     lines = _lines(str(root), "--yes")
     assert lines[-1] == "Nothing to register"
     result = runner.invoke(app, ["clone", "list"])
@@ -70,8 +70,8 @@ def test_register_after_asking(root: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     lines = _lines(str(root / "org"), input="\n")
     assert lines[-2:] == [
-        "Register 1 Clone (1 new Repository)? [Y/n]: ",
-        "Registered 1 Clone (1 new Repository)",
+        "Register 1 clone (1 new repository)? [Y/n]: ",
+        "Registered 1 clone (1 new repository)",
     ]
     result = runner.invoke(app, ["scan", str(root / "proj")], input="n\n")
     assert result.exit_code == 1
@@ -92,6 +92,6 @@ def test_new_worktree_is_observed(root: Path) -> None:
     _lines(str(root), "--yes")
     git(root / "proj", "worktree", "add", "--quiet", str(root / "proj-fix"))
     lines = _lines(str(root), "--yes")
-    assert lines[-1] == "Observed 1 new Worktree"
+    assert lines[-1] == "Observed 1 new worktree"
     result = runner.invoke(app, ["worktree", "list"])
     assert "proj-fix" in result.output

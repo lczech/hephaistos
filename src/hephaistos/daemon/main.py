@@ -186,11 +186,11 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
     with status.held_lock(paths.state_dir):
         previous = status.read(paths.state_dir)
         if previous is not None and previous.stopped_at is None:
-            log.warning("the previous Daemon (pid %d) ended without stopping", previous.pid)
+            log.warning("the previous daemon (pid %d) ended without stopping", previous.pid)
         try:
             machines.update(paths)
         except HephaistosError as error:
-            log.warning("cannot update this Machine: %s", error)
+            log.warning("cannot update this machine: %s", error)
         version = running_version()
         daemon = Daemon(paths, names, version)
         log.info(
@@ -204,6 +204,6 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
                 "git_version": found.version,
             },
         )
-        announce(f"Running: {', '.join(names)}; Ctrl+C stops the Daemon")
+        announce(f"Running: {', '.join(names)}; Ctrl+C stops the daemon")
         reason = daemon.run()
         log.info("stopped: %s", reason)

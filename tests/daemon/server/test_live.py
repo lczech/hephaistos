@@ -256,7 +256,7 @@ def test_needs_the_token_in_time(client: TestClient, monkeypatch: pytest.MonkeyP
 @pytest.mark.parametrize(
     ("headers", "reason"),
     [
-        ({"Origin": "https://evil.example"}, "only this Server's own page may connect"),
+        ({"Origin": "https://evil.example"}, "only this server's own page may connect"),
         ({"Host": "evil.example:8264"}, "answers only to localhost, not to evil.example"),
     ],
 )

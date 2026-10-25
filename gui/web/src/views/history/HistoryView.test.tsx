@@ -248,7 +248,7 @@ describe("the History View", () => {
   });
 
   it("searches the messages for all words typed, without what is not committed", async () => {
-    const found = commit(2, { subject: "Mark rows whose View is shown" });
+    const found = commit(2, { subject: "Mark rows whose view is shown" });
     const requests = serve({
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([repository("proj", [clone("proj", { changed: 1 })])]),
@@ -265,7 +265,7 @@ describe("the History View", () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 350))); // a pause: asked
     await userEvent.type(field, "  view");
     expect(field).toHaveValue("row  view"); // no key lost
-    expect(await screen.findByText("Mark rows whose View is shown")).toBeInTheDocument();
+    expect(await screen.findByText("Mark rows whose view is shown")).toBeInTheDocument();
     expect(screen.queryByText(/^Uncommitted/)).toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent("history?clone=clone-proj&search=row");
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj, “row view”");

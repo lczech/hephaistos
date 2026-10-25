@@ -113,8 +113,8 @@ beforeEach(() => {
 describe("the Workbench", () => {
   it("starts with the Repositories and Events, and saves its Layout", async () => {
     await renderWorkbench();
-    expect(await screen.findByText(/^No Repositories yet/)).toBeInTheDocument();
-    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    expect(await screen.findByText(/^No repositories yet/)).toBeInTheDocument();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
     expect(tabs()).toEqual(["Repositories", "Events"]);
     await waitFor(() =>
       expect(savedViews()).toEqual([
@@ -126,7 +126,7 @@ describe("the Workbench", () => {
 
   it("closes the active Panel on Ctrl+W, then its emptied Group, but not the last", async () => {
     await renderWorkbench();
-    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
     await userEvent.keyboard("{Control>}w{/Control}");
     expect(groups()).toEqual([["Repositories"], []]);
     await userEvent.keyboard("{Control>}w{/Control}");
@@ -134,7 +134,7 @@ describe("the Workbench", () => {
     await userEvent.keyboard("{Control>}w{/Control}");
     await userEvent.keyboard("{Control>}w{/Control}");
     expect(groups()).toEqual([[]]);
-    expect(screen.queryByRole("button", { name: "Close this Group" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close this group" })).toBeNull();
   });
 
   it("keeps a Group emptied, also once restored, until it is closed", async () => {
@@ -146,9 +146,9 @@ describe("the Workbench", () => {
     unmount();
     await renderWorkbench();
     expect(groups()).toEqual([["Repositories"], []]);
-    await userEvent.click(screen.getByRole("button", { name: "Close this Group" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close this group" }));
     expect(groups()).toEqual([["Repositories"]]);
-    expect(screen.queryByRole("button", { name: "Close this Group" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close this group" })).toBeNull();
   });
 
   it('shows each View\'s icon in its tab and in the "+" menu', async () => {
@@ -160,7 +160,7 @@ describe("the Workbench", () => {
       expect.stringMatching(/lucide-book-copy/),
     );
     expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
-    const [add] = screen.getAllByRole("button", { name: "Open a View" });
+    const [add] = screen.getAllByRole("button", { name: "Open a view" });
     await userEvent.click(add as HTMLElement);
     const choice = screen.getByRole("menuitem", { name: "Config" });
     expect(icons(choice)).toEqual([expect.stringMatching(/lucide-sliders/)]);
@@ -168,7 +168,7 @@ describe("the Workbench", () => {
 
   it('offers the Views that stand alone by its "+", opening one in its Group', async () => {
     await renderWorkbench();
-    const [, inEvents] = screen.getAllByRole("button", { name: "Open a View" });
+    const [, inEvents] = screen.getAllByRole("button", { name: "Open a view" });
     await userEvent.click(inEvents as HTMLElement);
     const choices = screen.getAllByRole("menuitem").map((choice) => choice.textContent);
     expect(choices).toEqual(["Repositories", "Events", "Daemon", "Log", "Config", "Database"]);
@@ -237,7 +237,7 @@ describe("the Workbench", () => {
   it("focuses an open View instead of opening it twice, flashing its tab", async () => {
     await renderWorkbench();
     const animate = vi.spyOn(Element.prototype, "animate");
-    const [, inEvents] = screen.getAllByRole("button", { name: "Open a View" });
+    const [, inEvents] = screen.getAllByRole("button", { name: "Open a view" });
     await userEvent.click(inEvents as HTMLElement);
     await userEvent.click(screen.getByRole("menuitem", { name: "Repositories" }));
     expect(tabs()).toEqual(["Repositories", "Events"]);
@@ -256,7 +256,7 @@ describe("the Workbench", () => {
     });
     save("daemon", "events");
     await renderWorkbench();
-    const link = await screen.findByRole("button", { name: "The Daemon's log" });
+    const link = await screen.findByRole("button", { name: "The daemon's log" });
     expect(link).toHaveTextContent("Log");
     await altClick(link);
     // Events, never shown, keeps the title its Layout saved: its View is built once shown.
@@ -531,7 +531,7 @@ describe("the Workbench", () => {
     const [tab] = screen.getAllByRole("tab");
     await userEvent.click(within(tab as HTMLElement).getByRole("button", { name: "Close tab" }));
     expect(tabs()).toEqual([]);
-    expect(screen.getByText("Open a View:")).toBeInTheDocument();
+    expect(screen.getByText("Open a view:")).toBeInTheDocument();
     const suggested = within(screen.getByRole("list")).getAllByRole("button");
     expect(suggested.map((choice) => choice.textContent)).toEqual(["Repositories", "Events"]);
     await userEvent.click(suggested[0] as HTMLElement);

@@ -58,7 +58,7 @@ def test_a_failed_pass_is_reported(paths: Paths) -> None:
         finally:
             started.stop()
 
-    message = "hephaistos is not set up on this Machine; run `hephaistos setup`"
+    message = "hephaistos is not set up on this machine; run `hephaistos setup`"
     assert asyncio.run(failed()) == PassFailed(message)
 
 

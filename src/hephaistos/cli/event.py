@@ -28,7 +28,7 @@ from hephaistos.core.serialize import EventContext
 from hephaistos.core.utils.ids import short_id
 from hephaistos.core.utils.paths import Paths, short_path
 
-app = typer.Typer(no_args_is_help=True, help="Events: what happened, on any Machine.")
+app = typer.Typer(no_args_is_help=True, help="Events: what happened, on any machine.")
 
 KindOption = Annotated[
     list[str] | None,
@@ -45,19 +45,19 @@ PriorityOption = Annotated[
 MachineOption = Annotated[
     list[str] | None,
     typer.Option(
-        "--machine", "-m", help="Only Events recorded by this Machine. Repeat for several."
+        "--machine", "-m", help="Only events recorded by this machine. Repeat for several."
     ),
 ]
 SinceOption = Annotated[
     str | None,
-    typer.Option("--since", "-s", help="Only Events since then: `30m`, `2h`, `3d`, or a date."),
+    typer.Option("--since", "-s", help="Only events since then: `30m`, `2h`, `3d`, or a date."),
 ]
 RepoFilterOption = Annotated[
     list[str] | None,
     typer.Option(
         "--repo",
         "-r",
-        help="Only Events about this Repository, its Clones and their Worktrees."
+        help="Only events about this repository, its clones and their worktrees."
         " Repeat for several.",
     ),
 ]
@@ -65,13 +65,13 @@ CloneFilterOption = Annotated[
     Path | None,
     typer.Option(
         "--clone",
-        help="Only Events about the Clone that this path lies in, also through one of its"
-        " Worktrees, and about its Worktrees.",
+        help="Only events about the clone that this path lies in, also through one of its"
+        " worktrees, and about its worktrees.",
     ),
 ]
 WorktreeFilterOption = Annotated[
     str | None,
-    typer.Option("--worktree", help="Only Events about this Worktree: a path in it, or its name."),
+    typer.Option("--worktree", help="Only events about this worktree: a path in it, or its name."),
 ]
 
 
@@ -118,7 +118,7 @@ def list_(  # noqa: PLR0913 - one option per filter
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """List the newest Events, oldest first."""
+    """List the newest events, oldest first."""
     since_time = parse_time(since, datetime.now(UTC)) if since else None
     with read_session(Paths.from_environment()) as session:
         found = events.recent(
@@ -173,7 +173,7 @@ SUMMARY_WIDTH = 60
 
 @app.command()
 def kinds(*, as_json: JsonOption = False) -> None:
-    """List the kinds of Events, with the priority their Events get."""
+    """List the kinds of events, with the priority their events get."""
     listed = serialize.event_kinds_json()
     if as_json:
         print_json(listed)
@@ -186,13 +186,13 @@ def kinds(*, as_json: JsonOption = False) -> None:
 @app.command()
 def show(
     event_id: Annotated[
-        str, typer.Argument(help="The Event's ID, or its end as `event list` shows it.")
+        str, typer.Argument(help="The event's ID, or its end as `event list` shows it.")
     ],
     *,
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show an Event with its payload."""
+    """Show an event with its payload."""
     with read_session(Paths.from_environment()) as session:
         event = events.by_short_id(session, event_id)
         if as_json:

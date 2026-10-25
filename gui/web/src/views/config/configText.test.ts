@@ -23,7 +23,7 @@ describe("a setting", () => {
   });
 
   it("says what the Daemon applies until it restarts", () => {
-    expect(appliedText(setting)).toBe("The Daemon uses 30.0 until it restarts.");
+    expect(appliedText(setting)).toBe("The daemon uses 30.0 until it restarts.");
     expect(appliedText({ ...setting, applied: 90 })).toBeUndefined();
   });
 });

@@ -2349,7 +2349,7 @@
     }
   },
   "info": {
-    "summary": "This Machine's Server: what the CLI's `--json` shows, for GUIs.",
+    "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
     "version": "0.21"
   },

@@ -14,7 +14,7 @@ const Icon = KINDS.daemon.icon;
 function connectionText(connection: Connection, now: number): [string, string] {
   switch (connection.state) {
     case "connecting":
-      return ["connecting…", "connecting to this Machine's Server"];
+      return ["connecting…", "connecting to this machine's server"];
     case "live":
       return ["live", `connected since ${fullTime(new Date(connection.since).toISOString())}`];
     case "disconnected": {
@@ -51,7 +51,7 @@ export function StatusBar() {
           data-health={health}
           onClick={() => open({ kind: "daemon", params: {} })}
           title={title}
-          aria-label={`Daemon: ${reasons.join("; ")}; open the Daemon View`}
+          aria-label={`Daemon: ${reasons.join("; ")}; open the Daemon view`}
         >
           <TextIcon icon={Icon} />
         </button>

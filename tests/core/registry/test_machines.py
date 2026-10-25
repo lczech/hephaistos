@@ -113,7 +113,7 @@ def test_by_name(paths: Paths) -> None:
     machine = machines.set_up(paths, "laptop")
     with read_session(paths) as session:
         assert machines.by_name(session, "laptop") == machine
-        with pytest.raises(HephaistosError, match="no Machine named desktop"):
+        with pytest.raises(HephaistosError, match="no machine named desktop"):
             machines.by_name(session, "desktop")
 
 

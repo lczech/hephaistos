@@ -20,7 +20,7 @@ SESSION_VARIABLES = ("WAYLAND_DISPLAY", "DISPLAY")  # set in a graphical session
 def _started_link(paths: Paths) -> str:
     """The GUI's link, starting the installed Daemon first if it doesn't run."""
     if not daemon_status.is_running(paths.state_dir):
-        typer.echo("Starting the Daemon…", err=True)
+        typer.echo("Starting the daemon…", err=True)
         unit.start(paths)
     deadline = time.monotonic() + LISTEN_WAIT
     while True:
@@ -33,10 +33,10 @@ def _started_link(paths: Paths) -> str:
 
 
 def browse() -> None:
-    """Open the GUI in your browser; starts the Daemon if needed.
+    """Open the GUI in your browser; starts the daemon if needed.
 
     Without a graphical session, e.g. over SSH, prints the link instead. The browser gets it on
-    its command line, where other users of this Machine could read it.
+    its command line, where other users of this machine could read it.
     """
     link = _started_link(Paths.from_environment())
     if not any(os.environ.get(name) for name in SESSION_VARIABLES):

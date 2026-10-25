@@ -74,6 +74,6 @@ def test_says_why_electron_ended_at_start(paths: Paths, tmp_path: Path) -> None:
     with pytest.raises(launch.DesktopError) as ended:
         launch.open_desktop(desktop, paths, Path("/bin/hephaistos"), os.environ)
     assert str(ended.value).splitlines() == [
-        f"the Desktop exited on start (exit code 133); in {paths.state_dir / 'desktop.log'}:",
+        f"the desktop app exited on start (exit code 133); in {paths.state_dir / 'desktop.log'}:",
         "FATAL: The SUID sandbox helper binary was found",
     ]

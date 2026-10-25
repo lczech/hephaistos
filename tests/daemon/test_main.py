@@ -262,19 +262,19 @@ def test_observes_until_stopped(paths: Paths, repo: Path) -> None:
         second = _daemon()
         _, err = second.communicate(timeout=WAIT)
         assert second.returncode == EX_CONFIG
-        assert err == f"error: a Daemon is already running on this Machine (pid {daemon.pid})\n"
+        assert err == f"error: a daemon is already running on this machine (pid {daemon.pid})\n"
     finally:
         daemon.send_signal(signal.SIGTERM)
         out, err = daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0, err
-    assert (out, err) == ("", "Running: watcher; Ctrl+C stops the Daemon\n")
+    assert (out, err) == ("", "Running: watcher; Ctrl+C stops the daemon\n")
     stopped = status.read(paths.state_dir)
     assert stopped is not None
     assert stopped.stopped_at is not None
     messages = _messages(paths)
     assert messages[0] == "start: hephaistos daemon run"
     assert messages[1] == "running: watcher"
-    assert "pass: 1 Events" in messages
+    assert "pass: 1 events" in messages
     assert messages[-2:] == ["stopped: SIGTERM", "end: ok"]
     with status.held_lock(paths.state_dir):  # released, as the worker ended too
         pass
@@ -288,7 +288,7 @@ def test_ctrl_c_stops_it_and_a_crash_is_noticed(paths: Paths) -> None:
     daemon.send_signal(signal.SIGINT)
     daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0
-    assert "the previous Daemon (pid 41233) ended without stopping" in _messages(paths)
+    assert "the previous daemon (pid 41233) ended without stopping" in _messages(paths)
     assert "stopped: SIGINT" in _messages(paths)
 
 
@@ -341,7 +341,7 @@ def test_serves_until_stopped(paths: Paths) -> None:
         assert [(code, answer["error"].split(";")[0]) for code, answer in refusals] == [
             (401, "no token"),
             (401, "wrong token"),
-            (400, "this Server answers only to localhost, not to evil.example"),
+            (400, "this server answers only to localhost, not to evil.example"),
         ]
         counted = _until(lambda: _server(paths, daemon) if _requests(paths) else None)
         assert (counted.requests, counted.refused) == (1, 3)
@@ -349,7 +349,7 @@ def test_serves_until_stopped(paths: Paths) -> None:
         daemon.send_signal(signal.SIGTERM)
         _, err = daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0, err
-    assert err == "Running: watcher, server; Ctrl+C stops the Daemon\n"
+    assert err == "Running: watcher, server; Ctrl+C stops the daemon\n"
     messages = _messages(paths)
     assert f"listening on 127.0.0.1:{port}" in messages
     assert "refused GET /api/info?token=… from 127.0.0.1: wrong token" in str(messages)
@@ -431,4 +431,4 @@ def test_observes_on_request_only(paths: Paths) -> None:
         daemon.send_signal(signal.SIGTERM)
         _, err = daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0, err
-    assert err == "Running: server; Ctrl+C stops the Daemon\n"
+    assert err == "Running: server; Ctrl+C stops the daemon\n"

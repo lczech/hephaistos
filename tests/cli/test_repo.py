@@ -20,7 +20,7 @@ def set_up(paths: object) -> None:
 
 def test_register_list_rename() -> None:
     assert runner.invoke(app, ["repo", "register", "proj"]).output.splitlines() == [
-        "Registered Repository proj; register its Clones with:",
+        "Registered repository proj; register its clones with:",
         "  hephaistos clone register <path> --repo proj",
     ]
     runner.invoke(app, ["repo", "register", "other"])
@@ -42,15 +42,15 @@ def test_register_a_directory_suggests_its_clone(
     result = runner.invoke(app, ["repo", "register", f"{repo}/"])
     assert str(result.exception).splitlines() == [
         (
-            f"{repo}/ is a directory, not a Repository name; to register the git clone there,"
-            " in the Repository it matches or a new one:"
+            f"{repo}/ is a directory, not a repository name; to register the git clone there,"
+            " in the repository it matches or a new one:"
         ),
         f"  hephaistos clone register {repo}",
     ]
     result = runner.invoke(app, ["repo", "register", "."])
     assert str(result.exception).splitlines()[-1] == f"  hephaistos clone register {repo}"
     result = runner.invoke(app, ["repo", "register", "no/such/dir"])
-    assert str(result.exception).startswith("'no/such/dir' is not a Repository name")
+    assert str(result.exception).startswith("'no/such/dir' is not a repository name")
     assert runner.invoke(app, ["repo", "list", "--json"]).output.strip() == "[]"
 
 
@@ -69,7 +69,7 @@ def test_show_unknown() -> None:
 def test_unregister_without_clones() -> None:
     runner.invoke(app, ["repo", "register", "proj"])
     result = runner.invoke(app, ["repo", "unregister", "proj"])
-    assert result.output == "Unregistered Repository proj (files untouched)\n"
+    assert result.output == "Unregistered repository proj (files untouched)\n"
     assert runner.invoke(app, ["repo", "list", "--json"]).output.strip() == "[]"
 
 
@@ -79,7 +79,7 @@ def test_unregister_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     runner.invoke(app, ["scan", str(tmp_path), "--yes"])
     result = runner.invoke(app, ["repo", "unregister", "repo"])
     assert isinstance(result.exception, HephaistosError)
-    assert str(result.exception).splitlines()[0] == "repo still has 2 Clones:"
+    assert str(result.exception).splitlines()[0] == "repo still has 2 clones:"
     assert str(result.exception).splitlines()[-1] == "unregister them first, or give --clones"
 
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"])
@@ -87,10 +87,10 @@ def test_unregister_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="\n")
     assert result.exit_code == 1
-    assert "Unregister repo and its 2 Clones? [y/N]" in result.output
+    assert "Unregister repo and its 2 clones? [y/N]" in result.output
 
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="y\n")
-    unregistered = "Unregistered Repository repo and its 2 Clones (files untouched)\n"
+    unregistered = "Unregistered repository repo and its 2 clones (files untouched)\n"
     assert result.output.endswith(unregistered)
     assert runner.invoke(app, ["clone", "list", "--json"]).output.strip() == "[]"
     assert repo.exists()

@@ -38,7 +38,7 @@ def _encode(value: object) -> object:
         return value.isoformat()
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {field.name: getattr(value, field.name) for field in dataclasses.fields(value)}
-    raise TypeError(f"cannot encode {type(value).__name__} in an Event payload")
+    raise TypeError(f"cannot encode {type(value).__name__} in an event payload")
 
 
 def to_json(payload: object) -> str:
@@ -218,7 +218,7 @@ def recent(  # noqa: PLR0913 - one keyword argument per filter
         parameters.append(worktree_id)
     if before is not None:
         if get(session, before) is None:
-            raise HephaistosError(f"no Event with ID {before}")
+            raise HephaistosError(f"no event with ID {before}")
         conditions.append("(recorded_at, id) < (SELECT recorded_at, id FROM events WHERE id = ?)")
         parameters.append(before)
     where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
@@ -263,13 +263,13 @@ def by_short_id(session: ReadSession, short: str) -> Event:
     """The Event whose ID ends with `short` (hex, dashes ignored); it must be the only one."""
     suffix = short.replace("-", "").lower()
     if not suffix or not re.fullmatch(r"[0-9a-f]{1,32}", suffix):
-        raise HephaistosError(f"not an Event ID: {short}")
+        raise HephaistosError(f"not an event ID: {short}")
     rows = session.conn.execute(
         f"SELECT {_COLUMNS} FROM events WHERE lower(hex(id)) LIKE ? LIMIT 2",  # noqa: S608 - our own constant
         (f"%{suffix}",),
     ).fetchall()
     if not rows:
-        raise HephaistosError(f"no Event with an ID ending in {suffix}")
+        raise HephaistosError(f"no event with an ID ending in {suffix}")
     if len(rows) > 1:
-        raise HephaistosError(f"several Events have IDs ending in {suffix}; give more of it")
+        raise HephaistosError(f"several events have IDs ending in {suffix}; give more of it")
     return Event.from_row(rows[0])

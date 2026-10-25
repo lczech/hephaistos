@@ -18,7 +18,7 @@ runner = CliRunner()
 
 def test_help_rewraps_paragraphs() -> None:
     result = runner.invoke(app, ["scan", "--help"], env={"COLUMNS": "200"})
-    assert "skips hidden directories. A clone that matches several Repositories" in result.output
+    assert "skips hidden directories. A clone that matches several repositories" in result.output
 
 
 def test_version() -> None:
@@ -31,7 +31,7 @@ def test_version() -> None:
 def test_setup_then_machine_show() -> None:
     result = runner.invoke(app, ["setup", "--name", "laptop"])
     assert result.exit_code == 0, result.output
-    assert "Set up Machine laptop" in result.output
+    assert "Set up machine laptop" in result.output
 
     result = runner.invoke(app, ["machine", "show"])
     assert result.exit_code == 0, result.output
@@ -54,7 +54,7 @@ def test_errors_are_messages_not_tracebacks(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert run_cli(monkeypatch, "machine", "show") == 1
-    message = "hephaistos is not set up on this Machine; run `hephaistos setup`"
+    message = "hephaistos is not set up on this machine; run `hephaistos setup`"
     assert capsys.readouterr().err == f"error: {message}\n"
     assert logged(paths)[-1]["message"] == f"end: error: {message}"
 
@@ -197,11 +197,11 @@ def test_setup_sets_up_everything_again_keeping_the_database(
     monkeypatch.setattr(daemon, "install", lambda: installed.append("daemon"))
     monkeypatch.setattr(desktop, "install", lambda: installed.append("desktop"))
     first = runner.invoke(app, ["setup", "--name", "laptop"])
-    assert first.output.splitlines()[1:] == ["No graphical session here; skipped the Desktop"]
+    assert first.output.splitlines()[1:] == ["No graphical session here; skipped the desktop app"]
     machine_id = _this_id()
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
     again = runner.invoke(app, ["setup", "--name", "other"])
-    assert again.output == f"Already set up: Machine laptop ({machine_id})\n"
+    assert again.output == f"Already set up: machine laptop ({machine_id})\n"
     assert installed == ["daemon", "daemon", "desktop"]
     assert runner.invoke(app, ["setup", "--no-daemon", "--no-desktop"]).exit_code == 0
     assert installed == ["daemon", "daemon", "desktop"]
@@ -212,7 +212,7 @@ def test_setup_sets_up_everything_again_keeping_the_database(
 def test_setup_skips_a_part_that_fails_saying_how_to_do_it_later() -> None:
     result = runner.invoke(app, ["setup", "--name", "laptop"])  # systemd isn't available
     assert result.exit_code == 0
-    assert "warning: skipped the Daemon: " in result.output
+    assert "warning: skipped the daemon: " in result.output
     assert "; to do it later: `hephaistos daemon install`\n" in result.output
     assert _this_id()
 
@@ -234,7 +234,7 @@ def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -
 
     result = runner.invoke(app, ["setup", "--reset"], input="y\n")
     assert result.exit_code == 0, result.output
-    assert "Set up Machine laptop" in result.output
+    assert "Set up machine laptop" in result.output
     assert f"The old database is kept as {paths.database_backup}\n" in result.output
     assert _this_id() != old_id
 
@@ -252,7 +252,7 @@ def test_setup_reset_with_yes() -> None:
 def test_setup_reset_with_nothing_to_reset() -> None:
     result = runner.invoke(app, ["setup", "--reset", "--name", "laptop"])
     assert result.exit_code == 0, result.output
-    assert result.output.startswith("Nothing to reset\nSet up Machine laptop")
+    assert result.output.startswith("Nothing to reset\nSet up machine laptop")
 
 
 def test_settings_are_loaded_and_used(

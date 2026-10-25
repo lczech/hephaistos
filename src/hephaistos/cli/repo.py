@@ -23,14 +23,14 @@ from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths, absolute, shell_path, short_path
 from hephaistos.core.utils.text import number_text
 
-app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, with their Clones.")
+app = typer.Typer(no_args_is_help=True, help="Repositories: projects under git, with their clones.")
 
-NameArgument = Annotated[str, typer.Argument(help="Name of the Repository.")]
+NameArgument = Annotated[str, typer.Argument(help="Name of the repository.")]
 
 
 @app.command("list")
 def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
-    """List the Repositories."""
+    """List the repositories."""
     with read_session(Paths.from_environment()) as session:
         if as_json:
             print_json(serialize.repositories_json(session))
@@ -55,7 +55,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
 def show(
     name: NameArgument, *, time_format: TimeFormatOption = None, as_json: JsonOption = False
 ) -> None:
-    """Show a Repository with its remotes and Clones."""
+    """Show a repository with its remotes and clones."""
     with read_session(Paths.from_environment()) as session:
         repository = repositories.by_name(session, name)
         if as_json:
@@ -95,18 +95,18 @@ def show(
 
 @app.command()
 def register(name: NameArgument) -> None:
-    """Register a Repository without Clones; `clone register` and `scan` register them in one."""
+    """Register a repository without clones; `clone register` and `scan` register them in one."""
     # A name can't have `/`; one that is a directory's path was meant as its clone.
     if ("/" in name or name in {".", ".."}) and Path(name).is_dir():
         raise HephaistosError(
-            f"{name} is a directory, not a Repository name; to register the git clone there,"
-            " in the Repository it matches or a new one:\n"
+            f"{name} is a directory, not a repository name; to register the git clone there,"
+            " in the repository it matches or a new one:\n"
             f"  hephaistos clone register {shell_path(absolute(Path(name)))}"
         )
     with write_session(Paths.from_environment()) as session:
         repository = repositories.register(session, name)
     typer.echo(
-        f"Registered Repository {repository.name}; register its Clones with:\n"
+        f"Registered repository {repository.name}; register its clones with:\n"
         f"  hephaistos clone register <path> --repo {shlex.quote(repository.name)}"
     )
 
@@ -116,10 +116,10 @@ def rename(
     name: NameArgument,
     new_name: Annotated[str, typer.Argument(help="The new name.")],
 ) -> None:
-    """Rename a Repository."""
+    """Rename a repository."""
     with write_session(Paths.from_environment()) as session:
         repositories.rename(session, name, new_name)
-    typer.echo(f"Renamed Repository {name} to {new_name}")
+    typer.echo(f"Renamed repository {name} to {new_name}")
 
 
 @app.command()
@@ -127,18 +127,18 @@ def unregister(
     name: NameArgument,
     *,
     with_clones: Annotated[
-        bool, typer.Option("--clones", help="Also unregister its Clones, on every Machine.")
+        bool, typer.Option("--clones", help="Also unregister its clones, on every machine.")
     ] = False,
     yes: Annotated[
-        bool, typer.Option("--yes", help="Unregister its Clones without asking.")
+        bool, typer.Option("--yes", help="Unregister its clones without asking.")
     ] = False,
 ) -> None:
-    """Unregister a Repository; its Clones' files stay untouched."""
+    """Unregister a repository; its clones' files stay untouched."""
     paths = Paths.from_environment()
     with read_session(paths) as session:
         repository = repositories.by_name(session, name)
         its_clones = clones.details(session, repository_id=repository.id)
-    counted = number_text(len(its_clones), "Clone")
+    counted = number_text(len(its_clones), "clone")
     listed = "\n".join(
         f"  {short_path(details.clone.display_path)}  {details.filesystem.name}"
         for details in its_clones
@@ -157,4 +157,4 @@ def unregister(
         clones.unregister_all(session, repository, [details.clone.id for details in its_clones])
         repositories.unregister(session, name)
     with_text = f" and its {counted}" if its_clones else ""
-    typer.echo(f"Unregistered Repository {name}{with_text} (files untouched)")
+    typer.echo(f"Unregistered repository {name}{with_text} (files untouched)")

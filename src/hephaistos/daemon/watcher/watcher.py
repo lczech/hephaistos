@@ -20,7 +20,7 @@ from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDie
 
 log = logging.getLogger(__name__)
 
-STOPPING = PassFailed("the Daemon is stopping")
+STOPPING = PassFailed("the daemon is stopping")
 
 
 def _log_pass(outcome: Done | PassFailed, duration: float, trigger: Trigger) -> None:
@@ -40,7 +40,7 @@ def _log_pass(outcome: Done | PassFailed, duration: float, trigger: Trigger) -> 
         "trigger": trigger,
     }
     level = logging.INFO if outcome.events else logging.DEBUG
-    log.log(level, "pass: %d Events", outcome.events, extra=fields)
+    log.log(level, "pass: %d events", outcome.events, extra=fields)
 
 
 class Watcher:

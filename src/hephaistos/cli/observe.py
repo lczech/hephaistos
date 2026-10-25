@@ -22,12 +22,12 @@ def observe(
     clone: Annotated[
         list[Path] | None,
         typer.Option(
-            help="Only the Clone that this path lies in, or whose Worktree. Repeat for several."
+            help="Only the clone that this path lies in, or whose worktree. Repeat for several."
         ),
     ] = None,
     time_format: TimeFormatOption = None,
 ) -> None:
-    """Observe this Machine's Clones and their Worktrees now, and show the Events this records."""
+    """Observe this machine's clones and their worktrees now, and show the events this records."""
     del target  # Clones are all there is to observe so far.
     paths = Paths.from_environment()
     clone_ids = None
@@ -39,10 +39,10 @@ def observe(
         with read_session(paths) as session:
             print_events(session, result.events, time_format=time_format)
     else:
-        observed = number_text(result.observed, "Clone")
+        observed = number_text(result.observed, "clone")
         if result.worktrees:
-            observed += f" and {number_text(result.worktrees, 'Worktree')}"
+            observed += f" and {number_text(result.worktrees, 'worktree')}"
         typer.echo(f"No changes ({observed} observed)")
     if result.skipped:
-        skipped = number_text(result.skipped, "Clone")
+        skipped = number_text(result.skipped, "clone")
         typer.echo(f"{skipped} skipped: observed by another process meanwhile")

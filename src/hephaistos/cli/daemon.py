@@ -38,7 +38,7 @@ VERSE = "RGVtb25zIHJ1biB3aGVuIGEgZ29vZCBtYW4gZ29lcyB0byB3YXIsCk5pZ2h0IHdpbGwgZmF
 
 app = typer.Typer(
     no_args_is_help=True,
-    help="The Daemon: observes this Machine and serves its GUIs, in the background.",
+    help="The daemon: observes this machine and serves its GUIs, in the background.",
 )
 
 
@@ -47,11 +47,11 @@ def run(
     *,
     doctor_who: Annotated[bool, typer.Option("--doctor-who", hidden=True)] = False,
 ) -> None:
-    """Run the Daemon in the foreground, until stopped (Ctrl+C or SIGTERM).
+    """Run the daemon in the foreground, until stopped (Ctrl+C or SIGTERM).
 
-    It runs the parts its settings enable: the Watcher observes this Machine's Clones every
-    watcher.interval seconds and when a GUI asks, with git at low priority; the Server gives
-    GUIs access, on 127.0.0.1 at server.port. One Daemon runs per Machine.
+    It runs the parts its settings enable: the watcher observes this machine's clones every
+    watcher.interval seconds and when a GUI asks, with git at low priority; the server gives
+    GUIs access, on 127.0.0.1 at server.port. One daemon runs per machine.
     """
     if doctor_who:
         typer.echo(base64.b64decode(VERSE).decode())
@@ -86,9 +86,9 @@ def executable() -> Path:
 def _linger_text() -> str:
     """Whether linger is on, and what that means for the Daemon."""
     if unit.has_linger():
-        return "Linger is on: the Daemon starts at boot and keeps running after logout."
+        return "Linger is on: the daemon starts at boot and keeps running after logout."
     return (
-        "Linger is off: the Daemon starts at login and stops at logout;"
+        "Linger is off: the daemon starts at login and stops at logout;"
         " `hephaistos daemon install --linger` keeps it running."
     )
 
@@ -101,7 +101,7 @@ def install(
         typer.Option("--linger", help="Also start it at boot and keep it after logout (loginctl)."),
     ] = False,
 ) -> None:
-    """Install the Daemon as a systemd user service and start it; run it again to update it.
+    """Install the daemon as a systemd user service and start it; run it again to update it.
 
     The service runs this hephaistos, by the path it was run as, with this shell's
     HEPHAISTOS_HOME and XDG directories. It starts at login, or with --linger at boot.
@@ -123,12 +123,12 @@ def install(
         typer.echo(f"Already installed: {where}")
     pid = unit.wait_started(paths, running if done.restarted else None)
     typer.echo(
-        f"Restarted the Daemon (pid {pid})"
+        f"Restarted the daemon (pid {pid})"
         if done.restarted
-        else f"The Daemon is running (pid {pid})"
+        else f"The daemon is running (pid {pid})"
     )
     for name in unit.settings_variables(os.environ):
-        typer.echo(f"warning: the Daemon won't see {name}; put it in config.toml", err=True)
+        typer.echo(f"warning: the daemon won't see {name}; put it in config.toml", err=True)
     if linger:
         unit.enable_linger()
     typer.echo(_linger_text())
@@ -136,11 +136,11 @@ def install(
 
 @app.command()
 def uninstall() -> None:
-    """Stop the Daemon and remove its systemd user service."""
+    """Stop the daemon and remove its systemd user service."""
     if not unit.uninstall():
         typer.echo("Not installed")
         return
-    typer.echo(f"Stopped the Daemon and deleted {short_path(unit.unit_file())}")
+    typer.echo(f"Stopped the daemon and deleted {short_path(unit.unit_file())}")
     if unit.has_linger():
         typer.echo(
             "Linger stays enabled for all your user services;"
@@ -150,23 +150,23 @@ def uninstall() -> None:
 
 @app.command()
 def start() -> None:
-    """Start the installed Daemon through systemd."""
+    """Start the installed daemon through systemd."""
     pid = unit.start(Paths.from_environment())
-    typer.echo(f"The Daemon is running (pid {pid})")
+    typer.echo(f"The daemon is running (pid {pid})")
 
 
 @app.command()
 def stop() -> None:
-    """Stop the Daemon, also one started with `daemon run`; it starts again at the next login."""
+    """Stop the daemon, also one started with `daemon run`; it starts again at the next login."""
     pid = unit.stop(Paths.from_environment())
-    typer.echo("The Daemon isn't running" if pid is None else f"Stopped the Daemon (pid {pid})")
+    typer.echo("The daemon isn't running" if pid is None else f"Stopped the daemon (pid {pid})")
 
 
 @app.command()
 def restart() -> None:
-    """Restart the installed Daemon, e.g. to apply new code or settings."""
+    """Restart the installed daemon, e.g. to apply new code or settings."""
     pid = unit.restart(Paths.from_environment())
-    typer.echo(f"Restarted the Daemon (pid {pid})")
+    typer.echo(f"Restarted the daemon (pid {pid})")
 
 
 def _unit_text(found: Report) -> str:
@@ -204,7 +204,7 @@ def _last_pass_text(done: PassStatus | None, when: Callable[[datetime], str]) ->
     """The `Last pass` line of `status`."""
     if done is None:
         return "none yet"
-    by = "the Watcher" if done.trigger == "watcher" else "API request"
+    by = "the watcher" if done.trigger == "watcher" else "API request"
     text = f"{when(done.finished_at)} ({done.duration:g} s), by {by}"
     return text if done.error is None else f"{text}; failed: {done.error}"
 
@@ -242,7 +242,7 @@ def _server_text(server: ServerStatus, when: Callable[[datetime], str]) -> str:
 
 @app.command()
 def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False) -> None:
-    """Show whether the Daemon is running, how it is installed, and how its parts are doing.
+    """Show whether the daemon is running, how it is installed, and how its parts are doing.
 
     Exits with 0 if it runs, 3 if not.
     """
@@ -294,7 +294,7 @@ def token(
     ] = False,
     yes: Annotated[bool, typer.Option("--yes", help="Renew without asking.")] = False,
 ) -> None:
-    """Print the token that clients send to this Machine's Server.
+    """Print the token that clients send to this machine's server.
 
     A client that can log in as you reads it with `ssh <machine> hephaistos daemon token`.
     """
@@ -303,7 +303,7 @@ def token(
     if renew:
         if not yes:
             terminal.confirm(
-                "This logs out every client of this Machine's Server. Renew the token?",
+                "This logs out every client of this machine's server. Renew the token?",
                 default=False,
                 action="renew it",
             )
@@ -331,7 +331,7 @@ def _own_server_port(paths: Paths) -> int:
     )
     server = found.server if found is not None and found.stopped_at is None else None
     if server is None or not server.listening:
-        raise HephaistosError("the Server isn't running; see `hephaistos daemon status`")
+        raise HephaistosError("the server isn't running; see `hephaistos daemon status`")
     if ports.holder(server.port) != os.getuid():
-        raise HephaistosError(f"port {server.port} isn't your Server's; not giving out the token")
+        raise HephaistosError(f"port {server.port} isn't your server's; not giving out the token")
     return server.port

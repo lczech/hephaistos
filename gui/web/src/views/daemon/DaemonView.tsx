@@ -18,10 +18,10 @@ function Disconnected({ connection, now }: { connection: Lost; now: number }) {
   return (
     <div className={styles.notice} role="status">
       <p>
-        No connection to this Machine's Server since {since}; {retryText(connection.retryAt, now)}.
+        No connection to this machine's server since {since}; {retryText(connection.retryAt, now)}.
       </p>
       <p>
-        Is the Daemon running? <code>hephaistos daemon status</code>; to start it:{" "}
+        Is the daemon running? <code>hephaistos daemon status</code>; to start it:{" "}
         <code>hephaistos daemon start</code>
       </p>
     </div>
@@ -40,7 +40,7 @@ export function DaemonView() {
   if (daemon.data === undefined) {
     const text = daemon.isError
       ? `Couldn't load: ${daemon.error.message}`
-      : "Loading the Daemon's status…";
+      : "Loading the daemon's status…";
     return (
       <section className={styles.view}>
         {notice}
@@ -52,7 +52,7 @@ export function DaemonView() {
   const log = process.pid !== null && (
     <ViewLink
       address={{ kind: "log", params: { process: "daemon", pid: String(process.pid) } }}
-      label="The Daemon's log"
+      label="The daemon's log"
       named
     />
   );

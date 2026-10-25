@@ -58,7 +58,7 @@ def test_values_of_another_type_are_unreadable(
 
 def test_lock_held_once(tmp_path: Path) -> None:
     status.write(tmp_path, Status(41233, "0.1.0", datetime.now(UTC)))
-    message = r"already running on this Machine \(pid 41233\)"
+    message = r"already running on this machine \(pid 41233\)"
     with status.held_lock(tmp_path), pytest.raises(NotStartedError, match=message):  # noqa: SIM117
         with status.held_lock(tmp_path):
             pass

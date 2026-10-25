@@ -4,7 +4,7 @@ import { json, serve } from "./server";
 
 describe("tests reach no Server", () => {
   it("fails requests no test answers, also once its answers are gone", async () => {
-    await expect(fetch("/api/info")).rejects.toThrow("no Server in tests: /api/info");
+    await expect(fetch("/api/info")).rejects.toThrow("no server in tests: /api/info");
     serve({ "GET /api/info": () => json({}) });
     expect((await fetch(new Request("http://localhost/api/info"))).status).toBe(200);
     vi.unstubAllGlobals(); // as after each test

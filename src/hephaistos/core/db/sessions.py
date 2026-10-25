@@ -57,7 +57,7 @@ class ReadSession:
         self.conn = conn
         machine_id = self.meta("machine_id")
         if not isinstance(machine_id, bytes):
-            raise HephaistosError("the database has no Machine ID")
+            raise HephaistosError("the database has no machine ID")
         self.machine_id = uuid.UUID(bytes=machine_id)
 
     def meta(self, key: str) -> object:

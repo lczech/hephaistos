@@ -26,7 +26,7 @@ from hephaistos.core.db.tables import Table
 from hephaistos.core.utils.ids import Timestamp, short_id
 from hephaistos.core.utils.paths import Paths
 
-app = typer.Typer(no_args_is_help=True, help="This Machine's database, as stored: for debugging.")
+app = typer.Typer(no_args_is_help=True, help="This machine's database, as stored: for debugging.")
 
 type ValueText = Callable[[object], str]
 

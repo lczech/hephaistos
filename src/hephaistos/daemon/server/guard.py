@@ -60,7 +60,7 @@ def _hostname(connection: HTTPConnection) -> str:
 def _foreign_host(connection: HTTPConnection) -> str | None:
     """Why a request or live connection is refused for the host it names; None if it isn't."""
     if (host := _hostname(connection)) not in HOSTS:
-        return f"this Server answers only to localhost, not to {host}"
+        return f"this server answers only to localhost, not to {host}"
     return None
 
 
@@ -127,7 +127,7 @@ class Guard:
             return foreign
         origin = websocket.headers.get("origin")
         if origin is not None and origin != f"http://{websocket.headers.get('host')}":
-            return f"only this Server's own page may connect, not {origin}"
+            return f"only this server's own page may connect, not {origin}"
         return None
 
     def token_refusal(self, given: str) -> str | None:

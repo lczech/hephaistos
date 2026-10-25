@@ -34,12 +34,12 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import short_id
 from hephaistos.core.utils.paths import Paths, short_path
 
-app = typer.Typer(no_args_is_help=True, help="Worktrees: linked working trees of Clones.")
+app = typer.Typer(no_args_is_help=True, help="Worktrees: linked working trees of clones.")
 
 TargetArgument = Annotated[
     str,
     typer.Argument(
-        help="A path in the Worktree, or its name (git's, usually its directory's)."
+        help="A path in the worktree, or its name (git's, usually its directory's)."
         " Default: the current directory."
     ),
 ]
@@ -60,7 +60,7 @@ def list_(
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """List the Worktrees."""
+    """List the worktrees."""
     paths = Paths.from_environment()
     if refresh:
         observer.observe(paths)
@@ -100,7 +100,7 @@ def _by_path(session: ReadSession, path: Path) -> Found:
     checkout = clones.find_checkout(session, path)
     if checkout.worktree is None:
         shown = short_path(checkout.clone.clone.display_path)
-        raise HephaistosError(f"{path} is in the Clone at {shown}, not in a Worktree")
+        raise HephaistosError(f"{path} is in the clone at {shown}, not in a worktree")
     return checkout.worktree, checkout.clone
 
 
@@ -118,16 +118,16 @@ def _by_name(session: ReadSession, name: str) -> Found:
     """The Worktree with this name and its Clone, asking the user if several Clones have one."""
     matches = _named(session, name)
     if not matches:
-        raise HephaistosError(f"no Worktree at or named {name}")
+        raise HephaistosError(f"no worktree at or named {name}")
     if len(matches) == 1:
         return matches[0]
     shown = [short_path(worktree.path) for worktree, _ in matches]
     if not terminal.interactive():
         raise HephaistosError(
-            f"several Worktrees are named {name}; give a path:\n"
+            f"several worktrees are named {name}; give a path:\n"
             + "\n".join(f"  {path}" for path in shown)
         )
-    heading = f"Several Worktrees are named {name}:"
+    heading = f"Several worktrees are named {name}:"
     return matches[terminal.choose(heading, shown, "Show")]
 
 
@@ -145,7 +145,7 @@ def show(
     time_format: TimeFormatOption = None,
     as_json: JsonOption = False,
 ) -> None:
-    """Show a Worktree."""
+    """Show a worktree."""
     paths = Paths.from_environment()
     if Path(target).exists():
         observe_checkout(paths, Path(target), refresh=refresh)
@@ -155,7 +155,7 @@ def show(
         with read_session(paths) as session:
             known = bool(_named(session, target))
         if not known:
-            note_observed(observer.observe(paths), f"no Worktree named {target} was known")
+            note_observed(observer.observe(paths), f"no worktree named {target} was known")
     with read_session(paths) as session:
         worktree, details = find_worktree(session, target)
         observers = machines.names(session, [worktree.observed_by])

@@ -95,12 +95,12 @@ def test_a_path_and_its_renames(repo: Path) -> None:
     assert page.next == Next(found.commits[1].parents[0], "a.txt", 0)
     rest = history(repo, path="c.txt", after=page.next, limit=2)
     assert [commit.subject for commit in rest.commits] == ["three", "one"]
-    with pytest.raises(ChangesError, match="must lie within the Checkout"):
+    with pytest.raises(ChangesError, match="must lie within the checkout"):
         history(repo, path="../outside", limit=10)
 
 
 def test_a_search_keeps_messages_with_all_its_words(repo: Path) -> None:
-    _commit(repo, "Mark rows whose View is shown")
+    _commit(repo, "Mark rows whose view is shown")
     _commit(repo, "Fix the row height")
     git(repo, "commit", "--quiet", "--allow-empty", "-m", "Tabs", "-m", "Rows of each view.")
     _commit(repo, "a.c")
@@ -108,7 +108,7 @@ def test_a_search_keeps_messages_with_all_its_words(repo: Path) -> None:
     def found(search: str, limit: int = 100) -> list[str]:
         return [commit.subject for commit in history(repo, search=search, limit=limit).commits]
 
-    assert found("row view") == ["Tabs", "Mark rows whose View is shown"]  # also in a body
+    assert found("row view") == ["Tabs", "Mark rows whose view is shown"]  # also in a body
     assert found("VIEW rows") == found("row view")
     assert found("a.c") == ["a.c"]  # as typed, not a pattern
     assert found("  ") == found("")
@@ -119,7 +119,7 @@ def test_a_search_keeps_messages_with_all_its_words(repo: Path) -> None:
     assert [commit.subject for commit in first.commits + rest.commits] == [
         "Tabs",
         "Fix the row height",
-        "Mark rows whose View is shown",
+        "Mark rows whose view is shown",
     ]
     assert rest.next is None
 

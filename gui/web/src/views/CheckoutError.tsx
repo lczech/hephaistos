@@ -47,8 +47,8 @@ function EventsLink({ error }: { error: Error }) {
   const checkout = error instanceof ApiError ? error.checkout : null;
   if (checkout === null) return null;
   const address = eventsOf(checkout);
-  const whose = address.params.clone === undefined ? "Worktree" : "Clone";
-  return <ViewLink address={address} label={`The ${whose}'s Events`} named />;
+  const whose = address.params.clone === undefined ? "worktree" : "clone";
+  return <ViewLink address={address} label={`The ${whose}'s events`} named />;
 }
 
 /** That loading failed, above what showed before; `children` offer a way on. */

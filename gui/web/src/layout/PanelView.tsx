@@ -66,7 +66,7 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
           </OpenViewContext>
         </Boundary>
       ) : (
-        <p className={styles.gone}>This View no longer exists; close its tab.</p>
+        <p className={styles.gone}>This view no longer exists; close its tab.</p>
       )}
     </div>
   );

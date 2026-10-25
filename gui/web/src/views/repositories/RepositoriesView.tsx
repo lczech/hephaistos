@@ -38,10 +38,10 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
   if (repositories.data === undefined) {
     message = repositories.isError
       ? `Couldn't load: ${repositories.error.message}`
-      : "Loading Repositories…";
+      : "Loading repositories…";
   } else if (listed.length === 0) {
     message =
-      "No Repositories yet: register them with `hephaistos scan` or `hephaistos clone register`.";
+      "No repositories yet: register them with `hephaistos scan` or `hephaistos clone register`.";
   }
   return (
     <ViewPage>
@@ -58,7 +58,7 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
         choices={{}}
         message={message}
         stale={repositories.isError}
-        older="Repositories"
+        older="repositories"
         tone={tone}
         detailsLabel="Details"
         details={(entry) => <RepositoryDetails entry={entry} now={now} home={home} />}

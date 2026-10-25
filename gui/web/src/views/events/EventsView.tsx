@@ -56,9 +56,9 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   useTitle(setTitle, title);
   let message: string | null = null;
   if (events.data === undefined) {
-    message = events.isError ? `Couldn't load: ${events.error.message}` : "Loading Events…";
+    message = events.isError ? `Couldn't load: ${events.error.message}` : "Loading events…";
   } else if (listed.length === 0) {
-    message = filters.length > 0 ? "No Events match." : "No Events yet.";
+    message = filters.length > 0 ? "No events match." : "No events yet.";
   }
   return (
     <ViewPage>
@@ -75,7 +75,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
         message={message}
         stale={events.isError || events.isPlaceholderData}
         paging={events}
-        older="Events"
+        older="events"
         tone={(event) => TONES[priorityName(event.priority)]}
         squareTitle={(event) => `${priorityName(event.priority)} priority`}
         detailsLabel="Event details"

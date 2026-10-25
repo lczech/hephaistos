@@ -12,7 +12,7 @@ class NotSetUpError(HephaistosError):
 
     def __init__(self) -> None:
         """Creates the error with its message."""
-        super().__init__("hephaistos is not set up on this Machine; run `hephaistos setup`")
+        super().__init__("hephaistos is not set up on this machine; run `hephaistos setup`")
 
 
 class AlreadySetUpError(HephaistosError):
@@ -20,7 +20,7 @@ class AlreadySetUpError(HephaistosError):
 
     def __init__(self, database: Path) -> None:
         """Creates the error, naming the existing database."""
-        super().__init__(f"hephaistos is already set up on this Machine ({database})")
+        super().__init__(f"hephaistos is already set up on this machine ({database})")
 
 
 class DatabaseBusyError(HephaistosError):
@@ -43,7 +43,7 @@ class SchemaMismatchError(HephaistosError):
         if found > known:
             message = (
                 f"the database has schema {found}, newer than this hephaistos knows ({known});"
-                " restart the Daemon (`hephaistos daemon restart`) or update hephaistos"
+                " restart the daemon (`hephaistos daemon restart`) or update hephaistos"
             )
         elif found < known:
             message = f"the database has schema {found}; this hephaistos needs {known}: {reset}"

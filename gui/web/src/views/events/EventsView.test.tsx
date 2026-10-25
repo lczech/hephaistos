@@ -158,19 +158,19 @@ describe("the Events View", () => {
       requests.at(-1)?.url.includes("before=") ? [event(1)] : newest,
     );
     renderWithQueries(<Events />);
-    expect(await screen.findByText("Older Events load as you scroll.")).toBeInTheDocument();
+    expect(await screen.findByText("Older events load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
     const older = new URL(requests.at(-1)?.url ?? "").searchParams;
     expect(older.get("before")).toBe(event(2).id);
     expect(older.get("limit")).toBe(String(EVENTS_PAGE));
-    expect(screen.queryByText(/Older Events/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Older events/)).not.toBeInTheDocument();
   });
 
   it("says when there are none", async () => {
     serveEvents([]);
     renderWithQueries(<Events />);
-    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
   });
 });
 
@@ -308,11 +308,11 @@ describe("the Events View's filters", () => {
   it("stay to be changed when no Events match", async () => {
     serveEvents([]);
     renderWithQueries(<Events at={{ since: "1h" }} />);
-    expect(await screen.findByText("No Events match.")).toBeInTheDocument();
+    expect(await screen.findByText("No events match.")).toBeInTheDocument();
     await open("recorded");
     await userEvent.click(screen.getByRole("menuitemradio", { name: "all" }));
     expect(address()).toBe("events");
-    expect(await screen.findByText("No Events yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
   });
 
   it("take a Clone from a link, by its path, until removed", async () => {

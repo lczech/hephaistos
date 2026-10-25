@@ -17,7 +17,7 @@ export function LayoutToggle({ layout, onChange }: Props) {
       onChange={(on) => onChange(on ? "columns" : "lines")}
       ways={[
         { icon: Table, title: "In columns, lined up; too many scroll sideways" },
-        { icon: TableLines, title: "Each row in two lines, as narrow Panels need" },
+        { icon: TableLines, title: "Each row in two lines, as narrow panels need" },
       ]}
     />
   );

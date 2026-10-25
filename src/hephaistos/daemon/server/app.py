@@ -52,7 +52,7 @@ def create_app(
     app = FastAPI(
         title="hephaistos",
         version=f"{API_VERSION.major}.{API_VERSION.minor}",
-        summary="This Machine's Server: what the CLI's `--json` shows, for GUIs.",
+        summary="This machine's server: what the CLI's `--json` shows, for GUIs.",
         docs_url=None,  # its pages run scripts from a CDN, which would see the token
         redoc_url=None,
     )

@@ -29,7 +29,7 @@ export const columns = column.columns([
       second: true,
       figures: true,
       filter: { param: "since" },
-      description: "When the Event was recorded; its details show when it happened, if known",
+      description: "When the event was recorded; its details show when it happened, if known",
     },
     cell: ({ row, table }) => (
       <span title={fullTime(row.original.recorded_at)}>
@@ -57,14 +57,14 @@ export const columns = column.columns([
     id: "repository",
     header: "repository",
     size: 120,
-    meta: { filter: { param: "repository", many: "Repositories" } },
+    meta: { filter: { param: "repository", many: "repositories" } },
     cell: ({ row }) => repositoryText(row.original),
   }),
   column.display({
     id: "machine",
     header: "machine",
     size: 120,
-    meta: { second: true, filter: { param: "machine", many: "Machines" } },
+    meta: { second: true, filter: { param: "machine", many: "machines" } },
     cell: ({ row }) => machineText(row.original),
   }),
   column.display({

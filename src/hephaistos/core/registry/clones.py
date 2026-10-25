@@ -174,7 +174,7 @@ def _located(path: Path) -> tuple[Path, git.Location]:
     location = git.locate(typed)
     if location.main is not None:
         raise HephaistosError(
-            f"{typed} is in a Worktree of the Clone at {location.main}; register that instead"
+            f"{typed} is in a worktree of the clone at {location.main}; register that instead"
         )
     return typed, location
 
@@ -250,7 +250,7 @@ def _check_not_registered(session: ReadSession, candidate: Candidate) -> None:
     """Raises HephaistosError if `candidate` is a Clone already."""
     if (existing := at(session, candidate.resolved_path)) is not None:
         raise HephaistosError(
-            f"{candidate.display_path} is already a Clone of {existing.repository.name}"
+            f"{candidate.display_path} is already a clone of {existing.repository.name}"
         )
 
 
@@ -278,7 +278,7 @@ def register(
     }
     if not git.shares_history(roots, known):
         raise HephaistosError(
-            f"{candidate.display_path} shares no history with the Clones of {repository.name}"
+            f"{candidate.display_path} shares no history with the clones of {repository.name}"
         )
 
     clone = Clone(
@@ -337,9 +337,9 @@ def _foreign_text(path: Path, location: git.Location, around: CheckoutDetails) -
         log.debug("taken as no submodule: %s", error)
         submodule = False
     kind, where = (
-        ("Worktree", around.worktree.path)
+        ("worktree", around.worktree.path)
         if around.worktree
-        else ("Clone", around.clone.clone.display_path)
+        else ("clone", around.clone.clone.display_path)
     )
     advice = f"run this in the {kind} at {where} instead"
     if typed.resolve() == location.top:
@@ -348,7 +348,7 @@ def _foreign_text(path: Path, location: git.Location, around: CheckoutDetails) -
         what = f"{typed} is in the {'submodule' if submodule else 'git repository'} at {top}"
     if submodule:
         return f"{what}; {advice}"
-    return f"{what}, not a Clone; {advice}, or register it with `hephaistos clone register`"
+    return f"{what}, not a clone; {advice}, or register it with `hephaistos clone register`"
 
 
 def _outdated(
@@ -381,7 +381,7 @@ def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
     if (location := _git_location(path)) is not None:
         _outdated(session, path, checkout, location)
     if checkout is None:
-        raise HephaistosError(f"no Clone or Worktree known at {absolute(path)}")
+        raise HephaistosError(f"no clone or worktree known at {absolute(path)}")
     return checkout
 
 
@@ -416,8 +416,8 @@ def find_to_unregister(session: ReadSession, path: Path) -> CloneDetails:
     checkout = find_checkout(session, path)
     if checkout.worktree is not None or outdated_clone(session, path) is not None:
         raise HephaistosError(
-            f"{absolute(path)} is in a Worktree of the Clone at"
-            f" {checkout.clone.clone.display_path}; run this in the Clone"
+            f"{absolute(path)} is in a worktree of the clone at"
+            f" {checkout.clone.clone.display_path}; run this in the clone"
         )
     return checkout.clone
 
@@ -430,7 +430,7 @@ def unregister(session: WriteSession, unregistering: CloneDetails) -> None:
     current = at(session, unregistering.clone.resolved_path)
     if current is None or current.clone != unregistering.clone:
         raise HephaistosError(
-            f"the Clone at {unregistering.clone.display_path} changed meanwhile; try again"
+            f"the clone at {unregistering.clone.display_path} changed meanwhile; try again"
         )
     records.delete(
         session, Table.REGISTRY_CLONES, EventKind.CLONE_UNREGISTERED, unregistering.clone
@@ -446,7 +446,7 @@ def unregister_all(
     """
     its_clones = details(session, repository_id=repository.id)
     if {existing.clone.id for existing in its_clones} != set(expected):
-        raise HephaistosError(f"the Clones of {repository.name} changed meanwhile; try again")
+        raise HephaistosError(f"the clones of {repository.name} changed meanwhile; try again")
     for existing in its_clones:
         records.delete(session, Table.REGISTRY_CLONES, EventKind.CLONE_UNREGISTERED, existing.clone)
 
@@ -497,9 +497,9 @@ def _repair_text(moving: CloneDetails, to: Candidate, broken: Sequence[git.Linke
             unknown = True
     shown = shell_path(to.display_path)
     repair = " ".join(["git", "-C", shown, "worktree", "repair", *moved])
-    lines = [f"the links to Worktrees of {shown} are broken; repair them first:", repair]
+    lines = [f"the links to worktrees of {shown} are broken; repair them first:", repair]
     if unknown:
-        lines.append(f"(for a deleted Worktree: git -C {shown} worktree prune)")
+        lines.append(f"(for a deleted worktree: git -C {shown} worktree prune)")
     return "\n  ".join(lines)
 
 
@@ -522,7 +522,7 @@ def _checked(session: ReadSession, moving: CloneDetails, path: Path) -> Move:
     _check_not_registered(session, to)
     if not git.shares_history(set(to.snapshot.root_commits), set(moving.state.root_commits)):
         raise HephaistosError(
-            f"{to.display_path} shares no history with the Clone at {moving.clone.display_path}"
+            f"{to.display_path} shares no history with the clone at {moving.clone.display_path}"
         )
     if broken := git.broken_worktrees(location.top, location.common_dir):
         raise HephaistosError(_repair_text(moving, to, broken))
@@ -537,8 +537,8 @@ def moves(session: ReadSession, old: Path, new: Path, *, nested: bool = False) -
     checkout = find_checkout(session, old)
     if checkout.worktree is not None:
         raise HephaistosError(
-            f"{absolute(old)} is in a Worktree of the Clone at"
-            f" {checkout.clone.clone.display_path}; `git worktree move` moves Worktrees"
+            f"{absolute(old)} is in a worktree of the clone at"
+            f" {checkout.clone.clone.display_path}; `git worktree move` moves worktrees"
         )
     outer = checkout.clone
     found = [_checked(session, outer, new)]
@@ -559,7 +559,7 @@ def move(session: WriteSession, planned: Sequence[Move]) -> None:
         old = moving.clone.clone
         current = at(session, old.resolved_path)
         if current is None or current.clone != old:
-            raise HephaistosError(f"the Clone at {old.display_path} changed meanwhile; try again")
+            raise HephaistosError(f"the clone at {old.display_path} changed meanwhile; try again")
         _check_not_registered(session, moving.to)
         mount, _ = mounts.containing(session, session.machine_id, moving.to.resolved_path)
         new = dataclasses.replace(

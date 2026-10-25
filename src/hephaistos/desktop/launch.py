@@ -46,7 +46,7 @@ class Desktop:
 def located(checkout: Path | None) -> Desktop:
     """The Desktop in the checkout hephaistos runs from, built or not; raises without one."""
     if checkout is None:
-        raise DesktopError("this hephaistos doesn't run from a checkout, so it has no Desktop yet")
+        raise DesktopError("this hephaistos doesn't run from a checkout, so it has no desktop yet")
     return Desktop(checkout)
 
 
@@ -59,7 +59,7 @@ def find(checkout: Path | None) -> Desktop:
             f"Electron isn't installed: `{where}{NPM} ci && {NPM} run fetch-electron`"
         )
     if not (desktop.checkout / MAIN).is_file():
-        raise DesktopError(f"the Desktop isn't built: `{where}{NPM} run build`")
+        raise DesktopError(f"the desktop app isn't built: `{where}{NPM} run build`")
     return desktop
 
 
@@ -124,7 +124,7 @@ def open_desktop(
             if code == 0:
                 return None
             raise DesktopError(
-                f"the Desktop exited on start (exit code {code}); in {shell_path(log)}:\n"
+                f"the desktop app exited on start (exit code {code}); in {shell_path(log)}:\n"
                 + _ending(log)
             )
         time.sleep(POLL)

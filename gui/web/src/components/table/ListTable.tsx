@@ -54,7 +54,7 @@ interface Props<TData extends RowData> {
   message: string | null; // instead of rows, or below them
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
   paging?: Paging;
-  older: string; // what the paging loads: `Events`
+  older: string; // what the paging loads: `events`
   tone?: (row: TData) => Tone | undefined;
   squareTitle?: (row: TData) => string; // what the square says, e.g. its colour
   detailsLabel: string; // `Event details`

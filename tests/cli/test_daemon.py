@@ -25,7 +25,7 @@ def test_not_set_up_doesnt_start(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
-    message = "hephaistos is not set up on this Machine; run `hephaistos setup`"
+    message = "hephaistos is not set up on this machine; run `hephaistos setup`"
     assert capsys.readouterr().err == f"error: {message}\n"
     last = logged(paths)[-1]
     assert (last["process"], last["message"]) == ("daemon", f"end: error: {message}")
@@ -100,14 +100,14 @@ def test_token_url_only_for_our_own_server(paths: Paths) -> None:
         result = runner.invoke(app, ["daemon", "token", "--url"])
         return result.output if result.exit_code == 0 else str(result.exception)
 
-    assert url() == "the Server isn't running; see `hephaistos daemon status`"
+    assert url() == "the server isn't running; see `hephaistos daemon status`"
     paths.state_dir.mkdir(parents=True)
     with socket.socket() as ours, status.held_lock(paths.state_dir):
         ours.bind(("127.0.0.1", 0))
         port = ours.getsockname()[1]
         listening = ServerStatus(f"127.0.0.1:{port}", listening=True)
         status.write(paths.state_dir, Status(os.getpid(), "0.1.0", NOW, server=listening))
-        assert url() == f"port {port} isn't your Server's; not giving out the token"
+        assert url() == f"port {port} isn't your server's; not giving out the token"
         ours.listen()
         assert url() == f"http://127.0.0.1:{port}/#token={token.token(paths)}\n"
 

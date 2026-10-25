@@ -57,7 +57,7 @@ def check_name(name: str) -> None:
     """Raises HephaistosError unless `name` may name a Repository."""
     if not _NAME.fullmatch(name) or name in _NOT_NAMES:
         raise HephaistosError(
-            f"{name!r} is not a Repository name: those have only ASCII letters, digits,"
+            f"{name!r} is not a repository name: those have only ASCII letters, digits,"
             " '.', '-' and '_', at most 100, and aren't '.' or '..'"
         )
 
@@ -81,7 +81,7 @@ def _check_available(session: ReadSession, name: str) -> None:
     """Raises HephaistosError if `name` is not usable for a new Repository."""
     check_name(name)
     if (existing := find(session, name)) is not None:
-        raise HephaistosError(f"a Repository named {existing.name} already exists")
+        raise HephaistosError(f"a repository named {existing.name} already exists")
 
 
 def register(session: WriteSession, name: str) -> Repository:
@@ -103,7 +103,7 @@ def find(session: ReadSession, name: str) -> Repository | None:
 def by_name(session: ReadSession, name: str) -> Repository:
     """The Repository with this name, ignoring case; raises HephaistosError if there is none."""
     if (repository := find(session, name)) is None:
-        raise HephaistosError(f"no Repository named {name}")
+        raise HephaistosError(f"no repository named {name}")
     return repository
 
 
@@ -126,7 +126,7 @@ def unregister(session: WriteSession, name: str) -> Repository:
     repository = by_name(session, name)
     [summary] = summaries(session, repository.id)
     if summary.clones:
-        raise HephaistosError(f"{name} still has Clones; unregister them first")
+        raise HephaistosError(f"{name} still has clones; unregister them first")
     records.delete(
         session, Table.REGISTRY_REPOSITORIES, EventKind.REPOSITORY_UNREGISTERED, repository
     )

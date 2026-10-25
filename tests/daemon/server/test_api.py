@@ -80,7 +80,7 @@ def test_needs_the_token(
     foreign = client.get("/api/info", headers={"Host": "evil.example:8264"})
     assert (foreign.status_code, foreign.json()["error"]) == (
         400,
-        "this Server answers only to localhost, not to evil.example",
+        "this server answers only to localhost, not to evil.example",
     )
     assert client.get("/api/info").status_code == 200
     assert (counts.refused, counts.requests) == (3, 1)
@@ -91,7 +91,7 @@ def test_needs_the_token(
         ("refused GET /api/info?x=1 from testclient: wrong token; see `hephaistos daemon token`"),
         (
             "refused GET /api/info from testclient:"
-            " this Server answers only to localhost, not to evil.example"
+            " this server answers only to localhost, not to evil.example"
         ),
     ]
     assert re.fullmatch(r"GET /api/info 200 \d+ ms", messages[3])
@@ -224,10 +224,10 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
     ("path", "status", "error"),
     [
         ("/api/nothing", 404, "Not Found"),
-        ("/api/clones/{id}", 404, "no Clone with ID {id}"),
-        ("/api/machines/{id}", 404, "no Machine with ID {id}"),
-        ("/api/events/{id}", 404, "no Event with ID {id}"),
-        ("/api/events?before={id}", 400, "no Event with ID {id}"),
+        ("/api/clones/{id}", 404, "no clone with ID {id}"),
+        ("/api/machines/{id}", 404, "no machine with ID {id}"),
+        ("/api/events/{id}", 404, "no event with ID {id}"),
+        ("/api/events?before={id}", 400, "no event with ID {id}"),
         ("/api/events?since=soon", 400, "since: 'soon' is neither a duration like 2h"),
         ("/api/clones/xyz", 400, "path clone_id: Input should be a valid UUID"),
         ("/api/events?priority=top", 400, "query priority: Input should be 'low'"),
@@ -236,11 +236,11 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
         ("/api/log?until=soon", 400, "until: 'soon' is neither a duration like 2h"),
         ("/api/log?before=yesterday", 400, "before: 'yesterday' is not a position like"),
         ("/api/changes", 400, "give either clone or worktree"),
-        ("/api/changes?clone={id}", 404, "no Clone with ID {id}"),
-        ("/api/changes?worktree={id}", 404, "no Worktree with ID {id}"),
+        ("/api/changes?clone={id}", 404, "no clone with ID {id}"),
+        ("/api/changes?worktree={id}", 404, "no worktree with ID {id}"),
         ("/api/diff?clone={id}&from=HEAD&to=index", 400, "query path: Field required"),
-        ("/api/diff/files?clone={id}&from=HEAD&to=index&path=a", 404, "no Clone with ID {id}"),
-        ("/api/history?clone={id}", 404, "no Clone with ID {id}"),
+        ("/api/diff/files?clone={id}&from=HEAD&to=index&path=a", 404, "no clone with ID {id}"),
+        ("/api/history?clone={id}", 404, "no clone with ID {id}"),
         ("/api/history?limit=0", 400, "query limit: Input should be greater than or equal to 1"),
     ],
 )
@@ -304,7 +304,7 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
     assert (missing.status_code, missing.json()) == (
         404,
         {
-            "error": f"the Clone at {short_path(repo)} is missing: nothing is at its path",
+            "error": f"the clone at {short_path(repo)} is missing: nothing is at its path",
             "checkout": {"clone": clone["id"], "worktree": None, "gone": None},
         },
     )
@@ -320,7 +320,7 @@ def test_gone_checkouts_say_what_happened(client: TestClient, repo: Path) -> Non
     assert (removed.status_code, removed.json()) == (
         410,
         {
-            "error": f"the Worktree at {side} was removed",
+            "error": f"the worktree at {side} was removed",
             "checkout": {"clone": clone["id"], "worktree": worktree["id"], "gone": "worktree"},
         },
     )
@@ -330,14 +330,14 @@ def test_gone_checkouts_say_what_happened(client: TestClient, repo: Path) -> Non
     assert (unregistered.status_code, unregistered.json()) == (
         410,
         {
-            "error": f"the Clone at {short_path(repo)} was unregistered; its files are untouched",
+            "error": f"the clone at {short_path(repo)} was unregistered; its files are untouched",
             "checkout": {"clone": clone["id"], "worktree": None, "gone": "clone"},
         },
     )
     assert client.get(f"/api/clones/{clone['id']}").status_code == 410
     of_clone = client.get("/api/changes", params={"worktree": worktree["id"]})
     assert (of_clone.status_code, of_clone.json()["checkout"]["gone"]) == (410, "clone")
-    assert of_clone.json()["error"].startswith(f"the Clone of the Worktree at {side} was")
+    assert of_clone.json()["error"].startswith(f"the clone of the worktree at {side} was")
 
 
 def test_diff_of_a_file(client: TestClient, repo: Path) -> None:

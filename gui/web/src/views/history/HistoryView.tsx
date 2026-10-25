@@ -96,7 +96,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const without = (name: string): Params => withParam(params, name, []);
   let message: string | null = null;
   if (checkout === undefined) {
-    message = "No Checkout: open History from a Clone or Worktree in Repositories.";
+    message = "No checkout: open History from a clone or worktree in Repositories.";
   } else if (history.data === undefined && error === null) {
     message = "Loading commits…";
   } else if (history.data !== undefined && listed.length === 0) {

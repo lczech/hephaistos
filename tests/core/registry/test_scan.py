@@ -101,7 +101,7 @@ def test_starting_at_or_in_a_clone(set_up: Paths, tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
     (repo / "sub").mkdir()
     assert actions(plan(set_up, repo), tmp_path) == {"repo": (Action.NEW, "repo")}
-    with pytest.raises(HephaistosError, match=r"repo/sub is inside the Clone at"):
+    with pytest.raises(HephaistosError, match=r"repo/sub is inside the clone at"):
         plan(set_up, repo / "sub")
     with pytest.raises(HephaistosError, match="no such directory"):
         plan(set_up, tmp_path / "nope")
@@ -119,10 +119,10 @@ def test_names_are_never_guessed(set_up: Paths, tmp_path: Path) -> None:
         create(root / path)
     planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
     assert {row.action for row in planned.values()} == {Action.SKIP}
-    assert planned["utils"].note == "2 new Repositories would be named utils"
+    assert planned["utils"].note == "2 new repositories would be named utils"
     assert planned["utils"].fix == (f"hephaistos clone register {root / 'utils'} --repo <name>",)
-    assert planned["taken"].note == "the name taken is taken by an unrelated Repository"
-    assert planned["empty"].note == "2 new Repositories would be named empty"
+    assert planned["taken"].note == "the name taken is taken by an unrelated repository"
+    assert planned["empty"].note == "2 new repositories would be named empty"
     assert planned["empty"].fix == (f"hephaistos clone register {root / 'empty'} --repo empty",)
 
 
@@ -149,8 +149,8 @@ def test_names_compare_ignoring_case(set_up: Paths, tmp_path: Path) -> None:
     create(root / "b" / "utils")
     planned = {str(row.path.relative_to(root)): row for row in plan(set_up, root)}
     assert (planned["proj"].action, planned["proj"].repository) == (Action.JOIN, "Proj")
-    assert planned["taken"].note == "the name Taken is taken by an unrelated Repository"
-    assert planned["a/Utils"].note == "2 new Repositories would be named Utils"
+    assert planned["taken"].note == "the name Taken is taken by an unrelated repository"
+    assert planned["a/Utils"].note == "2 new repositories would be named Utils"
 
 
 def test_new_repository_names_are_made_valid(set_up: Paths, tmp_path: Path) -> None:
@@ -242,7 +242,7 @@ def test_worktrees(set_up: Paths, tmp_path: Path) -> None:
     with read_session(set_up) as session:
         assert by_path[root / "unobserved"].clone_id == clones.find(session, stored).clone.id
     assert (by_path[elsewhere].note, by_path[elsewhere].about) == (
-        "for the Worktree",
+        "for the worktree",
         root / "linked",
     )
 
@@ -285,7 +285,7 @@ def test_register_is_all_or_nothing(set_up: Paths, tmp_path: Path) -> None:
     second = create(root / "second")
     planned = plan(set_up, root)
     register_clone(set_up, second, "meanwhile")
-    with pytest.raises(HephaistosError, match="already a Clone of meanwhile"):
+    with pytest.raises(HephaistosError, match="already a clone of meanwhile"):
         register(set_up, planned)
     with read_session(set_up) as session:
         names = [summary.repository.name for summary in repositories.summaries(session)]

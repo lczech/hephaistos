@@ -190,10 +190,10 @@ def main(
 def _confirm_reset(paths: Paths) -> None:
     """Asks before replacing this Machine's database; raises typer.Abort if declined."""
     if not terminal.interactive():
-        raise HephaistosError("--reset replaces this Machine's database; confirm with --yes")
+        raise HephaistosError("--reset replaces this machine's database; confirm with --yes")
     old = machines.previous(paths)
-    replaced = f"Machine {old.name} ({old.id})" if old else "The Machine (unreadable)"
-    typer.echo("Reset hephaistos on this Machine?")
+    replaced = f"Machine {old.name} ({old.id})" if old else "The machine (unreadable)"
+    typer.echo("Reset hephaistos on this machine?")
     typer.echo(f"  {replaced} is replaced by a new one with a new ID.")
     typer.echo(f"  Its database moves to {short_path(paths.database_backup)},")
     typer.echo("  replacing any earlier backup.")
@@ -213,7 +213,7 @@ def _install(part: str, install: Callable[[], None], later: str) -> None:
 def setup(
     name: Annotated[
         str | None,
-        typer.Option(help="Name of this Machine. Default: its hostname, or with --reset its name."),
+        typer.Option(help="Name of this machine. Default: its hostname, or with --reset its name."),
     ] = None,
     *,
     reset: Annotated[
@@ -224,16 +224,18 @@ def setup(
     ] = False,
     yes: Annotated[bool, typer.Option("--yes", help="Reset without asking.")] = False,
     no_daemon: Annotated[
-        bool, typer.Option("--no-daemon", help="Skip `daemon install`: the Daemon's service.")
+        bool, typer.Option("--no-daemon", help="Skip `daemon install`: the daemon's service.")
     ] = False,
     no_desktop: Annotated[
         bool,
-        typer.Option("--no-desktop", help="Skip `desktop install`: the Desktop's launcher entry."),
+        typer.Option(
+            "--no-desktop", help="Skip `desktop install`: the desktop app's launcher entry."
+        ),
     ] = False,
 ) -> None:
-    """Set up hephaistos on this Machine: its database, the Daemon and the Desktop.
+    """Set up hephaistos on this machine: its database, the daemon and the desktop app.
 
-    Again to update the Daemon's service and the Desktop, keeping the database; with --reset, a
+    Again to update the daemon's service and the desktop app, keeping the database; with --reset, a
     new one. Each part also has its own command; a part that fails is skipped, saying why. The
     Desktop only in a graphical session.
     """
@@ -241,21 +243,21 @@ def setup(
     existing = paths.database.exists()
     if existing and not reset:
         found = machines.previous(paths)
-        typer.echo("Already set up" + (f": Machine {found.name} ({found.id})" if found else ""))
+        typer.echo("Already set up" + (f": machine {found.name} ({found.id})" if found else ""))
     else:
         if reset and not yes and existing:
             _confirm_reset(paths)
         if reset and not existing:
             typer.echo("Nothing to reset")
         created = machines.set_up(paths, name, reset=reset)
-        typer.echo(f"Set up Machine {created.name} ({created.id}), data in {paths.data_dir}")
+        typer.echo(f"Set up machine {created.name} ({created.id}), data in {paths.data_dir}")
         if reset and existing:
             typer.echo(f"The old database is kept as {short_path(paths.database_backup)}")
     if not no_daemon:
-        _install("the Daemon", daemon.install, "hephaistos daemon install")
+        _install("the daemon", daemon.install, "hephaistos daemon install")
     if no_desktop:
         return
     if not any(os.environ.get(variable) for variable in browse.SESSION_VARIABLES):
-        typer.echo("No graphical session here; skipped the Desktop")
+        typer.echo("No graphical session here; skipped the desktop app")
         return
-    _install("the Desktop", desktop.install, "hephaistos desktop install")
+    _install("the desktop app", desktop.install, "hephaistos desktop install")

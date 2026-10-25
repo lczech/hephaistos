@@ -39,7 +39,7 @@ describe("the Config View", () => {
     expect(await screen.findByText("git.timeout")).toBeInTheDocument();
     expect(screen.getByText("config.toml")).toHaveAttribute("title", CONFIG);
     expect(
-      screen.getByText("The Daemon uses 30.0 until it restarts. Seconds one git command may take.")
+      screen.getByText("The daemon uses 30.0 until it restarts. Seconds one git command may take.")
         .parentElement,
     ).toHaveAttribute("data-tone", "warning");
     expect(screen.getByText("3")).toHaveAttribute("data-preset");

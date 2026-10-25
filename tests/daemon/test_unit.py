@@ -35,8 +35,8 @@ def test_unit_text_round_trip() -> None:
     assert unit.installed_variables(text) == {"HEPHAISTOS_HOME": "/data/100% mine"}
     assert unit.path_differences(text, env) == []
     assert unit.path_differences(text, {"XDG_DATA_HOME": "/d"}) == [
-        "HEPHAISTOS_HOME: the Daemon has /data/100% mine, this shell none",
-        "XDG_DATA_HOME: the Daemon has none, this shell /d",
+        "HEPHAISTOS_HOME: the daemon has /data/100% mine, this shell none",
+        "XDG_DATA_HOME: the daemon has none, this shell /d",
     ]
 
 
@@ -56,14 +56,14 @@ def test_install_start_stop_uninstall(
     first = _pid(paths)
     assert out.splitlines() == [
         f"Installed {UNIT}",
-        f"The Daemon is running (pid {first})",
+        f"The daemon is running (pid {first})",
         (
-            "Linger is off: the Daemon starts at login and stops at logout;"
+            "Linger is off: the daemon starts at login and stops at logout;"
             " `hephaistos daemon install --linger` keeps it running."
         ),
     ]
     assert err == (
-        "warning: the Daemon won't see HEPHAISTOS_WATCHER_INTERVAL; put it in config.toml\n"
+        "warning: the daemon won't see HEPHAISTOS_WATCHER_INTERVAL; put it in config.toml\n"
     )
     text = unit.unit_file().read_text()
     assert f'ExecStart="{systemd}" daemon run' in text
@@ -80,7 +80,7 @@ def test_install_start_stop_uninstall(
     assert run("install") == 0
     assert capsys.readouterr().out.splitlines()[:2] == [
         f"Already installed: {UNIT}",
-        f"The Daemon is running (pid {first})",
+        f"The daemon is running (pid {first})",
     ]
 
     monkeypatch.setenv("XDG_DATA_HOME", "/elsewhere")
@@ -90,36 +90,36 @@ def test_install_start_stop_uninstall(
     assert capsys.readouterr().out.splitlines()[:3] == [
         f"Updated {UNIT}:",
         '  + Environment="XDG_DATA_HOME=/elsewhere"',
-        f"Restarted the Daemon (pid {second})",
+        f"Restarted the daemon (pid {second})",
     ]
 
     assert run("stop") == 0
-    assert capsys.readouterr().out == f"Stopped the Daemon (pid {second})\n"
+    assert capsys.readouterr().out == f"Stopped the daemon (pid {second})\n"
     assert run("status") == 3
     assert "Daemon  not running; stopped now" in capsys.readouterr().out
     assert run("stop") == 0
-    assert capsys.readouterr().out == "The Daemon isn't running\n"
+    assert capsys.readouterr().out == "The daemon isn't running\n"
 
     assert run("start") == 0
     third = _pid(paths)
-    assert capsys.readouterr().out == f"The Daemon is running (pid {third})\n"
+    assert capsys.readouterr().out == f"The daemon is running (pid {third})\n"
     assert run("restart") == 0
-    assert capsys.readouterr().out == f"Restarted the Daemon (pid {_pid(paths)})\n"
+    assert capsys.readouterr().out == f"Restarted the daemon (pid {_pid(paths)})\n"
     with monkeypatch.context() as scratch:
         scratch.setenv("HEPHAISTOS_HOME", str(tmp_path / "scratch"))
         assert run("restart") == 1
-        assert "the installed Daemon keeps its data elsewhere (HEPHAISTOS_HOME:" in (
+        assert "the installed daemon keeps its data elsewhere (HEPHAISTOS_HOME:" in (
             capsys.readouterr().err
         )
 
     assert run("uninstall") == 0
-    assert capsys.readouterr().out == f"Stopped the Daemon and deleted {UNIT}\n"
+    assert capsys.readouterr().out == f"Stopped the daemon and deleted {UNIT}\n"
     assert not unit.unit_file().exists()
     assert not status.is_running(paths.state_dir)
     assert run("uninstall") == 0
     assert capsys.readouterr().out == "Not installed\n"
     assert run("start") == 1
-    assert "the Daemon isn't installed" in capsys.readouterr().err
+    assert "the daemon isn't installed" in capsys.readouterr().err
     assert _calls()[:3] == [
         "systemctl --user daemon-reload",
         "systemctl --user enable --now hephaistos.service",
@@ -133,7 +133,7 @@ def test_linger(
 ) -> None:
     assert run_cli(monkeypatch, "daemon", "install", "--linger", program=str(systemd)) == 0
     assert capsys.readouterr().out.splitlines()[-1] == (
-        "Linger is on: the Daemon starts at boot and keeps running after logout."
+        "Linger is on: the daemon starts at boot and keeps running after logout."
     )
     assert "loginctl enable-linger" in _calls()
     assert run_cli(monkeypatch, "daemon", "uninstall", program=str(systemd)) == 0
@@ -187,7 +187,7 @@ def test_a_daemon_run_by_hand(
             capsys.readouterr()
             assert run_cli(monkeypatch, "daemon", "start", program=str(systemd)) == 1
             assert capsys.readouterr().err == (
-                f"error: a Daemon is already running (pid {by_hand.pid}), not under systemd;"
+                f"error: a daemon is already running (pid {by_hand.pid}), not under systemd;"
                 " stop it first with `hephaistos daemon stop`\n"
             )
             assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 0
@@ -196,7 +196,7 @@ def test_a_daemon_run_by_hand(
                 in capsys.readouterr().out
             )
             assert run_cli(monkeypatch, "daemon", "stop", program=str(systemd)) == 0
-            assert capsys.readouterr().out == f"Stopped the Daemon (pid {by_hand.pid})\n"
+            assert capsys.readouterr().out == f"Stopped the daemon (pid {by_hand.pid})\n"
             assert by_hand.wait(timeout=10) == 0
         finally:
             if by_hand.poll() is None:
@@ -218,7 +218,7 @@ def test_status_warns_about_its_unit(
     assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 3
     assert capsys.readouterr().err.splitlines() == [
         "warning: the unit runs /gone/hephaistos, which no longer exists",
-        "warning: XDG_STATE_HOME: the Daemon has none, this shell /s",
+        "warning: XDG_STATE_HOME: the daemon has none, this shell /s",
     ]
 
 
@@ -243,7 +243,7 @@ def test_status_shows_a_daemon_that_ended_without_stopping(
             5,
             None,
             "watcher",
-            ["Last pass  now (0.4 s), by the Watcher", "Watcher    every 60 s; next pass in 55 s"],
+            ["Last pass  now (0.4 s), by the watcher", "Watcher    every 60 s; next pass in 55 s"],
         ),
         (
             5,

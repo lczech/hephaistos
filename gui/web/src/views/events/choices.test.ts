@@ -14,7 +14,7 @@ describe("the Events tab's title", () => {
     ];
     expect(eventsTitle(filters, { recorded: since, repository })).toBe("Events: last day, project");
     expect(eventsTitle([{ id: "repository", value: [PROJECT, "0200"] }], { repository })).toBe(
-      "Events: 2 Repositories",
+      "Events: 2 repositories",
     );
   });
 

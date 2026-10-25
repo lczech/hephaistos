@@ -40,7 +40,7 @@ INVALID_NAMES = ["", " proj", "a/b", "~/Repos/proj", ".", "..", "My Thesis", "ca
 def test_names_have_githubs_characters(set_up: Paths, name: str) -> None:
     with (
         write_session(set_up) as session,
-        pytest.raises(HephaistosError, match="not a Repository name"),
+        pytest.raises(HephaistosError, match="not a repository name"),
     ):
         repositories.register(session, name)
 
@@ -100,12 +100,12 @@ def test_rename_may_change_only_the_case(set_up: Paths) -> None:
         assert repositories.rename(session, "proj", "Proj").name == "Proj"
     with write_session(set_up) as session, pytest.raises(HephaistosError, match="already"):
         repositories.rename(session, "Proj", "OTHER")
-    with write_session(set_up) as session, pytest.raises(HephaistosError, match="not a Repo"):
+    with write_session(set_up) as session, pytest.raises(HephaistosError, match="not a repo"):
         repositories.rename(session, "Proj", "a/b")
 
 
 def test_unknown_name(set_up: Paths) -> None:
-    with read_session(set_up) as session, pytest.raises(HephaistosError, match="no Repository"):
+    with read_session(set_up) as session, pytest.raises(HephaistosError, match="no repository"):
         repositories.by_name(session, "proj")
 
 

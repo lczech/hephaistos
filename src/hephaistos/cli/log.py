@@ -17,7 +17,7 @@ from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.core.utils.text import number_text
 
 app = typer.Typer(
-    no_args_is_help=True, help="The log: what hephaistos did on this Machine, for debugging it."
+    no_args_is_help=True, help="The log: what hephaistos did on this machine, for debugging it."
 )
 
 _DAYS = re.compile(r"(\d+)d")

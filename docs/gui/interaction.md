@@ -69,6 +69,11 @@ A link shows another View.
 A View changes itself, in its own Panel, only through its own parameters: a filter, a Revision picked, a table of the database.
 The Group's back (the mouse's back button, Alt+←) returns from either.
 
+## Wording
+
+The GUI's text is in sentence case, its terms lowercase: "this checkout", "No events match", "Open a view".
+A View's name keeps its capital where it names that View: "the Daemon view", tab titles, the "+" menu ([glossary](../glossary.md)).
+
 ## Tooltips
 
 Tooltips are native (`title`).

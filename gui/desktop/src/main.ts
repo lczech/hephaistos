@@ -28,7 +28,7 @@ const SETTLE = 200; // ms after the token file changes, before reading it
 function given(name: string): string {
   const value = process.env[name];
   if (value) return value;
-  console.error(`error: ${name} isn't set; start the Desktop with \`hephaistos desktop open\``);
+  console.error(`error: ${name} isn't set; start the desktop app with \`hephaistos desktop open\``);
   process.exit(2);
 }
 

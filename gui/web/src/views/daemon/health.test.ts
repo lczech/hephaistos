@@ -31,7 +31,7 @@ describe("the Daemon's health", () => {
       reasons: [
         "HEPHAISTOS_HOME differs",
         "last pass failed: disk full",
-        "the Watcher has stalled",
+        "the watcher has stalled",
       ],
     });
   });

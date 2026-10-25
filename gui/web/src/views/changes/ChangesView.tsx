@@ -96,7 +96,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   };
   let message: string | null = null;
   if (checkout === undefined) {
-    message = "No Checkout: open Changes from a Clone or Worktree in Repositories.";
+    message = "No checkout: open Changes from a clone or worktree in Repositories.";
   } else if (changes.data === undefined) {
     message = error ? null : "Loading changes…"; // an error: above the table
   } else if (commit !== undefined) {
@@ -175,7 +175,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
             />
             <ViewLink
               address={{ kind: "history", params: checkout }}
-              label="Commit history of this Checkout"
+              label="Commit history of this checkout"
             />
             <Refresh
               busy={changes.isFetching}

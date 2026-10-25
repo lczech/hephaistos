@@ -123,7 +123,7 @@ describe("the Diff View", () => {
     expect(line).toHaveTextContent("ccccccc");
     await userEvent.click(line);
     expect(screen.getByText("Lucas <lucas@example.org>")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Compare with other Revisions" }));
+    await userEvent.click(screen.getByRole("button", { name: "Compare with other revisions" }));
     expect(screen.getByRole("status")).toHaveTextContent(
       `diff?clone=clone-proj&from=${parent}&path=src%2Fmain.py&to=${hash}`,
     );
@@ -275,7 +275,7 @@ describe("the Diff View", () => {
 
   it("says a file's Checkout is gone, in place of its diff, with the Events of its Clone", async () => {
     const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "clone" } as const;
-    const error = "the Clone of the Worktree at ~/side was unregistered; its files are untouched";
+    const error = "the clone of the worktree at ~/side was unregistered; its files are untouched";
     serveDiff(() => json({ error, checkout }, 410));
     const opened: Address[] = [];
     renderWithQueries(
@@ -283,11 +283,11 @@ describe("the Diff View", () => {
         <Diff initial={{ worktree: "wt-side", from: "HEAD", to: "index", path: "src/main.py" }} />
       </OpenViewContext.Provider>,
     );
-    expect(await screen.findByText(/^The Clone of the Worktree at ~\/side/)).toHaveTextContent(
+    expect(await screen.findByText(/^The clone of the worktree at ~\/side/)).toHaveTextContent(
       `T${error.slice(1)}.`,
     );
     expect(screen.queryByRole("button", { name: "Side by side" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "The Clone's Events" }));
+    await userEvent.click(screen.getByRole("button", { name: "The clone's events" }));
     expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
   });
 
@@ -320,7 +320,7 @@ describe("the Diff View", () => {
     );
     expect(screen.getByRole("button", { name: "Directories as a tree" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "These changes as a list" }));
-    await userEvent.click(screen.getByRole("button", { name: "Commit history of this Checkout" }));
+    await userEvent.click(screen.getByRole("button", { name: "Commit history of this checkout" }));
     expect(opened).toEqual([
       { kind: "diff", params: staged },
       { kind: "history", params: { clone: "clone-proj", path } },

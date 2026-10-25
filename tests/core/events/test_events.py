@@ -123,9 +123,9 @@ def test_by_short_id(set_up: Paths, session: ReadSession) -> None:
     assert events.by_short_id(session, str(first)).id == first
     with pytest.raises(HephaistosError, match="several"):
         events.by_short_id(session, "ab")
-    with pytest.raises(HephaistosError, match="no Event"):
+    with pytest.raises(HephaistosError, match="no event"):
         events.by_short_id(session, "0cab")
-    with pytest.raises(HephaistosError, match="not an Event ID"):
+    with pytest.raises(HephaistosError, match="not an event ID"):
         events.by_short_id(session, "xyz")
 
 

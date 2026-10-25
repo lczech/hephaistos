@@ -245,7 +245,7 @@ def _observed_clone(known: Known) -> CloneObservation:
     if location.top != path:
         return CloneObservation(Missing())  # its repository is gone; git found one around it
     if location.main is not None:
-        return CloneObservation(Failed(f"it is now a Worktree of {location.main}"))
+        return CloneObservation(Failed(f"it is now a worktree of {location.main}"))
     snapshot = git.snapshot(location)
     listed = git.worktrees(path, location.common_dir)
     if snapshot.head is None:
