@@ -26,7 +26,7 @@ Either way, it links to the Events that tell what happened.
 ## Kept in the browser
 
 Per browser, in localStorage, and not part of addresses:
-- the token (`hephaistos.token`), taken from a link's `#token=` and forgotten once the Server refuses it ([ADR 004](../decisions/004-server.md));
+- the token (`hephaistos.token`), taken from a link's `#token=` and forgotten once the Server refuses it ([Server](../daemon/server.md#sending-the-token));
 - the Layout (`hephaistos.layout`; [layout](layout.md#saving));
 - lists' widths, hidden columns, order and layout (`hephaistos.lists.<kind>.<part>`; [lists](lists.md#kept));
 - the Diffs' look (`hephaistos.diff`) and the Changes View's (`hephaistos.changes`);

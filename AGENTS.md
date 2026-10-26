@@ -35,7 +35,7 @@ Decided in [docs/decisions/](docs/decisions/):
 - [004 Server](docs/decisions/004-server.md): listening on localhost only, reached through SSH; a token per Machine; the API returns the CLI's JSON, with a major and minor version.
 - [005 GUI](docs/decisions/005-gui.md): Views by kind and parameters, placed in dockview Panels and Groups only by `layout/`; addresses; the Layout saved per browser; live hints; Workspaces later.
 
-The GUI's design built on these is described in [docs/gui/](docs/gui/): [layout](docs/gui/layout.md), [interaction](docs/gui/interaction.md), [looks](docs/gui/looks.md), [lists](docs/gui/lists.md), [views](docs/gui/views.md) and [data](docs/gui/data.md). A decision that changes goes in its ADR; how the GUI works and looks, in the matching design doc, in the same commit as the code.
+How things work on these is described in a `docs/` folder per part, as in the source: [docs/core/](docs/core/), [docs/daemon/](docs/daemon/), [docs/cli/](docs/cli/), [docs/desktop/](docs/desktop/) and [docs/gui/](docs/gui/); tools, layout and tests in [docs/development.md](docs/development.md). A decision that changes goes in its ADR; how something works or looks, in the matching design doc, one sentence per line, in the same commit as the code. A plan for later goes in an ADR only where it shapes a decision.
 
 Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each Machine should remain usable when other Machines are unreachable. Disconnected Machines should show timestamped last-known information.
 

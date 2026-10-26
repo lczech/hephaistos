@@ -2,9 +2,9 @@
 
 Before 1.0, any change bumps minor, except to descriptions. After it, whether a change only adds
 depends on its direction: a new required parameter breaks clients, a new value in an answer may.
-Rules that tell requests from answers come with 1.0, and until then 1.x is refused (ADR 004).
-Once API_VERSION says so, record the new snapshot, and with it the schema the
-GUI's types are made from: `HEPHAISTOS_RECORD_API=1 pytest tests/daemon/server/test_schema.py`.
+Rules that tell requests from answers come with 1.0, and until then 1.x is refused
+(docs/daemon/server.md). Once API_VERSION says so, record the new snapshot, and with it the schema
+the GUI's types are made from: `HEPHAISTOS_RECORD_API=1 pytest tests/daemon/server/test_schema.py`.
 """
 
 import json

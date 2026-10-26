@@ -4,187 +4,31 @@ Status: accepted (2026-10-05)
 
 ## Context
 
-The first slice needs the Core's foundations: storing Registry, State and Events, setting up a Machine, and observing Checkouts. Terminals, Launchers, plugins, Sync and the GUI come later; nothing here may block them.
+The first slice needs the Core's foundations: storing Registry, State and Events, setting up a Machine, and observing Checkouts.
+Terminals, Launchers, plugins, Sync and the GUI come later; nothing here may block them.
 
-## Package layout
+This ADR records the decisions that are costly to change.
+How things work on them is described in [docs/core/](../core/): [setup](../core/setup.md), [settings](../core/settings.md), [data](../core/data.md), [events](../core/events.md), [observation](../core/observation.md) and [logs](../core/logs.md); also in [docs/daemon/](../daemon/), [docs/cli/](../cli/commands.md) and [development](../development.md).
 
-One Python package (Python ≥ 3.12), `pyproject.toml` at the repository root, src layout. uv manages the environment; `uv.lock` is committed. During development, `uv tool install --editable .` puts `hephaistos` on the path, following the current code. The parts from [002](002-technology-stack.md) are subpackages; `gui/` stays outside. A test checks what each part imports: the Core none of the others, the Daemon and the Desktop only the Core, the CLI any.
+## Decision
 
-```
-src/hephaistos/
-  core/
-    config.py     settings: shipped defaults.toml, config files, environment
-    serialize.py  entities as JSON, for `--json` and the Server's API
-    db/           connection, read and write sessions, schema, raw listings
-    registry/     machines.py, filesystems.py, mounts.py, repositories.py, clones.py
-    state/        checkouts.py (shared by Clones and Worktrees), clones.py, worktrees.py
-    events/       events.py (storage and reading), kinds.py, subjects.py
-    observers/    clones.py
-    utils/
-      errors.py   errors with messages for the user
-      ids.py      UUIDv7, hybrid logical clock
-      paths.py    XDG directories, per-Machine subdirectory, filesystem type detection
-      logs.py     log files: JSON Lines, one per UTC day; records as text
-      times.py    points in time as given: `2h` ago, or a date
-      git.py      reads facts by running git's commands for scripts; knows nothing about our records
-  cli/            one module per subcommand, named like it (clone.py for `hephaistos clone`)
-  daemon/{watcher,sync,server}/
-  plugins/
-```
-
-Core modules about a kind of thing are plural (`clones.py`, `ids.py`), which keeps them apart from variables (`clone`, `id`); modules about one thing are singular (`git.py`). Each entity's dataclass lives next to its SQL. Operations spanning several modules (e.g. adding a Clone: git facts, Repository, Clone, Events) live with the entity they mainly concern; no separate operations layer.
-
-Tools: Typer for the CLI (with shell completion; heavy imports only inside commands, to keep startup fast), ruff, a type checker, pytest. The Core keeps dependencies minimal.
-
-## Setup and files
-
-- `hephaistos setup` is required once per Machine. Every other command fails until then (except `--help` and `--version`); run again, `setup` keeps the database and updates the other parts.
-- Setup's core part is one transaction: directories, database, Machine record (named after the hostname), and its default Filesystem mounted at `/`. Its other parts are also commands of their own, which it runs after: `daemon install` and, in a graphical session, `desktop install` (`--no-daemon`, `--no-desktop` skip them); a part that fails is skipped with a warning naming its command. Later ones: hooks, remote setup.
-- A Machine's chassis comes from `hostnamectl chassis` (`Chassis:` in `hostnamectl status` before systemd 249), or the setting `machine.chassis`; it is stored at setup and updated when the Daemon starts (`machine.changed`).
-- Files follow XDG; data and logs are in a per-Machine subdirectory keyed by `/etc/machine-id` (hostname as fallback), so shared home directories need no configuration:
-  - config: `~/.config/hephaistos/`, optional files; see Settings.
-  - data: `~/.local/share/hephaistos/<machine>/`
-  - logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day (`2026-10-08.jsonl`).
-- `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead. Tests always use it, and so can experiments.
-- Only the user may enter the data and log directories (mode 0700): on clusters, home directories are often open to others. Each run makes them so, warning once, and refuses directories that belong to another user. Symlinks are followed, e.g. to data on a local disk. The config directory is left as the user keeps it.
-- SQLite runs in WAL mode, or with a rollback journal if the data directory is on a network filesystem (detected via `statfs`).
-- A Machine set up twice (e.g. after deleting its data) gets a new ID; the same `os_machine_id` suggests merging them.
-
-## Settings
-
-- Layers, each overriding the ones before it key by key:
-  1. `defaults.toml`, shipped in the package: every setting with its default and documentation.
-  2. Later: Registry settings, shared by all Machines and edited in the GUI.
-  3. `config.toml` in the config directory: every Machine reading it, e.g. sharing a home directory.
-  4. `config.<hostname>.toml`: the first part of the hostname (`login1`), then all of it (`login1.hpc.example.org`).
-  5. Environment variables `HEPHAISTOS_<SECTION>_<KEY>`, e.g. `HEPHAISTOS_GIT_TIMEOUT`, for every setting; empty ones count as unset.
-  6. Command-line options, e.g. `--time-format`, `--debug` for `log.level`.
-- TOML, one or two levels of sections, named by topic: `[gui]` holds what only the GUI uses, e.g. `[gui.diff]` the limits of its diffs, though the Server applies some; the GUI reads what its Server's Daemon applies. Every setting has a real value: no null; "unset" behaviour gets a name (`time_format = "auto"`) or a natural number (0). A missing key leaves it to the layer below.
-- Checked against typed sections (`Settings` in `config.py`) with limits: unknown keys and wrong types or values fail, naming the file or variable and the key.
-- Each process loads its settings once, at startup (CLI `run()`, Daemon), and activates them; the Core reads them where it uses them (`config.settings().git.timeout`). Changes apply to the next command, or to the Daemon after a restart.
-- A broken config stops every command but `--help`, `--version`, `log`, `config` and `daemon` (which run on the defaults, with a warning); `daemon run` doesn't start.
-- Files hold how this Machine runs (e.g. timeouts, workers, Daemon parts, SSH targets). Preferences shared by all Machines belong in the Registry layer, once it exists; until then `time_format` stays in the files.
-
-## Conventions
-
+- **One package:** one Python package with a src layout; the parts from [002](002-technology-stack.md) are its subpackages, and `gui/` stays outside. A test checks what each part imports: the Core none of the others, the Daemon and the Desktop only the Core, the CLI any. Each entity's dataclass lives next to its SQL. An operation spanning several modules lives with the entity it mainly concerns; there is no operations layer.
+- **Setup:** `hephaistos setup` is required once per Machine, so a Machine is set up deliberately. Every other command fails until then.
+- **Files:** XDG directories. Data and logs are in a per-Machine subdirectory, keyed by `/etc/machine-id`, so home directories shared by several Machines need no configuration. `HEPHAISTOS_HOME` puts everything into one directory instead, for tests and experiments. Only the user may enter the data and log directories, as clusters often open home directories to others.
+- **Settings:** layers, each overriding the ones before it key by key: shipped defaults, later Registry settings, `config.toml`, `config.<hostname>.toml`, environment variables, command-line options. TOML, where every setting has a real value and never null. Files hold how this Machine runs; preferences shared by all Machines will belong in the Registry. Each process loads its settings once, at startup.
 - **IDs:** UUIDv7, stored as 16 bytes.
-- **Time:** a hybrid logical clock, stored as one INTEGER (milliseconds << 16 | counter). The clock lives in the database and advances inside each write transaction, so values from one Machine increase in commit order, across CLI and Daemon. Data received from Peers advances it past the largest value seen.
-- **Column names:** `<verb>_at` for times, `<verb>_by` for the Machine that did it. JSON output uses the same names; text output drops the suffix (`recorded`).
-- **Function names:** actions are verbs (`add`, `record`, `observe`); functions that only return something are named for what they return (`git.status`, `clones.details`, `caused_events`). Lookups and conversions may be verbs (`get`, `find`, `locate`, `parse_since`, `to_json`), and predicates read as questions (`is_network`, `shares_history`). Formatting helpers in the CLI end in `_text` or `_json`.
-- **Registry tables** carry `modified_at`, `modified_by` and `deleted`. A deletion is an edit (its time is `modified_at`), and last write wins for edits and deletions alike. Uniqueness applies only to rows not deleted. Every change records an Event `<entity>.registered` or `.unregistered` with the record's values, or `.changed` with the changed fields' old and new values (in that shape, a kind may say more: `clone.moved`). The user registers and unregisters what the Registry declares; what git does is added and removed (`worktree.added`, `.removed`).
-- **Table names:** prefixed with their category (`registry_`, `state_`), plus `events` and `meta`; plural entity names; a relationship with a natural noun takes that noun (`registry_mounts`). The code keeps a list of tables with their category, used by Sync and raw listings.
-- **Read and write sessions:** the Core opens the database either read-only (SQLite `mode=ro`) or as one write transaction, which advances the clock and records Events. Viewing (CLI `list` and `show`, the Server's read endpoints) only gets read sessions, so an accidental write fails.
-- **Schema version:** `PRAGMA user_version`, one more with each change, and a hash of the schema in `meta`. Until releases, schema changes edit the schema itself, with no migrations in the code: a one-off script carries data that is worth keeping over, rebuilding changed tables in place; otherwise `setup --reset` replaces the database, keeping a backup. A database with another schema is reported by how it differs: older (`setup --reset`), newer (restart the Daemon or update), or changed at the same version.
-
-## Logs
-
-- The log is local diagnostics about hephaistos itself: never synced, and nothing reads it to decide anything. Events stay the record of work.
-- stdlib `logging`; each record is one line of JSON: `at` (UTC), `level`, `process` (`cli`, `daemon`), `pid`, `logger`, `message`, its extra fields, and `error` with a traceback. Each record is one write in append mode, so processes writing at once need no lock. Files are never rewritten: the first record of a day deletes those older than `log.retention_days` (30).
-- INFO: each run's start (arguments) and end (outcome, duration), and each Event committed. WARNING: expected failures caught per unit, e.g. git failing for one Checkout, and transactions rolled back. ERROR: unexpected exceptions, with traceback. DEBUG: git calls, transactions, fallbacks taken, each Checkout observed. Never git's output, payloads or file contents.
-- Failures are caught per unit of work (a Checkout; later a sync or a request), logged, and the rest goes on. A run logs anything else and ends: the CLI prints `error: unexpected …` and where the details are. Exceptions ending a thread are logged too.
-- `log.level` sets the level (default `info`). `--debug`, anywhere in a command, logs that run at DEBUG and also shows its records on stderr. Logging is best effort: if the file can't be written, the command warns and goes on.
-
-## Tables
-
-| Table | Columns |
-|---|---|
-| `meta` | `key`, `value`: this Machine's ID, the clock |
-| `registry_machines` | `id`, `name`, `hostname`, `chassis`, `os_machine_id` |
-| `registry_filesystems` | `id`, `name` |
-| `registry_mounts` | `id`, `machine_id`, `filesystem_id`, `path` |
-| `registry_repositories` | `id`, `name` |
-| `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
-| `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error`, `head_log` and `push_log` (reflog cursors) |
-| `state_worktrees` | `id`, `clone_id`, `name` (git's), `path` (as git reports it), `lock_reason`, `observed_at`, `observed_by`, `present`, `head`, `branch`, status (as for Clones), `error`, `head_log`, `removed` |
-| `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON), `occurred_at`, `key` |
-
-- Names are unique per entity type (Machines, Filesystems, Repositories).
-- A Repository's name is as GitHub's: ASCII letters, digits, `.`, `-` and `_`, at most 100, not `.` or `..`; compared and looked up ignoring case (`COLLATE NOCASE`); the schema checks both. So a name is never a path: `repo register` given a directory's path says so and prints the `clone register` command for it. A display title, if wanted, would be a field of its own. For a Clone that matches none, `clone register` suggests a name from the origin remote (`…/hephaistos.git` → `hephaistos`), else the directory, each run of other characters made a `-`, as GitHub does (`My Thesis` → `My-Thesis`).
-- Paths: `resolved_path` has all symlinks resolved and is used for identity and comparison; `display_path` is the absolute path as typed, symlinks kept. Display shortens the home directory to `~`; Worktrees under their Clone show relative to it. A path's Filesystem is found through its mount (`/proc/self/mountinfo`); recognising shared Filesystems across Machines comes later.
-- Remotes are stored without credentials and matched in normalised form (`git@host:a/b.git` and `https://host/a/b` are the same). Root commits are those of all local and remote-tracking branches. Worktrees share their Clone's root commits and remotes.
-- A bare repository is a Clone whose path is its git directory; it has Worktrees but no files to open.
-- Worktrees are identified by Clone and git's admin name (`<git common dir>/worktrees/<name>`), which survives `git worktree move` (`worktree.moved`); a new one gets a UUIDv7. One whose directory is gone was removed (`worktree.removed`; the row stays, marked `removed`, for its Events), unless locked with `git worktree lock`: then it is missing. If one of its name comes back with its reflog continuing where reading stopped (back from an unmounted filesystem, or moved by hand and repaired), it is that one again (`worktree.restored`). They sync as part of their Clone's snapshot, newest wins; observing keeps the locally known ID for a name, so Machines converge after one sync.
-
-## Events
-
-- Kinds are a `StrEnum` in `events/kinds.py`, stored as dotted text (`clone.branch_created`), in past tense: they are facts, while requests (later, e.g. `terminal.open`) are imperative; the prefix gives the subject's type. Kinds unknown to this version (from newer Peers) are kept and shown raw.
-- The subject is always an ID. `events/subjects.py` maps each subject type to its module, which names its subjects (Machines, Filesystems and Repositories by name, e.g. a Repository's current one; Mounts, Clones and Worktrees by path; deleted records keep theirs) and finds their Repository. Subjects of unknown types show their short ID.
-- Payloads: a Registry Event carries the record or its changes (see Conventions); other kinds have one payload dataclass each. Other related IDs go into the payload.
-- Priority: low 10, normal 20, high 30, urgent 40. The origin sets it from a default per kind; high and above will be pushed right away.
-- Conditions are facts about what one Machine sees. Git activity, and branches created or renamed, are facts about the repository, which several Machines may read on a shared Filesystem: they carry a `key` (16 bytes of SHA-256 over Clone, Worktree name, ref, git's time, and what changed). Others have none. With sync, an arriving Event whose key exists marks the one with the larger ID as a local `duplicate`, which listings leave out.
-- Events are never rewritten, one per fact; listings group them: runs of one kind and subject (12 commits), a condition with its resolution (missing, then found), and chains (amends of a commit).
-- `occurred_at`: when it happened, by its source's clock, in milliseconds; NULL where unknown, e.g. for conditions found between two observations. Git activity has git's time. `recorded_at` stays the order for sync.
-- Later, with Agents: how an Event was captured, and whether it is reported or inferred.
-
-## Observation
-
-- An observer observes one kind of thing: it takes a snapshot and has the State compare it with what is stored, which writes the changes and records their Events. Observers know nothing about timing; the Watcher runs them (`watcher.interval`, and on request).
-- Each observation updates `observed_at`; rows and Events change only when something changed.
-- First observer: `clones` (git), which also finds their Worktrees. git runs outside any transaction, several Clones in parallel, each command with a timeout; then one write session stores the results, keeping any State another process observed meanwhile. Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
-- Conditions come from comparing State: `missing` and `found`, `failed` and `recovered` (when missing or failed, the rest stays as last known), branches created or deleted, remotes changed. Status counts, head and upstream only update State. File names are not stored: Views of files ask the Machine's Server live.
-- Git activity comes from git's reflogs (`git log --walk-reflogs`), read from a cursor per Checkout: the last entry read, by its time and a digest, so expiry doesn't move it; if its entry is gone, reading continues after its time. The first read starts at the end (`clone register` observes right away), or with `clone register --import-history` at the beginning; a Worktree found later starts at the beginning, as all of its reflog is new.
-  - HEAD's reflog gives `committed` (also amends with the commit they replace, cherry-picks, reverts, `am`; with the message's body from the commit, which the reflog lacks, so the Event outlasts it), `merged`, `pulled`, `rebased`, `reset`, `branch_switched`, and `head_moved` with git's message for what we can't name. A rebase folds into one Event; while one is in progress, it waits. Resets that don't move (`git stash`) are skipped.
-  - Remote-tracking reflogs give `clone.pushed`; fetches are skipped. A new branch's reflog gives its creation time and start, or shows it was renamed (`clone.branch_renamed`, instead of deleted and created).
-  - Reflog messages are git's text, stable in practice but unspecified; tests pin them with real git. Bare repositories keep no reflogs by default.
-- A Checkout's activity (`active_at`, "active" in lists) is when HEAD last moved: the time of the newest HEAD reflog entry read, from `head_log`, by git's clock; unknown without a reflog. A Repository's is the latest of its Checkouts'.
-- Views show stored State with its age. `--refresh` observes first, in a separate write session. Views also observe first, saying so, when git knows a Checkout that the record misses, e.g. a Worktree not observed yet.
-
-## Daemon
-
-- `hephaistos daemon run` runs the parts this Machine enables (the Watcher's timer unless `watcher.interval` is 0, `server.enabled`; later Sync) in the foreground, until SIGINT or SIGTERM; systemd runs it like this. One runs per Machine: it holds an exclusive `flock` on `daemon.lock` in the state directory, which the kernel releases however it ends.
-- The Watcher passes at start, then `watcher.interval` seconds (60) after each pass ends, and when the Server asks (`POST /api/observe`); with interval 0 only then. Passes never overlap: a request waits for a pass that starts after it arrives, so it sees what the user just did, and requests arriving during a pass share the next one. Passes run in a worker process that lowers its own CPU and I/O priority once (nice 19; `ionice -c2 -n7`, as the idle class could starve a pass a GUI waits for), before starting threads, so they and git inherit it. The worker leads its own process group: Ctrl+C in a terminal doesn't reach it, and the Daemon stops it with its git in one signal.
-- A failed pass is logged, and the next one runs on schedule; a busy database is retried 3 times (after 1, 2, 4 s). A dead worker is replaced. A crashed part restarts after 1 s, doubling up to 60 s, and back to 1 s once it ran 10 minutes.
-- A Daemon that can't start (broken config, nothing to do, not set up, no git, already running) exits with 78 (`EX_CONFIG`), which its systemd unit doesn't restart.
-- Stopping is immediate: a pass cut short loses nothing, as git only reads and SQLite rolls back; requests waiting for it get 503. The Server then stops as uvicorn does: open requests finish (3 s at most), live connections close with 1012. A second signal exits at once.
-- `daemon.json` in the state directory tells how it runs: pid, version (from a checkout with its commit, `0.1.0 (bfc66f6-dirty)`), start and stop, the Watcher's last pass (when, how long, any error, what asked for it), and the Server's address and counts of requests, written at most every 2 s. Replaced as a whole, never half written. A start finding no stop time logs that the previous Daemon ended without stopping.
-- Log: INFO for start (parts, interval, git and its version), stop, and passes recording Events; DEBUG for passes without; ERROR for failed passes and crashes. Passes say what asked for them (`trigger`: `watcher` or `api`).
-- `daemon install` writes a systemd user unit, `~/.config/systemd/user/hephaistos.service`, then enables and starts it. The unit runs the hephaistos that installed it, by the path it was run as (a link such as `~/.local/bin/hephaistos` survives reinstalling the tool), with the shell's `HEPHAISTOS_HOME` and XDG directories; settings variables don't reach it, and `install` says so. Run again, it rewrites a changed unit and restarts the Daemon; it leaves a unit alone that it didn't write. `--linger` runs `loginctl enable-linger`, so the Daemon starts at boot and survives logout; `uninstall` leaves linger as it is.
-- `start`, `stop` and `restart` go through systemd. `stop` also ends a Daemon run by hand (SIGTERM to the lock's holder); `start` refuses while one runs. Without systemd user services, `daemon run` in tmux takes their place.
-- `status` shows the unit, the Daemon (from the lock and `daemon.json`), the last pass and what asked for it, the Watcher's timer (`stalled` if the last pass is more than 3 intervals plus `git.timeout` ago), and the Server; it warns if the unit's program is gone or its paths differ from the shell's. It exits with 0 if the Daemon runs, 3 if not. `--json` gives what the Server's `/api/daemon` gives.
-- The Server and its token: [004](004-server.md).
-
-## CLI for the first slice
-
-One subcommand per entity, with the verbs `list`, `show`, `register`, `unregister`, `rename`, as the Registry only declares what is on disk, never creating or deleting it; a few top-level verbs act across entities. Entities are addressed by name, Checkouts by path (`.` by default; the innermost Checkout containing it, by git), and entities without a name by a short ID (the end of the UUID). A path in a repository of its own inside a Checkout, nested or a submodule, is refused: git tells which repository a path is in. Worktrees can also be addressed by name, asking if several Clones have one. `clone` commands accept a path in one of the Clone's Worktrees, except `clone unregister`.
-
-```
-hephaistos setup
-hephaistos machine list | show
-hephaistos repo list | show <name> | register <name> | rename <name> <new name>
-                | unregister <name> [--clones] [--yes]
-hephaistos clone register [path] [--repo <name>] [--import-history]
-hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | unregister
-                 | move <old> <new> [--nested]
-hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refresh]
-hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
-                     [--repo <name>] [--clone <path>] [--worktree <path|name>] [--reverse]
-                     | show <id> | kinds
-hephaistos observe [clones] [--clone <path>]…
-hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
-hephaistos db tables | dump <table> [-c <column>]… [--offset <n>] [--reverse] [--table|--blocks]
-                                        [--short-ids]
-hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process cli|daemon]
-                    [--pid <pid>] [-n <count>] [--reverse] [--follow] [--brief] [--json] [--no-pager]
-               | prune [--keep <days>d] [--yes]
-hephaistos config show [<key>|<section>|--json] | defaults
-hephaistos daemon run | status [--json] | token [--url] [--renew] [--yes]
-                  | install [--linger] | uninstall | start | stop | restart
-hephaistos [--debug] …
-```
-
-- `clone register` registers a Clone in the Repository it matches (root commits, remotes), else in one without Clones by name, as `scan` does, else in a new one by the suggested name; `--repo` names it, and a missing one is created. Each asks in a terminal; without one, `--yes` takes it. Matching several, it asks which in a terminal, else requires `--repo`. A name taken by an unrelated Repository, or none suggested, requires `--repo`. It refuses a Clone that shares no root commit with the Repository's other Clones (such Repositories don't count as matches either), a path inside a Worktree (the message names its Clone), and a submodule (its superproject is the Clone).
-- `repo unregister` refuses while the Repository has Clones; `--clones` also unregisters them, on every Machine, after asking. `clone unregister` says when it leaves a Repository without Clones. Files stay untouched.
-- `clone move` records a move already made on disk; the Clone keeps its ID and history. The old path must no longer be a repository, and the new one must share the Clone's history. It refuses while links to its Worktrees are broken (an observation would take them as removed), printing the `git worktree repair` command. Clones inside it move along with `--nested`, all or nothing; without it, their commands are printed.
-- Asking happens between a read and a write session, so no write transaction waits for input.
-- `scan` registers the clones under a directory (`scan.depth` levels, 3 by default) in one transaction, after showing the plan and asking once: each joins the Repository it matches, else a Repository without Clones by name, else a new one; clones found together match each other too. A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone register` suggests. A Worktree brings its Clone, wherever that is, and one not observed yet has its Clone observed. It stops at clones without searching inside them, skips hidden directories, follows symlinks (preferring real paths), and refuses to start inside a Clone or at a submodule. A clone that may be a missing Clone, moved, is skipped with the commands for either. Nothing is guessed: a clone matching several Repositories, or whose new Repository's name is taken, is skipped with the `clone register` command to register it by hand.
-- `event list` shows the newest 20 (`--limit`), oldest first like `log show` (`--reverse`: newest first), each with a summary of its payload. `--repo` includes Events about its Clones and their Worktrees, `--clone` those about its Worktrees. `--kind` takes a kind, its leading parts (`clone`), or a glob (`'*.unregistered'`); `--kind`, `--machine` and `--repo` repeat, for any of several. `--since` takes a duration (`2h`) or a date. `event kinds` lists the kinds this version records, with their priorities.
-- Output: plain aligned text; `--json` on `list` and `show`, the same JSON as the Server's API ([004](004-server.md)). Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), ISO 8601 in JSON; `--time-format auto|relative|short|full` and the setting `time_format` override this. `short` is `14:03` today, `10-05 14:03` this year, else `2025-10-05`.
-- Common options have one-letter short forms (`-r`, `-k`, `-n`).
-- `log show` shows the newest 50 records, oldest first, so the newest end next to the prompt, as in `journalctl` (`--reverse`: newest first); local time, tracebacks below their record (`--brief`: their last line), extra fields as `key=value`; `--json` prints each as stored with its position, where its line starts (`2026-10-14:18734`: day file and byte), which stays the same while files are only appended to. `--follow` then waits for new ones. It skips lines that aren't records and says how many, and pages like git (`$PAGER`, else `less` with `LESS=FRX`). The log isn't an entity, so `show` shows all of it. `log prune` deletes whole days, older than `--keep` (default `log.retention_days`), after asking. `log` commands log only what goes wrong, so that showing the log doesn't add to it; an unexpected error's message names `log show --pid`.
-- `config show` shows each setting, its value and where that comes from (`default`, a file, a variable), then each source in the order it applies, files by full path, as read, broken or not found; also other hosts' files (unused here) and unknown `HEPHAISTOS_*` variables, naming the closest setting's. A section shows its settings, one setting just its value. A broken file or variable is left out and its error shown, and the command fails. `config defaults` prints the shipped `defaults.toml`. `--json` gives all of it, each setting also with its type (`bool`, `int`, `float` or `text`), its description (the comment lines directly above it in `defaults.toml`) and the value the process applies, which differs in the Daemon after an edit until it restarts; scripts take one value.
-- `db` shows tables as stored, the newest rows oldest first like `log show` (`--reverse`: newest first; `--offset` counts from the newest), also an outdated database (with a warning) and tables this version doesn't know. The module owning a table declares how to decode each column (`DECODERS`: IDs, clock values, JSON); a test holds these to the schema. Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored. All columns show one line per value, chosen columns (`-c`) one line per row. `--json` gives each column's name and type (`id`, `clock`, `time`, `json`, `hex` or `plain`, from its decoder), as its values are text there, and puts warnings, e.g. an outdated schema, next to the rows; `--offset` pages.
-
-Next: GUI pages showing these tables, plus a Repository overview.
+- **Time:** a hybrid logical clock, stored as one INTEGER. It lives in the database and advances inside each write transaction, so values from one Machine increase in commit order, across CLI and Daemon.
+- **Registry edits:** last write wins, for edits and deletions alike; a deletion is an edit (`deleted`). Every change records an Event with the record's values or the changed fields.
+- **Table categories:** each table belongs to a category (`registry_`, `state_`, plus `events` and `meta`), which Sync and raw listings use.
+- **Read and write sessions:** the Core opens the database either read-only or as one write transaction. Viewing only gets read sessions, so an accidental write fails.
+- **No migrations until releases:** the schema version is `PRAGMA user_version`, with a hash of the schema in `meta`. Schema changes edit the schema itself; one-off scripts carry data worth keeping, or `setup --reset` replaces the database.
+- **Names and paths:** a Repository's name is as GitHub's, compared ignoring case, so a name is never a path. A Clone is identified by its path with all symlinks resolved, and shown by its path as typed.
+- **Worktrees:** observed, not registered; identified by their Clone and git's admin name, which survives `git worktree move`.
+- **Events:** facts, never rewritten, named in the past tense by dotted kinds whose prefix gives the subject's type. The subject is always an ID. Facts about a repository that several Machines may read carry a key, so that Sync can find duplicates.
+- **Observation:** an observer takes a snapshot, and the State compares it with what is stored, writing the changes and recording their Events. Observers know nothing about timing. git runs outside any transaction, and never takes optional locks. Git activity comes from git's reflogs, read from a cursor per Checkout and reflog.
+- **Logs:** local diagnostics about hephaistos itself, as JSON Lines, one file per UTC day. They are never synced, and nothing reads them to decide anything; Events stay the record of work.
+- **Daemon:** one per Machine, held by a lock; installed as a systemd user unit, else run in tmux.
+- **CLI:** one subcommand per entity, with the verbs `list`, `show`, `register`, `unregister` and `rename`, as the Registry only declares what is on disk, never creating or deleting it. A few top-level verbs act across entities. Entities are addressed by name, Checkouts by path, others by a short ID. Output is plain aligned text; `--json` on `list` and `show` gives the Server's JSON.
 
 ## Rejected
 
@@ -200,4 +44,3 @@ Next: GUI pages showing these tables, plus a Repository overview.
 - **rich for output:** slower startup, which matters for shell completion.
 - **A single model module and an operations layer:** grows too large, and adds a layer without need.
 - **A Python git library:** GitPython runs `git` underneath; pygit2 (libgit2) is a separate implementation that can disagree with the user's `git` and needs a compiled dependency on every Machine.
-- **`clone register` creating Repositories:** mixes two responsibilities, for a rare convenience.
