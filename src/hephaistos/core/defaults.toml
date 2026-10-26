@@ -52,6 +52,11 @@ port = 8264
 
 # The GUI's: it reads them from the Server it shows.
 
+[gui]
+# Whether the GUI is light or dark: system (as the system is), light or dark.
+# Set it for one Machine in config.<hostname>.toml.
+theme = "system"
+
 [gui.text]
 # The size of what Views show, in pixels; tabs and bars keep theirs.
 size = 13

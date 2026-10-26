@@ -30,6 +30,7 @@ import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
+import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
@@ -178,6 +179,7 @@ export function DiffView({
   const show: DiffShow = {
     look: { ...look, split: look.split && !narrow },
     themes,
+    scheme: useColorScheme(),
     large: typeof large === "number" ? large : undefined,
   };
   const what = commit !== undefined ? shortHash(commit) : compared && comparedText(compared);

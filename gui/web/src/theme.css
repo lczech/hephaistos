@@ -1,7 +1,7 @@
 /* The look in one place: every component's styles use these names. */
 
 :root {
-  color-scheme: light dark; /* the browser's own controls too, e.g. a select's list */
+  color-scheme: light; /* the browser's own controls too, e.g. scrollbars */
   /* Fonts and sizes the settings [gui.text] and [gui.code] replace (`useLook`). */
   --font: system-ui, sans-serif;
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
@@ -103,23 +103,23 @@
   --scrollbar: color-mix(in srgb, var(--text) 25%, transparent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* VS Code's greys (Dark Modern, its editor at #1e1e1e). */
-    --background: #1e1e1e;
-    --surface: #1e1e1e;
-    --bar: #181818;
-    --raised: #2a2a2a;
-    --border: #2b2b2b;
-    --line: #383838;
-    --divider: #474747;
-    --text: #cccccc;
-    --text-muted: #9d9d9d;
-    --accent: #e8774f;
-    --success: #4ade80;
-    --warning: #facc15;
-    --danger: #f87171;
-  }
+/* Dark, as `gui.theme` or the system has it (theme.ts). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* VS Code's greys (Dark Modern, its editor at #1e1e1e). */
+  --background: #1e1e1e;
+  --surface: #1e1e1e;
+  --bar: #181818;
+  --raised: #2a2a2a;
+  --border: #2b2b2b;
+  --line: #383838;
+  --divider: #474747;
+  --text: #cccccc;
+  --text-muted: #9d9d9d;
+  --accent: #e8774f;
+  --success: #4ade80;
+  --warning: #facc15;
+  --danger: #f87171;
 }
 
 * {

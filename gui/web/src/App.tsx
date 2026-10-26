@@ -7,6 +7,7 @@ import { TokenHint } from "./components/TokenHint";
 import { ViewOpener } from "./layout/ViewOpener";
 import { Workbench } from "./layout/Workbench";
 import { useLook } from "./look";
+import { useTheme } from "./theme";
 import { subscribe, token } from "./token";
 import { apiFit, builtFor } from "./version";
 
@@ -19,6 +20,7 @@ export function App() {
 function Shell() {
   useLiveUpdates();
   useLook();
+  useTheme();
   const info = useInfo();
   const fits = info.data ? apiFit(builtFor(), info.data.api) : null;
   return (

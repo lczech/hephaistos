@@ -6,7 +6,7 @@ The words for elements and states are [interaction](interaction.md)'s.
 ## Styling
 
 Styles are CSS modules and the custom properties of `theme.css`, with VS Code's greys.
-dockview's light theme gives sizes, with its colours from `theme.css` (`layout/dock.css`), so it follows the system's light or dark.
+dockview's light theme gives sizes, with its colours from `theme.css` (`layout/dock.css`), so it follows light or dark as the page does.
 Each look is set in one place.
 `theme.css` names the colours, sizes, widths, opacities, weights and fills.
 The controls' looks are in `components/controls.module.css`: icon buttons, word buttons, fields, menu items.
@@ -28,6 +28,13 @@ Inline styles hand the stylesheets only values known at runtime, as custom prope
 Sizes allowed are 1px hairlines, `ch`, `lh`, percentages and viewport units.
 It also fails on a composed property set again.
 A lint rule (`gui/lint/inline-styles.grit`) rejects other inline styles.
+
+## Light and dark
+
+Light or dark is decided in one place (`theme.ts`): the setting `gui.theme`, `system` following the system's as it changes.
+It is said as `data-theme` on the page's root, which `theme.css`'s dark colours and the browser's own controls (`color-scheme`) follow; diffs get it as their scheme.
+Like the other `gui` settings, it applies once the Daemon restarts.
+The desktop app's window, before its page loads, follows the system.
 
 ## Fills and colours by state
 

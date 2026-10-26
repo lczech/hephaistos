@@ -15,6 +15,7 @@ import { type DiffRows, diffRows, lineCount } from "../../components/diff/height
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { useDiffScroller } from "../../components/diff/scroller";
 import type { CodeThemes } from "../../components/diff/themes";
+import type { ColorScheme } from "../../theme";
 import type { Params } from "../address";
 import { LoadNote } from "../CheckoutError";
 import { ChangePath, DirectoryPath, Lines } from "../changes/columns";
@@ -34,6 +35,7 @@ import type { FileFind } from "./diffFind";
 export interface DiffShow {
   look: DiffLook;
   themes: CodeThemes;
+  scheme: ColorScheme; // which of the themes, as the page is
   large: number | undefined; // lines changed above which a diff waits to be shown
 }
 
@@ -162,6 +164,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
       patch={pair.patch}
       look={show.look}
       themes={show.themes}
+      scheme={show.scheme}
       versions={pair.versions}
       find={find}
       fallback={fallback}

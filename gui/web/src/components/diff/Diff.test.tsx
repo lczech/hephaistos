@@ -59,7 +59,11 @@ new file mode 100644
 
 describe("a diff shown", () => {
   it("stays as it is for its versions asked for again, unchanged", () => {
-    const shown = { patch: PATCH, look: { split: true, wrap: false, whole: false } };
+    const shown = {
+      patch: PATCH,
+      look: { split: true, wrap: false, whole: false },
+      scheme: "light" as const,
+    };
     const themes = { light: "github-light", dark: "github-dark" };
     const { rerender } = render(
       <Diff {...shown} themes={themes} versions={{ old: OLD, new: NEW }} />,

@@ -50,6 +50,14 @@ class LogLevel(StrEnum):
         return logging.getLevelNamesMapping()[self.upper()]
 
 
+class Theme(StrEnum):
+    """Whether the GUI is light or dark: as the system is, or always one."""
+
+    SYSTEM = "system"
+    LIGHT = "light"
+    DARK = "dark"
+
+
 class ChassisSetting(StrEnum):
     """What kind of computer this is: systemd's chassis types, or `auto` to ask systemd."""
 
@@ -171,6 +179,7 @@ class Code:
 class Gui:
     """The section [gui]."""
 
+    theme: Theme
     text: Text
     code: Code
     diff: Diff

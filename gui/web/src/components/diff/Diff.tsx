@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ColorScheme } from "../../theme";
 import { MARKS_LOOK, type Marked, markMatches, rangeIn } from "../find/marks";
 import styles from "./Diff.module.css";
 import { UNCOLLAPSED } from "./height";
@@ -67,6 +68,7 @@ interface Props {
   patch: string; // git's, for one file
   look: DiffLook;
   themes: CodeThemes;
+  scheme: ColorScheme; // which of them, as the page is
   versions: Versions | undefined; // once known: to show where the file ends, and more of it
   find?: DiffFind;
 }
@@ -357,7 +359,7 @@ function currentLine(mark: DiffMark | undefined): SelectedLineRange | null {
  * versions are known, with where it ends and its collapsed lines to expand. Lines expanded stay so
  * until Whole file is turned on or off: the renderer can't collapse them again, so it starts anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
  */
-export default function Diff({ patch, look, themes, versions, find }: Props) {
+export default function Diff({ patch, look, themes, scheme, versions, find }: Props) {
   const lineHeight = useContext(LineHeight);
   // The diff the renderer was given, kept while its patch and versions' text stay: a new one,
   // even an equal one, has it draw the file anew, e.g. for versions asked for again, unchanged.
@@ -379,7 +381,7 @@ export default function Diff({ patch, look, themes, versions, find }: Props) {
       metrics={lineHeight > 0 ? { ...DEFAULT_VIRTUAL_FILE_METRICS, lineHeight } : undefined}
       options={{
         theme: themes,
-        themeType: "system", // as the page: the system's
+        themeType: scheme, // as the page's
         diffStyle: look.split ? "split" : "unified",
         overflow: look.wrap ? "wrap" : "scroll",
         expandUnchanged: look.whole,

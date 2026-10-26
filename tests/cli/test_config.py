@@ -42,6 +42,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("watcher.interval", "60.0", "default"),
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),
+        ("gui.theme", "system", "default"),
         ("gui.text.size", "13", "default"),
         ("gui.text.font", "system-ui, sans-serif", "default"),
         ("gui.code.size", "13", "default"),

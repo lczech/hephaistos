@@ -4,9 +4,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { QUERY_DEFAULTS } from "./api/queries";
+import { showScheme } from "./theme";
 import { followTokenLinks } from "./token";
 
 followTokenLinks();
+showScheme(); // the system's, so that nothing shows light first in the dark
 
 const queries = new QueryClient(QUERY_DEFAULTS);
 
