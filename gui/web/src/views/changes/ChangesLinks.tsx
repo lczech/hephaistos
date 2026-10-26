@@ -6,7 +6,7 @@ import type { Checkout } from "./checkout";
 interface Props {
   checkout: Checkout;
   commit?: string; // its changes; without it, the uncommitted ones
-  label: string; // what they are: `Changes in commit abc1234`
+  what: string; // what they are, lowercase: `changes in commit abc1234`, `uncommitted changes`
   quiet?: boolean; // greyed out, as they need no look
   note?: string; // after the label in their tooltips: `no changes`
 }
@@ -24,12 +24,13 @@ export function changesViews(checkout: Checkout, commit?: string): [Address, Add
  * A commit's changes, or a Checkout's uncommitted ones, as their two Views: always both, in this
  * order: Changes, a list of the files, and Diff, all files one under the other.
  */
-export function ChangesLinks({ checkout, commit, label, quiet, note }: Props) {
+export function ChangesLinks({ checkout, commit, what, quiet, note }: Props) {
   const [changes, diff] = changesViews(checkout, commit);
+  const label = what.charAt(0).toUpperCase() + what.slice(1);
   return (
     <>
       <ViewLink address={changes} label={label} quiet={quiet} note={note} />
-      <ViewLink address={diff} label={`${label}, as one Diff`} quiet={quiet} note={note} />
+      <ViewLink address={diff} label={`Diff of the ${what}`} quiet={quiet} note={note} />
     </>
   );
 }

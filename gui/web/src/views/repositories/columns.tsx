@@ -65,7 +65,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
       {params && state?.staged !== null ? ( // not for a bare Clone
         <ChangesLinks
           checkout={params}
-          label={`Changes in ${name}`}
+          what={`changes in ${name}`}
           quiet={quiet}
           note={quiet ? `no changes${untracked}` : undefined}
         />

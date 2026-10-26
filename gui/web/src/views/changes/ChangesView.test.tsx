@@ -248,7 +248,7 @@ describe("the Changes View", () => {
       [diff, { beside: true, preview: true }],
     ]);
     // All of them as one Diff: since HEAD, as the groups show them.
-    await userEvent.click(screen.getByRole("button", { name: "These changes as one Diff" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff of these changes" }));
     expect(opened.at(-1)?.[0]).toEqual({
       kind: "diff",
       params: { clone: "clone-proj", from: "HEAD", to: "working-tree" },

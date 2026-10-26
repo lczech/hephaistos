@@ -100,7 +100,9 @@ describe("the History View", () => {
     expect(
       within(details).getAllByRole("button", { name: /^Changes in commit \w+$/ }),
     ).toHaveLength(2);
-    expect(within(details).getAllByRole("button", { name: /, as one Diff$/ })).toHaveLength(2);
+    expect(
+      within(details).getAllByRole("button", { name: /^Diff of the changes in commit/ }),
+    ).toHaveLength(2);
   });
 
   it("opens a commit's Changes and Diff from beside its hash, as previews", async () => {
@@ -113,7 +115,7 @@ describe("the History View", () => {
     );
     await userEvent.click(await screen.findByRole("button", { name: "Changes in commit ccccccc" }));
     await userEvent.click(
-      screen.getByRole("button", { name: "Changes in commit ccccccc, as one Diff" }),
+      screen.getByRole("button", { name: "Diff of the changes in commit ccccccc" }),
     );
     const params = { clone: "clone-proj", commit: HEAD.hash };
     expect(opened).toEqual([
@@ -237,7 +239,7 @@ describe("the History View", () => {
       await screen.findByText("Uncommitted: 2 staged, 1 changed, 3 untracked"),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes" }));
-    await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes, as one Diff" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff of the uncommitted changes" }));
     expect(opened).toEqual([
       { kind: "changes", params: { clone: "clone-proj" } },
       { kind: "diff", params: { clone: "clone-proj", from: "HEAD", to: "working-tree" } },

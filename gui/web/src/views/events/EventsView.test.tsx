@@ -114,7 +114,7 @@ describe("the Events View", () => {
     expect(within(details).getByText(/^Why\./)).toHaveTextContent("Why. And how.");
     expect(within(details).queryByText("body")).toBeNull(); // the box says it whole
     expect(within(details).getByText("abc1000")).not.toHaveRole("button"); // the hash, as text
-    for (const name of ["Changes in commit abc1000", "Changes in commit abc1000, as one Diff"]) {
+    for (const name of ["Changes in commit abc1000", "Diff of the changes in commit abc1000"]) {
       expect(within(details).getByRole("button", { name })).toBeInTheDocument();
     }
   });

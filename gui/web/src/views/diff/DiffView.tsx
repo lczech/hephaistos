@@ -387,7 +387,7 @@ export function DiffView({
             <>
               <ViewLink
                 address={{ kind: "diff", params: { ...checkout, ...base } }}
-                label="All changed files as one Diff"
+                label="Diff of all changed files"
               />
               <ViewLink
                 address={{ kind: "history", params: { ...checkout, path: query.path } }}

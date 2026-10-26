@@ -25,7 +25,7 @@ export function CommitHash({ hash, checkout }: { hash: string | undefined; check
       <ChangesLinks
         checkout={checkout}
         commit={hash}
-        label={hash === undefined ? "Uncommitted changes" : `Changes in commit ${shortHash(hash)}`}
+        what={hash === undefined ? "uncommitted changes" : `changes in commit ${shortHash(hash)}`}
       />
     </span>
   );

@@ -170,7 +170,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
                 kind: "diff",
                 params: { ...checkout, ...(commit === undefined ? picked : { commit }) },
               }}
-              label="These changes as one Diff"
+              label="Diff of these changes"
               quiet={changes.data !== undefined && groups.length === 0}
             />
             <ViewLink

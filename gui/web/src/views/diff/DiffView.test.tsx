@@ -308,7 +308,7 @@ describe("the Diff View", () => {
     const { path, ...staged } = STAGED;
     // How directories show matters to all files' order only.
     expect(screen.queryByRole("button", { name: "Directories as a tree" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "All changed files as one Diff" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff of all changed files" }));
     await userEvent.click(screen.getByRole("button", { name: `Commit history of ${path}` }));
     // All files: the list of them, and the Checkout's history.
     rerender(

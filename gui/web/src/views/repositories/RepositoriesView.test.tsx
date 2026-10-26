@@ -148,7 +148,7 @@ describe("the Repositories View", () => {
     await screen.findByText("recent");
     expect(screen.queryByRole("button", { name: "Changes in recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent" }));
-    await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent, as one Diff" }));
+    await userEvent.click(screen.getByRole("button", { name: "Diff of the changes in ~/recent" }));
     await userEvent.click(screen.getByRole("button", { name: "Changes in .worktrees/feature" }));
     expect(open.mock.calls.map(([address, opening]) => [addressText(address), opening])).toEqual([
       ["changes?clone=clone-recent", { beside: false, preview: true }],
@@ -158,7 +158,7 @@ describe("the Repositories View", () => {
     // Greyed out without changes, both: the Worktree has none, the Clone 2 changed.
     for (const name of [
       "Changes in .worktrees/feature",
-      "Changes in .worktrees/feature, as one Diff",
+      "Diff of the changes in .worktrees/feature",
     ]) {
       const feature = screen.getByRole("button", { name });
       expect(feature).toHaveAttribute("title", `${name}: no changes`);
