@@ -1,7 +1,6 @@
 import type { ColumnFiltersState, ReactTable, RowData, SortingState } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronDown, Funnel, FunnelX } from "lucide-react";
-import { Menu, MenuItem, MenuTrigger, Popover, Pressable } from "react-aria-components";
-import popover from "../popover.module.css";
+import { ArrowDown, ArrowUp, Funnel, FunnelX } from "lucide-react";
+import { Picker } from "../Picker";
 import { DIRECTIONS } from "./ColumnHeader";
 import { Filter, offeredFilter } from "./Filter";
 import { type Choice, filterText } from "./filters";
@@ -64,8 +63,8 @@ export function LinesHead<TData extends RowData>({
       {filters.length > 0 && (
         <button
           type="button"
-          data-clear
           className={styles.pick}
+          data-clear
           aria-label="Clear all filters"
           title="Clear all filters"
           onClick={() => table.resetColumnFilters(true)}
@@ -94,32 +93,19 @@ function Sorting<TData extends RowData>({ table, sorted }: SortingProps<TData>) 
   const Arrow = sorted.desc ? ArrowDown : ArrowUp;
   return (
     <span className={styles.sorting}>
-      <MenuTrigger>
-        <Pressable>
-          <button type="button" className={styles.pick} title="Sort by another column">
-            sorted by {name(sorted.id)}
-            <ChevronDown className={styles.pickIcon} aria-hidden="true" />
-          </button>
-        </Pressable>
-        <Popover className={popover.popover} placement="bottom end">
-          <Menu
-            className={`${popover.menu} ${styles.choices}`}
-            aria-label="Sort by"
-            selectionMode="single"
-            selectedKeys={[sorted.id]}
-            onAction={(id) => {
-              const column = table.getColumn(String(id));
-              column?.toggleSorting(column.getFirstSortDir() === "desc");
-            }}
-          >
-            {sortable.map(({ id }) => (
-              <MenuItem key={id} id={id} className={styles.choice}>
-                {name(id)}
-              </MenuItem>
-            ))}
-          </Menu>
-        </Popover>
-      </MenuTrigger>
+      <Picker
+        label="Sort by"
+        title="Sort by another column"
+        picks={sortable.map(({ id }) => ({ id, text: name(id) }))}
+        picked={sorted.id}
+        onPick={(id) => {
+          const column = table.getColumn(id);
+          column?.toggleSorting(column.getFirstSortDir() === "desc");
+        }}
+        placement="bottom end"
+      >
+        sorted by {name(sorted.id)}
+      </Picker>
       <button
         type="button"
         className={styles.pick}

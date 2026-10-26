@@ -27,7 +27,8 @@ This is a guide, not a strict rule.
 
 ### Pickers
 
-A picker is a framed field that opens a list to choose from: a Revision picker, a filter's button in two lines, the Database View's table.
+A picker is a framed field that opens a list to choose from: a Revision picker, a filter's button in two lines, the sort in two lines, the Database View's table.
+The last two are `Picker` (`components/Picker.tsx`), our own, as the browser's `select` doesn't follow the GUI's look; one-choice filters share its menu (`PickMenu`).
 
 ### Rows
 

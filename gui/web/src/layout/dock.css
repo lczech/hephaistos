@@ -1,6 +1,6 @@
 /* dockview's colours, from theme.css: so both themes follow the system's. */
 .hephaistos-dock {
-  color-scheme: light dark;
+  color-scheme: light dark; /* again: dockview's light theme sets light, for all within */
   --dv-tabs-and-actions-container-font-size: var(--chrome-size);
   --dv-group-view-background-color: var(--surface);
   --dv-tabs-and-actions-container-background-color: var(--bar);

@@ -1,6 +1,7 @@
 import { Sheet } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
+import { Picker } from "../../components/Picker";
 import { TextIcon } from "../../components/TextIcon";
 import { Fields } from "../../components/table/Fields";
 import { Chevron, ListTable } from "../../components/table/ListTable";
@@ -19,6 +20,7 @@ type Table = Schemas["TableJson"];
 const NONE: Row[] = [];
 const NO_TABLES: Table[] = [];
 const OPEN = "#"; // the square's column, named apart from any table's
+const ALL = ""; // the picker's first choice: all tables, as no table names none
 
 /** A value in a cell; NULL quieter; clocks and times stored as they are, when hovered. */
 function Value({ value, type }: { value: unknown; type: ValueType }) {
@@ -170,22 +172,26 @@ function Rows({ table, show }: RowsProps) {
     message = "No rows.";
   }
   const shown = pages?.[0]?.columns ?? [];
+  const count = tables?.find((each) => each.table === table)?.rows;
   return (
     <ViewPage>
       <ViewBar>
-        <select
-          className={styles.select}
-          aria-label="Table"
-          value={table}
-          onChange={(event) => show(event.currentTarget.value || undefined)}
+        <Picker
+          label="Table"
+          title="Show another table"
+          picks={[
+            { id: ALL, text: "All tables" },
+            ...(tables ?? []).map(({ table: name, rows: count }) => ({
+              id: name,
+              text: count === null ? name : `${name} (${count})`,
+            })),
+          ]}
+          picked={table}
+          onPick={(id) => show(id === ALL ? undefined : id)}
         >
-          <option value="">All tables</option>
-          {(tables ?? [{ table, rows: null }]).map(({ table: name, rows: count }) => (
-            <option key={name} value={name}>
-              {count === null ? name : `${name} (${count})`}
-            </option>
-          ))}
-        </select>
+          {table}
+          {count !== undefined && count !== null && ` (${count})`}
+        </Picker>
         <Warnings warnings={pages?.[0]?.warnings ?? []} />
       </ViewBar>
       <ListTable

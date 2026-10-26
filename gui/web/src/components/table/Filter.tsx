@@ -1,16 +1,11 @@
 import type { ComponentProps, RefObject } from "react";
-import {
-  Dialog,
-  DialogTrigger,
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-  Pressable,
-} from "react-aria-components";
+import { Dialog, DialogTrigger, MenuTrigger, Popover, Pressable } from "react-aria-components";
+import { PickMenu } from "../Picker";
 import popover from "../popover.module.css";
 import { type Choice, type ColumnFilterLook, toggled } from "./filters";
 import styles from "./table.module.css";
+
+const ALL = ""; // one choice's: all, as no value is empty
 
 /** The filter a column offers, with these values set: none for one only set from outside. */
 export function offeredFilter(look: ColumnFilterLook | undefined, values: string[]) {
@@ -60,29 +55,16 @@ interface ChoicesProps {
 /** One of the choices, or all: choosing closes the menu. */
 function OneChoice({ choices, values, set, name }: ChoicesProps & { name: string }) {
   const [chosen] = values;
-  const entries: { value: string | undefined; label: string }[] = [
-    { value: undefined, label: "all" },
-    ...choices,
-  ];
-  // Items by their place: "all" has no value to be its key.
-  const at = entries.findIndex(({ value }) => value === chosen);
   return (
-    <Menu
-      className={`${popover.menu} ${styles.choices}`}
-      aria-label={`Filter by ${name}`}
-      selectionMode="single"
-      selectedKeys={at < 0 ? [] : [at]}
-      onAction={(at) => {
-        const value = entries[Number(at)]?.value;
-        set(value === undefined ? [] : [value]);
-      }}
-    >
-      {entries.map(({ value, label }, at) => (
-        <MenuItem key={value ?? ""} id={at} className={styles.choice}>
-          {label}
-        </MenuItem>
-      ))}
-    </Menu>
+    <PickMenu
+      label={`Filter by ${name}`}
+      picks={[
+        { id: ALL, text: "all" },
+        ...choices.map(({ value, label }) => ({ id: value, text: label })),
+      ]}
+      picked={chosen ?? ALL}
+      onPick={(id) => set(id === ALL ? [] : [id])}
+    />
   );
 }
 

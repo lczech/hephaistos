@@ -13,10 +13,6 @@
   text-align: right;
 }
 
-.select {
-  composes: field from "../../components/controls.module.css";
-}
-
 /* The square's sheet: what each row shows, in place. */
 .sheet {
   display: block;

@@ -1,6 +1,7 @@
 /* The look in one place: every component's styles use these names. */
 
 :root {
+  color-scheme: light dark; /* the browser's own controls too, e.g. a select's list */
   /* Fonts and sizes the settings [gui.text] and [gui.code] replace (`useLook`). */
   --font: system-ui, sans-serif;
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;

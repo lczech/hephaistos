@@ -70,10 +70,12 @@ describe("the Database View", () => {
     serveDb();
     renderWithQueries(<Db at={{ table: "registry_repositories" }} />);
     await screen.findByText("two");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Table" }), "old_things");
+    await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "old_things (1)" }));
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
     expect(await screen.findByText(/Couldn't load/)).toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Table" }), "All tables");
+    await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");
   });
 });

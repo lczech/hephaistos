@@ -339,29 +339,23 @@
   color: var(--text);
 }
 
-/* In lines, the header's buttons: framed, as a picker's. A filter set fills its funnel. */
+/* In lines, the header's buttons: pickers' (`components/Picker`). A filter set fills its funnel. */
 .pick {
-  composes: field from "../controls.module.css";
-  white-space: nowrap;
-  cursor: pointer;
+  composes: pick from "../controls.module.css";
 }
 
 .pickIcon {
-  flex: none;
-  width: var(--icon-small);
-  height: var(--icon-small);
-  color: var(--text-muted);
-  translate: 0 var(--icon-lift);
+  composes: pickIcon from "../controls.module.css";
 }
-/* Clearing the filters, there while any is set: part of what shows they are. */
-.pick[data-clear] .pickIcon {
-  color: var(--accent);
-}
-
 
 .pick[data-filtered] .pickIcon {
   color: var(--accent);
   fill: currentcolor;
+}
+
+/* Clearing the filters, there while any is set: part of what shows they are. */
+.pick[data-clear] .pickIcon {
+  color: var(--accent);
 }
 
 /* At the header's end: the column sorted by, and its direction. */
@@ -444,10 +438,6 @@
 
 .choice {
   composes: item from "../controls.module.css";
-}
-
-.choice[data-selected] {
-  font-weight: var(--weight-strong);
 }
 
 /* One of many: ticked or not, or "only" this one. */

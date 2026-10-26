@@ -100,6 +100,21 @@
   outline: none;
 }
 
+/* A picker's button: a field opening a list to choose from, its icons small and quiet. */
+.pick {
+  composes: field;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pickIcon {
+  flex: none;
+  width: var(--icon-small);
+  height: var(--icon-small);
+  color: var(--text-muted);
+  translate: 0 var(--icon-lift);
+}
+
 /* A menu's item, or a row to choose in a popover: focused as the pointer moves over it too. */
 .item {
   display: flex;
@@ -118,6 +133,15 @@
 
 .item:is([data-focused], :focus-visible, button:hover) {
   background: var(--fill-hover);
+}
+
+/* The one picked, of those to choose one from: marked, as the Revision picked is. */
+.item[data-selected][data-selection-mode="single"] {
+  background: var(--fill-marked);
+}
+
+.item[data-selected][data-selection-mode="single"]:is([data-focused], :focus-visible) {
+  background: var(--fill-marked-hover);
 }
 
 .item:is([data-disabled], :disabled) {
