@@ -56,6 +56,11 @@
   background: var(--fill-on-hover);
 }
 
+/* A mode chosen that waits, e.g. side by side until the Panel is wide enough: on, but faint. */
+.modes[data-waiting] > [data-on] {
+  opacity: var(--dimmed);
+}
+
 /* Buttons at its end, Refresh last: close, as their boxes keep them apart. */
 .end {
   display: flex;

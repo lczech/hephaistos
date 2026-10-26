@@ -168,7 +168,7 @@ describe("the Diff View", () => {
     );
   });
 
-  it("shows old and new inline in a narrow Panel, as it was while its tab is hidden", async () => {
+  it("shows old and new inline in a narrow Panel, side by side still chosen, as while hidden", async () => {
     // Widths reported to the View as a whole, as a browser measures it.
     const observed: [ResizeObserverCallback, Element][] = [];
     vi.stubGlobal(
@@ -193,11 +193,13 @@ describe("the Diff View", () => {
     renderWithQueries(<Diff initial={STAGED} />);
     const split = await screen.findByRole("button", { name: "Side by side" });
     expect(split).toHaveAttribute("aria-pressed", "true");
-    resize(500);
-    expect(split).toHaveAttribute("aria-pressed", "false");
+    expect(split).not.toHaveAttribute("data-waiting");
+    resize(500); // still chosen, but waiting for room: on, faint
+    expect(split).toHaveAttribute("aria-pressed", "true");
+    expect(split).toHaveAttribute("data-waiting");
     resize(1000);
     resize(0); // hidden, e.g. in another tab: not narrow, nor drawn anew
-    expect(split).toHaveAttribute("aria-pressed", "true");
+    expect(split).not.toHaveAttribute("data-waiting");
   });
 
   it("shows a diff first with its versions, so that it doesn't grow once they come", async () => {

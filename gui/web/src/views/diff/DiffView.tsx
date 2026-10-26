@@ -321,7 +321,8 @@ export function DiffView({
           )}
           <Toggle
             label="Side by side"
-            on={look.split && !narrow}
+            on={look.split}
+            data-waiting={(look.split && narrow) || undefined} // inline until the Panel is wider
             onChange={choose("split")}
             ways={[
               {

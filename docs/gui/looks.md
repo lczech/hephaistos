@@ -94,4 +94,5 @@ Tabs are at most `--tab-width` wide, a longer title cut off.
 
 A toggle (`Toggle`, in `components/ViewBar.tsx`) of one icon looks as an icon button does, grey while on.
 A toggle of two modes shows both icons side by side, framed, each with its tooltip, the one in effect grey; a click switches to the other.
+A mode chosen that waits, e.g. side by side until the Panel is wide enough, shows on but faint, its tooltip saying why.
 In a View's bar, a line parts the toggles from the links after them.
