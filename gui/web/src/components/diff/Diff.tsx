@@ -76,6 +76,22 @@ interface Props {
 // A line of code's height: the renderer's, and ours to hold diffs' places (`height.ts`).
 const LINE_HEIGHT = "var(--code-line)";
 
+// The renderer's own scrollbars under long lines, which its layout counts on, in our shades
+// (scrollbars.css): quiet, lighter while the diff is under the pointer, over the thumb and while
+// dragged. Colours only, over its own rules: each a little more specific than its.
+const SCROLLBAR_COLOURS = `:is([data-diff], [data-file]) [data-code]::-webkit-scrollbar-thumb {
+  background-color: var(--fill-scrollbar);
+}
+:is([data-diff], [data-file]):hover [data-code][data-code]::-webkit-scrollbar-thumb {
+  background-color: var(--fill-scrollbar-over);
+}
+:is([data-diff], [data-file]) [data-code][data-code]::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fill-scrollbar-hover);
+}
+:is([data-diff], [data-file]) [data-code][data-code]::-webkit-scrollbar-thumb:active {
+  background-color: var(--fill-scrollbar-active);
+}`;
+
 // The page's background under the code, whatever the theme's: the renderer mixes the colours
 // of lines added and removed from it; and the code's font and size. The lines left out between
 // changes as gaps between two lines, rather than bars: quieter than the files' headers. Matches
@@ -99,7 +115,8 @@ const PAGE_LOOK = `:host {
 [data-separator=line-info] [data-expand-button] {
   background: none;
 }
-${MARKS_LOOK}`;
+${MARKS_LOOK}
+${SCROLLBAR_COLOURS}`;
 
 /** The patch's lines filled in with both versions, so that all of the file can show; the patch
  * alone where one is missing or the renderer refuses them. It doesn't check that they fit the

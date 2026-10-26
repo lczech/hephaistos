@@ -1,8 +1,8 @@
 /* Scrollbars as VS Code's: no track, a quiet thumb, lighter while the pointer is over what
    scrolls, lighter again over the thumb, and most while it is dragged. Chromium's and WebKit's
    own styling, which `scrollbar-color` would turn off; Firefox has only that, a thumb's colour.
-   The diffs draw their own, quiet until hovered, which their layout counts on: these don't
-   reach into their shadow roots. */
+   The diffs draw their own, which their layout counts on: these don't reach into their shadow
+   roots, where only the shades are ours (`components/diff/Diff.tsx`). */
 ::-webkit-scrollbar {
   width: var(--scrollbar-size);
   height: var(--scrollbar-size);
