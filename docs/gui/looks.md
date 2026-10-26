@@ -54,6 +54,9 @@ Nothing else is orange.
 
 Lines between Groups and between a list's groups of rows have their own colours (`--divider`, `--line`).
 
+Scrollbars are as VS Code's (`scrollbars.css`): no track, a quiet thumb (`--fill-scrollbar`), lighter while the pointer is over what scrolls, lighter again over the thumb, and most while dragged.
+The diffs keep their renderer's own, quiet until hovered; Firefox shows only the thumb's colour.
+
 ## Icons
 
 Icons are monochrome, from Lucide (`lucide-react`).

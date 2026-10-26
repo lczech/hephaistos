@@ -20,7 +20,7 @@
   --dv-edge-dock-indicator-color: var(--accent);
   --dv-drag-over-background-color: var(--fill-dropping);
   --dv-icon-hover-background-color: var(--fill-hover);
-  --dv-scrollbar-background-color: var(--scrollbar);
+  --dv-scrollbar-background-color: var(--fill-scrollbar-hover);
   --dv-tabs-container-scrollbar-color: var(--text-muted);
   --dv-floating-border: 1px solid var(--border);
 }

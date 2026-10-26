@@ -100,7 +100,12 @@
   --tint-warning: color-mix(in srgb, var(--warning) 25%, transparent);
   --tint-danger: color-mix(in srgb, var(--danger) 25%, transparent);
   --fill-dropping: color-mix(in srgb, var(--accent) 25%, transparent); /* a Panel dragged over */
-  --scrollbar: color-mix(in srgb, var(--text) 25%, transparent);
+  /* Scrollbars' thumbs, as VS Code's: quiet, lighter over their list, over the thumb, dragged. */
+  --scrollbar-size: 10px;
+  --fill-scrollbar: color-mix(in srgb, var(--text) 15%, transparent);
+  --fill-scrollbar-over: color-mix(in srgb, var(--text) 25%, transparent);
+  --fill-scrollbar-hover: color-mix(in srgb, var(--text) 35%, transparent);
+  --fill-scrollbar-active: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
 /* Dark, as `gui.theme` or the system has it (theme.ts). */
