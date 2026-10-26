@@ -34,10 +34,15 @@ def profile_text(electron: Path) -> str:
     )
 
 
+def _rules(text: str) -> list[str]:
+    """A profile's lines but its comments, which AppArmor ignores: their wording may change."""
+    return [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+
+
 def is_installed(electron: Path) -> bool:
-    """Whether our profile is installed for the Electron at this path."""
+    """Whether our profile is installed for the Electron at this path, as its rules go."""
     try:
-        return INSTALLED.read_text() == profile_text(electron)
+        return _rules(INSTALLED.read_text()) == _rules(profile_text(electron))
     except OSError:
         return False
 

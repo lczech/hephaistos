@@ -25,6 +25,15 @@ def test_the_profile_lets_this_electron_create_user_namespaces() -> None:
     assert not apparmor.is_installed(ELECTRON.with_name("moved"))
 
 
+def test_only_its_rules_count_not_its_comments() -> None:
+    text = apparmor.profile_text(ELECTRON)
+    apparmor.INSTALLED.parent.mkdir()
+    apparmor.INSTALLED.write_text(text.replace("# Written by", "# Once written by"))
+    assert apparmor.is_installed(ELECTRON)
+    apparmor.INSTALLED.write_text(text.replace("  userns,\n", ""))
+    assert not apparmor.is_installed(ELECTRON)
+
+
 def test_installing_and_removing_take_two_commands_each() -> None:
     source = Path("/home/me/.local/state/x/hephaistos-desktop.apparmor")
     installed = str(apparmor.INSTALLED)
