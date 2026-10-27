@@ -295,7 +295,7 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
     nope = client.get("/api/changes", params={"clone": clone["id"], "from": "nope", "to": "HEAD"})
     assert (nope.status_code, nope.json()["error"]) == (
         400,
-        "'nope' is neither index, working-tree nor a commit here",
+        "revision 'nope' doesn't exist in this clone (git: fatal: Needed a single revision)",
     )
     outside = client.get("/api/changes", params={"clone": clone["id"], "path": "../x"})
     assert outside.status_code == 400
@@ -433,7 +433,7 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
     assert (gone.status_code, gone.json()["error"]) == (
         400,
-        "'gone' is not a branch, tag or commit here",
+        "revision 'gone' doesn't exist in this clone (git: fatal: Needed a single revision)",
     )
 
 

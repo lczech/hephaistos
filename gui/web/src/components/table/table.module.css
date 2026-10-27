@@ -11,6 +11,10 @@
   composes: note from "../text.module.css";
 }
 
+.problem {
+  composes: note problem from "../text.module.css";
+}
+
 .grid {
   display: grid;
   grid-template-columns: var(--columns);

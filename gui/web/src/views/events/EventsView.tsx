@@ -73,6 +73,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
         layout={layout}
         choices={choices}
         message={message}
+        problem={events.data === undefined && events.isError}
         stale={events.isError || events.isPlaceholderData}
         paging={events}
         older="events"

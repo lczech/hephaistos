@@ -53,9 +53,11 @@ function EventsLink({ error }: { error: Error }) {
 
 /** That loading failed, above what showed before; `children` offer a way on. */
 export function LoadNote({ error, children }: { error: Error; children?: ReactNode }) {
+  // The Server's refusal says why, e.g. that a branch doesn't exist; else the request failed.
+  const refused = error instanceof ApiError && error.status < 500;
   return (
-    <p className={styles.note}>
-      Couldn't load: {error.message} <EventsLink error={error} />
+    <p className={styles.problem}>
+      {refused ? "Can't show this" : "Couldn't load"}: {error.message} <EventsLink error={error} />
       {children ? " " : null}
       {children}
     </p>
@@ -66,7 +68,7 @@ export function LoadNote({ error, children }: { error: Error; children?: ReactNo
 export function Gone({ error }: { error: Error }) {
   const text = error.message.charAt(0).toUpperCase() + error.message.slice(1);
   return (
-    <p className={styles.note}>
+    <p className={styles.problem}>
       {text}. <EventsLink error={error} />
     </p>
   );

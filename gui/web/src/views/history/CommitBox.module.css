@@ -158,8 +158,8 @@
 
 /* That nothing leads to the commit any more, or that git has it no longer. */
 .gone {
+  composes: problem from "../../components/text.module.css";
   margin: var(--space-2) var(--space-3) 0;
-  color: var(--warning);
   font-size: var(--text-small);
 }
 

@@ -52,6 +52,12 @@ In git: the refs at a commit, HEAD's too.
 A toggle on is grey.
 Nothing else is orange.
 
+Text saying that something is wrong or gone is yellow (`problem` in `text.module.css`).
+That covers a failed load, a removed Worktree, an unregistered Clone, a missing branch, a commit nothing leads to, and the Server's warnings.
+A refusal by the Server reads "Can't show this:" and its message; a request that failed reads "Couldn't load:".
+Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
+Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
+
 Lines between Groups and between a list's groups of rows have their own colours (`--divider`, `--line`).
 
 Scrollbars are as VS Code's (`scrollbars.css`): no track, a quiet thumb (`--fill-scrollbar`), lighter while the pointer is over what scrolls, lighter again over the thumb, and most while dragged.

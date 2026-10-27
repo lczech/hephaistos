@@ -57,6 +57,7 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
         layout={layout}
         choices={{}}
         message={message}
+        problem={repositories.data === undefined && repositories.isError}
         stale={repositories.isError}
         older="repositories"
         tone={tone}

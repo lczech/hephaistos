@@ -57,8 +57,8 @@
   composes: quiet from "../../components/text.module.css";
 }
 
-.warning {
-  color: var(--warning);
+.problem {
+  composes: problem from "../../components/text.module.css";
 }
 
 .error {

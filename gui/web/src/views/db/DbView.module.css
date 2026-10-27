@@ -1,6 +1,6 @@
 .warning {
+  composes: problem from "../../components/text.module.css";
   margin: 0;
-  color: var(--warning);
 }
 
 .null {

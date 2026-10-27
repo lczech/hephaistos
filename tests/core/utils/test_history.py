@@ -68,8 +68,10 @@ def test_from_a_ref(repo: Path) -> None:
     _commit(repo, "aside")
     assert _subjects(repo) == ["aside", "two", "one"]
     assert _subjects(repo, ref="main") == ["three", "two", "one"]
-    with pytest.raises(HistoryError, match="'gone' is not a branch, tag or commit here"):
+    with pytest.raises(HistoryError, match=r"^revision 'gone' doesn't exist in this clone \(git: "):
         history(repo, "gone", limit=10)
+    with pytest.raises(HistoryError, match=r"^the branch gone doesn't exist in this clone"):
+        history(repo, "refs/heads/gone", limit=10)
 
 
 def test_no_commits_yet(tmp_path: Path) -> None:
@@ -226,7 +228,7 @@ def test_a_commits_changes_against_its_first_parent(repo: Path) -> None:
     assert commit_revisions(repo, merge) == (git(repo, "rev-parse", "HEAD^1"), merge)
     found = changes(repo, *commit_revisions(repo, merge), max_files=10, max_bytes=1000)
     assert [change.path for change in found.groups[0].changes] == ["d.txt"]
-    with pytest.raises(ChangesError, match="'nothing' is not a commit here"):
+    with pytest.raises(ChangesError, match=r"^revision 'nothing' doesn't exist in this clone"):
         commit_revisions(repo, "nothing")
 
 

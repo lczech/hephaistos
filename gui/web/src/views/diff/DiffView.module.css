@@ -175,6 +175,10 @@
   composes: note from "../../components/text.module.css";
 }
 
+.problem {
+  composes: note problem from "../../components/text.module.css";
+}
+
 .action {
   composes: action from "../../components/controls.module.css";
   margin-right: var(--space-2);

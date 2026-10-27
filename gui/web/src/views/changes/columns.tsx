@@ -117,7 +117,7 @@ export function ChangePath({ change, base }: { change: Change; base: string }) {
 function pathCell(entry: Exclude<Entry, { type: "group" | "total" }>): ReactNode {
   switch (entry.type) {
     case "note":
-      return <span className={styles.note}>{entry.text}</span>;
+      return <span className={entry.problem ? styles.problem : styles.note}>{entry.text}</span>;
     case "directory":
       return <DirectoryPath shown={entry.path.slice(entry.base.length)} path={entry.path} />;
     default:

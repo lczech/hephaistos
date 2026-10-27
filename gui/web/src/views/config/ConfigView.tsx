@@ -19,7 +19,7 @@ export function ConfigView() {
     const text = config.isError ? `Couldn't load: ${config.error.message}` : "Loading settings…";
     return (
       <section className={styles.view}>
-        <p className={styles.quiet}>{text}</p>
+        <p className={config.isError ? styles.problem : styles.quiet}>{text}</p>
       </section>
     );
   }

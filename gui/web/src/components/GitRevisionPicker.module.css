@@ -154,6 +154,12 @@
   composes: cut from "./text.module.css";
 }
 
+.failed {
+  composes: problem from "./text.module.css";
+  margin: 0;
+  padding: var(--space-1);
+}
+
 .empty,
 .more {
   margin: 0;

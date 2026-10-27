@@ -31,7 +31,7 @@ export type Entry =
       subRows: Entry[];
     }
   | { type: "change"; group: Group; change: Change; base: string; subRows: Entry[] }
-  | { type: "note"; id: string; text: string; subRows: [] };
+  | { type: "note"; id: string; text: string; problem?: boolean; subRows: [] };
 
 const GROUP_NAMES: Record<GroupName, string> = {
   unmerged: "Unmerged",
@@ -158,8 +158,8 @@ function ordered(changes: Change[], sorted: SortingState): Change[] {
   return [...changes].sort((a, b) => Number(isFolder(b)) - Number(isFolder(a)) || order(a, b));
 }
 
-function note(id: string, text: string): Entry {
-  return { type: "note", id, text, subRows: [] };
+function note(id: string, text: string, problem?: boolean): Entry {
+  return { type: "note", id, text, problem, subRows: [] };
 }
 
 /** That lists stop at the setting's cap, which those cut reached, not at their end. */
@@ -245,7 +245,7 @@ function withinRows(group: Group, folder: Change, making: Making): Entry[] {
   const id = `${group.name}:${folder.path}:`;
   const within = making.within(group, folder);
   if (within === undefined) return [note(`${id}loading`, "Loading files…")];
-  if ("error" in within) return [note(`${id}error`, `Couldn't load: ${within.error}`)];
+  if ("error" in within) return [note(`${id}error`, `Couldn't load: ${within.error}`, true)];
   // Their own folders aren't asked for: git lists their files.
   const inner = { ...making, within: () => undefined };
   const rows = making.nested

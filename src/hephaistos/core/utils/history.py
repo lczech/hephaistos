@@ -215,14 +215,11 @@ def _renamed_from(top: Path, commit: tuple[str, ...], path: str) -> str | None:
 
 def _start(top: Path, ref: str | None) -> str | None:
     """The commit a ref names, or HEAD's; None before the first; raises for an unknown ref."""
-    result = git.run(
-        top, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref or 'HEAD'}^{{commit}}"
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
+    if found := git.commit(top, ref or "HEAD"):
+        return found
     if ref is None:
         return None  # no commits yet
-    raise HistoryError(f"{ref!r} is not a branch, tag or commit here")
+    raise HistoryError(git.missing_revision_text(top, ref))
 
 
 def history(  # noqa: PLR0913 - the optional ones are keyword-only

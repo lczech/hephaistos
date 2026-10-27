@@ -161,3 +161,12 @@
     margin-right: 0;
   }
 }
+
+.problem {
+  composes: problem from "../../components/text.module.css";
+}
+
+/* A way on from an error, e.g. back to the changes since HEAD. */
+.action {
+  composes: action from "../../components/controls.module.css";
+}

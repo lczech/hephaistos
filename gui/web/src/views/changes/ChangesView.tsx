@@ -187,7 +187,15 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       {shown && checkout && (
         <CommitBelow shown={shown} checkout={checkout} now={now} open={details} />
       )}
-      {error && <LoadNote error={error} />}
+      {error && (
+        <LoadNote error={error}>
+          {(commit !== undefined || !sinceHead) && (
+            <button type="button" className={styles.action} onClick={() => compare(SINCE_HEAD)}>
+              Since HEAD
+            </button>
+          )}
+        </LoadNote>
+      )}
       <ListTable
         table={table}
         className={styles.columns}

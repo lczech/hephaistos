@@ -128,6 +128,7 @@ function Tables({ show }: { show: (table: string) => void }) {
         layout="columns"
         choices={{}}
         message={message}
+        problem={tables.data === undefined && tables.isError}
         stale={tables.isError}
         older="tables"
         detailsLabel="Table details"
@@ -199,6 +200,7 @@ function Rows({ table, show }: RowsProps) {
         layout="columns" // no two lines for a table's rows, which may have any columns
         choices={{}}
         message={message}
+        problem={pages === undefined && rows.isError}
         stale={rows.isError}
         paging={rows}
         older="rows"

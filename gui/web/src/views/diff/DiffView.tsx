@@ -29,7 +29,7 @@ import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
-import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
+import { INDEX, revisionText, SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
 import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -438,13 +438,22 @@ export function DiffView({
         />
       )}
       {unknown.length > 0 && (
-        <p className={styles.note}>
+        <p className={styles.problem}>
           Unknown code theme {unknown.join(", ")}: the default shows instead. The settings{" "}
           <code>gui.code.theme_light</code> and <code>gui.code.theme_dark</code> name themes as
           Shiki does.
         </p>
       )}
-      {error && <LoadNote error={error} />}
+      {error && (
+        <LoadNote error={error}>
+          {(commit !== undefined ||
+            (compared && (compared.from !== SINCE_HEAD.from || compared.to !== SINCE_HEAD.to))) && (
+            <button type="button" className={styles.action} onClick={() => compare(SINCE_HEAD)}>
+              Since HEAD
+            </button>
+          )}
+        </LoadNote>
+      )}
       <LazyDiffScroll className={styles.diff} themes={themes}>
         {body}
       </LazyDiffScroll>

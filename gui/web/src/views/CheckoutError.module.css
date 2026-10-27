@@ -1,4 +1,4 @@
-/* As the Views' own notes: why nothing shows, and what would. */
-.note {
-  composes: note from "../components/text.module.css";
+/* As the Views' own notes, but saying that something is wrong. */
+.problem {
+  composes: note problem from "../components/text.module.css";
 }

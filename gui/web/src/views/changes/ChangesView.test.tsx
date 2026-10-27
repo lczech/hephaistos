@@ -534,11 +534,28 @@ describe("the Changes View", () => {
       </OpenViewContext.Provider>,
     );
     expect(
-      await screen.findByText(`Couldn't load: ${error}`, { exact: false }),
+      await screen.findByText(`Can't show this: ${error}`, { exact: false }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Since HEAD" })).toBeNull(); // shown already
     expect(screen.getByRole("button", { name: "Commit history of this checkout" })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "The clone's events" }));
     expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
+  });
+
+  it("offers the changes since HEAD when a compared branch is gone", async () => {
+    const error =
+      "the branch gone doesn't exist in this clone (git: fatal: Needed a single revision)";
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ error }, 400),
+    });
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "refs/heads/gone", to: "HEAD" }} />,
+    );
+    expect(await screen.findByText(`Can't show this: ${error}`)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Since HEAD" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/^changes\?clone=clone-proj$/);
   });
 
   it("says when a Checkout isn't named", () => {

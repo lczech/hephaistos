@@ -230,7 +230,7 @@ def test_unborn_head_is_empty(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("revision", ["nope", "--output=x", "", "HEAD~5"])
 def test_unknown_revisions(repo: Path, revision: str) -> None:
-    with pytest.raises(ChangesError, match="neither index, working-tree nor a commit"):
+    with pytest.raises(ChangesError, match="doesn't exist in this clone"):
         _changes(repo, revision, "working-tree")
     assert not (repo / "x").exists()
 

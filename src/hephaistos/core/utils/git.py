@@ -211,6 +211,37 @@ def read(path: Path, *args: str, stdin: str | None = None) -> str:
     return result.stdout.removesuffix("\n")
 
 
+def _verify_commit(top: Path, name: str) -> subprocess.CompletedProcess[str]:
+    return run(top, "rev-parse", "--verify", "--end-of-options", f"{name}^{{commit}}")
+
+
+def commit(top: Path, name: str) -> str | None:
+    """The commit a revision names; None if it names none here."""
+    result = _verify_commit(top, name)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+_REF_KINDS = (
+    ("refs/heads/", "the branch"),
+    ("refs/tags/", "the tag"),
+    ("refs/remotes/", "the remote branch"),
+)
+_HASH = re.compile(r"[0-9a-f]{7,64}")
+
+
+def missing_revision_text(top: Path, name: str) -> str:
+    """Why a revision names no commit here, for the user: what it is by its name, and git's words.
+
+    The kind comes from the name alone (`refs/heads/…` a branch), never from git's output.
+    """
+    what = next(
+        (f"{kind} {name.removeprefix(ref)}" for ref, kind in _REF_KINDS if name.startswith(ref)),
+        f"commit {name[:7]}" if _HASH.fullmatch(name) else f"revision {name!r}",
+    )
+    said = _verify_commit(top, name).stderr.strip()
+    return f"{what} doesn't exist in this clone" + (f" (git: {said})" if said else "")
+
+
 @dataclass(frozen=True)
 class Location:
     """Where a directory lies within a git repository."""

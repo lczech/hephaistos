@@ -355,8 +355,9 @@ export function GitRevisionPicker({
       </>
     ),
   };
+  const failed = (shown: Shown) => shown === "commits" && history.isError;
   const empty = (shown: Shown) => {
-    if (shown === "commits" && history.isError) return `Couldn't load: ${history.error.message}`;
+    if (failed(shown)) return `Couldn't load: ${history.error?.message}`;
     if (shown !== "tags" && shown !== "branches" && history.data === undefined) return "Loading…";
     if (shown === "all") return text === "" ? "Nothing to pick." : "Nothing matches.";
     const what = TAB_NAMES[shown].toLowerCase();
@@ -419,7 +420,9 @@ export function GitRevisionPicker({
                     className={styles.list}
                     aria-label={TAB_NAMES[tab]}
                     onAction={act}
-                    renderEmptyState={() => <p className={styles.empty}>{empty(tab)}</p>}
+                    renderEmptyState={() => (
+                      <p className={failed(tab) ? styles.failed : styles.empty}>{empty(tab)}</p>
+                    )}
                   >
                     <Fragment key={tab}>{panels[tab]()}</Fragment>
                   </ListBox>

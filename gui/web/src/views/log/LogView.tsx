@@ -44,12 +44,15 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   const title = logTitle(columnFilters, choices);
   useTitle(setTitle, title);
   let message: string | null = null;
+  let problem = false;
   if (pages === undefined) {
     message = log.isError ? `Couldn't load: ${log.error.message}` : "Loading the log…";
+    problem = log.isError;
   } else if (listed.length === 0) {
     message = columnFilters.length > 0 ? "No records match." : "No records yet.";
   } else if (pages.some((page) => page.skipped > 0)) {
     message = "Some lines in the log files aren't records.";
+    problem = true;
   }
   const onlyProcess = ({ record }: LogEntry) => {
     const pid = String(record.pid);
@@ -70,6 +73,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
         layout={layout}
         choices={choices}
         message={message}
+        problem={problem}
         stale={log.isError || log.isPlaceholderData}
         paging={log}
         older="records"

@@ -11,6 +11,11 @@
   color: var(--text-muted);
 }
 
+/* That something is wrong or gone: a failed load, a removed worktree, a missing branch. */
+.problem {
+  color: var(--warning);
+}
+
 /* On one line, cut off with "…" where it must shrink. */
 .cut {
   min-width: 0;

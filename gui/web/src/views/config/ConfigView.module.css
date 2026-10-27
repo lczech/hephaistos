@@ -6,6 +6,10 @@
   composes: quiet from "../../components/text.module.css";
 }
 
+.problem {
+  composes: problem from "../../components/text.module.css";
+}
+
 /* Each setting a row of key, value and source, its description below them. */
 .settings,
 .sources {

@@ -99,14 +99,6 @@ def _empty_tree(top: Path) -> str:
     return git.read(top, "hash-object", "-t", "tree", "--stdin", stdin="")
 
 
-def _commit(top: Path, name: str) -> str | None:
-    """The commit `name` resolves to; None if it names none here."""
-    result = git.run(
-        top, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{name}^{{commit}}"
-    )
-    return result.stdout.strip() if result.returncode == 0 else None
-
-
 def _resolved(top: Path, revision: str) -> str:
     """`index`, `working-tree`, or the commit a revision names.
 
@@ -116,13 +108,13 @@ def _resolved(top: Path, revision: str) -> str:
     if revision in (INDEX, WORKING_TREE):
         return revision
     if revision:
-        if commit := _commit(top, revision):
+        if commit := git.commit(top, revision):
             return commit
         if revision == HEAD and git.run(top, "symbolic-ref", "--quiet", HEAD).returncode == 0:
             return _empty_tree(top)
         if revision == _empty_tree(top):
             return revision
-    raise ChangesError(f"{revision!r} is neither index, working-tree nor a commit here")
+    raise ChangesError(git.missing_revision_text(top, revision))
 
 
 def commit_revisions(top: Path, commit: str) -> tuple[str, str]:
@@ -131,10 +123,10 @@ def commit_revisions(top: Path, commit: str) -> tuple[str, str]:
     A commit without parents is compared with the empty tree. Raises ChangesError if `commit`
     isn't one here.
     """
-    resolved = _commit(top, commit) if commit else None
+    resolved = git.commit(top, commit) if commit else None
     if resolved is None:
-        raise ChangesError(f"{commit!r} is not a commit here")
-    return _commit(top, f"{resolved}^1") or _empty_tree(top), resolved
+        raise ChangesError(git.missing_revision_text(top, commit))
+    return git.commit(top, f"{resolved}^1") or _empty_tree(top), resolved
 
 
 def diff_arguments(base: str, target: str) -> list[str] | None:

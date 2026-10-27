@@ -52,6 +52,7 @@ interface Props<TData extends RowData> {
   grouped?: boolean; // its rows without depth start groups, a line above each but the first
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
+  problem?: boolean; // the message says something is wrong, e.g. that loading failed
   stale?: boolean; // dims what is shown, e.g. while other filters' rows load
   paging?: Paging;
   older: string; // what the paging loads: `events`
@@ -91,6 +92,7 @@ export function ListTable<TData extends RowData>({
   grouped,
   choices,
   message,
+  problem,
   stale,
   paging,
   older,
@@ -342,7 +344,7 @@ export function ListTable<TData extends RowData>({
           </ol>
         )}
       </div>
-      {message !== null && <p className={styles.quiet}>{message}</p>}
+      {message !== null && <p className={problem ? styles.problem : styles.quiet}>{message}</p>}
       {hasNextPage && (
         <p ref={end} className={styles.quiet}>
           {isFetchingNextPage ? `Loading older ${older}…` : `Older ${older} load as you scroll.`}

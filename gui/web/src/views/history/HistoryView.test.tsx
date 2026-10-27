@@ -165,9 +165,11 @@ describe("the History View", () => {
   });
 
   it("offers HEAD when the branch is gone", async () => {
-    serveHistory(() => json({ error: "'gone' is not a branch, tag or commit here" }, 400));
-    renderWithQueries(<History initial={{ clone: "clone-proj", ref: "gone" }} />);
-    expect(await screen.findByText(/Couldn't load: 'gone' is not a branch/)).toBeInTheDocument();
+    const error =
+      "the branch gone doesn't exist in this clone (git: fatal: Needed a single revision)";
+    serveHistory(() => json({ error }, 400));
+    renderWithQueries(<History initial={{ clone: "clone-proj", ref: "refs/heads/gone" }} />);
+    expect(await screen.findByText(`Can't show this: ${error}`)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "From HEAD" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });

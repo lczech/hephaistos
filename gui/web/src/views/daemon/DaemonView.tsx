@@ -44,7 +44,7 @@ export function DaemonView() {
     return (
       <section className={styles.view}>
         {notice}
-        <p className={styles.quiet}>{text}</p>
+        <p className={daemon.isError ? styles.problem : styles.quiet}>{text}</p>
       </section>
     );
   }
@@ -83,7 +83,7 @@ export function DaemonView() {
           ))}
         </dl>
         {warnings.map((warning) => (
-          <p key={warning} className={styles.warning}>
+          <p key={warning} className={styles.problem}>
             {warning}
           </p>
         ))}

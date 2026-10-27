@@ -500,3 +500,21 @@ def test_describe(tmp_path: Path) -> None:
     assert git_facts.describe(repo) == short
     (repo / "file").write_text("two")
     assert git_facts.describe(repo) == f"{short}-dirty"
+
+
+@pytest.mark.parametrize(
+    ("name", "said"),
+    [
+        ("refs/heads/task/suites", "the branch task/suites"),
+        ("refs/tags/v1.2", "the tag v1.2"),
+        ("refs/remotes/origin/x", "the remote branch origin/x"),
+        ("1a2b3c4d5e6f", "commit 1a2b3c4"),
+        ("HEAD~99", "revision 'HEAD~99'"),
+    ],
+)
+def test_missing_revision_text(tmp_path: Path, name: str, said: str) -> None:
+    repo = create(tmp_path / "repo")
+    assert git_facts.commit(repo, name) is None
+    assert git_facts.missing_revision_text(repo, name) == (
+        f"{said} doesn't exist in this clone (git: fatal: Needed a single revision)"
+    )
