@@ -2,6 +2,7 @@ import { DockviewDefaultTab, type IDockviewPanelHeaderProps } from "dockview-rea
 import { useSyncExternalStore } from "react";
 import { TextIcon } from "../components/TextIcon";
 import { asAddress } from "../views/address";
+import { viewIconClass } from "../views/families";
 import { viewIcon } from "../views/kinds";
 import { isPreview, keep, noteTab } from "./dock";
 import styles from "./layout.module.css";
@@ -37,7 +38,7 @@ export function ViewTab(props: IDockviewPanelHeaderProps) {
       title={title}
       onMouseUp={sideButtons}
     >
-      {Icon && <TextIcon icon={Icon} />}
+      {Icon && <TextIcon icon={Icon} className={viewIconClass(address.kind)} />}
       <DockviewDefaultTab {...props} />
     </div>
   );

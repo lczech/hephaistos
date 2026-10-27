@@ -74,6 +74,11 @@
   --success: #15803d;
   --warning: #a16207;
   --danger: #b91c1c;
+  /* Icons of Views by family, in tabs and links to them (`views/families.module.css`), full in
+     both themes: git's own orange; violet for overviews; teal for this Machine's. */
+  --view-git: #f05032;
+  --view-overview: #8b5cf6;
+  --view-machine: #14b8a6;
   /* Matches found, e.g. in a diff, and the current one, as browsers mark them: opaque, their
    * text dark, so that they stand out over code's colours and diffs' red and green, in either
    * theme. The icon's yellow, lighter; the current one in the accent. */

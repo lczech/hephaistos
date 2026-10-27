@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Menu, MenuItem, MenuTrigger, Popover, Pressable } from "react-aria-components";
 import popover from "../components/popover.module.css";
 import { TextIcon } from "../components/TextIcon";
+import { viewIconClass } from "../views/families";
 import { KINDS, type KindName } from "../views/kinds";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
@@ -36,7 +37,7 @@ export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProp
               const { name, icon } = KINDS[kind];
               return (
                 <MenuItem key={kind} id={kind} className={styles.choice} textValue={name}>
-                  <TextIcon icon={icon} />
+                  <TextIcon icon={icon} className={viewIconClass(kind)} />
                   {name}
                 </MenuItem>
               );

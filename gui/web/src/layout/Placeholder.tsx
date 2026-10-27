@@ -1,6 +1,7 @@
 import type { DockviewApi, IWatermarkPanelProps } from "dockview-react";
 import { useSyncExternalStore } from "react";
 import { TextIcon } from "../components/TextIcon";
+import { viewIconClass } from "../views/families";
 import { KINDS, type KindName } from "../views/kinds";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
@@ -40,7 +41,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
                 className={styles.choice}
                 onClick={() => openView(containerApi, { kind, params: {} }, {}, group)}
               >
-                <TextIcon icon={icon} />
+                <TextIcon icon={icon} className={viewIconClass(kind)} />
                 {name}
               </button>
             </li>

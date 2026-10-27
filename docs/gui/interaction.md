@@ -49,6 +49,9 @@ Where there is room and their names help, icons carry their names: a single link
 An icon beside data (an Event's kind, a subject's type, a commit's hash) labels it and does nothing.
 This is a guide, not a strict rule.
 
+An icon in a View's colour leads to that View ([looks](looks.md#fills-and-colours-by-state)).
+Grey icons work within their own View: toggles, filters, copying, layout.
+
 ### States
 
 - *Hover*: under the pointer.

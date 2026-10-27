@@ -96,6 +96,28 @@ describe("stylesheets", () => {
     expect(found).toEqual([]);
   });
 
+  // A colour of a family of Views says "opens that View": only icons of Views take one, through
+  // views/families.module.css, which only views/families.ts hands out.
+  it("keep the families' colours to icons of Views", () => {
+    const found = sheets.filter(
+      (path) =>
+        path !== "./views/families.module.css" &&
+        /var\(--view-(git|overview|machine)\b/.test(
+          readFileSync(new URL(path, import.meta.url), "utf8"),
+        ),
+    );
+    const importing = Object.keys(
+      import.meta.glob(["./**/*.{ts,tsx}", "!./styles.test.ts"]),
+    ).filter(
+      (path) =>
+        path !== "./views/families.ts" &&
+        /from ".*\/families\.module\.css"/.test(
+          readFileSync(new URL(path, import.meta.url), "utf8"),
+        ),
+    );
+    expect([...found, ...importing]).toEqual([]);
+  });
+
   it("find what breaks the rules", () => {
     const decls = (css: string) => {
       const all: Declaration[] = [];

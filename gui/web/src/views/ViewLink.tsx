@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Address } from "./address";
+import { familyClass, familyIcon } from "./families";
 import { viewIcon, viewKind } from "./kinds";
 import { clickOpening, useOpenView } from "./opening";
 import styles from "./ViewLink.module.css";
@@ -14,7 +15,7 @@ interface Props {
 }
 
 /**
- * A button with a kind's icon that shows a View, as a preview: in its Group, or beside it by the
+ * A button with a kind's icon, in its family's colour, that shows a View, as a preview: in its Group, or beside it by the
  * middle button or Alt.
  */
 export function ViewLink({ address, label, named = false, icon, quiet, note }: Props) {
@@ -24,7 +25,12 @@ export function ViewLink({ address, label, named = false, icon, quiet, note }: P
   return (
     <button
       type="button"
-      className={[styles.link, named && styles.named, quiet && styles.quiet]
+      className={[
+        styles.link,
+        named && styles.named,
+        quiet && styles.quiet,
+        familyClass(address.kind),
+      ]
         .filter(Boolean)
         .join(" ")}
       onClick={(event) => open(address, clickOpening(event))}
@@ -32,7 +38,7 @@ export function ViewLink({ address, label, named = false, icon, quiet, note }: P
       title={note === undefined ? label : `${label}: ${note}`}
       aria-label={label}
     >
-      {Icon ? <Icon aria-hidden="true" /> : "→"}
+      {Icon ? <Icon className={familyIcon} aria-hidden="true" /> : "→"}
       {named && kind?.name}
     </button>
   );

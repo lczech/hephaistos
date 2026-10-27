@@ -109,6 +109,7 @@
   padding: var(--space-half) var(--space-3) var(--space-half) 0;
   color: var(--text);
   cursor: pointer;
+  --view-icon: currentColor; /* links to Views grey, until hovered (below) */
 }
 
 .item[data-tone="muted"] .row {
@@ -117,6 +118,12 @@
 
 .row:hover {
   background: var(--fill-hover-row);
+}
+
+/* Links to Views, repeated on every row, are grey until the row is hovered or holds the focus,
+   then in their family's colour (`views/families.module.css`). */
+.row:is(:hover, :focus-within) {
+  --view-icon: initial;
 }
 
 /* Its View is shown, in some Group; as VS Code marks the file of the editor shown. */

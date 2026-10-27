@@ -1,0 +1,19 @@
+/* Each family's colour, as --view, for the icons of its Views within to take: in tabs, in links
+   to them, in lists of kinds. */
+.overview {
+  --view: var(--view-overview);
+}
+
+.git {
+  --view: var(--view-git);
+}
+
+.machine {
+  --view: var(--view-machine);
+}
+
+/* An icon of a View, in its family's colour; unless what holds it mutes it (--view-icon), e.g. a
+   list's row until hovered. */
+.icon {
+  color: var(--view-icon, var(--view));
+}
