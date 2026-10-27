@@ -58,6 +58,8 @@ A refusal by the Server reads "Can't show this:" and its message; a request that
 Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
 Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
 
+The tab shown in the Group that has the focus is underlined in the accent (`--mark-line`, `layout/dock.css`).
+
 Lines between Groups and between a list's groups of rows have their own colours (`--divider`, `--line`).
 
 Scrollbars are as VS Code's (`scrollbars.css`): no track, a quiet thumb (`--fill-scrollbar`), lighter while the pointer is over what scrolls, lighter again over the thumb, and most while dragged.

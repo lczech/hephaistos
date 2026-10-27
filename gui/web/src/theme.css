@@ -28,6 +28,7 @@
   --space-3: 0.75rem;
   --space-4: 1rem;
   --radius: 6px;
+  --mark-line: 2px; /* a line marking what has the focus: the focused Group's tab */
   --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* a popover's, over what it covers */
 
   /* Widths things keep. */
