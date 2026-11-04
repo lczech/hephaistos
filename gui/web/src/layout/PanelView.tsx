@@ -5,7 +5,7 @@ import { viewComponent } from "../views";
 import { type Address, asAddress, type Params } from "../views/address";
 import { KeyTargetContext, type NoteKeyTarget } from "../views/keys";
 import { type Opening, OpenViewContext } from "../views/opening";
-import { noteKeyTarget, noteTyped, openView, PREVIEW } from "./dock";
+import { noteKeyTarget, noteTyped, openView, PREVIEW, shownCount } from "./dock";
 import styles from "./layout.module.css";
 import { useSideButtons } from "./visits";
 
@@ -13,9 +13,10 @@ import { useSideButtons } from "./visits";
  * A Panel's content: the View its parameters name, kept from failing the other Panels. Built once
  * its tab is first shown, so a View never looked at costs nothing, e.g. a Diff asks for no files;
  * from then on kept, drawn while hidden (dockview's `always`): its scroll positions stay, and it
- * shows again at once, e.g. all of a Diff's lines. Drawn over its Group, not in it, it is known
- * by its Panel, never by where its elements are: where keys go in it, and its Group, for the
- * mouse's side buttons.
+ * shows again at once, e.g. all of a Diff's lines. Another View shown in it, e.g. a preview
+ * replaced, is built anew (`showIn`); a View changing itself is kept. Drawn over its Group, not
+ * in it, it is known by its Panel, never by where its elements are: where keys go in it, and its
+ * Group, for the mouse's side buttons.
  */
 export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
   const [shown, setShown] = useState(api.isVisible);
@@ -51,7 +52,7 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.panel} onMouseUp={sideButtons}>
       {address && View ? (
-        <Boundary>
+        <Boundary key={shownCount({ api })}>
           <OpenViewContext value={open}>
             <KeyTargetContext value={noteTarget}>
               <View

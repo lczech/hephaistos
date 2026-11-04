@@ -95,9 +95,24 @@ export function typingRun(panel: Pick<IDockviewPanel, "api">): number | undefine
   return typing.get(panel.api);
 }
 
-/** Shows another View in a Panel, as its address looks at it. */
+// How many Views each Panel showed before its own, by its API; see `showIn`.
+const shown = new WeakMap<object, number>();
+
+/** Which of the Views shown in a Panel its own is, to build each anew; 0 for its first. */
+export function shownCount(panel: Pick<IDockviewPanel, "api">): number {
+  return shown.get(panel.api) ?? 0;
+}
+
+/**
+ * Shows another View in a Panel, as its address looks at it. Another View is built anew, so it
+ * starts at its top, not at the last one's scroll positions; the same one, looked at otherwise,
+ * stays as it is.
+ */
 export function showIn(panel: IDockviewPanel, { kind, params, fragment }: Address): void {
   noteTyped(panel, false);
+  const was = asAddress(panel.params);
+  if (was === null || viewKey(was) !== viewKey({ kind, params }))
+    shown.set(panel.api, shownCount(panel) + 1);
   panel.api.updateParameters({ kind, params, fragment });
   panel.api.setTitle(viewTitle({ kind, params }));
 }

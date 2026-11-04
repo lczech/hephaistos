@@ -14,8 +14,12 @@ import { savedLayout } from "./saved";
 import { Workbench } from "./Workbench";
 
 const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
-/** A View showing its address, which narrows it to the last hour when clicked, and says so. */
+/**
+ * A View showing its address, which narrows it to the last hour when clicked, and says so; and
+ * a mark of its own, as a scroll position is.
+ */
 function Probe({ params, setParams, fragment, setFragment, setTitle }: ViewProps) {
+  const [marked, setMarked] = useState(false);
   const narrow = () => {
     setParams({ since: "1h" });
     setTitle("Probe, 1h");
@@ -27,6 +31,9 @@ function Probe({ params, setParams, fragment, setFragment, setTitle }: ViewProps
       </button>
       <button type="button" onClick={() => setFragment({ find: "x" })}>
         Find x
+      </button>
+      <button type="button" aria-pressed={marked} onClick={() => setMarked(true)}>
+        Mark
       </button>
     </>
   );
@@ -292,6 +299,25 @@ describe("the Workbench", () => {
       await waitFor(() =>
         expect(savedViews()).toContainEqual({ kind: "probe", params: { n: "2" }, preview: true }),
       );
+    });
+
+    it("builds the View replacing a preview anew, but keeps one changed or looked at otherwise", async () => {
+      await renderWorkbench();
+      const mark = () => screen.getByRole("button", { name: "Mark" });
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.click(await screen.findByRole("button", { name: "Mark" }));
+      await userEvent.click(screen.getByRole("tab", { name: "linker" })); // a frame later
+      await userEvent.click(await screen.findByRole("button", { name: "Probe 2" }));
+      expect(await screen.findByRole("button", { name: "probe?n=2" })).toBeInTheDocument();
+      expect(mark()).toHaveAttribute("aria-pressed", "false");
+      await userEvent.click(mark());
+      await userEvent.click(screen.getByRole("button", { name: "Find x" }));
+      await userEvent.keyboard("{Alt>}{ArrowLeft}{/Alt}"); // the same View, without its fragment
+      expect(await screen.findByRole("button", { name: "probe?n=2" })).toBeInTheDocument();
+      expect(mark()).toHaveAttribute("aria-pressed", "true");
+      await userEvent.click(screen.getByRole("button", { name: "probe?n=2" }));
+      expect(await screen.findByRole("button", { name: "probe?since=1h" })).toBeInTheDocument();
+      expect(mark()).toHaveAttribute("aria-pressed", "true");
     });
 
     it("opens one beside by the middle button or Alt, which the next replaces", async () => {

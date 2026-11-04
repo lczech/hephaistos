@@ -78,6 +78,8 @@ A Panel's View is built when its tab is first shown, so a restored tab never loo
 A Diff then asks for no files, and its tab keeps the title its Layout saved.
 From then on it stays drawn while hidden (dockview's `always` renderer, for all Panels).
 So it keeps its scroll positions, and showing it again lays nothing out anew, e.g. a Diff's lines.
+Another View shown in a Panel, e.g. a preview replaced or a step back, is built anew, so it starts at its top, not at the last one's scroll positions (`showIn` in `layout/dock.ts`).
+The same View looked at otherwise, e.g. with another fragment, and a View changing itself, e.g. filtered, stay as they are.
 Views are drawn over their Groups, not in them, so where an element sits says nothing of its Panel or Group.
 Shortcuts act on dockview's active Panel or Group, reaching into a View through its Panel's context.
 The mouse's side buttons act on the Group our tab, View or placeholder belongs to.
