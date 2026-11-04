@@ -31,9 +31,18 @@ export function CommitHash({ hash, checkout }: { hash: string | undefined; check
   );
 }
 
-/** The branches and tags pointing at a commit, and HEAD if it does, as labels. */
-export function RefLabels({ refs, head }: { refs: Ref[]; head?: boolean }) {
+const SHOWN_LABELS = 2; // on a line, HEAD first, then main or master, then the others; the rest counted
+
+/**
+ * The branches and tags pointing at a commit, and HEAD if it does, as labels: on a line, a few,
+ * so its subject still shows, and how many more; all where `all`.
+ */
+export function RefLabels({ refs, head, all }: { refs: Ref[]; head?: boolean; all?: boolean }) {
   if (refs.length === 0 && !head) return null;
+  const first = [...refs].sort((a, b) => Number(isMain(b)) - Number(isMain(a)));
+  const room = all ? first.length : SHOWN_LABELS - (head ? 1 : 0);
+  const shown = first.slice(0, room);
+  const more = first.slice(room);
   return (
     <span className={styles.refs}>
       {head && (
@@ -42,7 +51,7 @@ export function RefLabels({ refs, head }: { refs: Ref[]; head?: boolean }) {
           HEAD
         </span>
       )}
-      {refs.map((ref) => {
+      {shown.map((ref) => {
         const Icon = REF_ICONS[ref.kind];
         return (
           <span key={`${ref.kind}:${ref.name}`} className={styles.ref} title={REF_KINDS[ref.kind]}>
@@ -51,8 +60,17 @@ export function RefLabels({ refs, head }: { refs: Ref[]; head?: boolean }) {
           </span>
         );
       })}
+      {more.length > 0 && (
+        <span className={styles.more} title={more.map((ref) => ref.name).join(", ")}>
+          +{more.length}
+        </span>
+      )}
     </span>
   );
+}
+
+function isMain(ref: Ref): boolean {
+  return ref.kind === "branch" && (ref.name === "main" || ref.name === "master");
 }
 
 const REF_KINDS: Record<Ref["kind"], string> = {
@@ -79,6 +97,9 @@ export function CommitBox({ commit, checkout, now, heading }: Props) {
   const person = ({ name, email }: Commit["author"]) => `${name} <${email}>`;
   const { author, committer, parents } = commit;
   const fields: [string, ReactNode][] = [];
+  // Where a line above shows a few of them: all of them here.
+  if (!heading && commit.refs?.length)
+    fields.push(["refs", <RefLabels key="refs" refs={commit.refs} all />]);
   if (author !== undefined) fields.push(["author", person(author)], ["authored", when(author.at)]);
   if (author !== undefined && committer !== undefined) {
     if (committedApart(author, committer)) fields.push(["committer", person(committer)]);
@@ -100,7 +121,7 @@ export function CommitBox({ commit, checkout, now, heading }: Props) {
       {heading && (
         <p className={styles.top}>
           <CommitHash hash={commit.hash} checkout={checkout} />
-          <RefLabels refs={commit.refs ?? []} />
+          <RefLabels refs={commit.refs ?? []} all />
         </p>
       )}
       <p className={styles.subject}>{commit.subject}</p>

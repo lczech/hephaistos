@@ -52,6 +52,11 @@
   line-height: 1.4;
 }
 
+/* How many more there are than shown, named on hovering: as the text after it, not a label. */
+.more {
+  color: var(--text-muted);
+}
+
 .ref svg {
   width: var(--icon-small);
   height: var(--icon-small);

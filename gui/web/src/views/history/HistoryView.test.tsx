@@ -105,6 +105,20 @@ describe("the History View", () => {
     ).toHaveLength(2);
   });
 
+  it("shows a few of a commit's refs, main first, and all in its details", async () => {
+    const { refs } = page([]);
+    serveHistory(() => json(page([{ ...HEAD, refs: [...refs.slice(1), ...refs.slice(0, 1)] }])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 3");
+    expect(rows()).toEqual(["ccccccc HEADmain+3Commit 3 Lucas 2h ago"]);
+    expect(screen.getByText("+3")).toHaveAttribute("title", "feature, origin/main, v1");
+    await userEvent.click(screen.getByText("Commit 3"));
+    const details = screen.getByRole("region", { name: "Commit details" });
+    expect(within(details).getByText("refs").nextSibling).toHaveTextContent(
+      "mainfeatureorigin/mainv1",
+    );
+  });
+
   it("opens a commit's Changes and Diff from beside its hash, as previews", async () => {
     serveHistory(() => json(page([HEAD])));
     const opened: [Address, Opening | undefined][] = [];
