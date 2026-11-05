@@ -68,14 +68,23 @@ export function comparedText(compared: Compared): string {
   return arrowText(compared);
 }
 
+/** The changes between two revisions, in words, lowercase, as links to their Changes name them:
+ * `staged changes`, `uncommitted changes`, `changes from main to HEAD`. */
+function changesText(compared: Compared): string {
+  const text = comparedText(compared);
+  if (text === "staged") return "staged changes";
+  if (text === "not staged") return "unstaged changes";
+  if (text === "since HEAD") return "uncommitted changes";
+  return `changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}`;
+}
+
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /** That there are no changes so: `No staged changes.`, `No changes from main to HEAD.` */
 function noChanges(compared: Compared): string {
-  const text = comparedText(compared);
-  if (text === "staged") return "No staged changes.";
-  if (text === "not staged") return "No unstaged changes.";
-  return text.includes("→")
-    ? `No changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}.`
-    : `No changes ${text}.`;
+  return `No ${changesText(compared)}.`;
 }
 
 /** The file's diff the parameters name: its Checkout, what is compared (a commit against its
@@ -401,7 +410,11 @@ export function DiffView({
             <>
               <ViewLink
                 address={{ kind: "changes", params: { ...checkout, ...base } }}
-                label="These changes as a list"
+                label={
+                  compared
+                    ? capitalised(changesText(compared))
+                    : `Changes in commit ${shortHash(commit ?? "")}`
+                }
               />
               <ViewLink
                 address={{ kind: "history", params: checkout }}

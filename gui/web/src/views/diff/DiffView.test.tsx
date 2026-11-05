@@ -321,7 +321,7 @@ describe("the Diff View", () => {
       </QueryClientProvider>,
     );
     expect(screen.getByRole("button", { name: "Directories as a tree" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "These changes as a list" }));
+    await userEvent.click(screen.getByRole("button", { name: "Staged changes" }));
     await userEvent.click(screen.getByRole("button", { name: "Commit history of this checkout" }));
     expect(opened).toEqual([
       { kind: "diff", params: staged },
@@ -546,7 +546,7 @@ describe("the Diff View", () => {
       await waitFor(() => expect(within(untracked).getAllByRole("figure")).toHaveLength(2));
       expect(asked.within).toEqual(["tmp/"]);
       expect(asked.diffs).toContain("tmp/a.log");
-      expect(screen.getByRole("button", { name: "These changes as a list" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Uncommitted changes" })).toBeInTheDocument();
     });
 
     it("isn't dimmed once one file shows in its place", async () => {
