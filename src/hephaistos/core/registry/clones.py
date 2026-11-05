@@ -137,7 +137,7 @@ class Candidate:
         url = git.main_remote(self.snapshot.remotes)
         if url is None or git.is_local(url):
             return None
-        return repositories.derived_name(git.repository_name(url))
+        return repositories.NAMES.derived(git.repository_name(url))
 
     @property
     def suggested_name(self) -> str | None:
@@ -146,10 +146,10 @@ class Candidate:
         None if neither gives one, e.g. a directory named only in non-ASCII letters.
         """
         url = git.main_remote(self.snapshot.remotes)
-        if url is not None and (name := repositories.derived_name(git.repository_name(url))):
+        if url is not None and (name := repositories.NAMES.derived(git.repository_name(url))):
             return name
         name = self.display_path.name.removesuffix(".git")
-        return repositories.derived_name(
+        return repositories.NAMES.derived(
             self.display_path.parent.name if not name or name.startswith(".") else name
         )
 

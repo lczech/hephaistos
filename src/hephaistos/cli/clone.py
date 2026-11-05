@@ -153,7 +153,7 @@ def _confirm(question: str, action: str, *, yes: bool) -> None:
 
 def _new_repository(name: str, why: str, *, yes: bool) -> str:
     """`name` for a new Repository, once the user agreed; `why` it is needed starts the question."""
-    repositories.check_name(name)
+    repositories.NAMES.check(name)
     _confirm(
         f"{why}; register it as a clone of a new repository {name}?",
         f"register it with a new repository {name}",

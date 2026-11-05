@@ -1,6 +1,5 @@
 import dataclasses
 import json
-import re
 import sqlite3
 import uuid
 from collections import defaultdict
@@ -19,6 +18,7 @@ from hephaistos.core.state.activity import Cursor
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
+from hephaistos.core.utils.names import Names
 
 #: The columns of `registry_repositories`, decoded for raw listings.
 DECODERS = records.DECODERS | {
@@ -49,27 +49,13 @@ class RepositorySummary:
 
 
 #: What a name may be, as on GitHub; the schema checks the same. Names compare ignoring case.
-_NAME = re.compile(r"[A-Za-z0-9._-]{1,100}")
-_NOT_NAMES = {".", ".."}
-
-
-def check_name(name: str) -> None:
-    """Raises HephaistosError unless `name` may name a Repository."""
-    if not _NAME.fullmatch(name) or name in _NOT_NAMES:
-        raise HephaistosError(
-            f"{name!r} is not a repository name: those have only ASCII letters, digits,"
-            " '.', '-' and '_', at most 100, and are not '.' or '..'"
-        )
-
-
-def derived_name(text: str) -> str | None:
-    """A Repository name from `text`, e.g. the name of a directory: `My Thesis` → `My-Thesis`.
-
-    Each run of characters a name cannot have becomes a `-`, as GitHub does, without one at either
-    end; None if no name is left.
-    """
-    name = re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")[:100]
-    return None if not name or name in _NOT_NAMES else name
+NAMES = Names(
+    kind="repository",
+    characters="A-Za-z0-9._-",
+    described="ASCII letters, digits, '.', '-' and '_'",
+    max_length=100,
+    reserved=frozenset({".", ".."}),
+)
 
 
 def name_key(name: str) -> str:
@@ -79,7 +65,7 @@ def name_key(name: str) -> str:
 
 def _check_available(session: ReadSession, name: str) -> None:
     """Raises HephaistosError if `name` is not usable for a new Repository."""
-    check_name(name)
+    NAMES.check(name)
     if (existing := find(session, name)) is not None:
         raise HephaistosError(f"a repository named {existing.name} already exists")
 
@@ -111,7 +97,7 @@ def rename(session: WriteSession, name: str, new_name: str) -> Repository:
     """Gives a Repository a new name; one differing only in case is allowed."""
     repository = by_name(session, name)
     if name_key(new_name) == name_key(repository.name):
-        check_name(new_name)
+        NAMES.check(new_name)
     else:
         _check_available(session, new_name)
     renamed = dataclasses.replace(repository, name=new_name)

@@ -61,21 +61,6 @@ def test_valid_names(set_up: Paths, name: str) -> None:
         assert repositories.register(session, name).name == name
 
 
-@pytest.mark.parametrize(
-    ("text", "name"),
-    [
-        ("proj", "proj"),
-        ("My Thesis (draft)", "My-Thesis-draft"),
-        ("café au lait", "caf-au-lait"),
-        ("x" * 120, "x" * 100),
-        ("Проект", None),
-        ("..", None),
-    ],
-)
-def test_derived_names(text: str, name: str | None) -> None:
-    assert repositories.derived_name(text) == name
-
-
 def test_names_are_unique_and_found_ignoring_case(set_up: Paths) -> None:
     with write_session(set_up) as session:
         added = repositories.register(session, "Proj")
