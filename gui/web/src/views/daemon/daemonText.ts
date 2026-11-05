@@ -1,6 +1,7 @@
 // The lines of the Daemon card, worded as `hephaistos daemon status` words them.
 
 import type { Schemas } from "../../api/client";
+import { counted, numberText } from "../../text";
 import { ago, seconds, secondsUntil } from "../../time";
 
 type Process = Schemas["ProcessJson"];
@@ -43,11 +44,9 @@ export function serverText(server: Server | null, now: number): string {
   let text = `listening on ${server.address}; `;
   if (server.last_request_at === null) text += "no requests yet";
   else {
-    const requests = `${server.requests} ${server.requests === 1 ? "request" : "requests"}`;
-    text += `${requests} since start, last ${ago(server.last_request_at, now)}`;
+    text += `${counted(server.requests, "request")} since start, last ${ago(server.last_request_at, now)}`;
   }
-  if (server.refused > 0) text += `; ${server.refused} refused`;
-  if (server.live > 0)
-    text += `; ${server.live} live ${server.live === 1 ? "connection" : "connections"}`;
+  if (server.refused > 0) text += `; ${numberText(server.refused)} refused`;
+  if (server.live > 0) text += `; ${counted(server.live, "live connection")}`;
   return text;
 }

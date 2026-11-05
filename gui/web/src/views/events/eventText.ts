@@ -2,6 +2,7 @@
 
 import type { Schemas } from "../../api/client";
 import { shortPath } from "../../paths";
+import { capitalised } from "../../text";
 
 type Event = Schemas["EventJson"];
 
@@ -26,7 +27,7 @@ export function subjectText({ subject }: Event, home: string | undefined): strin
 /** The subject with its type, which its icon shows: `Worktree ~/Repos/heph/.worktrees/x`. */
 export function subjectTitle(event: Event, home: string | undefined): string {
   const { type } = event.subject;
-  return `${type.charAt(0).toUpperCase()}${type.slice(1)} ${subjectText(event, home)}`;
+  return `${capitalised(type)} ${subjectText(event, home)}`;
 }
 
 /** The Repository of the Event's subject, if it has one: its name, else its short ID. */

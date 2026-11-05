@@ -2,6 +2,7 @@ import { GitMerge } from "lucide-react";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
+import { numberText } from "../../text";
 import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
@@ -143,7 +144,7 @@ function FoundWhere({ found, actions }: { found: Found; actions: FoundActions })
       ))}
       {more.length > 0 && (
         <span className={styles.where} title={more.map((ref) => ref.name).join(", ")}>
-          +{more.length} more
+          +{numberText(more.length)} more
         </span>
       )}
     </span>

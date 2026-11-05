@@ -2,6 +2,7 @@
 
 import type { Schemas } from "../../api/client";
 import { revisionText, shortHash } from "../../revisions";
+import { listText, numberText } from "../../text";
 import { pathParts } from "../changes/rows";
 
 export type Commit = Schemas["CommitJson"];
@@ -64,7 +65,7 @@ export function uncommittedText(counts: {
   ];
   return parts
     .filter(([count]) => count > 0)
-    .map(([count, what]) => `${count} ${what}`)
+    .map(([count, what]) => `${numberText(count)} ${what}`)
     .join(", ");
 }
 
@@ -95,9 +96,7 @@ export function searchWords(search: string | undefined): string[] {
 
 /** That no commits have all the words searched for: `No commits mention row and view.` */
 export function noneFoundText(words: string[], path: string | undefined): string {
-  const listed =
-    words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0];
-  return `No commits ${path === undefined ? "" : `that changed ${path} `}mention ${listed}.`;
+  return `No commits ${path === undefined ? "" : `that changed ${path} `}mention ${listText(words)}.`;
 }
 
 /** Whether someone else committed it than wrote it: only then is the committer worth showing. */

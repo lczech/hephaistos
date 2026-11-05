@@ -5,6 +5,7 @@
 import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import { revisionText } from "../../revisions";
+import { counted, numberText } from "../../text";
 import { type Params, paramValues } from "../address";
 
 export type Group = Schemas["ChangeGroupJson"];
@@ -164,7 +165,7 @@ function note(id: string, text: string, problem?: boolean): Entry {
 
 /** That lists stop at the setting's cap, which those cut reached, not at their end. */
 export function moreText(more: number, cap: number): string {
-  return `${more.toLocaleString("en")} more not listed, as the setting gui.diff.max_files allows ${cap.toLocaleString("en")} per list`;
+  return `${numberText(more)} more not listed, as the setting gui.diff.max_files allows ${numberText(cap)} per list`;
 }
 
 type WithinOf = (group: Group, folder: Change) => Within;
@@ -320,8 +321,7 @@ export function sizeText(bytes: number): string {
 export function otherText(change: Change): string | undefined {
   const { size, old_size: old } = change;
   if (change.files !== null) {
-    const files = `${change.files.toLocaleString("en")}${change.more_files ? "+" : ""}`;
-    return `${files} ${change.files === 1 && !change.more_files ? "file" : "files"}, ${sizeText(size ?? 0)}`;
+    return `${counted(change.files, "file", change.more_files)}, ${sizeText(size ?? 0)}`;
   }
   if (change.binary) {
     if (size !== null && old !== null && size !== old) {
@@ -343,9 +343,9 @@ export function filesText(groups: Group[]): string {
   const changes = groups.flatMap((group) => group.changes);
   const files = new Set(changes.filter((change) => !isFolder(change)).map((change) => change.path))
     .size;
-  const text = `${files.toLocaleString("en")} ${files === 1 ? "file" : "files"}`;
+  const text = counted(files, "file");
   const more = groups.reduce((sum, group) => sum + group.count - group.changes.length, 0);
-  return more > 0 ? `${text} (${more.toLocaleString("en")} more not listed)` : text;
+  return more > 0 ? `${text} (${numberText(more)} more not listed)` : text;
 }
 
 /** Lines added and removed in these changes, which have them. */

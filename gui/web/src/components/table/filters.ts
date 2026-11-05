@@ -1,5 +1,7 @@
 // A column's filter: the chosen values, of the choices its list offers.
 
+import { numberText } from "../../text";
+
 /** How a column filters, set in its definition's `meta`. */
 export interface ColumnFilterLook {
   param: string; // what the filter is called outside the list: a View's parameter
@@ -41,5 +43,7 @@ function label(value: string, choices: Choice[]): string | undefined {
 /** What a filter is set to, in short: the one chosen, or how many, e.g. `3 kinds`. */
 export function filterText(values: string[], choices: Choice[], many = "chosen"): string {
   const [only = ""] = values;
-  return values.length === 1 ? (label(only, choices) ?? only) : `${values.length} ${many}`;
+  return values.length === 1
+    ? (label(only, choices) ?? only)
+    : `${numberText(values.length)} ${many}`;
 }

@@ -22,6 +22,7 @@ import type { Schemas } from "../api/client";
 import { type HistoryQuery, resolveRevision, useHistory } from "../api/queries";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../icons";
 import { HEAD, INDEX, revisionText, shortHash, WORKING_TREE } from "../revisions";
+import { atLeast, numberText } from "../text";
 import { useDebounced } from "../useDebounced";
 import type { Checkout } from "../views/changes/checkout";
 import { headText, searchWords } from "../views/history/rows";
@@ -143,12 +144,10 @@ export function GitRevisionPicker({
   const top: Top | undefined = exact ? { ref: exact } : found && { commit: found };
   const counts: Record<Shown, string> = {
     all: "",
-    branches: `${branches.length + remotes.length}`,
-    tags: `${tags.length}`,
+    branches: numberText(branches.length + remotes.length),
+    tags: numberText(tags.length),
     commits:
-      history.data === undefined || stale
-        ? "…"
-        : `${commits.length}${history.hasNextPage ? "+" : ""}`,
+      history.data === undefined || stale ? "…" : atLeast(commits.length, history.hasNextPage),
   };
 
   const openChanged = (opening: boolean) => {
@@ -276,7 +275,7 @@ export function GitRevisionPicker({
     const unknown = id === "commits" && history.hasNextPage; // pages still to load
     const more = REF_TABS[id as Ref["kind"]] ?? "commits";
     const what = heading.toLowerCase();
-    const moreText = unknown ? `… more ${what}` : `… ${rest.toLocaleString()} more ${what}`;
+    const moreText = unknown ? `… more ${what}` : `… ${numberText(rest)} more ${what}`;
     const moreId = `${MORE}${more}:${id}`;
     return section(
       id,

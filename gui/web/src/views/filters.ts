@@ -3,6 +3,7 @@
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { ColumnLook } from "../components/table/columns";
 import { type Choice, filterText } from "../components/table/filters";
+import { counted } from "../text";
 import { type Params, paramValues, withParam } from "./address";
 
 interface Column {
@@ -53,7 +54,7 @@ export function filteredTitle(
   choices: Record<string, Choice[] | undefined>,
 ): string | undefined {
   if (filters.length === 0) return name;
-  if (filters.length > NAMED) return `${name}: ${filters.length} filters`;
+  if (filters.length > NAMED) return `${name}: ${counted(filters.length, "filter")}`;
   const texts: string[] = [];
   for (const { id, value } of filters) {
     const offered = choices[id];

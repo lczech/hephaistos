@@ -3,6 +3,7 @@
 
 import { type ReactNode, useState } from "react";
 import { ApiError, type Schemas } from "../api/client";
+import { capitalised } from "../text";
 import type { Address } from "./address";
 import styles from "./CheckoutError.module.css";
 import { ViewLink } from "./ViewLink";
@@ -66,7 +67,7 @@ export function LoadNote({ error, children }: { error: Error; children?: ReactNo
 
 /** What a View of a Checkout says in place of its contents once the Checkout is gone. */
 export function Gone({ error }: { error: Error }) {
-  const text = error.message.charAt(0).toUpperCase() + error.message.slice(1);
+  const text = capitalised(error.message);
   return (
     <p className={styles.problem}>
       {text}. <EventsLink error={error} />

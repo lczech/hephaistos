@@ -5,6 +5,7 @@ import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import type { Tone } from "../../components/table/ListTable";
 import { shortPath } from "../../paths";
+import { numberText } from "../../text";
 import type { Params } from "../address";
 import { sortingOf, withSorting } from "../sorting";
 
@@ -113,7 +114,7 @@ export function statusText(state: Checkout): string {
   return (
     counts
       .filter(([, count]) => count)
-      .map(([symbol, count]) => `${symbol}${count}`)
+      .map(([symbol, count]) => `${symbol}${numberText(count ?? 0)}`)
       .join(" ") || "clean"
   );
 }
@@ -132,11 +133,14 @@ export function statusTitle(state: Checkout): string {
     ] as const
   )
     .filter(([count]) => count)
-    .map(([count, what]) => `${count} ${what}`);
+    .map(([count, what]) => `${numberText(count ?? 0)} ${what}`);
   const { upstream, ahead, behind } = state;
   let tracking = "no upstream";
   if (upstream !== null) {
-    const moved = [ahead ? `${ahead} ahead of` : "", behind ? `${behind} behind` : ""];
+    const moved = [
+      ahead ? `${numberText(ahead)} ahead of` : "",
+      behind ? `${numberText(behind)} behind` : "",
+    ];
     const text = moved.filter(Boolean).join(" and ");
     tracking = text ? `${text} ${upstream}` : `up to date with ${upstream}`;
   }

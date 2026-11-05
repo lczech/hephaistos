@@ -115,6 +115,7 @@ What Views show takes its size and font from `[gui.text]`, code from `[gui.code]
 Tabs, View bars and the status bar keep theirs, so zooming isn't needed to read.
 Monospace among text is a little smaller (`--mono-size`), as its letters look larger.
 Tabs are at most `--tab-width` wide, a longer title cut off.
+Numbers show their thousands apart (`1,234`), a count with its noun singular for one alone, a + where a list was cut (`12+ files`); words listed read `a, b and c` (`text.ts`).
 
 ## Toggles
 

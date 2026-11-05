@@ -1,4 +1,5 @@
 import { SINCE_HEAD } from "../../revisions";
+import { capitalised } from "../../text";
 import type { Address } from "../address";
 import { ViewLink } from "../ViewLink";
 import type { Checkout } from "./checkout";
@@ -26,7 +27,7 @@ export function changesViews(checkout: Checkout, commit?: string): [Address, Add
  */
 export function ChangesLinks({ checkout, commit, what, quiet, note }: Props) {
   const [changes, diff] = changesViews(checkout, commit);
-  const label = what.charAt(0).toUpperCase() + what.slice(1);
+  const label = capitalised(what);
   return (
     <>
       <ViewLink address={changes} label={label} quiet={quiet} note={note} />

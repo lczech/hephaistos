@@ -15,6 +15,7 @@ import { type DiffRows, diffRows, lineCount } from "../../components/diff/height
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { useDiffScroller } from "../../components/diff/scroller";
 import type { CodeThemes } from "../../components/diff/themes";
+import { counted } from "../../text";
 import type { ColorScheme } from "../../theme";
 import type { Params } from "../address";
 import { LoadNote } from "../CheckoutError";
@@ -135,7 +136,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
   if (waiting) {
     return (
       <p className={styles.note}>
-        {(changedLines(change) ?? 0).toLocaleString("en")} lines changed: more than the setting{" "}
+        {counted(changedLines(change) ?? 0, "line")} changed: more than the setting{" "}
         <code>gui.diff.large_lines</code>.{" "}
         <button type="button" className={styles.action} onClick={() => setShownLarge(true)}>
           Show
@@ -329,9 +330,7 @@ export function DirectorySection({
         end={
           <>
             {foldedWith && <span className={styles.aside}>folded with {foldedWith}</span>}
-            <span className={styles.aside}>
-              {files.toLocaleString("en")} {files === 1 ? "file" : "files"}
-            </span>
+            <span className={styles.aside}>{counted(files, "file")}</span>
             <Lines {...totals(entry.changes)} />
             <span className={styles.linkRoom} /> {/* as the files' links take */}
           </>

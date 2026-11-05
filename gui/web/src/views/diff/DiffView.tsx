@@ -29,6 +29,7 @@ import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { FilesFolded, FilesUnfolded } from "../../drawnIcons";
 import { INDEX, revisionText, SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
+import { capitalised, listText, plural } from "../../text";
 import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
@@ -76,10 +77,6 @@ function changesText(compared: Compared): string {
   if (text === "not staged") return "unstaged changes";
   if (text === "since HEAD") return "uncommitted changes";
   return `changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}`;
-}
-
-function capitalised(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /** That there are no changes so: `No staged changes.`, `No changes from main to HEAD.` */
@@ -451,9 +448,9 @@ export function DiffView({
       )}
       {unknown.length > 0 && (
         <p className={styles.problem}>
-          Unknown code theme {unknown.join(", ")}: the default shows instead. The settings{" "}
-          <code>gui.code.theme_light</code> and <code>gui.code.theme_dark</code> name themes as
-          Shiki does.
+          Unknown code {plural(unknown.length, "theme")} {listText(unknown)}: the default shows
+          instead. The settings <code>gui.code.theme_light</code> and{" "}
+          <code>gui.code.theme_dark</code> name themes as Shiki does.
         </p>
       )}
       {error && (

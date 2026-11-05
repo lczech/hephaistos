@@ -2,6 +2,7 @@ import type { SortingState } from "@tanstack/react-table";
 import { type ReactNode, useEffect, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
+import { counted } from "../../text";
 import changesStyles from "../changes/ChangesView.module.css";
 import { Lines } from "../changes/columns";
 import { type Folds, foldedBy, partFolded, withFolded, withPart } from "../changes/folds";
@@ -182,9 +183,7 @@ function Untracked(props: UntrackedProps) {
     setClosed(new Set());
   };
   const counts = kindCounts(groups.flatMap((group) => group.changes))
-    .map(
-      ([kind, n]) => `${n} ${kind === "new folder" ? "new folder" : "file"}${n === 1 ? "" : "s"}`,
-    )
+    .map(([kind, n]) => counted(n, kind === "new folder" ? "new folder" : "file"))
     .join(", ");
   return (
     <section className={styles.untracked} aria-label="Untracked">

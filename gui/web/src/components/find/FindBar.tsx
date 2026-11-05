@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, CaseSensitive, Regex, Search, WholeWord, X } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { Input, TextField, Toolbar } from "react-aria-components";
+import { atLeast, numberText } from "../../text";
 import { useKeyTarget } from "../../views/keys";
 import { IconButton } from "../IconButton";
 import { TextIcon } from "../TextIcon";
@@ -113,6 +114,5 @@ function statusText(finding: Finding | undefined, current: number, count: number
   if ("error" in finding) return finding.error;
   if (!("matches" in finding)) return "Searching…";
   if (count === 0) return "No results";
-  const of = `${count.toLocaleString("en")}${finding.more ? "+" : ""}`;
-  return `${(current + 1).toLocaleString("en")} of ${of}`;
+  return `${numberText(current + 1)} of ${atLeast(count, finding.more)}`;
 }

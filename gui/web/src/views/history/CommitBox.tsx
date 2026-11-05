@@ -3,6 +3,7 @@ import { TextIcon } from "../../components/TextIcon";
 import { Fields } from "../../components/table/Fields";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
 import { shortHash } from "../../revisions";
+import { numberText, plural } from "../../text";
 import { ago, fullTime } from "../../time";
 import { ChangesLinks } from "../changes/ChangesLinks";
 import type { Checkout } from "../changes/checkout";
@@ -62,7 +63,7 @@ export function RefLabels({ refs, head, all }: { refs: Ref[]; head?: boolean; al
       })}
       {more.length > 0 && (
         <span className={styles.more} title={more.map((ref) => ref.name).join(", ")}>
-          +{more.length}
+          +{numberText(more.length)}
         </span>
       )}
     </span>
@@ -114,7 +115,7 @@ export function CommitBox({ commit, checkout, now, heading }: Props) {
     ) : (
       "none: the first"
     );
-    fields.push([parents.length > 1 ? "parents" : "parent", shown]);
+    fields.push([plural(parents.length, "parent"), shown]);
   }
   return (
     <div className={styles.box}>
