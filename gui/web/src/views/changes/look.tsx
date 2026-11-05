@@ -1,6 +1,7 @@
 import { type Atom, useAtom } from "@tanstack/react-store";
-import { Folders, FolderTree } from "lucide-react";
+import { FolderTree } from "lucide-react";
 import { Toggle } from "../../components/ViewBar";
+import { FolderList } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
 
 /**
@@ -30,7 +31,7 @@ export function NestedToggle() {
       onChange={(nested) => setLook({ ...look, nested })}
       ways={[
         { icon: FolderTree, title: "Show directories as a tree, each in its parent" },
-        { icon: Folders, title: "Show directories as a flat list, each by its full path" },
+        { icon: FolderList, title: "Show directories as a flat list, each by its full path" },
       ]}
     />
   );

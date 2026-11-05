@@ -1,8 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import {
-  ChevronsDownUp,
-  ChevronsUpDown,
   ListChevronsDownUp,
   ListChevronsUpDown,
   StretchHorizontal,
@@ -29,6 +27,7 @@ import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { FilesFolded, FilesUnfolded } from "../../drawnIcons";
 import { INDEX, revisionText, SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
 import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
@@ -378,8 +377,8 @@ export function DiffView({
                 )
               }
               ways={[
-                { icon: ChevronsUpDown, title: "Unfold all files and directories" },
-                { icon: ChevronsDownUp, title: "Fold all files to their headers" },
+                { icon: FilesUnfolded, title: "Unfold all files and directories" },
+                { icon: FilesFolded, title: "Fold all files to their headers" },
               ]}
             />
           )}

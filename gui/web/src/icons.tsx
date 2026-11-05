@@ -25,7 +25,6 @@ import {
   FolderMinus,
   FolderPlus,
   FolderSymlink,
-  FolderTree,
   GitBranch,
   GitBranchMinus,
   GitBranchPlus,
@@ -49,6 +48,7 @@ import {
   Undo2,
   Watch,
 } from "lucide-react";
+import { FolderBranch } from "./drawnIcons";
 
 /** What an Event of this kind did: `clone.branch_created` → `branch created`. */
 export function actionOf(kind: string): string {
@@ -95,7 +95,7 @@ const ENTITIES: Record<string, LucideIcon> = {
   mount: FolderSymlink,
   repository: Book,
   clone: FolderGit2,
-  worktree: FolderTree,
+  worktree: FolderBranch,
 };
 
 // systemd's chassis types; each has one: tests/core/events/test_kinds.py.

@@ -47,3 +47,64 @@ export const TableLines = createLucideIcon({
     ["path", { d: "M7 18.5h5", key: "second-second" }],
   ],
 });
+
+// Lucide's `file-diff` pages, as `FileDiffs` has them, for the chevrons of the stack's files.
+const FRONT_PAGE =
+  "M10 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h6a2.4 2.4 0 0 1 1.704.706l2.588 2.588A2.4 2.4 0 0 1 21 7v9a2 2 0 0 1-2 2z";
+const PAGE_BEHIND = "M5 6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 1.732-1";
+
+/** All files of a stack unfolded: `FileDiffs`' pages with the chevron down, as an unfolded
+ * file's header shows it. */
+export const FilesUnfolded = createLucideIcon({
+  name: "files-unfolded",
+  node: [
+    ["path", { d: FRONT_PAGE, key: "page" }],
+    ["path", { d: PAGE_BEHIND, key: "behind" }],
+    ["path", { d: "m11.5 8.5 3 3 3-3", key: "chevron" }],
+  ],
+});
+
+/** All files of a stack folded: the pages with the chevron right, as a folded file's header. */
+export const FilesFolded = createLucideIcon({
+  name: "files-folded",
+  node: [
+    ["path", { d: FRONT_PAGE, key: "page" }],
+    ["path", { d: PAGE_BEHIND, key: "behind" }],
+    ["path", { d: "m13 7 3 3-3 3", key: "chevron" }],
+  ],
+});
+
+// Lucide's `folder-tree` folders: the top one, and the bottom one.
+const TOP_FOLDER =
+  "M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z";
+const BOTTOM_FOLDER =
+  "M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z";
+
+/** Directories as a flat list: Lucide's `folder-tree` with a straight line before each folder
+ * in place of the tree, as far from it as the tree's. */
+export const FolderList = createLucideIcon({
+  name: "folder-list",
+  node: [
+    ["path", { d: "M3 7h5", key: "top-line" }],
+    ["path", { d: TOP_FOLDER, key: "top" }],
+    ["path", { d: "M3 18h5", key: "bottom-line" }],
+    ["path", { d: BOTTOM_FOLDER, key: "bottom" }],
+  ],
+});
+
+/** A folder branching off another, as a Worktree off its Clone: `folder-tree`'s top folder moved
+ * to the left, a line down from it and right to the bottom one. */
+export const FolderBranch = createLucideIcon({
+  name: "folder-branch",
+  node: [
+    [
+      "path",
+      {
+        d: "M11 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 6 3H4a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z",
+        key: "main",
+      },
+    ],
+    ["path", { d: "M7 10v5.5a2 2 0 0 0 2 2h1", key: "branch" }],
+    ["path", { d: BOTTOM_FOLDER, key: "off" }],
+  ],
+});

@@ -76,11 +76,13 @@ The diffs keep their renderer's own, whose layout counts on their size, in the s
 Icons are monochrome, from Lucide (`lucide-react`).
 One thing has one icon, defined once in `icons.tsx`: Event kinds, actions and entity types, a dot for anything else.
 A test requires one for every Event kind and chassis.
+Where Lucide has none, `drawnIcons.ts` draws one from Lucide's own shapes, in its style.
+A toggle or button never shows an entity's icon, so that each stays the entity's.
 
 ### Entities
 
 - A Repository is a book; the Repositories View two books, as several of them.
-- A Clone is a git folder; a Worktree a folder tree.
+- A Clone is a git folder; a Worktree a folder branching off another (drawn, `drawnIcons.ts`).
 - A Filesystem is a drive; a Mount a linked folder.
 - A Machine is its chassis: a laptop, a monitor, a server, a box for a vm or container, …; a computer if unknown.
 - A commit is git's commit (Lucide's `git-commit-vertical`); the History View two on one line, following each other as it lists them, drawn as Lucide would (`drawnIcons.ts`, as the stacked Diff's several pages).
@@ -120,3 +122,4 @@ A toggle (`Toggle`, in `components/ViewBar.tsx`) of one icon looks as an icon bu
 A toggle of two modes shows both icons side by side, framed, each with its tooltip, the one in effect grey; a click switches to the other.
 A mode chosen that waits, e.g. side by side until the Panel is wide enough, shows on but faint, its tooltip saying why.
 In a View's bar, a line parts the toggles from the links after them.
+The Diff's toggles of all files show its pages with a file header's chevron, down or right; directories as a tree or a list show Lucide's `folder-tree`, or its folders with a line before each.
