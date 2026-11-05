@@ -35,6 +35,8 @@ function given(name: string): string {
 const executable = given("HEPHAISTOS_EXECUTABLE");
 const profile = given("HEPHAISTOS_DESKTOP_PROFILE");
 const tokenFile = given("HEPHAISTOS_TOKEN_FILE");
+// Optional, e.g. a worktree's name from `scripts/worktree_gui.sh`: tells its window apart.
+const label = process.env.HEPHAISTOS_DESKTOP_LABEL;
 const boundsFile = join(profile, "window.json");
 
 function read(path: string): string | null {
@@ -130,12 +132,14 @@ function openWindow(): BrowserWindow {
   const { maximized, ...bounds } = onScreen(savedBounds(read(boundsFile)), areas);
   const opened = new BrowserWindow({
     ...bounds,
-    title: "hephaistos",
+    title: label ? `hephaistos · ${label}` : "hephaistos",
     backgroundColor: nativeTheme.shouldUseDarkColors ? BACKGROUND.dark : BACKGROUND.light,
     // Electron's defaults, stated: the page gets no Node and runs in Chromium's sandbox.
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   if (maximized) opened.maximize();
+  // The page's title replaces the window's, unless kept: then the label stays in it.
+  if (label) opened.on("page-title-updated", (event) => event.preventDefault());
   opened.on("close", () => {
     const { width, height, x, y } = opened.getNormalBounds();
     const saved = { width, height, x, y, maximized: opened.isMaximized() };

@@ -16,10 +16,12 @@ The page stays on the Server; other web pages open in the browser.
 The page gets no Node, and is refused permission requests.
 The window keeps only reload, zoom, full screen, developer tools and quit as its keys; all others reach the page.
 One Desktop runs per `HEPHAISTOS_HOME`, with its profile in the state directory.
+`HEPHAISTOS_DESKTOP_LABEL`, if set, follows "hephaistos" in the window's title, e.g. a worktree's name.
 
 ## Installing
 
 `desktop install` writes its launcher entry and icon, named as Electron's app ID, so that the dock shows them for its window.
 Ubuntu lets only programs with an AppArmor profile use Chromium's sandbox.
 So `desktop install` also writes a profile for Electron's binary and, if the user agrees, installs it with `sudo -k`.
+It names Electron's binary with symlinks resolved, as AppArmor matches programs: a link to it, e.g. from a worktree, is covered too.
 The profile counts as installed when its rules match, whatever its comments say.

@@ -76,3 +76,5 @@ First inspect the repository and available environment. Present a concise archit
 Then begin the smallest useful implementation. Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Keep explanations concise, document important decisions, and verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
 
 Implement one step at a time, with tests, and stop after each step with a short summary and how to try it. The user reviews and commits.
+
+Never start, stop or restart the user's Daemon; give them the commands. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).

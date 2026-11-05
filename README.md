@@ -54,4 +54,6 @@ The tool installed with `--editable` runs the current code, but keeps the depend
 
 Set `HEPHAISTOS_HOME` to a scratch directory to keep experiments away from your real data, e.g. `HEPHAISTOS_HOME=/tmp/heph hephaistos setup`. `scripts/scratch_daemon.sh start|stop|status` runs a Daemon from the checkout that way, in `/tmp/hephaistos-scratch` on port 8299, without touching the real one.
 
+`scripts/worktree_gui.sh start` opens a worktree's GUI in a Desktop window of its own, from a scratch Daemon on a copy of your data ([how](docs/development.md#a-worktrees-gui)).
+
 `uv run scripts/watch_live.py` prints the hints and heartbeats that the Server sends to GUIs (`--port` for another Server).

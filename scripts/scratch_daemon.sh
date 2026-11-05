@@ -1,9 +1,10 @@
 #!/bin/sh
 # Runs a throwaway Daemon from this checkout, away from the real one: its data in a scratch
 # HEPHAISTOS_HOME, its Server on another port, its Watcher passing only on request.
-# Usage: scripts/scratch_daemon.sh start|stop|status
+# Usage: scripts/scratch_daemon.sh start|stop|status|running
 #   then e.g. HEPHAISTOS_HOME=/tmp/hephaistos-scratch hephaistos scan ~/Repos
-# SCRATCH_HOME and SCRATCH_PORT change where (default /tmp/hephaistos-scratch, 8299).
+# SCRATCH_HOME and SCRATCH_PORT change where (default /tmp/hephaistos-scratch, 8299);
+# SCRATCH_WATCHER=on keeps the Watcher's configured interval. `running` only sets the exit code.
 set -u
 home=${SCRATCH_HOME:-/tmp/hephaistos-scratch}
 port=${SCRATCH_PORT:-8299}
@@ -29,8 +30,9 @@ start)
     uv run --project "$repo" true || exit 1 # the environment, up to date
     # Only the database: not the service or the launcher entry, which are the real ones.
     [ -e "$home/data" ] || "$heph" setup --name scratch --no-daemon --no-desktop || exit 1
-    HEPHAISTOS_SERVER_PORT=$port HEPHAISTOS_WATCHER_INTERVAL=0 \
-        nohup "$heph" daemon run >"$home/daemon.out" 2>&1 &
+    [ "${SCRATCH_WATCHER:-}" = on ] || export HEPHAISTOS_WATCHER_INTERVAL=0
+    # In a session of its own, it outlives what started it, e.g. an agent's command.
+    HEPHAISTOS_SERVER_PORT=$port setsid nohup "$heph" daemon run >"$home/daemon.out" 2>&1 &
     echo "started; its output in $home/daemon.out"
     echo "open the GUI: HEPHAISTOS_HOME=$home hephaistos daemon token --url"
     ;;
@@ -45,8 +47,11 @@ stop)
 status)
     "$heph" daemon status
     ;;
+running)
+    [ -n "$(pids)" ]
+    ;;
 *)
-    echo "usage: $0 start|stop|status" >&2
+    echo "usage: $0 start|stop|status|running" >&2
     exit 2
     ;;
 esac

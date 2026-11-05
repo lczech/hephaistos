@@ -25,6 +25,20 @@ def test_the_profile_lets_this_electron_create_user_namespaces() -> None:
     assert not apparmor.is_installed(ELECTRON.with_name("moved"))
 
 
+def test_an_electron_reached_through_a_link_counts_as_the_linked_one(tmp_path: Path) -> None:
+    electron = tmp_path / "main" / "dist" / "electron"
+    electron.parent.mkdir(parents=True)
+    electron.touch()
+    borrowed = tmp_path / "worktree" / "dist"
+    borrowed.parent.mkdir()
+    borrowed.symlink_to(electron.parent)
+    apparmor.INSTALLED.parent.mkdir()
+    apparmor.INSTALLED.write_text(apparmor.profile_text(borrowed / "electron"))
+    assert f'"{electron.resolve()}"' in apparmor.INSTALLED.read_text()
+    assert apparmor.is_installed(electron)
+    assert apparmor.is_installed(borrowed / "electron")
+
+
 def test_only_its_rules_count_not_its_comments() -> None:
     text = apparmor.profile_text(ELECTRON)
     apparmor.INSTALLED.parent.mkdir()

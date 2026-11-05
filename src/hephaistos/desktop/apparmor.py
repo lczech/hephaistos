@@ -4,6 +4,7 @@ Ubuntu (from 24.04) lets only programs with a profile create user namespaces, wh
 needs; without one, Electron aborts at start. Ubuntu ships such profiles for Chrome and VS Code.
 """
 
+import os
 import shlex
 from pathlib import Path
 
@@ -21,7 +22,12 @@ def needed() -> bool:
 
 
 def profile_text(electron: Path) -> str:
-    """Our profile for the Electron at this path: allows everything, user namespaces included."""
+    """Our profile for the Electron at this path: allows everything, user namespaces included.
+
+    AppArmor matches a program by its path with symlinks resolved, so the profile names that one:
+    it also covers an Electron reached through a link, e.g. a worktree's `gui/` borrowing it.
+    """
+    electron = Path(os.path.realpath(electron))
     return (
         "# Written by `hephaistos desktop install`: lets the desktop app's Electron use Chromium's"
         " sandbox.\n"

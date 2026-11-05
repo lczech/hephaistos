@@ -68,6 +68,21 @@ A component or hook it can't compile, e.g. one against the Rules of React, fails
 So there is no memoization by hand, which lint rejects.
 What must stay as it was, e.g. a diff given to the renderer, is held in state, not memoized.
 
+## A worktree's GUI
+
+`scripts/worktree_gui.sh` shows a worktree's GUI before it reaches main, in a Desktop window of its own.
+It builds the worktree, starts a scratch Daemon from it (`scripts/scratch_daemon.sh`) and opens the window, named after the worktree.
+Each worktree has one instance, in `~/.cache/agents/hephaistos/wt/<worktree>/`: its home, port and the window's saved Layout stay across starts.
+Its first start copies the real database, as one consistent snapshot, and the config files; `--fresh` copies them again, `--empty` starts without data.
+The copy keeps this Machine's identity, so an instance must never sync.
+Quitting the window stops its Daemon; `stop`, `remove`, `list` and `prune` manage instances.
+The window runs the main checkout's Electron, the one binary that AppArmor lets use Chromium's sandbox, so the worktree must have the same Electron version.
+The script refuses to run in the main checkout, whose GUI the real Daemon serves.
+
+Agents may build the GUI in any checkout, main included, but never start, stop or restart the real Daemon: they give the user the commands.
+In a worktree, they show their work with `scripts/worktree_gui.sh start`, run outside Claude Code's sandbox: there, Electron gets no user namespaces, and what the command leaves running ends with it.
+Before removing their worktree, they run `scripts/worktree_gui.sh remove`.
+
 ## Tests
 
 pytest tests the Core, with fake plugins standing in for real tools.
