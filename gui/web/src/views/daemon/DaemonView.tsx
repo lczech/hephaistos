@@ -5,6 +5,7 @@ import { useDaemon, useObserve } from "../../api/queries";
 import { TextIcon } from "../../components/TextIcon";
 import { fullTime } from "../../time";
 import { useNow } from "../../useNow";
+import { loadErrorText } from "../CheckoutError";
 import { ViewLink } from "../ViewLink";
 import styles from "./DaemonView.module.css";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
@@ -38,9 +39,7 @@ export function DaemonView() {
     <Disconnected connection={connection} now={now} />
   );
   if (daemon.data === undefined) {
-    const text = daemon.isError
-      ? `Couldn't load: ${daemon.error.message}`
-      : "Loading the daemon's status…";
+    const text = daemon.isError ? loadErrorText(daemon.error) : "Loading the daemon's status…";
     return (
       <section className={styles.view}>
         {notice}

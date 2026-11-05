@@ -73,7 +73,7 @@ describe("the Database View", () => {
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "old_things (1)" }));
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
-    expect(await screen.findByText(/Couldn't load/)).toBeInTheDocument();
+    expect(await screen.findByText(/Can't show this/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");

@@ -1,5 +1,6 @@
 // Why a View of a Checkout can't show it: a note above what it showed before, or, once the
 // Checkout is gone, in place of all of it. Both link to the Events that say what happened.
+// Any View words a failed load as they do.
 
 import { type ReactNode, useState } from "react";
 import { ApiError, type Schemas } from "../api/client";
@@ -52,13 +53,18 @@ function EventsLink({ error }: { error: Error }) {
   return <ViewLink address={address} label={`The ${whose}'s events`} named />;
 }
 
+/** That loading failed: `Can't show this: …` where the Server refused and says why, e.g. that a
+ * branch doesn't exist; else `Couldn't load: …`, as the request failed. */
+export function loadErrorText(error: Error): string {
+  const refused = error instanceof ApiError && error.status < 500;
+  return `${refused ? "Can't show this" : "Couldn't load"}: ${error.message}`;
+}
+
 /** That loading failed, above what showed before; `children` offer a way on. */
 export function LoadNote({ error, children }: { error: Error; children?: ReactNode }) {
-  // The Server's refusal says why, e.g. that a branch doesn't exist; else the request failed.
-  const refused = error instanceof ApiError && error.status < 500;
   return (
     <p className={styles.problem}>
-      {refused ? "Can't show this" : "Couldn't load"}: {error.message} <EventsLink error={error} />
+      {loadErrorText(error)} <EventsLink error={error} />
       {children ? " " : null}
       {children}
     </p>

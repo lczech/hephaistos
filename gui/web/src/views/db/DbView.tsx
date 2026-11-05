@@ -8,6 +8,7 @@ import { Chevron, ListTable } from "../../components/table/ListTable";
 import { listColumnHelper, useListTable } from "../../components/table/list";
 import { ViewBar, ViewPage } from "../../components/ViewBar";
 import { paramValues, withParam } from "../address";
+import { loadErrorText } from "../CheckoutError";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { cellText, type ValueType } from "./cells";
@@ -118,7 +119,7 @@ function Tables({ show }: { show: (table: string) => void }) {
   });
   let message: string | null = null;
   if (tables.data === undefined) {
-    message = tables.isError ? `Couldn't load: ${tables.error.message}` : "Loading tables…";
+    message = tables.isError ? loadErrorText(tables.error) : "Loading tables…";
   }
   return (
     <ViewPage>
@@ -168,7 +169,7 @@ function Rows({ table, show }: RowsProps) {
   });
   let message: string | null = null;
   if (pages === undefined) {
-    message = rows.isError ? `Couldn't load: ${rows.error.message}` : "Loading rows…";
+    message = rows.isError ? loadErrorText(rows.error) : "Loading rows…";
   } else if (listed.length === 0) {
     message = "No rows.";
   }

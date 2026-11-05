@@ -7,6 +7,7 @@ import { ListTable, type Tone } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
+import { loadErrorText } from "../CheckoutError";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import {
@@ -56,7 +57,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   useTitle(setTitle, title);
   let message: string | null = null;
   if (events.data === undefined) {
-    message = events.isError ? `Couldn't load: ${events.error.message}` : "Loading events…";
+    message = events.isError ? loadErrorText(events.error) : "Loading events…";
   } else if (listed.length === 0) {
     message = filters.length > 0 ? "No events match." : "No events yet.";
   }

@@ -6,6 +6,7 @@ import { ListTable } from "../../components/table/ListTable";
 import { useListTable } from "../../components/table/list";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
+import { loadErrorText } from "../CheckoutError";
 import type { ViewProps } from "../index";
 import { columns } from "./columns";
 import styles from "./RepositoriesView.module.css";
@@ -36,9 +37,7 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
   });
   let message: string | null = null;
   if (repositories.data === undefined) {
-    message = repositories.isError
-      ? `Couldn't load: ${repositories.error.message}`
-      : "Loading repositories…";
+    message = repositories.isError ? loadErrorText(repositories.error) : "Loading repositories…";
   } else if (listed.length === 0) {
     message =
       "No repositories yet: register them with `hephaistos scan` or `hephaistos clone register`.";

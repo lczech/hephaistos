@@ -1,4 +1,5 @@
 import { useConfig, useInfo } from "../../api/queries";
+import { loadErrorText } from "../CheckoutError";
 import styles from "./ConfigView.module.css";
 import { appliedText, sourceRows, sourceText, valueText } from "./configText";
 
@@ -16,7 +17,7 @@ export function ConfigView() {
   const config = useConfig();
   const home = useInfo().data?.home;
   if (config.data === undefined) {
-    const text = config.isError ? `Couldn't load: ${config.error.message}` : "Loading settings…";
+    const text = config.isError ? loadErrorText(config.error) : "Loading settings…";
     return (
       <section className={styles.view}>
         <p className={config.isError ? styles.problem : styles.quiet}>{text}</p>

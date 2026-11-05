@@ -54,7 +54,7 @@ Nothing else is orange.
 
 Text saying that something is wrong or gone is yellow (`problem` in `text.module.css`).
 That covers a failed load, a removed Worktree, an unregistered Clone, a missing branch, a commit nothing leads to, and the Server's warnings.
-A refusal by the Server reads "Can't show this:" and its message; a request that failed reads "Couldn't load:".
+A refusal by the Server reads "Can't show this:" and its message; a request that failed reads "Couldn't load:" (`loadErrorText`, in every View).
 Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
 Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
 

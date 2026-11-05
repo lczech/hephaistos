@@ -24,6 +24,7 @@ import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../icons";
 import { HEAD, INDEX, revisionText, shortHash, WORKING_TREE } from "../revisions";
 import { atLeast, numberText } from "../text";
 import { useDebounced } from "../useDebounced";
+import { loadErrorText } from "../views/CheckoutError";
 import type { Checkout } from "../views/changes/checkout";
 import { headText, searchWords } from "../views/history/rows";
 import styles from "./GitRevisionPicker.module.css";
@@ -356,7 +357,7 @@ export function GitRevisionPicker({
   };
   const failed = (shown: Shown) => shown === "commits" && history.isError;
   const empty = (shown: Shown) => {
-    if (failed(shown)) return `Couldn't load: ${history.error?.message}`;
+    if (failed(shown) && history.error) return loadErrorText(history.error);
     if (shown !== "tags" && shown !== "branches" && history.data === undefined) return "Loading…";
     if (shown === "all") return text === "" ? "Nothing to pick." : "Nothing matches.";
     const what = TAB_NAMES[shown].toLowerCase();

@@ -7,6 +7,7 @@ import { useListTable } from "../../components/table/list";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { withParam } from "../address";
+import { loadErrorText } from "../CheckoutError";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { logChoices, logColumnFilters, logFilters, logParams, logTitle } from "./choices";
@@ -46,7 +47,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   let message: string | null = null;
   let problem = false;
   if (pages === undefined) {
-    message = log.isError ? `Couldn't load: ${log.error.message}` : "Loading the log…";
+    message = log.isError ? loadErrorText(log.error) : "Loading the log…";
     problem = log.isError;
   } else if (listed.length === 0) {
     message = columnFilters.length > 0 ? "No records match." : "No records yet.";
