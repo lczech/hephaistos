@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { event } from "../../test/server";
-import {
-  machineText,
-  priorityName,
-  repositoryText,
-  shortId,
-  subjectText,
-  subjectTitle,
-} from "./eventText";
+import { machineText, priorityName, repositoryText, subjectText, subjectTitle } from "./eventText";
 
 describe("Event texts", () => {
   it("name priorities, and show unknown ones as numbers", () => {
@@ -33,7 +26,6 @@ describe("Event texts", () => {
     });
     expect(subjectText(unnamed, "/home/me")).toBe("deadbeef");
     expect(machineText(unnamed)).toBe("0000feed");
-    expect(shortId("0199e000-0000-7000-8000-0000deadbeef")).toBe("deadbeef");
   });
 
   it("show paths under home as ~, and Repositories by name", () => {

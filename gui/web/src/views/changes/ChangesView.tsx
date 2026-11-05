@@ -5,7 +5,7 @@ import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { ListTable } from "../../components/table/ListTable";
 import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
-import { revisionText, SINCE_HEAD, shortHash } from "../../revisions";
+import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
@@ -27,6 +27,7 @@ import {
   DEFAULT_SORT,
   type Entry,
   isFolder,
+  noChanges,
   SORTS,
 } from "./rows";
 import { useChangesTable } from "./table";
@@ -100,12 +101,9 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   } else if (changes.data === undefined) {
     message = error ? null : "Loading changes…"; // an error: above the table
   } else if (commit !== undefined) {
-    if (groups.length === 0 && shown?.commit) message = `No changes in ${shortHash(commit)}.`;
+    if (groups.length === 0 && shown?.commit) message = noChanges({ commit });
   } else if (groups.length === 0) {
-    message =
-      compared && !sinceHead
-        ? `No changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}.`
-        : "No changes.";
+    message = noChanges(picked);
   }
   const { from: _, to: __, commit: ___, ...others } = params;
   // Since HEAD as no `from` and `to`: one address for it.

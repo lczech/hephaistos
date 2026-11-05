@@ -5,6 +5,7 @@ import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import type { Tone } from "../../components/table/ListTable";
 import { shortPath } from "../../paths";
+import { shortHash } from "../../revisions";
 import { numberText } from "../../text";
 import type { Params } from "../address";
 import { sortingOf, withSorting } from "../sorting";
@@ -93,7 +94,7 @@ export function branchText(state: Branch): string {
 /** The branch and what it tracks, or the commit a detached HEAD is at. */
 export function branchTitle(state: Branch): string {
   if (state.branch === null) {
-    return state.head === null ? "detached" : `detached at ${state.head.slice(0, 7)}`;
+    return state.head === null ? "detached" : `detached at ${shortHash(state.head)}`;
   }
   return `${state.branch}, ${state.upstream === null ? "no upstream" : `tracking ${state.upstream}`}`;
 }

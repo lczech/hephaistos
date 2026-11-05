@@ -1,7 +1,7 @@
 // The settings and their sources, worded as `hephaistos config show` words them.
 
 import type { Schemas } from "../../api/client";
-import { shortPath } from "../../paths";
+import { pathParts, shortPath } from "../../paths";
 
 type Config = Schemas["ConfigJson"];
 type Setting = Schemas["SettingJson"];
@@ -15,7 +15,7 @@ export function valueText(value: Setting["value"], type: Setting["type"]): strin
 
 /** Where a value comes from: a file by its name, as all are in one directory; else as it is. */
 export function sourceText(source: string): string {
-  return source.split("/").at(-1) ?? source;
+  return pathParts(source)[1];
 }
 
 /** What the Daemon does differently, until it starts again; nothing if it uses the value. */

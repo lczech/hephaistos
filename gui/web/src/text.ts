@@ -1,4 +1,4 @@
-// Words and numbers in what users read: capitals, counts and lists.
+// Words and numbers in what users read: capitals, counts, lists and IDs.
 
 /** The text with a capital first letter: `uncommitted changes` → `Uncommitted changes`. */
 export function capitalised(text: string): string {
@@ -30,4 +30,14 @@ export function listText(words: string[]): string {
   return words.length > 1
     ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`
     : (words[0] ?? "");
+}
+
+/** The end of an ID, as the CLI shows it in lists: `deadbeef`. */
+export function shortId(id: string): string {
+  return id.replaceAll("-", "").slice(-8);
+}
+
+/** Something by its name, else its short ID: a Machine, a Repository. */
+export function nameOrId({ name, id }: { name: string | null; id: string }): string {
+  return name ?? shortId(id);
 }

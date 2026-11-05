@@ -8,7 +8,6 @@ import {
   type Group,
   kindCounts,
   otherText,
-  pathParts,
   sizeText,
 } from "./rows";
 
@@ -33,13 +32,6 @@ function group(name: Group["name"], changes: Change[], count = changes.length): 
 }
 
 describe("a change's texts", () => {
-  it("parts a path into its folder and name; a folder's name ends in /", () => {
-    expect(pathParts("src/views/rows.ts")).toEqual(["src/views/", "rows.ts"]);
-    expect(pathParts("README.md")).toEqual(["", "README.md"]);
-    expect(pathParts("new/")).toEqual(["", "new/"]);
-    expect(pathParts("src/new/")).toEqual(["src/", "new/"]);
-  });
-
   it("gives sizes in bytes, kB, MB", () => {
     expect([512, 3400, 12_345, 1_200_000, 5e9].map(sizeText)).toEqual([
       "512 B",

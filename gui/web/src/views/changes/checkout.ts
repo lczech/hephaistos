@@ -1,6 +1,7 @@
 // The Checkout whose changes a View shows, by its parameters `clone` or `worktree`.
 
 import type { Schemas } from "../../api/client";
+import { pathParts } from "../../paths";
 import { type Params, paramValues } from "../address";
 
 type Repository = Schemas["RepositoryJson"];
@@ -38,7 +39,7 @@ export function checkoutName(
   checkout: Checkout,
 ): string | undefined {
   for (const clone of repositories?.flatMap((repository) => repository.clones) ?? []) {
-    if ("clone" in checkout && clone.id === checkout.clone) return clone.path.split("/").at(-1);
+    if ("clone" in checkout && clone.id === checkout.clone) return pathParts(clone.path)[1];
     const worktree = clone.worktrees.find(
       (found) => "worktree" in checkout && found.id === checkout.worktree,
     );

@@ -1,9 +1,9 @@
 // What the History list holds: commits, and where a file was renamed, the path it had before.
 
 import type { Schemas } from "../../api/client";
+import { pathParts } from "../../paths";
 import { revisionText, shortHash } from "../../revisions";
 import { listText, numberText } from "../../text";
-import { pathParts } from "../changes/rows";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];

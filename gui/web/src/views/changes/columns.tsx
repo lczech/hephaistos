@@ -14,6 +14,7 @@ import { cssVars } from "../../components/cssVars";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
+import { pathParts } from "../../paths";
 import styles from "./ChangesView.module.css";
 import {
   type Change,
@@ -25,7 +26,6 @@ import {
   kindCounts,
   kindOf,
   otherText,
-  pathParts,
   statusName,
   totals,
 } from "./rows";

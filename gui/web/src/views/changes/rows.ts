@@ -4,7 +4,8 @@
 
 import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
-import { revisionText } from "../../revisions";
+import { pathParts } from "../../paths";
+import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { counted, numberText } from "../../text";
 import { type Params, paramValues } from "../address";
 
@@ -110,12 +111,6 @@ export function entryId(entry: Entry): string {
   if (entry.type === "directory") return `${entry.group.name}/${entry.path}`;
   if (entry.type === "change") return `${entry.group.name}:${entry.change.path}`;
   return entry.id;
-}
-
-/** A path's folder, with its `/`, and its name: `src/`, `main.py`; a folder's own name ends in `/`. */
-export function pathParts(path: string): [string, string] {
-  const cut = path.lastIndexOf("/", path.length - 2) + 1;
-  return [path.slice(0, cut), path.slice(cut)];
 }
 
 /** Lines changed, to sort by: unknown for binary files, those too large, and folders. */
@@ -299,6 +294,31 @@ export function comparison(params: Params): Compared | undefined {
 /** Two revisions compared, in words: `HEAD → working tree`. */
 export function arrowText({ from, to }: Compared): string {
   return `${revisionText(from)} → ${revisionText(to)}`;
+}
+
+/** Two revisions compared, in words where git's status has them: `staged`. */
+export function comparedText(compared: Compared): string {
+  const { from, to } = compared;
+  if (from === "HEAD" && to === INDEX) return "staged";
+  if (from === INDEX && to === WORKING_TREE) return "not staged";
+  if (from === "HEAD" && to === WORKING_TREE) return "since HEAD";
+  return arrowText(compared);
+}
+
+/** Changes in words, lowercase, as links to their Changes name them: `staged changes`,
+ * `uncommitted changes`, `changes from main to HEAD`, `changes in commit abc1234`. */
+export function changesText(changes: Compared | { commit: string }): string {
+  if ("commit" in changes) return `changes in commit ${shortHash(changes.commit)}`;
+  const text = comparedText(changes);
+  if (text === "staged") return "staged changes";
+  if (text === "not staged") return "unstaged changes";
+  if (text === "since HEAD") return "uncommitted changes";
+  return `changes from ${revisionText(changes.from)} to ${revisionText(changes.to)}`;
+}
+
+/** That there are none of these changes: `No staged changes.`, `No changes from main to HEAD.` */
+export function noChanges(changes: Compared | { commit: string }): string {
+  return `No ${changesText(changes)}.`;
 }
 
 /** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`. */

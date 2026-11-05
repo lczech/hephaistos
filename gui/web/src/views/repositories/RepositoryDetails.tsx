@@ -3,6 +3,7 @@ import { ForgeLink } from "../../components/ForgeLink";
 import { Fields } from "../../components/table/Fields";
 import { forgePage } from "../../forges";
 import { shortPath } from "../../paths";
+import { nameOrId } from "../../text";
 import { ago, fullTime } from "../../time";
 import { branchText, type Checkout, type Entry, statusText, worktreePath } from "./rows";
 
@@ -21,7 +22,7 @@ export function RepositoryDetails({ entry, now, home }: Props) {
   const checkoutFields = (state: Checkout): Field[] => [
     ["active", when(state.active_at)],
     ["observed", when(state.observed_at)],
-    ["observed by", state.observed_by.name ?? state.observed_by.id],
+    ["observed by", nameOrId(state.observed_by)],
     ["present", state.present],
     ["head", state.head],
     ["branch", branchText(state)],

@@ -28,7 +28,8 @@ import { codeThemes } from "../../components/diff/themes";
 import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { FilesFolded, FilesUnfolded } from "../../drawnIcons";
-import { INDEX, revisionText, SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
+import { pathParts } from "../../paths";
+import { SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
 import { capitalised, listText, plural } from "../../text";
 import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
@@ -39,12 +40,13 @@ import { checkoutName, checkoutOf } from "../changes/checkout";
 import { foldedBy, partFolded, unfolding, useFolds, withFolded, withPart } from "../changes/folds";
 import { changesLook, NestedToggle } from "../changes/look";
 import {
-  arrowText,
   type Compared,
+  changesText,
+  comparedText,
   comparison,
   groupName,
   isFolder,
-  pathParts,
+  noChanges,
 } from "../changes/rows";
 import { findOf, NOTHING_TYPED, withFind } from "../find";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
@@ -59,30 +61,6 @@ import { diffLook } from "./look";
 import { STACK, StackedDiff, stackedPaths, UNTRACKED } from "./StackedDiff";
 
 const NARROW = 48; // rem: below, a diff shows inline, as side by side its lines would be cut
-
-/** Two revisions compared, in words where git's status has them: `staged`. */
-export function comparedText(compared: Compared): string {
-  const { from, to } = compared;
-  if (from === "HEAD" && to === INDEX) return "staged";
-  if (from === INDEX && to === WORKING_TREE) return "not staged";
-  if (from === "HEAD" && to === WORKING_TREE) return "since HEAD";
-  return arrowText(compared);
-}
-
-/** The changes between two revisions, in words, lowercase, as links to their Changes name them:
- * `staged changes`, `uncommitted changes`, `changes from main to HEAD`. */
-function changesText(compared: Compared): string {
-  const text = comparedText(compared);
-  if (text === "staged") return "staged changes";
-  if (text === "not staged") return "unstaged changes";
-  if (text === "since HEAD") return "uncommitted changes";
-  return `changes from ${revisionText(compared.from)} to ${revisionText(compared.to)}`;
-}
-
-/** That there are no changes so: `No staged changes.`, `No changes from main to HEAD.` */
-function noChanges(compared: Compared): string {
-  return `No ${changesText(compared)}.`;
-}
 
 /** The file's diff the parameters name: its Checkout, what is compared (a commit against its
  * first parent, or two revisions), and its path. */
@@ -267,11 +245,7 @@ export function DiffView({
     // An error: above it.
     body = error ? null : <p className={styles.note}>Loading changes…</p>;
   } else if (groups.length === 0) {
-    body = (
-      <p className={styles.note}>
-        {compared ? noChanges(compared) : `No changes in ${shortHash(commit ?? "")}.`}
-      </p>
-    );
+    body = <p className={styles.note}>{noChanges(compared ?? { commit: commit ?? "" })}</p>;
   } else {
     body = (
       <StackedDiff
@@ -407,11 +381,7 @@ export function DiffView({
             <>
               <ViewLink
                 address={{ kind: "changes", params: { ...checkout, ...base } }}
-                label={
-                  compared
-                    ? capitalised(changesText(compared))
-                    : `Changes in commit ${shortHash(commit ?? "")}`
-                }
+                label={capitalised(changesText(base))}
               />
               <ViewLink
                 address={{ kind: "history", params: checkout }}

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { atLeast, capitalised, counted, listText, numberText, plural } from "./text";
+import {
+  atLeast,
+  capitalised,
+  counted,
+  listText,
+  nameOrId,
+  numberText,
+  plural,
+  shortId,
+} from "./text";
 
 describe("text", () => {
   it("capitalises the first letter alone", () => {
@@ -27,5 +36,11 @@ describe("text", () => {
     expect(listText(["row"])).toBe("row");
     expect(listText(["row", "view"])).toBe("row and view");
     expect(listText(["a", "b", "c"])).toBe("a, b and c");
+  });
+
+  it("shows an ID by its end, as the CLI does, where there is no name", () => {
+    expect(shortId("0199e000-0000-7000-8000-0000deadbeef")).toBe("deadbeef");
+    expect(nameOrId({ name: null, id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("deadbeef");
+    expect(nameOrId({ name: "gaia", id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("gaia");
   });
 });
