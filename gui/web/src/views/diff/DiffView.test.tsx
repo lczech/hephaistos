@@ -620,12 +620,10 @@ describe("the Diff View", () => {
         "aria-expanded",
         "false",
       );
-      // All at once: one file folded is neither all nor none; a click folds all files,
-      // directories shown; another shows all again.
-      const all = screen.getByRole("button", { name: "All files folded" });
+      // All at once: one file folded is neither all nor none; a click shows all files;
+      // another folds them all, directories shown.
+      const all = screen.getByRole("button", { name: "All files unfolded" });
       expect(all).toHaveAttribute("aria-pressed", "mixed");
-      await userEvent.click(all);
-      expect(all).toHaveAttribute("aria-pressed", "true");
       const expanded = () =>
         screen
           .getAllByRole("button", { name: /^(Diff of|Files in) / })
@@ -634,6 +632,11 @@ describe("the Diff View", () => {
             button.getAttribute("aria-label"),
             button.getAttribute("aria-expanded"),
           ]);
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "true");
+      expect(expanded().every(([, open]) => open === "true")).toBe(true);
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "false");
       expect(expanded()).toEqual([
         ["Files in src/", "true"],
         ["Files in src/app/", "true"],
@@ -641,9 +644,6 @@ describe("the Diff View", () => {
         ["Diff of src/a.py", "false"],
         ["Diff of top.txt", "false"],
       ]);
-      await userEvent.click(all);
-      expect(all).toHaveAttribute("aria-pressed", "false");
-      expect(expanded().every(([, open]) => open === "true")).toBe(true);
     });
 
     it("keeps folds per Checkout, in every comparison, a directory's for all below it", async () => {
@@ -683,10 +683,10 @@ describe("the Diff View", () => {
       expect(screen.getByRole("region", { name: "src/app/main.py" })).toBeInTheDocument();
       await userEvent.click(chevron("Files in src/"));
       // Every file folded, by its own or its directory's: all folded, until all are unfolded.
-      const all = screen.getByRole("button", { name: "All files folded" });
-      expect(all).toHaveAttribute("aria-pressed", "true");
-      await userEvent.click(all);
+      const all = screen.getByRole("button", { name: "All files unfolded" });
       expect(all).toHaveAttribute("aria-pressed", "false");
+      await userEvent.click(all);
+      expect(all).toHaveAttribute("aria-pressed", "true");
       expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "true");
       expect(chevron("Diff of top.txt")).toHaveAttribute("aria-expanded", "true");
       await userEvent.click(chevron("Diff of top.txt"));

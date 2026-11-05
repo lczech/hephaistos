@@ -358,11 +358,11 @@ export function DiffView({
               directories nested change. */}
           {!query && stackedFiles.length > 0 && (
             <Toggle
-              label="All files folded"
+              label="All files unfolded"
               on={
-                hidden.length === stackedFiles.length
+                hidden.length === 0
                   ? true
-                  : hidden.length === 0
+                  : hidden.length === stackedFiles.length
                     ? false
                     : undefined
               }
@@ -372,14 +372,14 @@ export function DiffView({
                     folded,
                     STACK,
                     on
-                      ? new Set([...stackFolded, ...stackedFiles])
-                      : unfolding(stackFolded, stackedFiles),
+                      ? unfolding(stackFolded, stackedFiles)
+                      : new Set([...stackFolded, ...stackedFiles]),
                   ),
                 )
               }
               ways={[
-                { icon: ChevronsDownUp, title: "Fold all files to their headers" },
                 { icon: ChevronsUpDown, title: "Unfold all files and directories" },
+                { icon: ChevronsDownUp, title: "Fold all files to their headers" },
               ]}
             />
           )}

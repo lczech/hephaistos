@@ -23,6 +23,7 @@ No button is filled.
 A toggle (`Toggle`) has a state.
 It has one icon where it turns something on or off, e.g. matching case.
 It has two icons where it switches between two separate modes, e.g. side by side or inline; the mode in effect shows as on.
+Of two modes, the one showing more comes first, e.g. side by side, wrapped, whole files, all files unfolded.
 This is a guide, not a strict rule.
 
 ### Pickers
