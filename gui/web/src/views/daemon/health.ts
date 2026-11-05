@@ -2,7 +2,7 @@
 
 import type { Schemas } from "../../api/client";
 import type { Connection } from "../../api/live";
-import { ago } from "../../time";
+import { ago, seconds, secondsUntil } from "../../time";
 
 export type Health = "waiting" | "good" | "warning" | "lost";
 
@@ -32,8 +32,8 @@ export function daemonHealth(
 
 /** When the live connection is tried again, e.g. `trying again in 8 s`. */
 export function retryText(retryAt: number, now: number): string {
-  const seconds = Math.ceil((retryAt - now) / 1000);
-  return seconds > 0 ? `trying again in ${seconds} s` : "trying again";
+  const wait = secondsUntil(retryAt, now);
+  return wait > 0 ? `trying again in ${seconds(wait)}` : "trying again";
 }
 
 /** How long the live connection has been lost, e.g. `disconnected 3m ago`. */

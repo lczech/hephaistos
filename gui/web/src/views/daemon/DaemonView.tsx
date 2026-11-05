@@ -14,7 +14,7 @@ type Lost = Extract<Connection, { state: "disconnected" }>;
 
 /** What to check while the live connection is lost. */
 function Disconnected({ connection, now }: { connection: Lost; now: number }) {
-  const since = fullTime(new Date(connection.since).toISOString());
+  const since = fullTime(connection.since);
   return (
     <div className={styles.notice} role="status">
       <p>

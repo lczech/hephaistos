@@ -4,7 +4,7 @@ import { Fields } from "../../components/table/Fields";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { numberText, plural } from "../../text";
-import { ago, fullTime } from "../../time";
+import { timeAndAgo } from "../../time";
 import { ChangesLinks } from "../changes/ChangesLinks";
 import type { Checkout } from "../changes/checkout";
 import { changesText } from "../changes/rows";
@@ -95,7 +95,7 @@ interface Props {
 /** All about a commit: its hash and refs, its whole message, who wrote and committed it, when,
  * and what it follows, as far as it is known. */
 export function CommitBox({ commit, checkout, now, heading }: Props) {
-  const when = (at: string) => `${fullTime(at)} (${ago(at, now)})`;
+  const when = (at: string) => timeAndAgo(at, now);
   const person = ({ name, email }: Commit["author"]) => `${name} <${email}>`;
   const { author, committer, parents } = commit;
   const fields: [string, ReactNode][] = [];

@@ -1,9 +1,9 @@
 import { GitMerge } from "lucide-react";
+import { Ago } from "../../components/Ago";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { numberText } from "../../text";
-import { ago, fullTime } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./HistoryView.module.css";
@@ -112,7 +112,7 @@ export function historyColumns(
       cell: ({ row, table }) => {
         if (row.original.type !== "commit") return "";
         const at = row.original.commit.author.at;
-        return <span title={fullTime(at)}>{ago(at, table.options.meta?.now ?? Date.now())}</span>;
+        return <Ago at={at} now={table.options.meta?.now} />;
       },
     }),
   ]);

@@ -16,9 +16,9 @@ function connectionText(connection: Connection, now: number): [string, string] {
     case "connecting":
       return ["connecting…", "connecting to this machine's server"];
     case "live":
-      return ["live", `connected since ${fullTime(new Date(connection.since).toISOString())}`];
+      return ["live", `connected since ${fullTime(connection.since)}`];
     case "disconnected": {
-      const since = fullTime(new Date(connection.since).toISOString());
+      const since = fullTime(connection.since);
       const next = retryText(connection.retryAt, now);
       return [disconnectedText(connection.since, now), `disconnected since ${since}; ${next}`];
     }

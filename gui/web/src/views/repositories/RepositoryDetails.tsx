@@ -4,7 +4,7 @@ import { Fields } from "../../components/table/Fields";
 import { forgePage } from "../../forges";
 import { shortPath } from "../../paths";
 import { nameOrId } from "../../text";
-import { ago, fullTime } from "../../time";
+import { timeAndAgo } from "../../time";
 import { branchText, type Checkout, type Entry, statusText, worktreePath } from "./rows";
 
 interface Props {
@@ -18,7 +18,7 @@ type Field = [string, ReactNode];
 /** A row's fields as `show` shows them, without those that are empty, and nothing the rows
  * around it say. */
 export function RepositoryDetails({ entry, now, home }: Props) {
-  const when = (at: string | null) => at && `${fullTime(at)} (${ago(at, now)})`;
+  const when = (at: string | null) => at && timeAndAgo(at, now);
   const checkoutFields = (state: Checkout): Field[] => [
     ["active", when(state.active_at)],
     ["observed", when(state.observed_at)],

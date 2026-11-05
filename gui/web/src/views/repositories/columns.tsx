@@ -1,8 +1,8 @@
+import { Ago } from "../../components/Ago";
 import { ForgeLink } from "../../components/ForgeLink";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { forgePage } from "../../forges";
-import { ago, fullTime } from "../../time";
 import type { Address } from "../address";
 import { ChangesLinks } from "../changes/ChangesLinks";
 import type { Checkout } from "../changes/checkout";
@@ -22,12 +22,6 @@ import {
 } from "./rows";
 
 const column = listColumnHelper<Entry>();
-
-/** A time as `5m ago`, in full when hovered; nothing if unknown. */
-function Ago({ at, now }: { at: string | null; now: number | undefined }) {
-  if (at === null) return "";
-  return <span title={fullTime(at)}>{ago(at, now ?? Date.now())}</span>;
-}
 
 /** When the row was last active, to sort by; unknown ones go last either way. */
 function activeTime(entry: Entry): number | undefined {

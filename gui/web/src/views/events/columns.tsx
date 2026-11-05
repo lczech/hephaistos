@@ -1,9 +1,9 @@
 import type { Schemas } from "../../api/client";
+import { Ago } from "../../components/Ago";
 import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/table/ListTable";
 import { listColumnHelper } from "../../components/table/list";
 import { actionOf, entityIcon, kindIcon } from "../../icons";
-import { ago, fullTime } from "../../time";
 import styles from "./EventsView.module.css";
 import { machineText, repositoryText, subjectText, subjectTitle } from "./eventText";
 
@@ -31,11 +31,7 @@ export const columns = column.columns([
       filter: { param: "since" },
       description: "When the event was recorded; its details show when it happened, if known",
     },
-    cell: ({ row, table }) => (
-      <span title={fullTime(row.original.recorded_at)}>
-        {ago(row.original.recorded_at, table.options.meta?.now ?? Date.now())}
-      </span>
-    ),
+    cell: ({ row, table }) => <Ago at={row.original.recorded_at} now={table.options.meta?.now} />,
   }),
   column.display({
     id: "kind",

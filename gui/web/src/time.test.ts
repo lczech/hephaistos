@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NOW, secondsAgo } from "./test/server";
-import { ago, fullTime, preciseTime, seconds, secondsUntil } from "./time";
+import { ago, fullTime, preciseTime, seconds, secondsUntil, timeAndAgo } from "./time";
 
 describe("times", () => {
   it("are ages as the CLI shows them", () => {
@@ -14,6 +14,7 @@ describe("times", () => {
   it("count down to a time, and print seconds", () => {
     expect(secondsUntil(secondsAgo(-40), NOW)).toBe(40);
     expect(secondsUntil(secondsAgo(3), NOW)).toBe(0);
+    expect(secondsUntil(NOW + 7200, NOW)).toBe(8); // milliseconds, rounded up
     expect(seconds(0.8)).toBe("0.8 s");
     expect(seconds(60)).toBe("60 s");
     expect(seconds(1 / 3)).toBe("0.333333 s");
@@ -22,7 +23,15 @@ describe("times", () => {
 
 describe("fullTime", () => {
   it("is the local time, to the second", () => {
-    expect(fullTime(new Date(2026, 9, 5, 14, 3, 21).toISOString())).toBe("2026-10-05 14:03:21");
+    const at = new Date(2026, 9, 5, 14, 3, 21);
+    expect(fullTime(at.toISOString())).toBe("2026-10-05 14:03:21");
+    expect(fullTime(at.getTime())).toBe("2026-10-05 14:03:21"); // milliseconds alike
+  });
+
+  it("goes with how long ago, in details", () => {
+    const at = new Date(2026, 9, 5, 14, 3, 21, 7).getTime();
+    expect(timeAndAgo(at, at + 180_000)).toBe("2026-10-05 14:03:21 (3m ago)");
+    expect(timeAndAgo(at, at + 180_000, true)).toBe("2026-10-05 14:03:21.007 (3m ago)");
   });
 });
 

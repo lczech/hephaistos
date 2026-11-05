@@ -1,6 +1,6 @@
 import type { Schemas } from "../../api/client";
 import { Fields, Titled } from "../../components/table/Fields";
-import { ago, fullTime } from "../../time";
+import { timeAndAgo } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, type KnownCommit } from "../history/CommitBox";
 import { machineText, priorityName, repositoryText, subjectText } from "./eventText";
@@ -15,7 +15,7 @@ interface Props {
 
 /** Everything about an Event, as `hephaistos event show` shows it; a commit's, all about it. */
 export function EventDetails({ event, now, home }: Props) {
-  const when = (at: string | null) => (at === null ? "-" : `${fullTime(at)} (${ago(at, now)})`);
+  const when = (at: string | null) => (at === null ? "-" : timeAndAgo(at, now));
   const committed = committedOf(event);
   // The commit's box says its message whole.
   const details = event.details.filter(({ field }) => !(committed && field === "body"));

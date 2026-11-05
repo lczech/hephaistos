@@ -1,6 +1,6 @@
 import { Fields } from "../../components/table/Fields";
 import table from "../../components/table/table.module.css";
-import { ago, preciseTime } from "../../time";
+import { timeAndAgo } from "../../time";
 import styles from "./LogView.module.css";
 import { extraFields, type LogEntry, levelName, processText } from "./logText";
 
@@ -24,7 +24,7 @@ export function LogDetails({ entry, now, onlyProcess }: Props) {
     <>
       <Fields
         fields={[
-          ["time", `${preciseTime(at)} (${ago(at, now)})`],
+          ["time", timeAndAgo(at, now, true)],
           ["level", levelName(record)],
           ["process", processText(record)],
           ["logger", String(record.logger ?? "-")],

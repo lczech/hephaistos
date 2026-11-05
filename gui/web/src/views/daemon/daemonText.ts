@@ -34,7 +34,7 @@ export function watcherText(watcher: Watcher | null, now: number): string {
   if (watcher.stalled)
     return `${text}; stalled: last pass ${ago(watcher.last_pass.finished_at, now)}`;
   const wait = watcher.next_pass_at === null ? 0 : secondsUntil(watcher.next_pass_at, now);
-  return `${text}; next pass in ${wait} s`;
+  return `${text}; next pass in ${seconds(wait)}`;
 }
 
 export function serverText(server: Server | null, now: number): string {
