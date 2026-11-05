@@ -162,6 +162,22 @@ class Server:
 
 
 @dataclass(frozen=True)
+class Tmux:
+    """The section [terminals.tmux]."""
+
+    path: str
+    socket: str
+
+
+@dataclass(frozen=True)
+class Terminals:
+    """The section [terminals]."""
+
+    history: Annotated[int, AtLeast(0)]
+    tmux: Tmux
+
+
+@dataclass(frozen=True)
 class Diff:
     """The section [gui.diff]."""
 
@@ -213,6 +229,7 @@ class Settings:
     files: Files
     watcher: Watcher
     server: Server
+    terminals: Terminals
     gui: Gui
 
 

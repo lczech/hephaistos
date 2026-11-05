@@ -39,24 +39,24 @@ gui/desktop ─> gui/web ──HTTP──> server
 ```
 
 - **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. One command for CLI and Daemon keeps a single thing on the PATH. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
-- **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the terminals plugin (e.g. tmux). Electron only does desktop integration; logic stays in the Core.
+- **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the Terminals' Keeper (tmux). Electron only does desktop integration; logic stays in the Core.
 - **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL does not work, a rollback journal takes its place ([setup](../design/core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
 
 ## Plugins
 
-Everything tool-specific is a plugin, our built-in ones included. Only git stays in the Core, because its model is part of our domain. Plugins are grouped by extension point:
+Everything tool-specific is a plugin, our built-in ones included, with two exceptions in the Core: git, because its model is part of our domain, and the Keeper of Terminals, without which there are no Terminals. Plugins are optional, and users may bring their own. They are grouped by extension point:
 
 ```
 plugins/
   agents/      claude-code/, codex/
-  terminals/   tmux/
   launchers/   vscode/, gnome-terminal/, terminator/, xdg-open/
 ```
 
-Extension points are named after what their plugins supply: `agents/` support kinds of Agents (one per Provider), `terminals/` keep Terminals alive, and `launchers/` open things (directories, files, Terminals, URLs) in tools such as editors, file managers or Terminal emulators.
+Extension points are named after what their plugins supply: `agents/` support kinds of Agents (one per Provider), and `launchers/` open things (directories, files, Terminals, URLs) in tools such as editors, file managers or Terminal emulators.
 
 - The Core defines one small interface per extension point and discovers plugins through Python entry points; it never imports them. Built-in plugins register the same way an external one would.
 - Plugins depend only on the Core.
+- The Keeper is a backend instead: the Core uses it through a small interface and creates it itself, tmux being the only one. Another, e.g. for Windows, would be a second backend; a setting would choose between them once there are two ([terminals](../core/terminals.md)).
 
 ## Interacting with Agents
 
@@ -69,7 +69,7 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **GUI tooling:** Node as a development dependency of the Python project (`nodejs-wheel`), so nothing is installed outside it. npm, TypeScript (strict), Biome, Vitest. TanStack Query and openapi-fetch, with types generated from the API's schema. CSS modules and one theme file, no component library so far. React's compiler, strictly, instead of memoizing by hand. Details: [development](../development.md#gui).
 - **Desktop shell:** Electron, so the app receives all keyboard shortcuts (e.g. Ctrl+W in a Terminal) instead of the browser taking them. It loads the GUI from this Machine's Server, as a browser would, never a copy of its own, so the Server's checks apply unchanged ([004](004-server.md)). How it works: [Desktop](../design/desktop/desktop.md).
 - **Transport:** HTTP/JSON and WebSocket, always authenticated. Machines reach each other through SSH. Connectivity (Tailscale, VPN, jump hosts) is set up in SSH and the network, not in our code; Peers only need SSH in one direction.
-- **Terminals:** tmux on its own socket (`tmux -L hephaistos`) with our own config (e.g. no status bar), kept separate from the user's tmux. The backend stays swappable (e.g. for shpool).
+- **Terminals:** tmux on its own socket (`tmux -L hephaistos`) with our own config (e.g. no status bar), kept separate from the user's tmux; its server and each Terminal in a systemd scope of their own, so that stopping the Daemon, or systemd-oomd killing one Terminal, ends no other. The Keeper stays swappable (e.g. for shpool).
 - **Polling:** in the background at a configurable interval (default 60 s), plus immediately when the GUI gains focus, through each connected Machine's Server. A GUI reads what it shows from the API's listings, never from the answer to its request, so that it also sees what other passes, the CLI and Sync changed; it asks again when the Server hints at a change ([004](004-server.md)). Agent Events are pushed by Provider hooks instead of being polled.
 - **Testing:** pytest for the Core, with fake plugins standing in for real tools; Vitest and Testing Library for the GUI, in jsdom; real browsers (Playwright) for what only a browser lays out. GUI tests reach no Server. Details: [development](../development.md#tests).
 - **Settings:** Machine-specific settings live in local TOML files, with a file per host where a home directory is shared ([settings](../design/core/settings.md)). Cross-Machine settings will live in the Registry. Edited in files first, in the GUI later.
@@ -81,3 +81,5 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **Go or Rust:** easier single-binary deployment, but less familiar. Python with uv covers cluster deployment well enough.
 - **Plain browser or installed web app:** the browser keeps shortcuts like Ctrl+W for itself.
 - **CLI as a client of a running Daemon:** the CLI would stop working whenever the Daemon is down.
+- **The Keeper as a plugin:** plugins are optional, but Terminals can't do without it; entry points would only add indirection for one backend.
+- **A Keeper of our own (a PTY server, as some apps write):** tmux runs on clusters without compiling, keeps output and screen state for reattaching, gives plain SSH access, and its control mode streams programs' own output.

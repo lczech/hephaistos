@@ -46,6 +46,9 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("watcher.interval", "60.0", "default"),
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),
+        ("terminals.history", "10000", "default"),
+        ("terminals.tmux.path", "tmux", "default"),
+        ("terminals.tmux.socket", "auto", "default"),
         ("gui.theme", "system", "default"),
         ("gui.keep_empty_groups", "false", "default"),
         ("gui.text.size", "13", "default"),
@@ -59,6 +62,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("gui.diff.large_lines", "2000", "default"),
         ("gui.diff.max_files", "1000", "default"),
     ]
+    keys = max(len(key) for key, _, _ in rows)
     width = max(len(value) for _, value, _ in rows)
     keys = max(len(key) for key, _, _ in rows)
     assert result.stdout.splitlines()[: len(rows) + 2] == [

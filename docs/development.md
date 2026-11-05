@@ -147,6 +147,9 @@ In a worktree, they show their work with `scripts/worktree_gui.sh start`, run ou
 
 pytest tests the Core, with fake plugins standing in for real tools.
 `scripts/test_git_versions.sh` runs them with several git versions.
+Tests marked `tmux` run real tmux, each on a socket of its own, its server ended afterwards; `scripts/test_tmux_versions.sh` runs them with every tmux minor version since 3.2a, installed from conda-forge by micromamba.
+tmux needs its socket, which Claude Code's sandbox blocks: run them outside it.
+Where systemd's user manager answers, a few of them also check the Terminals' scopes; elsewhere those skip.
 Vitest and Testing Library test the GUI, in jsdom.
 What only a browser lays out, e.g. what the diff renderer draws, is tested in real browsers: Playwright's Chromium, Firefox and WebKit.
 Vitest passes a run in which one project finds no tests, so `gui/vitest.config.ts` fails when no file matches the pattern of the browser tests.

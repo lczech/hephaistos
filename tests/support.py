@@ -1,12 +1,13 @@
 """Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
-stand-in for the Watcher, the API's schema, systemd's answers, a checkout with a Desktop, and the
-texts of tracked files."""
+stand-in for the Watcher, the API's schema, systemd's answers, a checkout with a Desktop, the
+texts of tracked files, and waiting for a condition."""
 
 import functools
 import json
 import re
 import socket
 import subprocess
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -210,3 +211,14 @@ def desktop_checkout(tmp_path: Path, electron: str | None, *, built: bool = True
     (checkout / "assets").mkdir()
     (checkout / "assets" / "icon.svg").write_text("<svg/>")
     return checkout
+
+
+def eventually[T](check: Callable[[], T], timeout: float = 5.0) -> T:
+    """`check()`'s first true result, asked every 20 ms, e.g. for what another process does;
+    fails the test after `timeout` seconds."""
+    deadline = time.monotonic() + timeout
+    while not (result := check()):
+        if time.monotonic() > deadline:
+            pytest.fail(f"not so within {timeout:g} s: {check}")
+        time.sleep(0.02)
+    return result

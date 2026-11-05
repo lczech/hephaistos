@@ -8,7 +8,7 @@ The first slice needs the Core's foundations: storing Registry, State and Events
 Terminals, Launchers, plugins, Sync and the GUI come later; nothing here may block them.
 
 This ADR records the decisions that are costly to change.
-How things work on them is described in [docs/design/core/](../design/core/): [setup](../design/core/setup.md), [settings](../design/core/settings.md), [data](../design/core/data.md), [events](../design/core/events.md), [observation](../design/core/observation.md) and [logs](../design/core/logs.md); also in [docs/design/daemon/](../design/daemon/), [docs/design/cli/](../design/cli/commands.md) and [development](../development.md).
+How things work on them is described in [docs/design/core/](../design/core/): [setup](../design/core/setup.md), [settings](../design/core/settings.md), [data](../design/core/data.md), [events](../design/core/events.md), [observation](../design/core/observation.md), [logs](../design/core/logs.md) and [terminals](../design/core/terminals.md); also in [docs/design/daemon/](../design/daemon/), [docs/design/cli/](../design/cli/commands.md) and [development](../development.md).
 
 ## Decision
 

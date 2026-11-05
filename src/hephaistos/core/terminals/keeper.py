@@ -1,0 +1,89 @@
+"""What keeps Terminals alive: the interface the Core uses, whichever tool implements it.
+
+A Keeper holds each Terminal's process and its output while nothing shows it. It knows nothing
+of the database; the Core compares its sessions with the State it stores.
+"""
+
+import uuid
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Protocol
+
+from hephaistos.core.utils.errors import HephaistosError
+
+#: The variable that tells a Terminal's programs which Terminal they run in: its ID.
+TERMINAL_VARIABLE = "HEPHAISTOS_TERMINAL"
+
+
+class KeeperError(HephaistosError):
+    """The Keeper failed, or can't run here."""
+
+
+class NameTakenError(KeeperError):
+    """A session of that name exists already."""
+
+
+class NoSuchSessionError(KeeperError):
+    """No session has that name."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class Session:
+    """A Terminal as its Keeper sees it at one moment."""
+
+    key: str  # the keeper's own ID for it, e.g. tmux's `$3`
+    terminal_id: uuid.UUID | None  # ours; None until adopted
+    name: str
+    directory: Path  # where it started
+    current_directory: Path | None  # where its foreground process is; None if unknown
+    program: str  # what runs in the foreground, e.g. `bash` or `vim`
+    pid: int  # of the process it started, e.g. the shell
+    clients: int  # attached to it, e.g. Terminal emulators showing it
+    created_at: datetime
+    active_at: datetime  # when it last had input or output
+    panes: int  # more than 1 if someone split it outside hephaistos; the first one counts
+
+
+class Keeper(Protocol):
+    """Keeps Terminals alive: creates, lists, renames and kills them."""
+
+    def check(self) -> None:
+        """Raises KeeperError unless the Keeper can run here, e.g. a tool missing or too old."""
+        ...
+
+    def sessions(self) -> list[Session]:
+        """All sessions, of every Terminal; empty if none run, e.g. after a reboot."""
+        ...
+
+    def create(
+        self,
+        terminal_id: uuid.UUID,
+        name: str,
+        directory: Path,
+        command: Sequence[str] | None,
+        environment: Mapping[str, str],
+    ) -> Session:
+        """Starts a session in `directory`: `command`, else the creator's login shell.
+
+        `environment` is the creator's, e.g. a shell's: the Terminal gets the variables that a
+        terminal emulator passes on, such as DISPLAY and SSH_AUTH_SOCK, from it.
+        Raises NameTakenError if `name` is taken.
+        """
+        ...
+
+    def adopt(self, name: str, terminal_id: uuid.UUID) -> None:
+        """Gives a session found without an ID, e.g. one started by hand, this one."""
+        ...
+
+    def rename(self, name: str, new_name: str) -> None:
+        """Renames a session; raises NoSuchSessionError, or NameTakenError for `new_name`."""
+        ...
+
+    def kill(self, name: str, *, force: bool = False) -> None:
+        """Ends a session, its processes getting SIGHUP; raises NoSuchSessionError.
+
+        With `force`, they get SIGKILL first, which also ends those that ignore SIGHUP.
+        """
+        ...

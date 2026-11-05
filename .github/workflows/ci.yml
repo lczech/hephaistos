@@ -35,6 +35,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: git --version
+      - run: command -v tmux || (sudo apt-get update && sudo apt-get install --yes tmux)
+      - run: tmux -V
       - run: uv run --locked pytest
 
   # The GUI: lint, types, tests (some in real browsers) and the build, which compiles every
@@ -64,3 +66,15 @@ jobs:
           key: git-${{ runner.os }}-${{ hashFiles('scripts/test_git_versions.sh') }}
       - run: uv sync --locked
       - run: scripts/test_git_versions.sh
+
+  tmux-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/hephaistos/tmux
+          key: tmux-${{ runner.os }}-${{ hashFiles('scripts/test_tmux_versions.sh') }}
+      - run: uv sync --locked
+      - run: scripts/test_tmux_versions.sh
