@@ -7,7 +7,7 @@ Decided in [ADR 005](../../decisions/005-gui.md); the terms are the [glossary](.
 
 dockview (`dockview-react`) provides Panels and Groups.
 Only `layout/` uses it; a lint rule rejects imports elsewhere.
-`views/` has a folder per kind of View.
+`views/` has a folder per kind of View; what several kinds share is beside them, e.g. `views/comparison/` for the Changes and Diff Views, whose folders never import each other, nor it them (a lint rule).
 Each kind is named, with its icon, in `views/kinds.ts`, and its component is in `views/index.ts`.
 A View gets its parameters as props, with ways to change them and its tab's title.
 Views open other Views through `useOpenView` (`views/opening.ts`), which `layout/` provides with our `openView`, never dockview's API.

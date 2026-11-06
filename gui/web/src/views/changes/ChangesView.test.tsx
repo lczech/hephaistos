@@ -6,9 +6,9 @@ import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
+import type { Change } from "../comparison/rows";
 import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { ChangesView } from "./ChangesView";
-import type { Change } from "./rows";
 
 function change(path: string, fields: Partial<Change> = {}): Change {
   return {

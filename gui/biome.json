@@ -28,6 +28,35 @@
     {
       "includes": ["web/src/layout/**"],
       "linter": { "rules": { "style": { "noRestrictedImports": "off" } } }
+    },
+    {
+      "includes": [
+        "web/src/views/changes/**",
+        "web/src/views/diff/**",
+        "web/src/views/comparison/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "dockview": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView.",
+                  "dockview-core": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView.",
+                  "dockview-react": "Only layout/ uses dockview, so that Views work in any shell (ADR 005): open Views through useOpenView."
+                },
+                "patterns": [
+                  {
+                    "group": ["../changes/*", "**/views/changes/*", "../diff/*", "**/views/diff/*"],
+                    "message": "The Changes and Diff Views share what both need through views/comparison/, never importing each other, nor it them."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 }

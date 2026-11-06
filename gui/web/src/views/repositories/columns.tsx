@@ -4,8 +4,8 @@ import { Chevron } from "../../components/list/List";
 import { listColumnHelper } from "../../components/list/table";
 import { forgePage } from "../../forges";
 import type { Address } from "../address";
-import { ChangesLinks } from "../changes/ChangesLinks";
 import type { Checkout } from "../checkout";
+import { ChangesLinks } from "../comparison/ChangesLinks";
 import { ViewLink } from "../ViewLink";
 import styles from "./RepositoriesView.module.css";
 import {

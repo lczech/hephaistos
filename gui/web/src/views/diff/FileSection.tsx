@@ -19,7 +19,7 @@ import { counted } from "../../text";
 import type { ColorScheme } from "../../theme";
 import type { Params } from "../address";
 import { LoadNote } from "../CheckoutError";
-import { ChangePath, DirectoryPath, Lines } from "../changes/columns";
+import { ChangePath, DirectoryPath, Lines } from "../comparison/columns";
 import {
   type Change,
   changedLines,
@@ -27,7 +27,7 @@ import {
   isFolder,
   otherText,
   totals,
-} from "../changes/rows";
+} from "../comparison/rows";
 import { ViewLink } from "../ViewLink";
 import styles from "./DiffView.module.css";
 import type { FileFind } from "./diffFind";

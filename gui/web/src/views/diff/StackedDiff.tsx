@@ -3,9 +3,9 @@ import { type ReactNode, useEffect, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { List } from "../../components/list/List";
 import { counted } from "../../text";
-import changesStyles from "../changes/ChangesView.module.css";
-import { Lines } from "../changes/columns";
-import { type Folds, foldedBy, partFolded, withFolded, withPart } from "../changes/folds";
+import changesStyles from "../comparison/changes.module.css";
+import { Lines } from "../comparison/columns";
+import { type Folds, foldedBy, partFolded, withFolded, withPart } from "../comparison/folds";
 import {
   type Change,
   type Entry,
@@ -17,8 +17,8 @@ import {
   kindCounts,
   moreText,
   totals,
-} from "../changes/rows";
-import { useChangesTable } from "../changes/table";
+} from "../comparison/rows";
+import { useChangesTable } from "../comparison/table";
 import styles from "./DiffView.module.css";
 import type { FileFind } from "./diffFind";
 import { type DiffShow, DirectorySection, FileBody, FileSection } from "./FileSection";

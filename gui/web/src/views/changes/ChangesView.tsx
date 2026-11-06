@@ -10,16 +10,10 @@ import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { checkoutName, checkoutOf } from "../checkout";
-import { CommitBelow, CommitLine } from "../history/CommitHeader";
-import type { ViewProps } from "../index";
-import { clickOpening, useIsShown, useOpenView } from "../opening";
-import { sortingOf, withSorting } from "../sorting";
-import { useTitle } from "../title";
-import { ViewLink } from "../ViewLink";
-import styles from "./ChangesView.module.css";
-import { ComparedPickers } from "./ComparedPickers";
-import { useFolds } from "./folds";
-import { changesLook, NestedToggle } from "./look";
+import { ComparedPickers } from "../comparison/ComparedPickers";
+import listStyles from "../comparison/changes.module.css";
+import { useFolds } from "../comparison/folds";
+import { changesLook, NestedToggle } from "../comparison/look";
 import {
   arrowText,
   type Compared,
@@ -29,8 +23,15 @@ import {
   isFolder,
   noChanges,
   SORTS,
-} from "./rows";
-import { useChangesTable } from "./table";
+} from "../comparison/rows";
+import { useChangesTable } from "../comparison/table";
+import { CommitBelow, CommitLine } from "../history/CommitHeader";
+import type { ViewProps } from "../index";
+import { clickOpening, useIsShown, useOpenView } from "../opening";
+import { sortingOf, withSorting } from "../sorting";
+import { useTitle } from "../title";
+import { ViewLink } from "../ViewLink";
+import styles from "./ChangesView.module.css";
 
 /**
  * What changed in a Checkout, as git reads it now: from one Revision to another (its parameters
@@ -196,7 +197,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       )}
       <List
         table={table}
-        className={styles.columns}
+        className={listStyles.columns}
         grouped
         layout={layout}
         oneLine

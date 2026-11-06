@@ -18,7 +18,7 @@ Pickers' lists, which offer choices, show no links; nor does a commit's line in 
 
 ### Changes and Diff as a pair
 
-Changes come as a pair wherever a commit's or a Checkout's uncommitted ones are linked: Changes, then Diff, all files one under the other (`views/changes/ChangesLinks.tsx`).
+Changes come as a pair wherever a commit's or a Checkout's uncommitted ones are linked: Changes, then Diff, all files one under the other (`views/comparison/ChangesLinks.tsx`).
 The links are greyed out where there are no changes.
 
 ### Comparisons

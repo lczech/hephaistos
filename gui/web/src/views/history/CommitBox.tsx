@@ -5,9 +5,9 @@ import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { numberText, plural } from "../../text";
 import { timeAndAgo } from "../../time";
-import { ChangesLinks } from "../changes/ChangesLinks";
-import { changesText } from "../changes/rows";
 import type { Checkout } from "../checkout";
+import { ChangesLinks } from "../comparison/ChangesLinks";
+import { changesText } from "../comparison/rows";
 import styles from "./CommitBox.module.css";
 import { type Commit, committedApart, type Ref } from "./rows";
 

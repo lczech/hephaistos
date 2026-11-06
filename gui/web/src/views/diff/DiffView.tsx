@@ -35,9 +35,17 @@ import { useColorScheme } from "../../theme";
 import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
-import { ComparedPickers } from "../changes/ComparedPickers";
-import { foldedBy, partFolded, unfolding, useFolds, withFolded, withPart } from "../changes/folds";
-import { changesLook, NestedToggle } from "../changes/look";
+import { checkoutName, checkoutOf } from "../checkout";
+import { ComparedPickers } from "../comparison/ComparedPickers";
+import {
+  foldedBy,
+  partFolded,
+  unfolding,
+  useFolds,
+  withFolded,
+  withPart,
+} from "../comparison/folds";
+import { changesLook, NestedToggle } from "../comparison/look";
 import {
   type Compared,
   changesText,
@@ -46,8 +54,7 @@ import {
   groupName,
   isFolder,
   noChanges,
-} from "../changes/rows";
-import { checkoutName, checkoutOf } from "../checkout";
+} from "../comparison/rows";
 import { findOf, NOTHING_TYPED, withFind } from "../find";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
