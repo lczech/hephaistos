@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { ListLayout } from "./kept";
 import { Chevron, List } from "./List";
 import { listColumnHelper, useList } from "./table";
 
@@ -181,5 +183,141 @@ describe("a header dragged", () => {
     render(<Coloured />);
     const edge = header("name").querySelector("hr") as Element;
     expect(fireEvent.mouseDown(edge)).toBe(false); // a drag cannot start
+  });
+});
+
+interface Node {
+  name: string;
+  subRows: Node[];
+}
+
+const node = listColumnHelper<Node>();
+const FOLDER: Node = {
+  name: "src",
+  subRows: Array.from({ length: 30 }, (_, at) => ({ name: `file ${at + 1}`, subRows: [] })),
+};
+
+/** A tree in a Panel as high as a few rows, its folder open, quiet and marked as shown. */
+function Tree({ embedded = false }: { embedded?: boolean }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true });
+  const columns = node.columns([
+    node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
+    node.accessor("name", { header: "name" }),
+  ]);
+  const table = useList("tree", "columns", {
+    columns,
+    data: [FOLDER],
+    getRowId: (row) => row.name,
+    getSubRows: (row) => row.subRows,
+    getRowCanExpand: (row) => row.original.subRows.length > 0,
+    state: { expanded },
+    onExpandedChange: (change) =>
+      setExpanded((was) => (typeof change === "function" ? change(was) : change) as typeof was),
+  });
+  return (
+    <div style={{ height: 160, display: "flex", flexDirection: "column" }}>
+      <List
+        table={table}
+        layout="columns"
+        tree
+        embedded={embedded}
+        choices={{}}
+        message={null}
+        older="files"
+        detailsLabel="Details"
+        details={() => null}
+        folds={(row) => row.subRows.length > 0}
+        tone={(row) => (row.subRows.length > 0 ? "muted" : undefined)}
+        showing={(row) => row.subRows.length > 0}
+      />
+    </div>
+  );
+}
+
+/** The row, not its item, saying `name`. */
+const rowOf = (name: string) => screen.getByText(name).closest("[id]") as HTMLElement;
+
+describe("a list as a tree", () => {
+  it("keeps a row's tone to itself, not the rows within it", () => {
+    render(<Tree />);
+    const { color } = getComputedStyle(rowOf("src"));
+    expect(getComputedStyle(rowOf("file 1")).color).not.toBe(color);
+  });
+
+  it("brings a row focused into view below the rows stuck above it", async () => {
+    render(<Tree />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    frame.scrollTop = frame.scrollHeight; // its last rows in view, "src" stuck above them
+    await waitFor(() => expect(rowOf("file 5").getBoundingClientRect().bottom).toBeLessThan(0));
+    within(rowOf("file 5")).getByRole("button").focus(); // as Shift+Tab moves up to it
+    await waitFor(() =>
+      expect(rowOf("file 5").getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        rowOf("src").getBoundingClientRect().bottom - 1,
+      ),
+    );
+  });
+
+  it("sticks an open row, still marked as shown, unless part of a page", () => {
+    const { unmount } = render(<Tree />);
+    const stuck = getComputedStyle(rowOf("src"));
+    expect(stuck.position).toBe("sticky");
+    expect(stuck.backgroundImage).toMatch(/gradient/); // its mark, over the page's colour
+    unmount();
+    render(<Tree embedded />);
+    expect(getComputedStyle(rowOf("src")).position).not.toBe("sticky");
+  });
+});
+
+const nested = (count: number, name: string): Node[] =>
+  Array.from({ length: count }, (_, at) => ({ name: `${name} ${at + 1}`, subRows: [] }));
+
+/** A compact tree two folders deep, sorted by name, in one layout or the other. */
+function Deep({ layout }: { layout: ListLayout }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true, inner: true });
+  const columns = node.columns([
+    node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
+    node.accessor("name", { header: "name", enableSorting: true }),
+  ]);
+  const table = useList(`deep-${layout}`, layout, {
+    columns,
+    data: [{ name: "src", subRows: [{ name: "inner", subRows: nested(40, "file") }] }],
+    getRowId: (row) => row.name,
+    getSubRows: (row) => row.subRows,
+    getRowCanExpand: (row) => row.original.subRows.length > 0,
+    state: { expanded, sorting: [{ id: "name", desc: false }] },
+    manualSorting: true,
+    onExpandedChange: (change) =>
+      setExpanded((was) => (typeof change === "function" ? change(was) : change) as typeof was),
+  });
+  return (
+    <div style={{ height: 300, display: "flex", flexDirection: "column" }}>
+      <List
+        table={table}
+        layout={layout}
+        tree
+        compact
+        oneLine
+        choices={{}}
+        message={null}
+        older="files"
+        detailsLabel="Details"
+        details={() => null}
+        folds={(row) => row.subRows.length > 0}
+      />
+    </div>
+  );
+}
+
+describe("a tree's rows stuck below its header", () => {
+  it.each(["columns", "lines"] as const)("lie each below the one before, in %s", async (layout) => {
+    render(<Deep layout={layout} />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    frame.scrollTop = frame.scrollHeight;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement; // in the grid
+    await waitFor(() => {
+      const [src, inner] = [rowOf("src"), rowOf("inner")].map((row) => row.getBoundingClientRect());
+      expect(src?.top).toBeCloseTo(head.getBoundingClientRect().bottom, 0);
+      expect(inner?.top).toBeCloseTo(src?.bottom ?? 0, 0);
+    });
   });
 });

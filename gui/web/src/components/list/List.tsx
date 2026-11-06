@@ -145,6 +145,17 @@ export function List<TData extends RowData>({
     observer.observe(end.current);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  // The header's height, as drawn, for the rows stuck below it: in lines its buttons have their
+  // own height, and wrap where narrow.
+  useEffect(() => {
+    const [at, box] = [head.current, frame.current];
+    if (at === null || box === null || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() =>
+      box.style.setProperty("--head-height", `${at.offsetHeight}px`),
+    );
+    observer.observe(at);
+    return () => observer.disconnect();
+  }, []);
   const toggle = (id: string) => {
     const next = new Set(open);
     if (!next.delete(id)) next.add(id);
@@ -216,6 +227,107 @@ export function List<TData extends RowData>({
   const rows = table.getRowModel().rows;
   const filtered = table.state.columnFilters.length > 0;
   const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) };
+  // A tree's rows by the row they are within, in order: those of rows open.
+  const childrenOf = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (row.parentId === undefined) continue;
+    childrenOf.set(row.parentId, [...(childrenOf.get(row.parentId) ?? []), row]);
+  }
+  const indexOf = new Map(rows.map((row, index) => [row.id, index]));
+  const drawRow = (row: (typeof rows)[number]) => {
+    const index = indexOf.get(row.id) ?? 0;
+    const view = opens?.(row.original);
+    const still = view === undefined && (plain?.(row.original) ?? false);
+    const folding = folds?.(row.original) ?? false;
+    const shown = folding ? row.getIsExpanded() : open.has(row.id);
+    let opening: (click: MouseEvent) => void = folding
+      ? () => row.toggleExpanded()
+      : () => toggle(row.id);
+    if (view !== undefined) opening = view;
+    const middle = (click: MouseEvent) => click.button === 1 && view?.(click);
+    const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
+    const [first, ...others] = row.getVisibleCells();
+    // A tree's rows within this one, drawn inside it, so that an open row sticks while they scroll.
+    const within = (tree && childrenOf.get(row.id)) || [];
+    return (
+      <li
+        key={row.id}
+        className={styles.item}
+        data-tone={tone?.(row.original)}
+        data-depth={row.depth || undefined}
+        data-holding={within.length > 0 || undefined}
+        style={cssVars(tree ? { "--depth": row.depth } : {})}
+      >
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its button opens it by keyboard */}
+        <div
+          id={id}
+          className={styles.row}
+          data-plain={still || undefined}
+          data-showing={showing?.(row.original) || undefined}
+          onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
+          onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
+          onContextMenu={
+            rowMenu?.(row.original) ? (event) => showRowMenu(event, row.id) : undefined
+          }
+        >
+          {first && still && (
+            <span {...cellData(first.column)}>
+              <FlexRender cell={first} />
+            </span>
+          )}
+          {first && !still && (
+            <span {...cellData(first.column)}>
+              <button
+                type="button"
+                className={styles.open}
+                aria-expanded={view ? undefined : shown}
+                aria-controls={shown && !folding && !view ? `${id}-details` : undefined}
+                aria-labelledby={id}
+                title={squareTitle?.(row.original)}
+                onClick={opening}
+                onAuxClick={view && middle}
+              >
+                <FlexRender cell={first} />
+              </button>
+            </span>
+          )}
+          {others.map((cell) => (
+            <span key={cell.id} {...cellData(cell.column)}>
+              {actions && cell.column.columnDef.meta?.identifies ? (
+                <span className={styles.withActions}>
+                  <span className={styles.named}>
+                    <FlexRender cell={cell} />
+                  </span>
+                  <span className={styles.actions}>{actions(row.original)}</span>
+                </span>
+              ) : (
+                <FlexRender cell={cell} />
+              )}
+            </span>
+          ))}
+          {rowMenuAt?.id === row.id && (
+            <RowMenuAt
+              at={rowMenuAt}
+              anchor={rowAnchor}
+              menu={rowMenu?.(row.original)}
+              onClose={() => setRowMenuAt(null)}
+            />
+          )}
+        </div>
+        {shown && !folding && !still && !view && (
+          <section
+            id={`${id}-details`}
+            className={styles.details}
+            aria-label={detailsLabel}
+            data-bare={bareDetails || undefined}
+          >
+            {details(row.original)}
+          </section>
+        )}
+        {within.length > 0 && <ol className={styles.within}>{within.map(drawRow)}</ol>}
+      </li>
+    );
+  };
   return (
     <div
       ref={frame}
@@ -301,94 +413,7 @@ export function List<TData extends RowData>({
         </div>
         {rows.length > 0 && (
           <ol className={styles.rows} onPointerOver={showWholeText}>
-            {rows.map((row, index) => {
-              const view = opens?.(row.original);
-              const still = view === undefined && (plain?.(row.original) ?? false);
-              const folding = folds?.(row.original) ?? false;
-              const shown = folding ? row.getIsExpanded() : open.has(row.id);
-              let opening: (click: MouseEvent) => void = folding
-                ? () => row.toggleExpanded()
-                : () => toggle(row.id);
-              if (view !== undefined) opening = view;
-              const middle = (click: MouseEvent) => click.button === 1 && view?.(click);
-              const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
-              const [first, ...others] = row.getVisibleCells();
-              return (
-                <li
-                  key={row.id}
-                  className={styles.item}
-                  data-tone={tone?.(row.original)}
-                  data-depth={row.depth || undefined}
-                >
-                  {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its button opens it by keyboard */}
-                  <div
-                    id={id}
-                    className={styles.row}
-                    data-plain={still || undefined}
-                    data-showing={showing?.(row.original) || undefined}
-                    onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
-                    onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
-                    onContextMenu={
-                      rowMenu?.(row.original) ? (event) => showRowMenu(event, row.id) : undefined
-                    }
-                  >
-                    {first && still && (
-                      <span {...cellData(first.column)}>
-                        <FlexRender cell={first} />
-                      </span>
-                    )}
-                    {first && !still && (
-                      <span {...cellData(first.column)}>
-                        <button
-                          type="button"
-                          className={styles.open}
-                          aria-expanded={view ? undefined : shown}
-                          aria-controls={shown && !folding && !view ? `${id}-details` : undefined}
-                          aria-labelledby={id}
-                          title={squareTitle?.(row.original)}
-                          onClick={opening}
-                          onAuxClick={view && middle}
-                        >
-                          <FlexRender cell={first} />
-                        </button>
-                      </span>
-                    )}
-                    {others.map((cell) => (
-                      <span key={cell.id} {...cellData(cell.column)}>
-                        {actions && cell.column.columnDef.meta?.identifies ? (
-                          <span className={styles.withActions}>
-                            <span className={styles.named}>
-                              <FlexRender cell={cell} />
-                            </span>
-                            <span className={styles.actions}>{actions(row.original)}</span>
-                          </span>
-                        ) : (
-                          <FlexRender cell={cell} />
-                        )}
-                      </span>
-                    ))}
-                    {rowMenuAt?.id === row.id && (
-                      <RowMenuAt
-                        at={rowMenuAt}
-                        anchor={rowAnchor}
-                        menu={rowMenu?.(row.original)}
-                        onClose={() => setRowMenuAt(null)}
-                      />
-                    )}
-                  </div>
-                  {shown && !folding && !still && !view && (
-                    <section
-                      id={`${id}-details`}
-                      className={styles.details}
-                      aria-label={detailsLabel}
-                      data-bare={bareDetails || undefined}
-                    >
-                      {details(row.original)}
-                    </section>
-                  )}
-                </li>
-              );
-            })}
+            {(tree ? rows.filter((row) => row.depth === 0) : rows).map(drawRow)}
           </ol>
         )}
       </div>

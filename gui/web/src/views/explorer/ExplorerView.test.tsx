@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { forgetKept } from "../../kept";
 import { noticeAtom } from "../../notice";
+import { ownRow } from "../../test/list";
 import {
   clone,
   fileEntry,
@@ -46,7 +47,9 @@ function Explorer({ initial = {} }: { initial?: Params }) {
 }
 
 const names = () =>
-  screen.getAllByRole("listitem").map((row) => row.textContent?.replace(/\s+/g, " ").trim());
+  screen
+    .getAllByRole("listitem")
+    .map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim());
 
 describe("the Explorer View", () => {
   it("shows the home directory, folders first, hidden entries in italics", async () => {

@@ -33,6 +33,9 @@ What is folded or opened is kept per browser as sets of row IDs (`hephaistos.fol
 A row is a step further in for each level, its chevron moved as far, before what it is, so that its icon starts where its parent's name does.
 A tree's square holds only its chevron, a little in from the list's edge and reaching into the gap after it, so that what the row is starts just after it (`tree`).
 A list may set its rows closer together (`compact`): the Explorer does, as a sidebar's list will.
+A tree draws a row's rows within it, so that a row holding rows stays in view below the header and those holding it while its rows scroll past, as VS Code's trees do; not where the list is part of a page.
+What is focused or scrolled to in a row comes into view below those rows, not under them.
+A row's tone is its own, not that of the rows within it.
 While the list is pointed at, a thin line runs below each open row's chevron, through the rows within it.
 
 Trees of paths are `components/files/`': the directories flat paths lie in, a directory holding a single directory and nothing else joined with it; folds by path, a folded directory folding all below it; and paths after their icon, the folder quieter.

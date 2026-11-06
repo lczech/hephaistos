@@ -7,6 +7,10 @@
      their parent's name starts (`components/files/Path.module.css`). */
   --level: calc(var(--icon-size) + var(--space-1));
   --row-space: var(--space-half); /* above and below each row's content */
+  /* A row's height, and the header's: a line, and their room above and below; the header's as
+     drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. */
+  --row-height: calc(1lh + 2 * var(--row-space));
+  --head-height: calc(1lh + 2 * var(--space-half));
   container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
 }
@@ -21,6 +25,7 @@
 /* Rows closer together, e.g. a tree of files, a sidebar's list. */
 .frame[data-compact] {
   --row-space: 0;
+  --row-height: 1lh;
 }
 
 .quiet {
@@ -39,6 +44,7 @@
 
 .head,
 .rows,
+.within,
 .item,
 .row {
   display: grid;
@@ -77,7 +83,8 @@
   height: 0;
 }
 
-.rows {
+.rows,
+.within {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -103,11 +110,12 @@
   translate: 0 var(--icon-lift);
 }
 
-/* The square, tinted by the row's tone beside the row and its details; filled for alarms. */
+/* The square, tinted by the row's tone beside the row and its details; filled for alarms. A
+ * tree's rows nest in the items of those holding them, so there the row alone: they fold rather
+ * than show details, so that it is the same strip. */
 .item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"]) {
   --tone: var(--warning);
   --tinted: var(--tint-warning);
-  background: linear-gradient(to right, var(--tinted) var(--square), transparent 0);
 }
 
 .item:is([data-tone="danger"], [data-tone="alarm"]) {
@@ -119,6 +127,14 @@
   --tinted: var(--danger);
 }
 
+:where(.frame:not([data-tree]))
+  .item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"]),
+:where(.frame[data-tree])
+  .item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"])
+  > :where(.row) {
+  background: linear-gradient(to right, var(--tinted) var(--square), transparent 0);
+}
+
 .row {
   position: relative; /* for its button's outline */
   align-items: center;
@@ -128,7 +144,7 @@
   --view-icon: currentColor; /* links to Views grey, until hovered (below) */
 }
 
-.item[data-tone="muted"] .row {
+.item[data-tone="muted"] > .row {
   color: var(--text-muted);
 }
 
@@ -261,11 +277,11 @@
   margin-inline: var(--chevron-start) 0;
 }
 
-.item:is([data-tone="warning"], [data-tone="danger"]) .chevron {
+.item:is([data-tone="warning"], [data-tone="danger"]) > :where(.row) .chevron {
   color: var(--tone);
 }
 
-.item[data-tone="alarm"] .chevron {
+.item[data-tone="alarm"] > :where(.row) .chevron {
   color: var(--background);
 }
 
@@ -644,5 +660,39 @@
 }
 
 .frame[data-layout="lines"][data-one-line] .row {
-  padding-block: var(--space-half);
+  padding-block: var(--row-space); /* as in columns, compact too */
+}
+
+/* In a tree, a row holding rows stays in view below the header and those holding it while its
+ * rows scroll past, as they are drawn within it; on the background, so that they pass below. */
+.frame[data-tree]:not([data-embedded]) .head {
+  z-index: 100; /* above all rows stuck below it */
+}
+
+.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row {
+  position: sticky;
+  top: calc(-1 * var(--space-2) + var(--head-height) + var(--depth) * var(--row-height));
+  /* Deeper ones lower: one leaving slides below those holding it, not over them. */
+  z-index: calc(99 - var(--depth));
+  background-color: var(--background); /* under the hover's fill, which is translucent */
+}
+
+.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row:hover {
+  background-image: linear-gradient(var(--fill-hover-row), var(--fill-hover-row));
+}
+
+/* What is focused or scrolled to in a row comes into view below the header and the rows stuck
+ * above it, those holding it, not under them; one row's room below. */
+.frame[data-tree]:not([data-embedded]) .row :where(*) {
+  scroll-margin-block: calc(var(--head-height) + var(--depth, 0) * var(--row-height))
+    var(--row-height);
+}
+
+/* Marked as its View is shown, stuck or not (above). */
+.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row[data-showing] {
+  background-image: linear-gradient(var(--fill-marked), var(--fill-marked));
+}
+
+.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row[data-showing]:hover {
+  background-image: linear-gradient(var(--fill-marked-hover), var(--fill-marked-hover));
 }

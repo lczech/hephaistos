@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
-import { cells } from "../../test/list";
+import { cells, ownRow } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
@@ -460,7 +460,7 @@ describe("the Changes View", () => {
     renderWithQueries(
       <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
     );
-    const header = (await screen.findByText("Changes")).closest("li") as HTMLElement;
+    const header = ownRow((await screen.findByText("Changes")).closest("li") as HTMLElement);
     expect(within(header).queryByRole("button")).toBeNull();
     await userEvent.click(header);
     expect(rows()).toEqual([
