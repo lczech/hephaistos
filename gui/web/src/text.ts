@@ -41,3 +41,19 @@ export function shortId(id: string): string {
 export function nameOrId({ name, id }: { name: string | null; id: string }): string {
   return name ?? shortId(id);
 }
+
+/** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`: as the CLI's `size_text`. */
+export function sizeText(bytes: number): string {
+  const units: [number, string][] = [
+    [1e9, "GB"],
+    [1e6, "MB"],
+    [1e3, "kB"],
+  ];
+  for (const [size, unit] of units) {
+    if (bytes >= size) {
+      const value = bytes / size;
+      return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${unit}`;
+    }
+  }
+  return `${bytes} B`;
+}

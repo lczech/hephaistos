@@ -19,7 +19,7 @@ import {
   tableFeatures,
 } from "@tanstack/react-table";
 import { type ColumnLook, columnsOrdered } from "./columns";
-import { columnOrder, columnWidths, hiddenColumns, type ListLayout } from "./kept";
+import { columnOrder, columnWidths, hiddenColumns, hiddenOf, type ListLayout } from "./kept";
 
 /** What a list's cells may need besides their row; and how its look is kept. */
 export interface ListMeta {
@@ -65,21 +65,35 @@ export function useList<TData extends RowData>(
   layout: ListLayout,
   options: ListOptions<TData>,
 ) {
-  const [hidden] = useAtom(hiddenColumns(kind));
+  const hidden = useHidden(kind, layout, options.columns, options.state);
   const [moved] = useAtom(columnOrder(kind));
-  const { columnFilters = [], sorting = [] } = options.state ?? {};
-  const shown = new Set([...columnFilters, ...sorting].map(({ id }) => id));
   const inColumns = layout === "columns";
   return useAppTable({
     ...options,
     atoms: { columnSizing: columnWidths(kind) },
     state: {
       ...options.state,
-      columnVisibility: Object.fromEntries(
-        (inColumns ? hidden : []).filter((id) => !shown.has(id)).map((id) => [id, false]),
-      ),
+      columnVisibility: Object.fromEntries([...hidden].map((id) => [id, false])),
       columnOrder: inColumns ? columnsOrdered(options.columns, moved) : [],
     },
     meta: { ...options.meta, kind },
   });
+}
+
+/**
+ * The columns a kind of View's list hides, by their IDs: as kept, else those hidden until shown;
+ * in columns only. A column filtered or sorted by shows, even if hidden. Also for a View to ask
+ * only for what its shown columns need.
+ */
+export function useHidden(
+  kind: string,
+  layout: ListLayout,
+  columns: readonly { id?: string; meta?: { hiddenAtFirst?: boolean } }[],
+  state?: { columnFilters?: { id: string }[]; sorting?: { id: string }[] },
+): ReadonlySet<string> {
+  const [kept] = useAtom(hiddenColumns(kind));
+  const { columnFilters = [], sorting = [] } = state ?? {};
+  const shown = new Set([...columnFilters, ...sorting].map(({ id }) => id));
+  if (layout !== "columns") return new Set();
+  return new Set(hiddenOf(kept, columns).filter((id) => !shown.has(id)));
 }

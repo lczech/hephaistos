@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
+import { forgetKept } from "../../kept";
 import {
   clone,
   fileEntry,
@@ -52,7 +53,7 @@ describe("the Explorer View", () => {
     await screen.findByText("notes.md");
     expect(names()).toEqual(["proj", ".bashrc", "notes.md"]);
     expect(screen.getByRole("heading")).toHaveTextContent("Explorer: me");
-    expect(screen.getByText(".bashrc").closest("[class*=hidden]")).not.toBeNull();
+    expect(screen.getByText(".bashrc").closest("[data-hidden]")).not.toBeNull();
   });
 
   it("opens a folder, kept so, and leaves hidden entries out when asked", async () => {
@@ -91,6 +92,55 @@ describe("the Explorer View", () => {
     await userEvent.click(screen.getByRole("button", { name: "~" }));
     expect(screen.getByRole("status")).toHaveTextContent("explorer?path=%2Fhome%2Fme");
     await screen.findByText("notes.md");
+  });
+
+  it("colours names by git, its letters spelled out, asking for sizes and times only shown", async () => {
+    const git: Record<string, Partial<Schemas["FileEntryJson"]>> = {
+      proj: { kind: "directory", changed: true },
+      "notes.md": {
+        status: "M",
+        index: "A",
+        worktree: "M",
+        size: 3400,
+        modified: "2026-10-13T11:00:00Z",
+      },
+      ".bashrc": { ignored: true },
+    };
+    const asked: string[] = [];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": (request) => {
+        const query = new URL(request.url).searchParams;
+        asked.push(query.getAll("fields").join(","));
+        const fields = new Set(query.getAll("fields"));
+        const entries = (DISK["/home/me"] ?? []).map((found) => ({
+          ...found,
+          ...(fields.has("git") ? git[found.name] : {}),
+          size: fields.has("size") ? (git[found.name]?.size ?? null) : null,
+          modified: fields.has("modified") ? (git[found.name]?.modified ?? null) : null,
+        }));
+        return json({ path: "/home/me", top: "/home/me", entries, count: entries.length });
+      },
+    });
+    const { unmount } = renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    await waitFor(() => expect(screen.getByText("notes.md").closest("[data-git]")).not.toBeNull());
+    expect(screen.getByText("notes.md").closest("[data-git]")).toHaveAttribute(
+      "data-git",
+      "modified",
+    );
+    expect(screen.getByTitle("staged: added; not staged: modified")).toHaveTextContent("M");
+    expect(screen.getByTitle("changes below it")).toHaveTextContent("•");
+    expect(screen.getByText(".bashrc").closest("[data-ignored]")).not.toBeNull();
+    expect(asked).toEqual(["", "git"]); // sizes and times hidden: not asked for
+    expect(screen.queryByText("3.4 kB")).toBeNull();
+    unmount();
+
+    localStorage.setItem("hephaistos.lists.explorer.hidden", "[]"); // all columns shown
+    forgetKept();
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    expect(await screen.findByText("3.4 kB")).toBeInTheDocument();
+    expect(asked.at(-1)).toBe("git,size,modified");
   });
 
   it("says why a Directory cannot be listed", async () => {

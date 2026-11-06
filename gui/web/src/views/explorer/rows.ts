@@ -34,14 +34,18 @@ export type Entry =
 
 // The order, as the fragment's `sort`: by name unless chosen otherwise.
 export const DEFAULT_SORT = "name";
-export const SORTS = ["name"];
+export const SORTS = ["name", "size", "modified"];
 
 /** Names as people sort them, as VS Code does: case ignored, numbers by their value. */
 const NAMES = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 const ORDER: Order<FileEntry> = {
   rank: (entry) => (opens(entry) ? 0 : 1), // folders first
-  values: { name: (entry) => entry.name },
+  values: {
+    name: (entry) => entry.name,
+    size: (entry) => entry.size ?? undefined,
+    modified: (entry) => entry.modified ?? undefined, // ISO 8601, so in order as text
+  },
   fallback: "name",
   collator: NAMES,
 };

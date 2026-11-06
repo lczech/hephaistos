@@ -20,9 +20,19 @@ function widths(saved: unknown): ColumnSizingState {
   ) as ColumnSizingState;
 }
 
-/** The columns hidden from a kind of View's list, by their IDs. */
-export function hiddenColumns(kind: string): Atom<string[]> {
-  return keptAtom(`hephaistos.lists.${kind}.hidden`, ids);
+/** The columns hidden from a kind of View's list, by their IDs; null as at first (`hiddenOf`). */
+export function hiddenColumns(kind: string): Atom<string[] | null> {
+  return keptAtom(`hephaistos.lists.${kind}.hidden`, (saved) =>
+    Array.isArray(saved) ? ids(saved) : null,
+  );
+}
+
+/** The columns hidden: as kept, else those hidden until shown (`hiddenAtFirst`). */
+export function hiddenOf(
+  kept: string[] | null,
+  columns: readonly { id?: string; meta?: { hiddenAtFirst?: boolean } }[],
+): string[] {
+  return kept ?? columns.flatMap(({ id, meta }) => (id && meta?.hiddenAtFirst ? [id] : []));
 }
 
 /** The order of a kind of View's columns with a header, by their IDs, as moved. */
@@ -60,7 +70,7 @@ export function useListLayout(kind: string): [ListLayout, (layout: ListLayout) =
  * and its layout. */
 export function resetLook(kind: string): void {
   columnWidths(kind).set({});
-  hiddenColumns(kind).set([]);
+  hiddenColumns(kind).set(null);
   columnOrder(kind).set([]);
   layoutChosen(kind).set(null);
 }

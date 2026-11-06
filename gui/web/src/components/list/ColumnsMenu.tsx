@@ -6,7 +6,7 @@ import { Menu, MenuItem, MenuSection, Popover, Separator } from "react-aria-comp
 import popover from "../popover.module.css";
 import styles from "./ColumnsMenu.module.css";
 import { arrangedOrder, movedPast } from "./columns";
-import { columnOrder, hiddenColumns, resetLook } from "./kept";
+import { columnOrder, hiddenColumns, hiddenOf, resetLook } from "./kept";
 import type { ListFeatures } from "./table";
 
 interface Props<TData extends RowData> {
@@ -30,7 +30,8 @@ export function ColumnsMenu<TData extends RowData>({
   onClose,
 }: Props<TData>) {
   const kind = table.options.meta?.kind ?? "";
-  const [hidden, setHidden] = useAtom(hiddenColumns(kind));
+  const [kept, setHidden] = useAtom(hiddenColumns(kind));
+  const hidden = hiddenOf(kept, table.options.columns);
   const [moved, setMoved] = useAtom(columnOrder(kind));
   const columns = arrangedOrder(table.options.columns, moved).flatMap((id) => {
     const column = table.getColumn(id);

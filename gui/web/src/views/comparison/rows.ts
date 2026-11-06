@@ -15,7 +15,7 @@ import {
   type Order,
 } from "../../components/list/tree";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
-import { counted, numberText } from "../../text";
+import { counted, numberText, sizeText } from "../../text";
 import { type Params, paramValues } from "../address";
 
 export type Group = Schemas["ChangeGroupJson"];
@@ -91,9 +91,14 @@ const STATUS_NAMES: Record<string, string> = {
   "?": "untracked",
 };
 
+/** git's letter spelled out: `M` → `modified`. */
+export function letterName(letter: string): string {
+  return STATUS_NAMES[letter] ?? letter;
+}
+
 /** git's letter for a change spelled out: `modified`. */
 export function statusName(change: Change): string {
-  return STATUS_NAMES[change.status] ?? change.status;
+  return letterName(change.status);
 }
 
 /** How many of each kind these changes are, in `KINDS`' order, without those of none. */
@@ -281,22 +286,6 @@ export function changesText(changes: Compared | { commit: string }): string {
 /** That there are none of these changes: `No staged changes.`, `No changes from main to HEAD.` */
 export function noChanges(changes: Compared | { commit: string }): string {
   return `No ${changesText(changes)}.`;
-}
-
-/** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`. */
-export function sizeText(bytes: number): string {
-  const units: [number, string][] = [
-    [1e9, "GB"],
-    [1e6, "MB"],
-    [1e3, "kB"],
-  ];
-  for (const [size, unit] of units) {
-    if (bytes >= size) {
-      const value = bytes / size;
-      return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${unit}`;
-    }
-  }
-  return `${bytes} B`;
 }
 
 /** What changed in a file, if not its lines: `binary, 1.2 → 1.4 MB`, `12 MB, not counted`. */

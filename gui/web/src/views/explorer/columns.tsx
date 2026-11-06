@@ -8,11 +8,14 @@ import {
   FolderSymlink,
   type LucideIcon,
 } from "lucide-react";
+import { Ago } from "../../components/Ago";
 import { fileKind, KIND_ICONS } from "../../components/files/kinds";
 import { Path } from "../../components/files/Path";
 import { Indented, NoteText, TreeChevron, TreeGuides } from "../../components/list/TreeCells";
 import { listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
+import { sizeText } from "../../text";
+import { letterName } from "../comparison/rows";
 import styles from "./ExplorerView.module.css";
 import type { Entry } from "./rows";
 
@@ -47,11 +50,45 @@ function titleOf(row: Shown): string {
   return `${row.path}\n${entry.to === null ? "broken: points to" : "points to"} ${entry.target}`;
 }
 
-/** An entry's name after its icon; hidden ones quieter, in italics; broken symlinks marked. */
+/** The fields a listing may give besides names and kinds, as the API names them. */
+export const FIELDS = ["git", "size", "modified"] as const;
+
+/** The columns whose values cost to ask for, so hidden until shown: asked for only then. */
+export const COSTLY = [
+  { id: "size", meta: { hiddenAtFirst: true } },
+  { id: "modified", meta: { hiddenAtFirst: true } },
+];
+
+/** How git's letter colours an entry, as Changes colours its kinds of change. */
+function gitTone(row: Shown): "added" | "modified" | "conflict" | undefined {
+  const { status, changed } = row.entry;
+  if (status === "A" || status === "?") return "added";
+  if (status === "U" || status === "D") return "conflict";
+  if (status !== null || changed) return "modified";
+  return undefined;
+}
+
+/** What git says of an entry, in words: `staged: added; not staged: modified`. */
+function gitTitle(row: Shown): string {
+  const { status, index, worktree, changed } = row.entry;
+  if (status === "?") return "untracked";
+  if (status === "U") return "unmerged";
+  const parts = [
+    ...(index ? [`staged: ${letterName(index)}`] : []),
+    ...(worktree ? [`not staged: ${letterName(worktree)}`] : []),
+  ];
+  return parts.length > 0 ? parts.join("; ") : changed ? "changes below it" : "";
+}
+
+/**
+ * An entry's name after its icon, coloured by git's letter, or for changes below a folder; hidden
+ * ones quieter, in italics; ignored ones quieter; broken symlinks marked.
+ */
 function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
   const broken = row.entry.kind === "symlink" && row.entry.to === null;
   const name = (
     <Path
+      whole
       shown={row.shown}
       title={titleOf(row)}
       icon={
@@ -64,13 +101,34 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
   // Pointing at a closed folder asks for what it holds, so that opening it shows that at once.
   const ahead = row.folder && !looks.open(row) ? () => looks.ahead(row) : undefined;
   return (
-    <span className={row.entry.hidden ? styles.hidden : undefined} onPointerEnter={ahead}>
+    <span
+      className={styles.name}
+      data-hidden={row.entry.hidden || undefined}
+      data-ignored={row.entry.ignored || undefined}
+      data-git={gitTone(row)}
+      onPointerEnter={ahead}
+    >
       {name}
     </span>
   );
 }
 
-/** The Explorer's columns: a folder's chevron, in line with its name; the name, sorting. */
+/** git's letter for an entry, in its colour, or a dot for changes below a folder. */
+function GitCell({ row }: { row: Shown }) {
+  const { status, changed, ignored } = row.entry;
+  if (ignored) return "";
+  const letter = status ?? (changed ? "•" : "");
+  return (
+    <span className={styles.git} data-git={gitTone(row)} title={gitTitle(row)}>
+      {letter}
+    </span>
+  );
+}
+
+/**
+ * The Explorer's columns: a folder's chevron, in line with its name; the name; git's letter;
+ * then the size and the time last modified, hidden until shown. All but the letter sort.
+ */
 export function explorerColumns(looks: Looks) {
   return column.columns([
     column.display({
@@ -105,5 +163,50 @@ export function explorerColumns(looks: Looks) {
         );
       },
     }),
+    column.display({
+      id: "git",
+      header: "git",
+      enableResizing: false,
+      meta: {
+        width: "max-content",
+        description: "git's status: its letter, or • for changes below",
+      },
+      cell: ({ row }) => (row.original.type === "entry" ? <GitCell row={row.original} /> : ""),
+    }),
+    column.accessor(
+      (entry) => (entry.type === "entry" ? (entry.entry.size ?? undefined) : undefined),
+      {
+        id: "size",
+        header: "size",
+        enableSorting: true,
+        sortDescFirst: true,
+        size: 80,
+        meta: { end: true, figures: true, ...COSTLY[0]?.meta },
+        cell: ({ row }) => {
+          const entry = row.original;
+          const size = entry.type === "entry" ? entry.entry.size : null;
+          return size === null ? "" : sizeText(size);
+        },
+      },
+    ),
+    column.accessor(
+      (entry) => (entry.type === "entry" ? (entry.entry.modified ?? undefined) : undefined),
+      {
+        id: "modified",
+        header: "modified",
+        enableSorting: true,
+        sortDescFirst: true,
+        size: 90,
+        meta: { figures: true, ...COSTLY[1]?.meta },
+        cell: ({ row, table }) => {
+          const entry = row.original;
+          return entry.type === "entry" ? (
+            <Ago at={entry.entry.modified} now={table.options.meta?.now} />
+          ) : (
+            ""
+          );
+        },
+      },
+    ),
   ]);
 }

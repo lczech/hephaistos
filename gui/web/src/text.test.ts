@@ -8,6 +8,7 @@ import {
   numberText,
   plural,
   shortId,
+  sizeText,
 } from "./text";
 
 describe("text", () => {
@@ -42,5 +43,17 @@ describe("text", () => {
     expect(shortId("0199e000-0000-7000-8000-0000deadbeef")).toBe("deadbeef");
     expect(nameOrId({ name: null, id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("deadbeef");
     expect(nameOrId({ name: "gaia", id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("gaia");
+  });
+});
+
+describe("sizeText", () => {
+  it("gives sizes in bytes, kB, MB", () => {
+    expect([512, 3400, 12_345, 1_200_000, 5e9].map(sizeText)).toEqual([
+      "512 B",
+      "3.4 kB",
+      "12 kB",
+      "1.2 MB",
+      "5.0 GB",
+    ]);
   });
 });

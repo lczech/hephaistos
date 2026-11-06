@@ -7,17 +7,18 @@ import { filesQuery, KEYS, useFilesOf, useInfo, useRepositories } from "../../ap
 import { IconButton } from "../../components/IconButton";
 import { useListLayout } from "../../components/list/kept";
 import { List } from "../../components/list/List";
-import { useList } from "../../components/list/table";
+import { useHidden, useList } from "../../components/list/table";
 import type { Loaded } from "../../components/list/tree";
 import { useKeptSets } from "../../components/list/tree";
 import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { FoldersFolded } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
+import { useNow } from "../../useNow";
 import { paramValues } from "../address";
 import type { ViewProps } from "../index";
 import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
-import { explorerColumns } from "./columns";
+import { COSTLY, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
 import {
   asked,
@@ -101,14 +102,22 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const setOpened = (next: ReadonlySet<string>) => setSets({ ...sets, [OPENED]: next });
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
 
+  // What each folder holds is asked for twice: names and kinds, which come at once, to show;
+  // then git's letters and what the shown columns need, which cost more, to fill in.
+  const [layout] = useListLayout("explorer");
+  const hiddenColumns = useHidden("explorer", layout, COSTLY, { sorting: sorted });
+  const fields = FIELDS.filter((field) => field === "git" || !hiddenColumns.has(field));
+
   // The folders asked for: those the rows asked for, once the answers before show them.
   const [wanted, setWanted] = useState<string[]>([]);
   const answers = useFilesOf(wanted.map((path) => ({ path })));
+  const details = useFilesOf(wanted.map((path) => ({ path, fields })));
   const known = new Map<string, Loaded<FileEntry>>(
     wanted.map((path, index) => {
-      const answer = answers[index];
-      if (answer?.data) return [path, { items: answer.data.entries, count: answer.data.count }];
-      return [path, answer?.isError ? { error: answer.error.message } : undefined];
+      const answer = details[index]?.data ?? answers[index]?.data;
+      if (answer) return [path, { items: answer.entries, count: answer.count }];
+      const failed = answers[index]?.error;
+      return [path, failed ? { error: failed.message } : undefined];
     }),
   );
   const making: Making = { loaded: (path) => known.get(path), opened, hidden: look.hidden, sorted };
@@ -137,11 +146,15 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
       const loaded = known.get(path);
       return loaded !== undefined && "error" in loaded && loaded.error.startsWith("not allowed");
     },
-    ahead: (row) => void client.prefetchQuery(filesQuery({ path: row.path })),
+    ahead: (row) => {
+      void client.prefetchQuery(filesQuery({ path: row.path }));
+      void client.prefetchQuery(filesQuery({ path: row.path, fields }));
+    },
   });
-  const [layout] = useListLayout("explorer");
+  const now = useNow(10_000);
   const table = useList("explorer", layout, {
     columns,
+    meta: { now },
     data: listed,
     getRowId: (entry) => entry.id,
     getSubRows: (entry) => entry.subRows,
@@ -193,7 +206,7 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
             onClick={() => setOpened(NONE)}
           />
           <Refresh
-            busy={answers.some((answer) => answer.isFetching)}
+            busy={[...answers, ...details].some((answer) => answer.isFetching)}
             onClick={() => void client.invalidateQueries({ queryKey: KEYS.files })}
           />
         </BarEnd>

@@ -1,7 +1,28 @@
-/* A hidden entry, whose name starts with `.`: quieter, and in italics, as the file system hides it. */
-.hidden {
-  color: var(--text-muted);
+/* An entry's name: quieter if hidden (its name starts with `.`), and in italics, as the file
+ * system hides it; quieter if git ignores it; else in the colour of git's letter for it. */
+.name[data-hidden] {
   font-style: italic;
+}
+
+.name:is([data-hidden], [data-ignored]) {
+  color: var(--text-muted);
+}
+
+:is(.name, .git)[data-git="added"] {
+  color: var(--success);
+}
+
+:is(.name, .git)[data-git="modified"] {
+  color: var(--warning);
+}
+
+:is(.name, .git)[data-git="conflict"] {
+  color: var(--danger);
+}
+
+/* git's letter, in a column of its own. */
+.git {
+  font-variant-numeric: tabular-nums;
 }
 
 /* A symlink pointing nowhere. */

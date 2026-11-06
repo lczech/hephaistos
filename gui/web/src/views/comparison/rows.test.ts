@@ -8,7 +8,6 @@ import {
   type Group,
   kindCounts,
   otherText,
-  sizeText,
 } from "./rows";
 
 function change(path: string, fields: Partial<Change> = {}): Change {
@@ -32,16 +31,6 @@ function group(name: Group["name"], changes: Change[], count = changes.length): 
 }
 
 describe("a change's texts", () => {
-  it("gives sizes in bytes, kB, MB", () => {
-    expect([512, 3400, 12_345, 1_200_000, 5e9].map(sizeText)).toEqual([
-      "512 B",
-      "3.4 kB",
-      "12 kB",
-      "1.2 MB",
-      "5.0 GB",
-    ]);
-  });
-
   it("says what changed if not lines", () => {
     const binary = { added: null, removed: null, binary: true };
     expect(otherText(change("a.png", { ...binary, size: 1400, old_size: 1200 }))).toBe(
