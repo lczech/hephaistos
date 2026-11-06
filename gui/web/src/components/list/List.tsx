@@ -4,6 +4,7 @@ import {
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
+  type RefObject,
   useEffect,
   useId,
   useRef,
@@ -18,6 +19,7 @@ import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import { LinesHead } from "./LinesHead";
 import styles from "./list.module.css";
+import { type RowAction, RowMenu } from "./RowMenu";
 import type { ListFeatures } from "./table";
 
 /** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
@@ -69,6 +71,8 @@ interface Props<TData extends RowData> {
   showing?: (row: TData) => boolean; // whether a View it opens is shown, which marks it
   opened?: ReadonlySet<string>; // the rows whose details are open, if not kept here
   onOpenedChange?: (opened: ReadonlySet<string>) => void;
+  actions?: (row: TData) => ReactNode; // after what names it (`identifies`), while pointed at
+  menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
 }
 
 /**
@@ -111,6 +115,8 @@ export function List<TData extends RowData>({
   showing,
   opened,
   onOpenedChange,
+  actions,
+  menu: rowMenu,
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
   const open = opened ?? kept;
@@ -120,6 +126,14 @@ export function List<TData extends RowData>({
   const head = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLSpanElement>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
+  // A row's menu: which row's, where in it, and whether asked for by the keyboard.
+  const [rowMenuAt, setRowMenuAt] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    keyboard: boolean;
+  } | null>(null);
+  const rowAnchor = useRef<HTMLSpanElement>(null);
   const list = useId();
   const { hasNextPage = false, isFetchingNextPage = false, fetchNextPage } = paging ?? {};
   // Scrolling to the end of the list loads the page before it.
@@ -172,6 +186,14 @@ export function List<TData extends RowData>({
       column: column && arrangeable(column.columnDef) ? column.id : undefined,
       keyboard,
     });
+  };
+  // A row's menu where it was clicked or long pressed; from the keyboard, below its start.
+  const showRowMenu = (event: MouseEvent<HTMLDivElement>, id: string) => {
+    event.preventDefault();
+    const box = event.currentTarget.getBoundingClientRect();
+    const keyboard = event.clientX === 0 && event.clientY === 0;
+    const [x, y] = keyboard ? [0, box.height] : [event.clientX - box.left, event.clientY - box.top];
+    setRowMenuAt({ id, x, y, keyboard });
   };
   const { dropProps, line, carried } = useColumnDrop(table, head, layout);
   useEffect(() => {
@@ -306,6 +328,9 @@ export function List<TData extends RowData>({
                     data-showing={showing?.(row.original) || undefined}
                     onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
                     onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
+                    onContextMenu={
+                      rowMenu?.(row.original) ? (event) => showRowMenu(event, row.id) : undefined
+                    }
                   >
                     {first && still && (
                       <span {...cellData(first.column)}>
@@ -330,9 +355,26 @@ export function List<TData extends RowData>({
                     )}
                     {others.map((cell) => (
                       <span key={cell.id} {...cellData(cell.column)}>
-                        <FlexRender cell={cell} />
+                        {actions && cell.column.columnDef.meta?.identifies ? (
+                          <span className={styles.withActions}>
+                            <span className={styles.named}>
+                              <FlexRender cell={cell} />
+                            </span>
+                            <span className={styles.actions}>{actions(row.original)}</span>
+                          </span>
+                        ) : (
+                          <FlexRender cell={cell} />
+                        )}
                       </span>
                     ))}
+                    {rowMenuAt?.id === row.id && (
+                      <RowMenuAt
+                        at={rowMenuAt}
+                        anchor={rowAnchor}
+                        menu={rowMenu?.(row.original)}
+                        onClose={() => setRowMenuAt(null)}
+                      />
+                    )}
                   </div>
                   {shown && !folding && !still && !view && (
                     <section
@@ -357,6 +399,38 @@ export function List<TData extends RowData>({
         </p>
       )}
     </div>
+  );
+}
+
+/** A row's menu, opened where it was asked for in the row: at an anchor placed there. */
+function RowMenuAt({
+  at,
+  anchor,
+  menu,
+  onClose,
+}: {
+  at: { x: number; y: number; keyboard: boolean };
+  anchor: RefObject<HTMLSpanElement | null>;
+  menu: { label: string; groups: RowAction[][] } | undefined;
+  onClose: () => void;
+}) {
+  if (menu === undefined) return null;
+  return (
+    <>
+      <span
+        ref={anchor}
+        className={styles.anchor}
+        style={cssVars({ "--x": `${at.x}px`, "--y": `${at.y}px` })}
+      />
+      <RowMenu
+        key={`${at.x} ${at.y}`} // opened anew where clicked again
+        label={menu.label}
+        groups={menu.groups}
+        anchor={anchor}
+        keyboard={at.keyboard}
+        onClose={onClose}
+      />
+    </>
   );
 }
 

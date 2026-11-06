@@ -19,8 +19,18 @@
   margin-left: auto;
 }
 
-.text {
+.text,
+.notice {
   composes: cut from "./text.module.css";
+}
+
+.notice {
+  color: var(--text);
+}
+
+/* Empty, out of the flow, so that it takes no gap; still there for screen readers. */
+.notice:empty {
+  position: absolute;
 }
 
 /* The Daemon's icon, coloured by its health; it opens the Daemon View. */

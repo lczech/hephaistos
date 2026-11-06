@@ -1,5 +1,7 @@
+import { useAtom } from "@tanstack/react-store";
 import { type Connection, useConnection } from "../api/live";
 import { useDaemon, useInfo } from "../api/queries";
+import { noticeAtom } from "../notice";
 import { ago, fullTime } from "../time";
 import { useNow } from "../useNow";
 import { daemonHealth, disconnectedText, retryText } from "../views/daemon/health";
@@ -25,7 +27,7 @@ function connectionText(connection: Connection, now: number): [string, string] {
   }
 }
 
-/** One line at the bottom: this Machine; at its end, how the Daemon is doing and whether the
+/** One line at the bottom: this Machine, or for a while what was just done (`notify`); at its end, how the Daemon is doing and whether the
  * live connection to it is. The Daemon's icon opens the Daemon View. */
 export function StatusBar() {
   const info = useInfo();
@@ -33,6 +35,7 @@ export function StatusBar() {
   const connection = useConnection();
   const open = useOpenView();
   const now = useNow();
+  const [notice] = useAtom(noticeAtom);
   const { health, reasons } = daemonHealth(connection, daemon.data, now);
   const lastPass = daemon.data?.watcher?.last_pass;
   const title = `Daemon: ${reasons.join("; ")}${lastPass ? `; last pass ${ago(lastPass.finished_at, now)}` : ""}`;
@@ -43,7 +46,11 @@ export function StatusBar() {
       ` · API ${info.data.api.major}.${info.data.api.minor}`;
   return (
     <footer className={styles.bar}>
-      {where && <span>{where}</span>}
+      {/* Always there, so that a screen reader says each notice as its text comes. */}
+      <span className={styles.notice} role="status">
+        {notice}
+      </span>
+      {!notice && where && <span>{where}</span>}
       <span className={styles.end}>
         <button
           type="button"

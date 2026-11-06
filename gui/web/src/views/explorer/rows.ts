@@ -17,7 +17,8 @@ export type Listing = Schemas["FilesJson"];
 export type FileEntry = Schemas["FileEntryJson"];
 
 /**
- * A row: an entry, by its `id`, its path below the Directory shown; `path`, where it is; `shown`,
+ * A row: an entry, by its `id`, its path below the Directory shown; `path`, where it is, in the
+ * folder `parent`, whose listing has it; `shown`,
  * its name, or a chain of folders joined; and, opened, what is in the last of them.
  */
 export type Entry =
@@ -25,6 +26,7 @@ export type Entry =
       type: "entry";
       id: string;
       path: string;
+      parent: string;
       shown: string;
       entry: FileEntry;
       folder: boolean;
@@ -97,7 +99,16 @@ export function entryRows(
     const id = `${prefix}${entry.name}${folder ? "/" : ""}`;
     const at = below(path, entry.name);
     if (!folder || !making.opened.has(id)) {
-      return { type: "entry", id, path: at, shown: entry.name, entry, folder, subRows: [] };
+      return {
+        type: "entry",
+        id,
+        path: at,
+        parent: path,
+        shown: entry.name,
+        entry,
+        folder,
+        subRows: [],
+      };
     }
     const [last, shown] = joined(at, entry.name, making);
     const inside = `${prefix}${shown}/`;
@@ -105,6 +116,7 @@ export function entryRows(
       type: "entry",
       id,
       path: last,
+      parent: path,
       shown,
       entry,
       folder,

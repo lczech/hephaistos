@@ -132,13 +132,41 @@
   color: var(--text-muted);
 }
 
+/* What can be done with a row, after what names it, while it is pointed at or focused: the name
+ * makes room, cut off, so that the row's other cells stay as they are. */
+.withActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.named {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.actions {
+  display: none;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Shown while the row is pointed at, or holds the keyboard's focus: not a click's, which stays
+ * after a press dragged off the row, released elsewhere. */
+.row:is(:hover, :has(:focus-visible)) .actions {
+  display: flex;
+}
+
 .row:hover {
   background: var(--fill-hover-row);
 }
 
-/* Links to Views, repeated on every row, are grey until the row is hovered or holds the focus,
-   then in their family's colour (`views/families.module.css`). */
-.row:is(:hover, :focus-within) {
+/* Links to Views, repeated on every row, are grey until the row is hovered or holds the
+   keyboard's focus, then in the colour of their family (`views/families.module.css`). */
+.row:is(:hover, :has(:focus-visible)) {
   --view-icon: initial;
 }
 

@@ -159,5 +159,8 @@ Icons say what an entry is: a folder, open or not; a Checkout's top, registered;
 A file's kind comes from its name: exact names first, ours then GitHub's Linguist's (`CMakeLists.txt`), but for locks and configs, which our extensions say better than Linguist's formats (`uv.lock`); then extensions, our own table first, for binary files and some we show otherwise, then Linguist's, by the language's type or, for a few, the language (`components/files/kinds.ts`).
 Extensions Linguist leaves undecided, as languages of different types claim them, are listed in a test, so that an update leaving more fails there.
 Files open nothing yet.
+Pointing at a row shows its links after its name: its History, inside a registered Checkout, and before it its Diff since HEAD, for a file with changes.
+Its menu has them too, then copying its absolute path, and its path in its Checkout.
+What was copied shows in the status bar for a while (`notice.ts`).
 It is asked again on a hint, on focus and by its reload button.
 The Explorer opens from a Checkout's row in Repositories, and from the "+" menu.

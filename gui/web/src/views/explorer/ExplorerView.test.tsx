@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { forgetKept } from "../../kept";
+import { noticeAtom } from "../../notice";
 import {
   clone,
   fileEntry,
@@ -141,6 +142,34 @@ describe("the Explorer View", () => {
     renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
     expect(await screen.findByText("3.4 kB")).toBeInTheDocument();
     expect(asked.at(-1)).toBe("git,size,modified");
+  });
+
+  it("offers a changed file's Diff and History, and copies its path from its menu", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () =>
+        json([repository("me", [{ ...clone("me"), path: "/home/me", resolved_path: "/home/me" }])]),
+      "GET /api/files": (request) => {
+        const git = new URL(request.url).searchParams.has("fields");
+        const entries = [fileEntry("notes.md", git ? { status: "M", worktree: "M" } : {})];
+        return json({ path: "/home/me", top: git ? "/home/me" : null, entries, count: 1 });
+      },
+    });
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    expect(await screen.findByRole("button", { name: "Diff of notes.md" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Commit history of notes.md" })).toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByText("notes.md"));
+    const menu = await screen.findByRole("menu", { name: "Actions on notes.md" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Diff", "History", "Copy absolute path", "Copy relative path"]);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy relative path" }));
+    expect(writeText).toHaveBeenCalledWith("notes.md");
+    expect(noticeAtom.get()).toBe("Copied notes.md");
   });
 
   it("says why a Directory cannot be listed", async () => {

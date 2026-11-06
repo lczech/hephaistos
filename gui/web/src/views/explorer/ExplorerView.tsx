@@ -16,8 +16,10 @@ import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
 import { paramValues } from "../address";
 import type { ViewProps } from "../index";
+import { useOpenView } from "../opening";
 import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
+import { knownCheckouts, placeOf, RowActions, rowMenu } from "./actions";
 import { COSTLY, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
 import {
@@ -112,7 +114,7 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const [wanted, setWanted] = useState<string[]>([]);
   const answers = useFilesOf(wanted.map((path) => ({ path })));
   const details = useFilesOf(wanted.map((path) => ({ path, fields })));
-  const known = new Map<string, Loaded<FileEntry>>(
+  const loaded = new Map<string, Loaded<FileEntry>>(
     wanted.map((path, index) => {
       const answer = details[index]?.data ?? answers[index]?.data;
       if (answer) return [path, { items: answer.entries, count: answer.count }];
@@ -120,7 +122,12 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
       return [path, failed ? { error: failed.message } : undefined];
     }),
   );
-  const making: Making = { loaded: (path) => known.get(path), opened, hidden: look.hidden, sorted };
+  const making: Making = {
+    loaded: (path) => loaded.get(path),
+    opened,
+    hidden: look.hidden,
+    sorted,
+  };
   const needed = root === undefined ? [] : asked(root, making, making.loaded);
   if (needed.join("\0") !== wanted.join("\0")) setWanted(needed);
 
@@ -129,22 +136,20 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const expanded = Object.fromEntries([...holding.keys()].map((id) => [id, opened.has(id)]));
 
   const repositories = useRepositories();
-  const checkouts = new Set(
-    (repositories.data ?? []).flatMap((repository) =>
-      repository.clones.flatMap((clone) => [
-        clone.path,
-        clone.resolved_path,
-        ...clone.worktrees.map((worktree) => worktree.path),
-      ]),
-    ),
-  );
+  const known = knownCheckouts(repositories.data ?? []);
+  const checkouts = new Set(known.flatMap(({ paths }) => paths));
+  // The working tree each folder lies in, as git found it with its letters.
+  const tops = new Map(wanted.map((path, index) => [path, details[index]?.data?.top ?? undefined]));
+  const placeOfRow = (row: Extract<Entry, { type: "entry" }>) =>
+    placeOf(row, tops.get(row.parent), known);
+  const openView = useOpenView();
   const client = useQueryClient();
   const columns = explorerColumns({
     open: (row) => opened.has(row.id),
     checkout: (path) => checkouts.has(path),
     denied: (path) => {
-      const loaded = known.get(path);
-      return loaded !== undefined && "error" in loaded && loaded.error.startsWith("not allowed");
+      const found = loaded.get(path);
+      return found !== undefined && "error" in found && found.error.startsWith("not allowed");
     },
     ahead: (row) => {
       void client.prefetchQuery(filesQuery({ path: row.path }));
@@ -177,7 +182,7 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
     },
   });
 
-  const rootLoaded = root === undefined ? undefined : known.get(root);
+  const rootLoaded = root === undefined ? undefined : loaded.get(root);
   let message: string | null = null;
   if (root === undefined) message = info.isError ? "Could not ask for the home directory." : null;
   else if (rootLoaded !== undefined && !("error" in rootLoaded) && listed.length === 0) {
@@ -224,6 +229,12 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
         details={() => null}
         folds={(entry) => entry.type === "entry" && entry.folder}
         plain={(entry) => entry.type !== "entry" || !entry.folder}
+        actions={(entry) =>
+          entry.type === "entry" ? <RowActions row={entry} place={placeOfRow(entry)} /> : null
+        }
+        menu={(entry) =>
+          entry.type === "entry" ? rowMenu(entry, placeOfRow(entry), openView) : undefined
+        }
       />
     </ViewPage>
   );
