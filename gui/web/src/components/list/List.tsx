@@ -466,6 +466,7 @@ function cellData(column: { id: string; columnDef: { meta?: ColumnLook } }) {
     "data-column": column.id,
     "data-second": meta?.second || undefined,
     "data-figures": meta?.figures || undefined,
+    "data-align": meta?.align,
   };
 }
 

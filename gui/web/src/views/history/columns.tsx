@@ -107,6 +107,7 @@ export function historyColumns(
       meta: {
         second: true,
         figures: true,
+        align: "right",
         description: "When the commit was authored; its details also show when it was committed",
       },
       cell: ({ row, table }) => {

@@ -161,7 +161,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
       enableResizing: false,
       meta: {
         width: "max-content",
-        end: true,
+        align: "right",
         description: "Lines added and removed; the size for binary or very large files",
       },
       cell: ({ row }) => {

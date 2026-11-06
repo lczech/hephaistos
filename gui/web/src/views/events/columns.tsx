@@ -28,6 +28,7 @@ export const columns = column.columns([
     meta: {
       second: true,
       figures: true,
+      align: "right",
       filter: { param: "since" },
       description: "When the event was recorded; its details show when it happened, if known",
     },

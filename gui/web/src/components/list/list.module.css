@@ -206,6 +206,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Cells aligned as their column says, in columns: numbers and times right, to line up. */
+.frame[data-layout="columns"] .row > [data-align="center"] {
+  text-align: center;
+}
+
+.frame[data-layout="columns"] .row > [data-align="right"] {
+  text-align: right;
+}
+
 .row[data-plain] {
   cursor: default;
 }
@@ -373,7 +382,11 @@
   min-width: 0;
 }
 
-.header[data-end] {
+.header[data-align="center"] {
+  justify-content: center;
+}
+
+.header[data-align="right"] {
   justify-content: flex-end;
 }
 
@@ -382,7 +395,7 @@
   flex: 1;
 }
 
-.header[data-end] > .label {
+.header:is([data-align="center"], [data-align="right"]) > .label {
   flex: none;
 }
 

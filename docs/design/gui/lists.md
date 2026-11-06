@@ -65,6 +65,7 @@ The Database View's tables, of any columns, show only in columns.
 ### Columns
 
 Every column is as wide as set, none taking the rest.
+A column's header and cells align left, centre or right (`align`): numbers and times right, so that they line up, `5m ago` under `16d ago`.
 Wider than the list, they scroll sideways, header and all.
 Narrower, the room left stays blank.
 

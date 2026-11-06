@@ -72,7 +72,7 @@ export function ColumnHeader({
       className={styles.header}
       data-dragging={isDragging || undefined}
       data-column={column.id}
-      data-end={column.columnDef.meta?.end || undefined}
+      data-align={column.columnDef.meta?.align}
       data-filterable={filter !== undefined || undefined}
       data-sortable={column.getCanSort() || undefined}
       data-filtered={text !== undefined || undefined}

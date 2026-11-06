@@ -97,7 +97,7 @@ const TABLE_COLUMNS = tableColumn.columns([
     id: "rows",
     header: "rows",
     size: 80,
-    meta: { end: true, figures: true },
+    meta: { align: "right", figures: true },
     cell: ({ row }) => <span className={styles.number}>{row.original.rows ?? "missing"}</span>,
   }),
   tableColumn.display({

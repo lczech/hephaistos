@@ -7,7 +7,7 @@ export interface ColumnLook {
   width?: string; // a CSS grid track instead of the column's size, for one not resized: a square
   filter?: ColumnFilterLook; // if the list can be filtered by it
   description?: string; // what it shows, if its label does not say: in the header's tooltip
-  end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
+  align?: "left" | "center" | "right"; // its header and cells; numbers and times right, to line up
   identifies?: boolean; // says what a row is: never hidden
   hiddenAtFirst?: boolean; // hidden until shown, e.g. one whose values cost to ask for
   second?: boolean; // in two lines, on the second line, quieter

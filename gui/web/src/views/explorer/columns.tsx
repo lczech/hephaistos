@@ -169,6 +169,7 @@ export function explorerColumns(looks: Looks) {
       enableResizing: false,
       meta: {
         width: "max-content",
+        align: "center",
         description: "git's status: its letter, or • for changes below",
       },
       cell: ({ row }) => (row.original.type === "entry" ? <GitCell row={row.original} /> : ""),
@@ -181,7 +182,7 @@ export function explorerColumns(looks: Looks) {
         enableSorting: true,
         sortDescFirst: true,
         size: 80,
-        meta: { end: true, figures: true, ...COSTLY[0]?.meta },
+        meta: { align: "right", figures: true, ...COSTLY[0]?.meta },
         cell: ({ row }) => {
           const entry = row.original;
           const size = entry.type === "entry" ? entry.entry.size : null;
@@ -197,7 +198,7 @@ export function explorerColumns(looks: Looks) {
         enableSorting: true,
         sortDescFirst: true,
         size: 90,
-        meta: { figures: true, ...COSTLY[1]?.meta },
+        meta: { align: "right", figures: true, ...COSTLY[1]?.meta },
         cell: ({ row, table }) => {
           const entry = row.original;
           return entry.type === "entry" ? (
