@@ -22,6 +22,8 @@ ROUTES = {
     "clone show": "/api/clones/{clone_id}",
     "worktree list": "/api/worktrees",
     "worktree show": "/api/worktrees/{worktree_id}",
+    "terminal list": "/api/terminals",
+    "terminal show": "/api/terminals/{terminal_id}",
     "event list": "/api/events",
     "event show": "/api/events/{event_id}",
     "event kinds": "/api/events/kinds",

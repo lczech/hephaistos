@@ -17,6 +17,7 @@ from hephaistos.cli.main import app as cli
 from hephaistos.core import config, serialize
 from hephaistos.core.db import sessions
 from hephaistos.core.db.sessions import write_session
+from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils import commit_graph, files, logs
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon.server import token, web
@@ -114,6 +115,21 @@ def test_the_token_counts_only_in_the_header(
     assert "GET /api/info?tab=x&token=… from testclient" in logged
     assert "GET /api/info?Token=… 200" in logged
     assert value not in logged
+
+
+@pytest.mark.tmux
+def test_terminal_endpoints_return_what_the_cli_prints(
+    client: TestClient, repo: Path, keeper: TmuxKeeper
+) -> None:
+    del keeper  # the test's own tmux socket, ended afterwards
+    created = runner.invoke(cli, ["terminal", "create", "-n", "api", "-d", str(repo)])
+    assert created.exit_code == 0, created.output
+    [terminal] = _cli("terminal", "list")
+    assert terminal["checkout"]["repository"]["name"] == "proj"
+    assert client.get("/api/terminals").json() == [terminal]
+    assert client.get(f"/api/terminals/{terminal['id']}").json() == terminal
+    shown = _cli("terminal", "show", "api")  # observed again: only that time is newer
+    assert {**shown, "observed_at": terminal["observed_at"]} == terminal
 
 
 def test_endpoints_return_what_the_cli_prints(
@@ -265,6 +281,7 @@ def test_events_of_a_checkout_or_priority_as_the_cli_lists_them(
         ("/api/clones/{id}", 404, "no clone with ID {id}"),
         ("/api/machines/{id}", 404, "no machine with ID {id}"),
         ("/api/events/{id}", 404, "no event with ID {id}"),
+        ("/api/terminals/{id}", 404, "no terminal with ID {id}"),
         ("/api/events?before={id}", 400, "no event with ID {id}"),
         ("/api/events?since=soon", 400, "since: 'soon' is neither a duration like 2h"),
         ("/api/clones/xyz", 400, "path clone_id: Input should be a valid UUID"),

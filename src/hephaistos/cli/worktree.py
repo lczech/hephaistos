@@ -3,7 +3,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.clone import (
     RefreshOption,
     RepoOption,
@@ -122,13 +122,13 @@ def _by_name(session: ReadSession, name: str) -> Found:
     if len(matches) == 1:
         return matches[0]
     shown = [short_path(worktree.path) for worktree, _ in matches]
-    if not terminal.interactive():
+    if not tty.interactive():
         raise HephaistosError(
             f"several worktrees are named {name}; give a path:\n"
             + "\n".join(f"  {path}" for path in shown)
         )
     heading = f"Several worktrees are named {name}:"
-    return matches[terminal.choose(heading, shown, "Show")]
+    return matches[tty.choose(heading, shown, "Show")]
 
 
 def find_worktree(session: ReadSession, target: str) -> Found:

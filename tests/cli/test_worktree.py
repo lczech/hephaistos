@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.main import app
 from hephaistos.core.utils.errors import HephaistosError
 from support import clone, create, git
@@ -78,7 +78,7 @@ def test_names_in_several_clones(
     assert isinstance(result.exception, HephaistosError)
     assert "several worktrees are named feature" in str(result.exception)
 
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     result = runner.invoke(app, ["worktree", "show", "feature"], input="3\n0\n1\n")  # asked again
     assert result.exit_code == 0, result.output
     assert f"  1  {tmp_path / 'feature'}\n  2  {repo / '.worktrees' / 'feature'}\n" in result.output

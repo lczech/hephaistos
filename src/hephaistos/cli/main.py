@@ -24,6 +24,7 @@ from hephaistos.cli import (
     repo,
     scan,
     terminal,
+    tty,
     worktree,
 )
 from hephaistos.cli import config as config_command
@@ -59,6 +60,7 @@ app.add_typer(machine.app, name="machine")
 app.add_typer(repo.app, name="repo")
 app.add_typer(clone.app, name="clone")
 app.add_typer(worktree.app, name="worktree")
+app.add_typer(terminal.app, name="terminal")
 app.add_typer(event.app, name="event")
 app.add_typer(db.app, name="db")
 app.add_typer(log.app, name="log")
@@ -196,7 +198,7 @@ def main(
 
 def _confirm_reset(paths: Paths) -> None:
     """Asks before replacing this Machine's database; raises typer.Abort if declined."""
-    if not terminal.interactive():
+    if not tty.interactive():
         raise HephaistosError("--reset replaces this machine's database; confirm with --yes")
     old = machines.previous(paths)
     replaced = f"Machine {old.name} ({old.id})" if old else "The machine (unreadable)"

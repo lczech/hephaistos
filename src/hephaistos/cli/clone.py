@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -148,7 +148,7 @@ def worktree_lines(details: CloneDetails) -> list[tuple[str, str]]:
 def _confirm(question: str, action: str, *, yes: bool) -> None:
     """Asks the user to confirm, unless `yes`; aborts unless they do."""
     if not yes:
-        terminal.confirm(question, default=True, action=action)
+        tty.confirm(question, default=True, action=action)
 
 
 def _new_repository(name: str, why: str, *, yes: bool) -> str:
@@ -176,10 +176,10 @@ def _choose_repository(
         return _new_repository(repo, f"No repository is named {repo}", yes=yes), True
     matches = [repository.name for repository in clones.matching(session, candidate)]
     if len(matches) > 1:
-        if yes or not terminal.interactive():
+        if yes or not tty.interactive():
             raise HephaistosError(f"{shown} matches {', '.join(matches)}; choose one with --repo")
         heading = f"{shown} matches several repositories:"
-        return matches[terminal.choose(heading, matches, "Register it as a clone of")], False
+        return matches[tty.choose(heading, matches, "Register it as a clone of")], False
     if matches:
         [match] = matches
         _confirm(

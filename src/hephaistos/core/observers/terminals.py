@@ -1,9 +1,10 @@
 """Observes this Machine's Terminals: the Keeper first, then one write session."""
 
 import logging
+import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.state import terminals as state
@@ -12,9 +13,6 @@ from hephaistos.core.terminals.keeper import Keeper, KeeperError, Session
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths
-
-if TYPE_CHECKING:
-    import uuid
 
 log = logging.getLogger(__name__)
 
@@ -76,8 +74,16 @@ def _adopted(keeper: Keeper, found: list[Session], stored: list[TerminalState]) 
     return adopted
 
 
-def observe(paths: Paths, keeper: Keeper | None = None, *, boot_file: Path = BOOT_ID) -> Result:
+def observe(
+    paths: Paths,
+    keeper: Keeper | None = None,
+    *,
+    boot_file: Path = BOOT_ID,
+    command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
+) -> Result:
     """Observes this Machine's Terminals with `keeper`, else the one its settings describe.
+
+    `command` holds what Terminals just created run, which the Keeper doesn't say.
 
     The Keeper runs outside any transaction. A Machine without a working Keeper, e.g. without
     tmux, and without Terminals is no news; with Terminals, it is logged and their rows stay as
@@ -97,5 +103,7 @@ def observe(paths: Paths, keeper: Keeper | None = None, *, boot_file: Path = BOO
         log.warning("terminals not observed: %s", error)
         return Result(None, str(error))
     with write_session(paths) as session:
-        changes = state.update(session, found, running=running, boot_id=boot_id(boot_file))
+        changes = state.update(
+            session, found, running=running, boot_id=boot_id(boot_file), command=command
+        )
     return Result(changes)

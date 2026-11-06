@@ -98,3 +98,14 @@ A new Terminal's default name is its directory's, numbered from 1: `hephaistos-1
 
 Without a working Keeper, e.g. without tmux, a Machine without Terminals is no news; with some, it is logged, and their rows stay as they were, their age showing it.
 
+## Actions
+
+Creating, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
+Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
+A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it.
+
+A new Terminal starts in an existing directory we can enter, stored with symlinks resolved.
+A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
+A default name that another process takes meanwhile moves on to the next free number.
+A command that ends before the Terminal is observed is reported as having ended at once.
+

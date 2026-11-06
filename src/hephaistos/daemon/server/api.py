@@ -45,9 +45,10 @@ from hephaistos.core.serialize import (
     RepositoryJson,
     RowsJson,
     TablesJson,
+    TerminalJson,
     WorktreeJson,
 )
-from hephaistos.core.state import worktrees
+from hephaistos.core.state import terminals, worktrees
 from hephaistos.core.utils import (
     changes,
     commit_graph,
@@ -97,6 +98,8 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/clones/{clone_id}": ("data",),
     "/api/worktrees": ("data",),
     "/api/worktrees/{worktree_id}": ("data",),
+    "/api/terminals": ("data",),  # as observed: by the Watcher, or a CLI command
+    "/api/terminals/{terminal_id}": ("data",),
     "/api/changes": ("data", "focus"),  # focus: files edited, which change no State
     "/api/diff": ("data", "focus"),
     "/api/diff/files": ("data", "focus"),
@@ -262,6 +265,23 @@ def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
             if worktree["id"] == str(worktree_id):
                 return worktree
         raise _absent_worktree(session, worktree_id)
+
+
+@router.get("/terminals")
+def terminal_list(paths: PathsOf) -> list[TerminalJson]:
+    """This Machine's Terminals, as `terminal list --json`, as last observed."""
+    with read_session(paths) as session:
+        return serialize.terminals_json(session)
+
+
+@router.get("/terminals/{terminal_id}")
+def terminal_show(paths: PathsOf, terminal_id: uuid.UUID) -> TerminalJson:
+    """A Terminal, as `terminal show --json`, as last observed."""
+    with read_session(paths) as session:
+        state = terminals.by_id(session, terminal_id)
+        if state is None:
+            raise _not_found("terminal", terminal_id)
+        return serialize.terminal_json(session, state)
 
 
 def _working_tree(

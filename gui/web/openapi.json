@@ -271,6 +271,34 @@
         "title": "ChangesJson",
         "type": "object"
       },
+      "CheckoutRef": {
+        "description": "A Checkout: its Repository, its Clone, and its Worktree if it is one.",
+        "properties": {
+          "clone": {
+            "$ref": "#/components/schemas/CloneRef"
+          },
+          "repository": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "worktree": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Ref"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "repository",
+          "clone",
+          "worktree"
+        ],
+        "title": "CheckoutRef",
+        "type": "object"
+      },
       "CloneJson": {
         "description": "A Clone with its State and Worktrees.",
         "properties": {
@@ -2554,6 +2582,107 @@
         "title": "TablesJson",
         "type": "object"
       },
+      "TerminalJson": {
+        "description": "A Terminal with its State, and the Checkout it started in, if any.",
+        "properties": {
+          "active_at": {
+            "title": "Active At",
+            "type": "string"
+          },
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clients": {
+            "title": "Clients",
+            "type": "integer"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "current_directory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Directory"
+          },
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "observed_by": {
+            "$ref": "#/components/schemas/Ref"
+          },
+          "panes": {
+            "title": "Panes",
+            "type": "integer"
+          },
+          "program": {
+            "title": "Program",
+            "type": "string"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "directory",
+          "current_directory",
+          "program",
+          "command",
+          "clients",
+          "panes",
+          "started_at",
+          "active_at",
+          "observed_at",
+          "observed_by",
+          "checkout"
+        ],
+        "title": "TerminalJson",
+        "type": "object"
+      },
       "TipsLineJson": {
         "description": "With branch tips only: a line from a commit kept to a parent kept, and what it leaves out.",
         "properties": {
@@ -2926,7 +3055,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.30"
+    "version": "0.31"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4898,6 +5027,80 @@
           }
         },
         "summary": "Repository Show"
+      }
+    },
+    "/api/terminals": {
+      "get": {
+        "description": "This Machine's Terminals, as `terminal list --json`, as last observed.",
+        "operationId": "terminal_list_api_terminals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TerminalJson"
+                  },
+                  "title": "Response Terminal List Api Terminals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
+          }
+        },
+        "summary": "Terminal List"
+      }
+    },
+    "/api/terminals/{terminal_id}": {
+      "get": {
+        "description": "A Terminal, as `terminal show --json`, as last observed.",
+        "operationId": "terminal_show_api_terminals__terminal_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "terminal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Terminal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminalJson"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
+          }
+        },
+        "summary": "Terminal Show"
       }
     },
     "/api/worktrees": {

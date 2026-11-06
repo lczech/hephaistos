@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.text import escaped
 
 DATABASE_NAME = "hephaistos.db"
 HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
@@ -225,13 +226,13 @@ def displayed(typed: Path, target: Path) -> Path:
 
 
 def short_path(path: Path) -> str:
-    """The path with the home directory shortened to ~."""
+    """The path with the home directory shortened to ~, its control characters escaped."""
     home = Path.home()
     if path == home:
         return "~"
     if path.is_relative_to(home):
-        return f"~/{path.relative_to(home)}"
-    return str(path)
+        return escaped(f"~/{path.relative_to(home)}")
+    return escaped(str(path))
 
 
 def shell_path(path: Path) -> str:

@@ -8,7 +8,7 @@ import typer
 from typer.testing import CliRunner
 
 from hephaistos import __version__
-from hephaistos.cli import daemon, desktop, terminal
+from hephaistos.cli import daemon, desktop, tty
 from hephaistos.cli.main import app, without_debug
 from hephaistos.core.registry import machines
 from hephaistos.core.utils.errors import HephaistosError
@@ -242,7 +242,7 @@ def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -
     assert isinstance(result.exception, HephaistosError)
     assert "confirm with --yes" in str(result.exception)
 
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     result = runner.invoke(app, ["setup", "--reset"], input="\n")
     assert result.exit_code == 1
     assert f"Machine laptop ({old_id}) is replaced" in result.output

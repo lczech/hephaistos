@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.main import app
 from hephaistos.core import config
 from hephaistos.core.utils.errors import HephaistosError
@@ -67,7 +67,7 @@ def test_register_with_yes_then_nothing_to_register(root: Path) -> None:
 
 
 def test_register_after_asking(root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     lines = _lines(str(root / "org"), input="\n")
     assert lines[-2:] == [
         "Register 1 clone (1 new repository)? [Y/n]: ",

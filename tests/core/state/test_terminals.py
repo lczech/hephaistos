@@ -254,3 +254,15 @@ def test_many_terminals(set_up: Paths) -> None:
     found = [session(f"t{n}", new_id(), key=f"${n}") for n in range(200)]
     assert update(set_up, *found).added == 200
     assert update(set_up, *found).open == 200
+
+
+def test_names_sort_numbers_as_numbers() -> None:
+    names = ["proj-10", "proj-2", "proj-1", "api", "proj-100", "proj-9b"]
+    assert sorted(names, key=terminals.name_order) == [
+        "api",
+        "proj-1",
+        "proj-2",
+        "proj-9b",
+        "proj-10",
+        "proj-100",
+    ]

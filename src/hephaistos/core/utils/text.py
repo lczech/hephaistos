@@ -1,5 +1,32 @@
 """Text for people."""
 
+import unicodedata
+
+_NAMED = {"\t": "\\t", "\n": "\\n", "\r": "\\r"}
+_SURROGATES = range(0xDC80, 0xDD00)  # bytes that aren't UTF-8, as `surrogateescape` keeps them
+
+
+def escaped(text: str) -> str:
+    r"""`text` safe to print on one line: control characters as `\t`, `\n` or `\x01`.
+
+    Also bytes that aren't UTF-8 as `\xff`, and Unicode's line separators as `\u2028`. Names
+    and paths may hold any of them; nothing else changes.
+    """
+    if text.isprintable():
+        return text
+    shown: list[str] = []
+    for character in text:
+        code = ord(character)
+        if code in _SURROGATES:
+            shown.append(f"\\x{code - 0xDC00:02x}")
+        elif unicodedata.category(character) in ("Cc", "Cs"):
+            shown.append(_NAMED.get(character, f"\\x{code:02x}"))
+        elif unicodedata.category(character) in ("Zl", "Zp"):
+            shown.append(f"\\u{code:04x}")
+        else:
+            shown.append(character)
+    return "".join(shown)
+
 
 def number_text(count: int, noun: str, plural: str | None = None) -> str:
     """`1 Clone`, `2 Clones`; `plural` for nouns not ending in `s` there."""

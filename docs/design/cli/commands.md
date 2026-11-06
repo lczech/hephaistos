@@ -13,6 +13,8 @@ hephaistos clone register [path] [--repo <name>] [--import-history]
 hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | unregister
                  | move <old> <new> [--nested]
 hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refresh]
+hephaistos terminal create [-n <name>] [-d <dir>] [[--] <command>…] | list | show <name>
+                    | rename <name> <new name> | kill <name> [--force]
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
                      [--repo <name>] [--clone <path>] [--worktree <path|name>] [--reverse]
                      | show <id> | kinds
@@ -52,6 +54,7 @@ Output is plain aligned text.
 Times in lists are recent (`time_format = "auto"`): relative for the last 30 days (`now`, `3m`, `2h`, `5d`), then the day, which says more then (`2026-09-05`); full in `show` (`2026-10-05 14:03:21`); ISO 8601 in JSON.
 `--time-format auto|relative|recent|short|full` and the setting `time_format` override this, in the GUI too.
 `relative` goes on in months and years (`4mo`, `6y`); `short` is `14:03` today, `10-05 14:03` this year, and `2025-10-05` before.
+Names and paths show control characters escaped, e.g. a newline as `\n`, so that each stays on its line; JSON keeps them as they are.
 
 ## Asking
 
@@ -82,6 +85,16 @@ With `--nested`, Clones inside it move along, all or nothing; without it, their 
 `repo unregister` refuses while the Repository has Clones.
 `--clones` also unregisters them, on every Machine, after asking.
 Files stay untouched.
+
+## terminal
+
+`terminal create` starts a shell in a directory, the current one by default, or the command after its options; `--` marks where that starts.
+Without `-n`, its name is the directory's, numbered: `proj-1`, `proj-2`.
+For now it prints how to attach with tmux itself.
+`list` and `show` observe this Machine's Terminals first, as they change between the Watcher's passes, e.g. by `exit`.
+A Terminal's repository is that of the innermost Checkout containing the directory it started in.
+`kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first, and a lost one is forgotten.
+How Terminals work: [terminals](../core/terminals.md).
 
 ## scan
 

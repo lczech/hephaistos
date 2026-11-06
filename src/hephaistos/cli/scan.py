@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.clone import ImportHistoryOption, imported_text
 from hephaistos.cli.output import print_table
 from hephaistos.core import config
@@ -112,9 +112,7 @@ def scan(
         typer.echo("Nothing to register")
         return
     if not yes:
-        terminal.confirm(
-            f"{_changes_text(counts, done=False)}?", default=True, action="register these"
-        )
+        tty.confirm(f"{_changes_text(counts, done=False)}?", default=True, action="register these")
 
     with write_session(paths) as session:
         registered = scanning.register(session, planned, import_history=import_history)

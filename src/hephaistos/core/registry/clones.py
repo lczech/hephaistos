@@ -301,12 +301,17 @@ class CheckoutDetails:
     worktree: WorktreeState | None  # None for the Clone's own working tree
 
 
-def _recorded_checkout(session: ReadSession, path: Path) -> CheckoutDetails | None:
-    """The innermost Checkout whose recorded directory contains `path`; None if none does."""
+def recorded_checkout(
+    session: ReadSession, path: Path, known: Sequence[CloneDetails] | None = None
+) -> CheckoutDetails | None:
+    """The innermost Checkout whose recorded directory contains `path`; None if none does.
+
+    Among `known`, this Machine's Clones, if read already, e.g. for many paths.
+    """
     resolved = absolute(path).resolve()
     containing = [
         (len(top.parts), CheckoutDetails(existing, worktree))
-        for existing in on_this_machine(session)
+        for existing in (on_this_machine(session) if known is None else known)
         for top, worktree in [
             (existing.clone.resolved_path, None),
             *((worktree.path.resolve(), worktree) for worktree in existing.worktrees),
@@ -377,7 +382,7 @@ def find_checkout(session: ReadSession, path: Path) -> CheckoutDetails:
     The innermost if they are nested, e.g. a Worktree inside its Clone's directory. Raises
     HephaistosError if git places `path` in a repository of its own inside it.
     """
-    checkout = _recorded_checkout(session, path)
+    checkout = recorded_checkout(session, path)
     if (location := _git_location(path)) is not None:
         _outdated(session, path, checkout, location)
     if checkout is None:
@@ -400,7 +405,7 @@ def outdated_clone(session: ReadSession, path: Path) -> CloneDetails | None:
     location = _git_location(path)
     if location is None:
         return None
-    return _outdated(session, path, _recorded_checkout(session, path), location)
+    return _outdated(session, path, recorded_checkout(session, path), location)
 
 
 def find_unobserved(session: ReadSession, path: Path) -> CloneDetails:

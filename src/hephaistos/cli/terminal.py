@@ -1,78 +1,174 @@
-"""Talking with the user at a terminal."""
+"""`hephaistos terminal`: Terminals, shells on this Machine that outlive what shows them."""
 
-import os
 import shlex
-import subprocess
-import sys
-from collections.abc import Sequence
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
-from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.installation import Difference, value_text
+from hephaistos.cli.output import (
+    JsonOption,
+    TimeFormatOption,
+    print_fields,
+    print_json,
+    print_table,
+    time_formatter,
+)
+from hephaistos.core import config, serialize
+from hephaistos.core.config import TimeFormat
+from hephaistos.core.db.sessions import read_session
+from hephaistos.core.observers import terminals as observer
+from hephaistos.core.registry import clones
+from hephaistos.core.registry.clones import CheckoutDetails
+from hephaistos.core.state import terminals
+from hephaistos.core.state.terminals import TerminalState
+from hephaistos.core.terminals import actions
+from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.utils.paths import Paths, short_path
+from hephaistos.core.utils.text import escaped
 
-PAGER = "less"
-LESS = "FRX"  # as git sets it: quit if it fits on one screen, keep colours, leave it shown
+app = typer.Typer(
+    no_args_is_help=True, help="Terminals: shells on this machine that outlive what shows them."
+)
+
+NameArgument = Annotated[str, typer.Argument(help="Name of the terminal.")]
 
 
-def interactive() -> bool:
-    """Whether we can ask the user."""
-    return sys.stdin.isatty()
+def _observed(paths: Paths) -> None:
+    """Observes first: Terminals change between the Watcher's passes, e.g. by `exit`."""
+    result = observer.observe(paths)
+    if result.error is not None:
+        typer.echo(f"terminals not observed: {result.error}; showing them as last seen", err=True)
 
 
-def confirm(question: str, *, default: bool, action: str) -> None:
-    """Asks the user to confirm; aborts unless they do.
-
-    When not run interactively, raises HephaistosError, naming the `action` that `--yes` would do.
-    """
-    if not interactive():
-        raise HephaistosError(
-            "this command asks for confirmation only when run interactively;"
-            f" add --yes to {action} without asking"
-        )
-    if not typer.confirm(question, default=default):
-        raise typer.Abort
+def _command_text(state: TerminalState) -> str:
+    return "-" if state.command is None else escaped(shlex.join(state.command))
 
 
-def confirm_other_installation(
-    heading: str, differences: Sequence[Difference], *, installed: str, action: str
+def _repository(checkout: CheckoutDetails | None) -> str:
+    return "-" if checkout is None else checkout.clone.repository.name
+
+
+def _attach_text(state: TerminalState) -> str:
+    """How to attach, until `terminal attach` exists: tmux's own client on our socket."""
+    socket = TmuxKeeper.from_settings(Paths.from_environment()).socket
+    path = config.settings().terminals.tmux.path
+    return shlex.join([path, "-L", socket, "attach", "-t", f"={state.name}"])
+
+
+@app.command(context_settings={"allow_interspersed_args": False})
+def create(
+    command: Annotated[
+        list[str] | None,
+        typer.Argument(help="What it runs, after `--`; else your login shell.", show_default=False),
+    ] = None,
+    *,
+    name: Annotated[
+        str | None,
+        typer.Option("--name", "-n", help="Its name; else the directory's, numbered: proj-1."),
+    ] = None,
+    directory: Annotated[
+        Path, typer.Option("--dir", "-d", help="Where it starts.", show_default="this one")
+    ] = Path(),
 ) -> None:
-    """If an installed part belongs to another installation, shows how, and confirms `action`.
-
-    `heading` introduces the differences; `installed` labels the side of the installed part,
-    e.g. `unit`, beside that of this command.
-    """
-    if not differences:
-        return
-    typer.echo(heading)
-    labels = (f"{installed}:", "this command:")
-    width = max(len(label) for label in labels) + 2
-    for difference in differences:
-        typer.echo(f"  {difference.name}")
-        typer.echo(f"    {labels[0]:<{width}}{value_text(difference.installed)}")
-        typer.echo(f"    {labels[1]:<{width}}{value_text(difference.current)}")
-    confirm(f"{action[0].upper()}{action[1:]}?", default=False, action=action)
+    """Create a terminal, running your shell or a command."""
+    paths = Paths.from_environment()
+    created = actions.create(paths, directory, name=name, command=command)
+    running = "" if created.command is None else f", running {_command_text(created)}"
+    typer.echo(
+        f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{running}"
+    )
+    typer.echo(f"  attach with: {_attach_text(created)}")
 
 
-def choose(heading: str, options: Sequence[str], prompt: str) -> int:
-    """Asks the user to pick one of the numbered options; returns its index."""
-    typer.echo(heading)
-    for number, option in enumerate(options, start=1):
-        typer.echo(f"  {number}  {option}")
-    while True:
-        number: int = typer.prompt(prompt, type=int)
-        if 1 <= number <= len(options):
-            return number - 1
+@app.command("list")
+def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
+    """List this machine's terminals."""
+    paths = Paths.from_environment()
+    _observed(paths)
+    with read_session(paths) as session:
+        if as_json:
+            print_json(serialize.terminals_json(session))
+            return
+        found = terminals.on_this_machine(session)
+        known = clones.on_this_machine(session)
+        checkouts = [clones.recorded_checkout(session, state.directory, known) for state in found]
+    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    print_table(
+        ["name", "status", "repo", "directory", "program", "attached", "active"],
+        [
+            [
+                escaped(state.name),
+                state.status.value,
+                _repository(checkout),
+                short_path(state.directory),
+                escaped(state.program),
+                str(state.clients) if state.clients else "-",
+                formatted(state.active_at),
+            ]
+            for state, checkout in zip(found, checkouts, strict=True)
+        ],
+    )
 
 
-def page(text: str) -> None:
-    """Prints `text`; on a terminal through $PAGER (else less), as git does."""
-    if not sys.stdout.isatty():
-        typer.echo(text)
-        return
-    command = shlex.split(os.environ.get("PAGER") or PAGER)
-    env = os.environ | {"LESS": os.environ.get("LESS", LESS)}
-    try:
-        subprocess.run(command, input=text + "\n", text=True, env=env, check=False)  # noqa: S603 - the user's pager
-    except OSError:
-        typer.echo(text)
+@app.command()
+def show(
+    name: NameArgument, *, time_format: TimeFormatOption = None, as_json: JsonOption = False
+) -> None:
+    """Show a terminal: where it started, what runs in it, and its checkout."""
+    paths = Paths.from_environment()
+    _observed(paths)
+    with read_session(paths) as session:
+        state = terminals.by_name(session, name)
+        if as_json:
+            print_json(serialize.terminal_json(session, state))
+            return
+        checkout = clones.recorded_checkout(session, state.directory)
+    formatted = time_formatter(time_format, TimeFormat.FULL)
+    current = state.current_directory
+    where = None
+    if checkout is not None:
+        worktree = checkout.worktree
+        where = checkout.clone.clone.display_path if worktree is None else worktree.path
+    print_fields(
+        [
+            ("name", escaped(state.name)),
+            ("id", str(state.id)),
+            ("status", state.status.value),
+            ("directory", short_path(state.directory)),
+            ("current", "-" if current is None else short_path(current)),
+            ("program", escaped(state.program)),
+            ("command", _command_text(state)),
+            ("attached", str(state.clients)),
+            *([("panes", str(state.panes))] if state.panes > 1 else []),
+            ("repository", _repository(checkout)),
+            ("checkout", "-" if where is None else short_path(where)),
+            ("started", formatted(state.started_at)),
+            ("active", formatted(state.active_at)),
+            ("observed", formatted(state.observed_at.datetime)),
+        ]
+    )
+
+
+@app.command()
+def rename(
+    name: NameArgument,
+    new_name: Annotated[str, typer.Argument(help="Its new name.", show_default=False)],
+) -> None:
+    """Rename a terminal."""
+    renamed = actions.rename(Paths.from_environment(), name, new_name)
+    typer.echo(f"Renamed terminal {escaped(name)} to {escaped(renamed.name)}")
+
+
+@app.command()
+def kill(
+    name: NameArgument,
+    *,
+    force: Annotated[
+        bool, typer.Option("--force", help="SIGKILL first, also for what ignores SIGHUP.")
+    ] = False,
+) -> None:
+    """End a terminal and what runs in it; a lost one is forgotten."""
+    killed = actions.kill(Paths.from_environment(), name, force=force)
+    lost = killed.status is terminals.TerminalStatus.LOST
+    typer.echo(f"{'Forgot lost' if lost else 'Killed'} terminal {escaped(killed.name)}")

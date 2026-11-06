@@ -7,9 +7,10 @@ that ended, e.g. its shell exited, loses its row. Terminals record no Events.
 
 import json
 import logging
+import re
 import sqlite3
 import uuid
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -19,8 +20,10 @@ from typing import Self
 from hephaistos.core.db import values
 from hephaistos.core.db.sessions import ReadSession, WriteSession
 from hephaistos.core.terminals.keeper import Session
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import Timestamp
 from hephaistos.core.utils.names import Names
+from hephaistos.core.utils.text import escaped, number_text
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +37,7 @@ NAMES = Names(
     first="A-Za-z0-9_",
     first_described="a letter, digit or '_'",
 )
+_NUMBERS = re.compile(r"(\d+)")
 DEFAULT_BASE = "terminal"  # a default name's start where the directory gives none
 
 #: The columns of `state_terminals`, decoded for raw listings.
@@ -114,14 +118,34 @@ def _ms(moment: datetime) -> int:
     return round(moment.timestamp() * 1000)
 
 
+def name_order(name: str) -> tuple[tuple[int, int | str], ...]:
+    """What names sort by: numbers as numbers, so `proj-2` comes before `proj-10`."""
+    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in _NUMBERS.split(name))
+
+
 def on_this_machine(session: ReadSession) -> list[TerminalState]:
     """This Machine's Terminals, by name."""
     rows = session.conn.execute(
-        f"SELECT {', '.join(COLUMNS)} FROM state_terminals"  # noqa: S608 - our own constant
-        " WHERE observed_by = ? ORDER BY name",
+        f"SELECT {', '.join(COLUMNS)} FROM state_terminals WHERE observed_by = ?",  # noqa: S608 - our own constant
         (session.machine_id,),
     )
-    return [TerminalState.from_row(row) for row in rows]
+    return sorted((TerminalState.from_row(row) for row in rows), key=lambda s: name_order(s.name))
+
+
+class NoSuchTerminalError(HephaistosError):
+    """No Terminal on this Machine has that name."""
+
+    def __init__(self, name: str) -> None:
+        """Creates the error, naming the Terminal."""
+        super().__init__(f"no terminal named {escaped(name)} on this machine")
+
+
+def by_name(session: ReadSession, name: str) -> TerminalState:
+    """This Machine's Terminal named exactly `name`; raises NoSuchTerminalError."""
+    for state in on_this_machine(session):
+        if state.name == name:
+            return state
+    raise NoSuchTerminalError(name)
 
 
 def _free_name(base: str, taken: Collection[str]) -> str:
@@ -135,14 +159,20 @@ def _free_name(base: str, taken: Collection[str]) -> str:
         number += 1
 
 
-def default_name(session: ReadSession, directory: Path) -> str:
+def by_id(session: ReadSession, terminal_id: uuid.UUID) -> TerminalState | None:
+    """This Machine's Terminal with that ID; None if it has none."""
+    found = [state for state in on_this_machine(session) if state.id == terminal_id]
+    return found[0] if found else None
+
+
+def default_name(session: ReadSession, directory: Path, refused: Collection[str] = ()) -> str:
     """A name for a new Terminal in `directory`, e.g. `hephaistos-1`, then `hephaistos-2`.
 
     Derived from the directory's name, numbered from 1 among this Machine's Terminals, lost ones
-    included.
+    included, and past those in `refused`, e.g. taken by a session not observed yet.
     """
     base = NAMES.derived(directory.name) or DEFAULT_BASE
-    return _free_name(base, {state.name for state in on_this_machine(session)})
+    return _free_name(base, {state.name for state in on_this_machine(session)} | set(refused))
 
 
 def _write(session: WriteSession, state: TerminalState) -> None:
@@ -174,6 +204,16 @@ def _delete(session: WriteSession, terminal_id: uuid.UUID) -> None:
     session.conn.execute("DELETE FROM state_terminals WHERE id = ?", (terminal_id,))
 
 
+def rename_lost(session: WriteSession, state: TerminalState, new_name: str) -> None:
+    """Renames a lost Terminal, which has no session to rename."""
+    _write(session, replace(state, name=new_name, observed_at=session.tick()))
+
+
+def forget(session: WriteSession, state: TerminalState) -> None:
+    """Deletes a lost Terminal's row: it is killed without having run again."""
+    _delete(session, state.id)
+
+
 @dataclass(frozen=True)
 class Changes:
     """What one observation changed."""
@@ -184,13 +224,44 @@ class Changes:
     lost: int  # rows newly lost
 
 
+def _end_or_lose(
+    session: WriteSession,
+    missing: Sequence[TerminalState],
+    *,
+    running: bool,
+    boot_id: str,
+    observed_at: Timestamp,
+) -> tuple[set[uuid.UUID], int]:
+    """Deletes the open Terminals not found that ended, and marks the others lost.
+
+    Returns those ended and how many were lost. Lost ones not found stay so.
+    """
+    ended: set[uuid.UUID] = set()
+    lost = rebooted = 0
+    for state in missing:
+        if state.status is not TerminalStatus.OPEN:
+            continue
+        if running and state.boot_id == boot_id:
+            _delete(session, state.id)
+            ended.add(state.id)
+            continue
+        _write(session, replace(state, status=TerminalStatus.LOST, observed_at=observed_at))
+        lost += 1
+        rebooted += state.boot_id != boot_id
+    if rebooted:
+        log.info("%s lost by a reboot", number_text(rebooted, "terminal"))
+    if unexpected := lost - rebooted:  # in the same boot
+        log.warning("the Keeper's server is gone: %s lost", number_text(unexpected, "terminal"))
+    return ended, lost
+
+
 def update(
     session: WriteSession,
     found: Sequence[Session],
     *,
     running: bool,
     boot_id: str,
-    command: dict[uuid.UUID, tuple[str, ...] | None] | None = None,
+    command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
 ) -> Changes:
     """Stores what the Keeper showed of this Machine's Terminals.
 
@@ -204,19 +275,13 @@ def update(
     observed_at = session.tick()
     known = {state.id: state for state in on_this_machine(session)}
     seen = {item.terminal_id: item for item in found if item.terminal_id is not None}
-    names = {state.name: state.id for state in known.values()}
-    added = ended = lost = 0
-
-    for state in known.values():  # first, so that names of ended Terminals become free
-        if state.id in seen:
-            continue
-        if running and state.boot_id == boot_id and state.status is TerminalStatus.OPEN:
-            _delete(session, state.id)
-            del names[state.name]
-            ended += 1
-        elif state.status is TerminalStatus.OPEN:
-            _write(session, replace(state, status=TerminalStatus.LOST, observed_at=observed_at))
-            lost += 1
+    missing = [state for state in known.values() if state.id not in seen]
+    # First, so that the names of ended Terminals become free.
+    ended, lost = _end_or_lose(
+        session, missing, running=running, boot_id=boot_id, observed_at=observed_at
+    )
+    names = {state.name: state.id for state in known.values() if state.id not in ended}
+    added = 0
 
     for terminal_id, item in seen.items():
         holder = names.get(item.name)
@@ -252,4 +317,4 @@ def update(
                 observed_by=session.machine_id,
             ),
         )
-    return Changes(open=len(seen), added=added, ended=ended, lost=lost)
+    return Changes(open=len(seen), added=added, ended=len(ended), lost=lost)

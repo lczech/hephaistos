@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.output import JsonOption, LimitOption, ReverseOption, parse_time
 from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
@@ -94,7 +94,7 @@ def show(  # noqa: PLR0913 - one option per filter
         typer.echo(f"skipped {number_text(reading.skipped, 'unreadable line')}", err=True)
     if not follow:
         if shown:
-            (typer.echo if no_pager else terminal.page)("\n".join(shown))
+            (typer.echo if no_pager else tty.page)("\n".join(shown))
         return
     for text in shown:
         typer.echo(text)
@@ -135,7 +135,7 @@ def prune(
     if not yes:
         typer.echo(f"Log files in {short_path(directory)} to delete:")
         typer.echo(f"  {_days_text(old[0][0], old[-1][0])}: {number_text(len(old), 'file')}")
-        terminal.confirm(f"Delete them ({_size_text(size)})?", default=False, action="delete them")
+        tty.confirm(f"Delete them ({_size_text(size)})?", default=False, action="delete them")
     deleted = logs.delete_older(directory, before)
     log.info("pruned %s", number_text(len(deleted), "file"), extra={"before": before})
     typer.echo(f"Deleted {number_text(len(deleted), 'log file')} ({_size_text(size)})")

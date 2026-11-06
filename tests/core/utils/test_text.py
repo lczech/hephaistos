@@ -1,4 +1,10 @@
-from hephaistos.core.utils.text import number_text, size_text
+import os
+from pathlib import Path
+
+import pytest
+
+from hephaistos.core.utils.paths import short_path
+from hephaistos.core.utils.text import escaped, number_text, size_text
 
 
 def test_counts_with_their_nouns() -> None:
@@ -20,3 +26,25 @@ def test_gives_sizes_as_the_gui_does() -> None:
 def test_gives_sizes_in_the_unit_they_round_to() -> None:
     sizes = [999, 9_960, 999_499, 999_600, 9_960_000]
     assert [size_text(size) for size in sizes] == ["999 B", "10 kB", "999 kB", "1.0 MB", "10 MB"]
+
+
+@pytest.mark.parametrize(
+    ("text", "shown"),
+    [
+        ("plain", "plain"),
+        ("ünï 😀 x", "ünï 😀 x"),
+        ("a\tb\nc\rd", "a\\tb\\nc\\rd"),
+        ("x\x01y\x7f", "x\\x01y\\x7f"),
+        (f"a{chr(0x2028)}b", "a\\u2028b"),
+        (os.fsdecode(b"bad\xff"), "bad\\xff"),
+        ("back\\slash", "back\\slash"),
+    ],
+)
+def test_escaped(text: str, shown: str) -> None:
+    assert escaped(text) == shown
+
+
+def test_short_paths_are_escaped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert short_path(tmp_path / "new\nline") == "~/new\\nline"
+    assert short_path(Path("/tab\there")) == "/tab\\there"

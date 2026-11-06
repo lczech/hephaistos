@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.daemon import executable
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, own_checkout, private_directory, short_path
@@ -42,7 +42,7 @@ def _as_root(commands: list[list[str]], declined: str) -> bool:
     """
     for command in commands:
         typer.echo(f"  sudo {shlex.join(command)}")
-    if not terminal.interactive() or not typer.confirm("Run them with sudo now?", default=False):
+    if not tty.interactive() or not typer.confirm("Run them with sudo now?", default=False):
         typer.echo(declined)
         return False
     # -k: asks for the password, and keeps no permission for later sudo calls.
@@ -73,7 +73,7 @@ def install(
     text = entry.entry_text(executable(), os.environ)
     if not yes:
         differences = entry.installation_differences(files, text)
-        terminal.confirm_other_installation(
+        tty.confirm_other_installation(
             "The launcher entry differs from this command:",
             differences,
             installed="entry",
@@ -111,7 +111,7 @@ def uninstall(
     if not yes:
         text = entry.entry_text(executable(), os.environ)
         differences = entry.installation_differences(files, text)
-        terminal.confirm_other_installation(
+        tty.confirm_other_installation(
             "The launcher entry differs from this command:",
             differences,
             installed="entry",

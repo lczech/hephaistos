@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -113,7 +113,7 @@ def install(
     installed = unit.installed_text()
     if installed is not None and not yes:
         differences = unit.installation_differences(installed, executable(), os.environ)
-        terminal.confirm_other_installation(
+        tty.confirm_other_installation(
             "The systemd unit for the daemon differs from this command:",
             differences,
             installed="unit",
@@ -161,7 +161,7 @@ def uninstall(
     installed = unit.installed_text()
     if installed is not None and not yes:
         differences = unit.installation_differences(installed, executable(), os.environ)
-        terminal.confirm_other_installation(
+        tty.confirm_other_installation(
             "The systemd unit for the daemon differs from this command:",
             differences,
             installed="unit",
@@ -332,7 +332,7 @@ def token(
     port = _own_server_port(paths) if url else None
     if renew:
         if not yes:
-            terminal.confirm(
+            tty.confirm(
                 "This logs out every client of this machine's server. Renew the token?",
                 default=False,
                 action="renew it",

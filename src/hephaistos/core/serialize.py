@@ -29,7 +29,9 @@ from hephaistos.core.registry.filesystems import Filesystem
 from hephaistos.core.registry.machines import LocalSetup, Machine
 from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
+from hephaistos.core.state import terminals as terminal_states
 from hephaistos.core.state.checkouts import CheckoutState
+from hephaistos.core.state.terminals import TerminalState
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import changes, file_search, files, git, graph, history, logs, tips
 from hephaistos.core.utils.ids import Timestamp, id_datetime
@@ -45,7 +47,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 30)
+API_VERSION = ApiVersion(0, 31)
 
 
 class Ref(TypedDict):
@@ -152,6 +154,33 @@ class RepositoryJson(TypedDict):
     clones: list[CloneJson]
 
 
+class CheckoutRef(TypedDict):
+    """A Checkout: its Repository, its Clone, and its Worktree if it is one."""
+
+    repository: Ref
+    clone: CloneRef
+    worktree: Ref | None
+
+
+class TerminalJson(TypedDict):
+    """A Terminal with its State, and the Checkout it started in, if any."""
+
+    id: str
+    name: str
+    status: str  # open or lost
+    directory: str  # where it started
+    current_directory: str | None
+    program: str
+    command: list[str] | None  # None for a shell
+    clients: int
+    panes: int
+    started_at: str
+    active_at: str
+    observed_at: str
+    observed_by: Ref
+    checkout: CheckoutRef | None
+
+
 class SubjectRef(TypedDict):
     """What an Event is about: its ID, type (`clone`), and its name or its path, if known."""
 
@@ -191,6 +220,54 @@ class EventKindJson(TypedDict):
 
     kind: str
     priority: int
+
+
+def _checkout_ref(found: clones.CheckoutDetails) -> CheckoutRef:
+    details, worktree = found.clone, found.worktree
+    return CheckoutRef(
+        repository=Ref(id=str(details.repository.id), name=details.repository.name),
+        clone=CloneRef(id=str(details.clone.id), path=str(details.clone.display_path)),
+        worktree=None if worktree is None else Ref(id=str(worktree.id), name=worktree.name),
+    )
+
+
+def terminal_json(
+    session: ReadSession,
+    state: TerminalState,
+    names: Mapping[uuid.UUID, str] | None = None,
+    known: Sequence[CloneDetails] | None = None,
+) -> TerminalJson:
+    """A Terminal, with the innermost Checkout containing the directory it started in.
+
+    `known` are this Machine's Clones, if read already.
+    """
+    names = names if names is not None else machines.names(session, [state.observed_by])
+    checkout = clones.recorded_checkout(session, state.directory, known)
+    current = state.current_directory
+    return TerminalJson(
+        id=str(state.id),
+        name=state.name,
+        status=state.status.value,
+        directory=str(state.directory),
+        current_directory=None if current is None else str(current),
+        program=state.program,
+        command=None if state.command is None else list(state.command),
+        clients=state.clients,
+        panes=state.panes,
+        started_at=state.started_at.isoformat(),
+        active_at=state.active_at.isoformat(),
+        observed_at=state.observed_at.datetime.isoformat(),
+        observed_by=machine_ref(state.observed_by, names),
+        checkout=None if checkout is None else _checkout_ref(checkout),
+    )
+
+
+def terminals_json(session: ReadSession) -> list[TerminalJson]:
+    """This Machine's Terminals, by name."""
+    found = terminal_states.on_this_machine(session)
+    names = machines.names(session, {state.observed_by for state in found})
+    known = clones.on_this_machine(session)
+    return [terminal_json(session, state, names, known) for state in found]
 
 
 def machine_ref(machine_id: uuid.UUID, names: Mapping[uuid.UUID, str]) -> Ref:

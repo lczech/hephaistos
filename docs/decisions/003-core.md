@@ -29,7 +29,7 @@ How things work on them is described in [docs/design/core/](../design/core/): [s
 - **The user's files:** the Watcher and anything else automatic only observe. The user's files and repositories change only by an explicit action of the user, one at a time, that says what it will change. Each kind of action is agreed when it is designed, and its tests cover what it leaves behind when it fails.
 - **Logs:** local diagnostics about hephaistos itself, as JSON Lines, one file per UTC day. They are never synced, and nothing reads them to decide anything; Events stay the record of work.
 - **Daemon:** one per Machine, held by a lock; installed as a systemd user unit, else run in tmux.
-- **CLI:** one subcommand per entity, with the verbs `list`, `show`, `register`, `unregister` and `rename`, as the Registry only declares what is on disk, never creating or deleting it. A few top-level verbs act across entities. Entities are addressed by name, Checkouts by path, others by a short ID. Output is plain aligned text; `--json` on `list` and `show` gives the Server's JSON.
+- **CLI:** one subcommand per entity, with the verbs `list`, `show`, `register`, `unregister` and `rename`, as the Registry only declares what is on disk, never creating or deleting it. Creating or ending things is an exception, agreed case by case: Terminals, which we keep, are the first (`create`, `kill`). A few top-level verbs act across entities. Entities are addressed by name, Checkouts by path, others by a short ID. Output is plain aligned text; `--json` on `list` and `show` gives the Server's JSON.
 
 ## Rejected
 

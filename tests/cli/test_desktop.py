@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import desktop, terminal
+from hephaistos.cli import desktop, tty
 from hephaistos.cli.main import app
 from hephaistos.core.utils.paths import Paths
 from hephaistos.desktop import apparmor, launch
@@ -84,7 +84,7 @@ def test_an_entry_of_another_installation_is_replaced_or_removed_only_when_asked
         assert str(refused.exception).endswith(f"add --yes to {verb} the entry without asking")
     assert _entry().read_text() == installed
 
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     declined = runner.invoke(app, ["desktop", "install"], input="\n")
     assert declined.exit_code == 1
     assert _entry().read_text() == installed
@@ -126,7 +126,7 @@ def test_sudo_runs_once_agreed(
     monkeypatch: pytest.MonkeyPatch, answer: str, code: int | None
 ) -> None:
     _restricted(monkeypatch, installed=False)
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     ran: list[list[str]] = []
 
     def sudo_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:

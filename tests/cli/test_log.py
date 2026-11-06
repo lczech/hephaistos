@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.main import app
 from hephaistos.core import config
 from hephaistos.core.utils import logs
@@ -68,7 +68,7 @@ def test_pages_on_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     paged = tmp_path / "paged"
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     monkeypatch.setenv("PAGER", f"sh -c 'cat > {paged}'")
-    terminal.page("one\ntwo")
+    tty.page("one\ntwo")
     assert paged.read_text() == "one\ntwo\n"
 
 
@@ -80,10 +80,10 @@ def test_pages_with_less_without_a_pager(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     monkeypatch.setenv("PAGER", "")
     monkeypatch.delenv("LESS", raising=False)
-    terminal.page("one")
+    tty.page("one")
     assert (tmp_path / "paged").read_text() == "FRX\none\n"
     monkeypatch.setenv("LESS", "S")
-    terminal.page("one")
+    tty.page("one")
     assert (tmp_path / "paged").read_text() == "S\none\n"
 
 
@@ -97,7 +97,7 @@ def test_prune(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
     assert refused.exit_code == 1
     assert "add --yes to delete them" in str(refused.exception)
 
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     declined = runner.invoke(app, ["log", "prune", "--keep", "7d"], input="n\n")
     assert declined.exit_code == 1
     assert declined.output.splitlines()[1].endswith(

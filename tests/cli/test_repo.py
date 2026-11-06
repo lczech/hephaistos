@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.main import app
 from hephaistos.core.utils.errors import HephaistosError
 from support import clone, create, git
@@ -97,7 +97,7 @@ def test_unregister_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"])
     assert str(result.exception).startswith("this command asks for confirmation only")
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="\n")
     assert result.exit_code == 1
     assert "Unregister repo and its 2 clones? [y/N]" in result.output

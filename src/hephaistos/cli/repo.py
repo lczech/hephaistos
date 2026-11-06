@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.cli.clone import active_text, branch_text, status_text, worktree_lines
 from hephaistos.cli.output import (
     JsonOption,
@@ -150,7 +150,7 @@ def unregister(
         )
     if its_clones and not yes:
         typer.echo(f"{name} has {counted}:\n{listed}")
-        terminal.confirm(
+        tty.confirm(
             f"Unregister {name} and its {counted}?", default=False, action="unregister them"
         )
     with write_session(paths) as session:

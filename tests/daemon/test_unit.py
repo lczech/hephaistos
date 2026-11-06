@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from hephaistos.cli import terminal
+from hephaistos.cli import tty
 from hephaistos.core.utils.installation import Difference
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
@@ -191,7 +191,7 @@ def test_a_unit_of_another_installation_is_replaced_or_removed_only_when_asked(
     assert f'ExecStart="{systemd}" daemon run' in unit.unit_file().read_text()
     assert _pid(paths) == first
 
-    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(tty, "interactive", lambda: True)
     monkeypatch.setattr(sys, "stdin", io.StringIO("y\n"))
     assert run_cli(monkeypatch, "daemon", "install", program=str(other)) == 0
     assert "Replace the systemd unit and restart the daemon? [y/N]: " in capsys.readouterr().out
