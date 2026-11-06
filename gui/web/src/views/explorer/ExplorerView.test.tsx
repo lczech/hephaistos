@@ -2,27 +2,21 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
-import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
+import {
+  clone,
+  fileEntry,
+  info,
+  json,
+  renderWithQueries,
+  repository,
+  serve,
+} from "../../test/server";
 import { InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { ExplorerView, pathParts } from "./ExplorerView";
 import type { FileEntry } from "./rows";
 
-function entry(name: string, fields: Partial<FileEntry> = {}): FileEntry {
-  return {
-    name,
-    kind: "file",
-    hidden: name.startsWith("."),
-    target: null,
-    to: null,
-    size: null,
-    modified: null,
-    status: null,
-    ignored: null,
-    changed: null,
-    ...fields,
-  };
-}
+const entry = fileEntry;
 
 const DISK: Record<string, FileEntry[]> = {
   "/home/me": [entry("proj", { kind: "directory" }), entry(".bashrc"), entry("notes.md")],

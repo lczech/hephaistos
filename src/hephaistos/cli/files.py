@@ -54,10 +54,12 @@ def _name_text(entry: Entry) -> str:
 
 
 def _git_text(entry: Entry) -> str:
-    """What git says of an entry: its letter, `!` if ignored, `*` for changes below it."""
+    """What git says of an entry, as `git status --short` does, or `*` for changes below it."""
     if entry.ignored:
-        return "!"
-    return entry.status or ("*" if entry.changed else "")
+        return "!!"
+    if entry.index or entry.worktree:
+        return f"{entry.index or ' '}{entry.worktree or ' '}"
+    return "*" if entry.changed else ""
 
 
 def files_(
@@ -72,8 +74,9 @@ def files_(
 ) -> None:
     """List what a directory holds, by name, not what is below its directories.
 
-    Hidden entries are listed too. With `--fields git`, git's letter for each, as in its status:
-    `M` modified, `A` added, `?` untracked, `!` ignored, `*` a directory with changes below it.
+    Hidden entries are listed too. With `--fields git`, git's letters for each, as `git status
+    --short` shows them, staged then not: `M` modified, `A` added, `??` untracked, `!!` ignored;
+    `*` marks a directory with changes below it.
     """
     chosen = _fields(fields)
     found = files.listing(

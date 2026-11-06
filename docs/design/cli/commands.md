@@ -101,7 +101,10 @@ A clone matching several Repositories, or whose new Repository's name is taken, 
 `files` lists what a directory holds, by name, as the GUI's Explorer asks for it: one directory, not what is below its directories.
 It lists any directory this user may, not only Checkouts, hidden entries too.
 Names and kinds come with the listing; `--fields` asks for more, as each costs more: `size` and `modified` a `stat` each, `git` one `git status` of the directory, inside a working tree.
-git's letters are those of its status: `M` modified, `A` added, `R` renamed, `U` unmerged, `?` untracked; `!` marks ignored entries, and `*` directories with changes below them.
+git's letters are shown as `git status --short` shows them, staged then not: `M` modified, `A` added, `R` renamed, `U` unmerged, `??` untracked, `!!` ignored; `*` marks directories with changes below them.
+Inside a folder git reports as a whole, untracked or ignored, as `build/`, every entry has its letters, as git would give each.
+The JSON has both letters (`index`, `worktree`) and the one a GUI shows (`status`): unmerged, else the working tree's, else the index's, as VS Code chooses.
+A path git reports twice, staged as deleted and untracked again (after `git rm --cached`), has the staged letters; where `git status` fails, e.g. as too slow, the entries come without letters.
 It lists the first `files.max_entries` entries by name and counts the rest.
 
 ## event

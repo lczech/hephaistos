@@ -197,3 +197,25 @@ export function repository(
     ...fields,
   };
 }
+
+/** An entry of a Directory, as `/api/files` lists it: a file unless said otherwise. */
+export function fileEntry(
+  name: string,
+  fields: Partial<Schemas["FileEntryJson"]> = {},
+): Schemas["FileEntryJson"] {
+  return {
+    name,
+    kind: "file",
+    hidden: name.startsWith("."),
+    target: null,
+    to: null,
+    size: null,
+    modified: null,
+    status: null,
+    index: null,
+    worktree: null,
+    ignored: null,
+    changed: null,
+    ...fields,
+  };
+}

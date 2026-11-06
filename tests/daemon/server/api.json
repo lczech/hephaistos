@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 22
+    "minor": 23
   },
   "shapes": {
     "components": {
@@ -1035,6 +1035,17 @@
               ],
               "title": "Ignored"
             },
+            "index": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Index"
+            },
             "kind": {
               "$ref": "#/components/schemas/Kind"
             },
@@ -1101,6 +1112,17 @@
                 }
               ],
               "title": "To"
+            },
+            "worktree": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Worktree"
             }
           },
           "required": [
@@ -1112,6 +1134,8 @@
             "size",
             "modified",
             "status",
+            "index",
+            "worktree",
             "ignored",
             "changed"
           ],

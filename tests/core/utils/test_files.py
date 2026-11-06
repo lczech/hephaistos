@@ -132,12 +132,18 @@ def test_says_what_git_says_in_a_working_tree(tmp_path: Path) -> None:
     (repo / "build").mkdir()
     (repo / "build" / "out").write_text("")
     git(repo, "add", "new.txt")
+    (repo / "new.txt").write_text("edited after adding\n")
 
     found = files.listing(repo, frozenset({"git"}), max_entries=100)
     assert found.top == repo.resolve()
     entries = _by_name(found)
-    assert entries["new.txt"].status == "A"
-    assert entries["fresh"].status == "?"
+    new = entries["new.txt"]
+    assert (new.status, new.index, new.worktree) == ("M", "A", "M")  # as VS Code shows it
+    assert (entries["fresh"].status, entries["fresh"].index, entries["fresh"].worktree) == (
+        "?",
+        "?",
+        "?",
+    )
     assert (entries["run.log"].ignored, entries["build"].ignored) == (True, True)
     assert (entries["lib"].status, entries["lib"].ignored, entries["lib"].changed) == (
         None,
@@ -148,7 +154,19 @@ def test_says_what_git_says_in_a_working_tree(tmp_path: Path) -> None:
     assert entries["new.txt"].changed is None  # only directories say so
 
     inside = _by_name(files.listing(repo / "docs", frozenset({"git"}), max_entries=100))
-    assert inside["guide.md"].status == "M"
+    guide = inside["guide.md"]
+    assert (guide.status, guide.index, guide.worktree) == ("M", None, "M")
+
+
+def test_keeps_a_staged_deletion_of_a_file_untracked_again(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    (repo / "f").write_text("x\n")
+    git(repo, "add", "f")
+    git(repo, "commit", "--quiet", "-m", "f")
+    git(repo, "rm", "--cached", "--quiet", "f")  # git reports `f` twice: deleted, and untracked
+
+    entry = _by_name(files.listing(repo, frozenset({"git"}), max_entries=100))["f"]
+    assert entry.index == "D"
 
 
 def test_lists_without_git_s_letters_where_git_fails(
@@ -167,6 +185,26 @@ def test_lists_without_git_s_letters_where_git_fails(
     found = files.listing(repo, frozenset({"git"}), max_entries=100)
     assert found.top == repo.resolve()  # still in its working tree
     assert all(entry.status is None for entry in found.entries)
+
+
+def test_gives_a_folder_s_state_to_all_in_it(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    (repo / ".gitignore").write_text("build/\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "--quiet", "-m", "ignore")
+    for folder in ("build/sub", "fresh/deep"):
+        (repo / folder).mkdir(parents=True)
+        (repo / folder / "a").write_text("")
+
+    for folder in ("build", "build/sub"):  # git says only `build/`
+        found = files.listing(repo / folder, frozenset({"git"}), max_entries=100)
+        assert all(entry.ignored for entry in found.entries), folder
+        assert all(entry.status is None for entry in found.entries)
+    for folder in ("fresh", "fresh/deep"):  # git says only `fresh/`, or `fresh/deep/`
+        found = files.listing(repo / folder, frozenset({"git"}), max_entries=100)
+        letters = {(entry.status, entry.index, entry.worktree) for entry in found.entries}
+        assert letters == {("?", "?", "?")}, folder
+        assert not any(entry.ignored for entry in found.entries)
 
 
 def test_says_nothing_of_git_outside_a_working_tree(tmp_path: Path) -> None:

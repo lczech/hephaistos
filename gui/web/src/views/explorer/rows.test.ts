@@ -1,22 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Loaded } from "../../components/list/tree";
+import { fileEntry } from "../../test/server";
 import { asked, below, type Entry, type FileEntry, type Making, rows } from "./rows";
 
-function entry(name: string, fields: Partial<FileEntry> = {}): FileEntry {
-  return {
-    name,
-    kind: "file",
-    hidden: name.startsWith("."),
-    target: null,
-    to: null,
-    size: null,
-    modified: null,
-    status: null,
-    ignored: null,
-    changed: null,
-    ...fields,
-  };
-}
+const entry = fileEntry;
 
 const folder = (name: string) => entry(name, { kind: "directory" });
 

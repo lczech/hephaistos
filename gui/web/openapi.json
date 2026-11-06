@@ -1030,6 +1030,17 @@
             ],
             "title": "Ignored"
           },
+          "index": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
           "kind": {
             "$ref": "#/components/schemas/Kind"
           },
@@ -1096,6 +1107,17 @@
               }
             ],
             "title": "To"
+          },
+          "worktree": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worktree"
           }
         },
         "required": [
@@ -1107,6 +1129,8 @@
           "size",
           "modified",
           "status",
+          "index",
+          "worktree",
           "ignored",
           "changed"
         ],
@@ -2519,7 +2543,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.22"
+    "version": "0.23"
   },
   "openapi": "3.1.0",
   "paths": {

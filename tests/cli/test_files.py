@@ -39,7 +39,7 @@ def test_shows_the_fields_asked_for(tmp_path: Path) -> None:
         "new.txt",
         "6",
         "B",
-        "?",
+        "??",
     ]
 
 
@@ -74,6 +74,8 @@ def test_json_lists_entries_and_their_count(tmp_path: Path) -> None:
         "size": None,
         "modified": None,
         "status": None,
+        "index": None,
+        "worktree": None,
         "ignored": None,
         "changed": None,
     }

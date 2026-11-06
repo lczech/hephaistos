@@ -37,7 +37,7 @@ class FilesError(HephaistosError):
 class Entry:
     """A file, directory, symlink or other thing in a Directory.
 
-    `size` and `modified` come with the field `size` or `modified`; `status`, `ignored` and
+    `size` and `modified` come with the field `size` or `modified`; git's letters, `ignored` and
     `changed` with `git`, inside a working tree. A symlink's are of the link itself; `to` says
     what it points to, if anything.
     """
@@ -49,7 +49,11 @@ class Entry:
     to: Literal["file", "directory", "other"] | None = None  # a symlink's, followed; None if broken
     size: int | None = None  # in bytes, a file's
     modified: datetime | None = None
-    status: str | None = None  # git's letter, as in changes: M, T, A, R, U, ? untracked
+    status: str | None = (
+        None  # git's letter shown: U unmerged, else the working tree's, else the index's
+    )
+    index: str | None = None  # git's letter for what is staged: M, T, A, R, D; ? untracked
+    worktree: str | None = None  # and for what is not: M, T, D; ? untracked
     ignored: bool | None = None
     changed: bool | None = None  # a directory with changes below it
 
@@ -109,12 +113,26 @@ def _checked(path: Path) -> Path:
 
 @dataclass(frozen=True)
 class _Git:
-    """What git says about a Directory's entries, by name."""
+    """What git says about a Directory's entries, by name.
+
+    In a folder git reports as a whole, untracked or ignored, so is every entry: `every` holds
+    the folder's letters, `all_ignored` whether it is ignored.
+    """
 
     top: Path
-    status: dict[str, str]
+    letters: dict[str, git.Entry]  # an entry's, as `git status` gives them
     ignored: frozenset[str]
     changed: frozenset[str]
+    every: git.Entry | None = None
+    all_ignored: bool = False
+
+    def entry(self, name: str) -> git.Entry | None:
+        """The letters of the entry `name`, if git has any."""
+        return self.letters.get(name) or self.every
+
+    def is_ignored(self, name: str) -> bool:
+        """Whether git ignores the entry `name`."""
+        return self.all_ignored or name in self.ignored
 
 
 def _git(path: Path) -> _Git | None:
@@ -144,23 +162,34 @@ def _git(path: Path) -> _Git | None:
     except git.GitError:  # e.g. too slow: the working tree still known, without git's letters
         return _Git(location.top, {}, frozenset(), frozenset())
     found = git.parse_status(output)
-    status: dict[str, str] = {}
+    letters: dict[str, git.Entry] = {}
     changed: set[str] = set()
+    every: git.Entry | None = None
+    # Git reports a folder that is untracked or ignored as a whole, `new/`, also when it is above
+    # the Directory: then all in the Directory is.
+    within = [folder for folder in found.ignored if _holds_prefix(folder, prefix)]
     for entry in found.entries:
+        if _holds_prefix(entry.path, prefix):
+            every = entry
+            continue
         name, _, below = entry.path.removeprefix(prefix).rstrip("/").partition("/")
         if below:
             changed.add(name)
-            continue
-        if entry.conflicted:
-            status[name] = "U"
-        else:
-            status[name] = entry.worktree if entry.worktree != "." else entry.index
+        elif name not in letters or letters[name].index == "?":
+            # Git may report a path twice, staged deleted and untracked (`git rm --cached`):
+            # the staged letters win.
+            letters[name] = entry
     ignored = {
         path.removeprefix(prefix).rstrip("/")
         for path in found.ignored
         if "/" not in path.removeprefix(prefix).rstrip("/")
     }
-    return _Git(location.top, status, frozenset(ignored), frozenset(changed))
+    return _Git(location.top, letters, frozenset(ignored), frozenset(changed), every, bool(within))
+
+
+def _holds_prefix(folder: str, prefix: str) -> bool:
+    """Whether a folder git reports, `new/`, is the Directory at `prefix` or holds it."""
+    return folder.endswith("/") and prefix.startswith(folder)
 
 
 def listing(path: Path, fields: frozenset[Field] = frozenset(), *, max_entries: int) -> Listing:
@@ -192,6 +221,7 @@ def _entry(item: os.DirEntry[str], fields: frozenset[Field], statuses: _Git | No
         own, kind = None, "other"
     symlink = kind == "symlink"
     known = statuses is not None
+    status, index, worktree = _letters(statuses.entry(item.name) if statuses else None)
     return Entry(
         name=item.name,
         kind=kind,
@@ -202,8 +232,10 @@ def _entry(item: os.DirEntry[str], fields: frozenset[Field], statuses: _Git | No
         modified=(
             datetime.fromtimestamp(own.st_mtime, UTC) if own and "modified" in fields else None
         ),
-        status=statuses.status.get(item.name) if statuses else None,
-        ignored=item.name in statuses.ignored if statuses else None,
+        status=status,
+        index=index,
+        worktree=worktree,
+        ignored=statuses.is_ignored(item.name) if statuses else None,
         changed=(item.name in statuses.changed) if known and kind == "directory" else None,
     )
 
@@ -215,3 +247,12 @@ def _kind_of(item: os.DirEntry[str]) -> Kind:
     if item.is_dir(follow_symlinks=False):
         return "directory"
     return "file" if item.is_file(follow_symlinks=False) else "other"
+
+
+def _letters(entry: git.Entry | None) -> tuple[str | None, str | None, str | None]:
+    """An entry's git letters: the one shown, as VS Code chooses it, then git's two, if any."""
+    if entry is None:
+        return None, None, None
+    index = None if entry.index == "." else entry.index
+    worktree = None if entry.worktree == "." else entry.worktree
+    return ("U" if entry.conflicted else worktree or index), index, worktree
