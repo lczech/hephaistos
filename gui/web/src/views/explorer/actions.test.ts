@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { clone, fileEntry, repository, worktree } from "../../test/server";
-import { knownCheckouts, placeOf, rowMenu } from "./actions";
+import { knownCheckouts, placeOf, rowMenu, showsFile } from "./actions";
 import type { Entry } from "./rows";
 
 type Shown = Extract<Entry, { type: "entry" }>;
@@ -100,5 +100,39 @@ describe("a row's menu", () => {
       [],
       ["Copy absolute path"],
     ]);
+  });
+});
+
+describe("a View shown about a file", () => {
+  const place = { checkout: { clone: "clone-proj" }, relative: "src/a.py" };
+  const diff = (params: Record<string, string>) =>
+    showsFile(
+      { kind: "diff", params: { clone: "clone-proj", path: "src/a.py", ...params } },
+      place,
+    );
+
+  it("is its Diff comparing the working tree with anything, either way", () => {
+    expect(diff({ from: "HEAD", to: "working-tree" })).toBe(true);
+    expect(diff({ from: "index", to: "working-tree" })).toBe(true);
+    expect(diff({ from: "working-tree", to: "main" })).toBe(true);
+  });
+
+  it("is not a commit's or the staged changes, nor another file's or Checkout's", () => {
+    expect(diff({ from: "HEAD", to: "index" })).toBe(false);
+    expect(diff({ commit: "abc1234" })).toBe(false);
+    expect(diff({ from: "HEAD", to: "working-tree", path: "src/b.py" })).toBe(false);
+    expect(diff({ from: "HEAD", to: "working-tree", clone: "clone-other" })).toBe(false);
+    expect(
+      showsFile({ kind: "history", params: { clone: "clone-proj", path: "src/a.py" } }, place),
+    ).toBe(false);
+    expect(
+      showsFile(
+        {
+          kind: "diff",
+          params: { clone: "clone-proj", from: "HEAD", to: "working-tree", path: "src/a.py" },
+        },
+        undefined,
+      ),
+    ).toBe(false);
   });
 });

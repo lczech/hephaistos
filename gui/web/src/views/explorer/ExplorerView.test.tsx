@@ -15,6 +15,7 @@ import {
 } from "../../test/server";
 import { InPanel } from "../../test/view";
 import type { Params } from "../address";
+import { ShownContext } from "../opening";
 import { ExplorerView, pathParts } from "./ExplorerView";
 import type { FileEntry } from "./rows";
 
@@ -170,6 +171,32 @@ describe("the Explorer View", () => {
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy relative path" }));
     expect(writeText).toHaveBeenCalledWith("notes.md");
     expect(noticeAtom.get()).toBe("Copied notes.md");
+  });
+
+  it("marks a file whose Diff with the working tree is shown, from wherever", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () =>
+        json([repository("me", [{ ...clone("me"), path: "/home/me", resolved_path: "/home/me" }])]),
+      "GET /api/files": (request) => {
+        const git = new URL(request.url).searchParams.has("fields");
+        const entries = [fileEntry("notes.md"), fileEntry("todo.md")];
+        return json({ path: "/home/me", top: git ? "/home/me" : null, entries, count: 2 });
+      },
+    });
+    const shown = new Set([
+      "diff?clone=clone-me&from=index&to=working-tree&path=notes.md",
+      "diff?clone=clone-me&commit=abc1234&path=todo.md",
+    ]);
+    renderWithQueries(
+      <ShownContext value={shown}>
+        <Explorer initial={{ path: "/home/me" }} />
+      </ShownContext>,
+    );
+    await waitFor(() =>
+      expect(screen.getByText("notes.md").closest("[data-showing]")).not.toBeNull(),
+    );
+    expect(screen.getByText("todo.md").closest("[data-showing]")).toBeNull();
   });
 
   it("says why a Directory cannot be listed", async () => {

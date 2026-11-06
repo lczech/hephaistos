@@ -5,8 +5,8 @@ import { Copy, CopySlash } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import type { RowAction } from "../../components/list/RowMenu";
 import { copyText } from "../../notice";
-import { SINCE_HEAD } from "../../revisions";
-import type { Address } from "../address";
+import { SINCE_HEAD, WORKING_TREE } from "../../revisions";
+import { type Address, paramValues } from "../address";
 import type { Checkout } from "../checkout";
 import { viewIconClass } from "../families";
 import { viewIcon } from "../kinds";
@@ -75,6 +75,20 @@ function historyOf(place: Place | undefined): Address | undefined {
   if (place === undefined) return undefined;
   const { checkout, relative } = place;
   return { kind: "history", params: relative === "" ? checkout : { ...checkout, path: relative } };
+}
+
+/**
+ * Whether a View shown is about a file as the Explorer shows it, on disk: its Diff, comparing
+ * the working tree with anything, either way, in its Checkout. Not a commit's or the staged.
+ */
+export function showsFile(shown: Address, place: Place | undefined): boolean {
+  if (place === undefined || shown.kind !== "diff") return false;
+  const one = (name: string) => paramValues(shown.params[name])[0];
+  const checkout = place.checkout;
+  const same =
+    "clone" in checkout ? one("clone") === checkout.clone : one("worktree") === checkout.worktree;
+  const working = one("from") === WORKING_TREE || one("to") === WORKING_TREE;
+  return same && working && one("path") === place.relative;
 }
 
 /** A row's links to its Views, packed at its end: its History last, its Diff before it. */

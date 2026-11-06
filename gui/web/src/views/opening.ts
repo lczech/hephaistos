@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import { type Address, viewKey } from "./address";
+import { type Address, parseAddress, viewKey } from "./address";
 
 /** Where a View opens: beside the one opening it, and as a preview, which the next replaces. */
 export interface Opening {
@@ -35,4 +35,10 @@ export const ShownContext = createContext<ReadonlySet<string>>(new Set());
 export function useIsShown(): (address: Address) => boolean {
   const shown = useContext(ShownContext);
   return (address: Address) => shown.has(viewKey(address));
+}
+
+/** The Views shown, each Group's visible Panel's: to mark what any of them is about. */
+export function useShownViews(): Address[] {
+  const shown = useContext(ShownContext);
+  return [...shown].flatMap((key) => parseAddress(key) ?? []);
 }

@@ -162,5 +162,6 @@ Files open nothing yet.
 Pointing at a row shows its links after its name: its History, inside a registered Checkout, and before it its Diff since HEAD, for a file with changes.
 Its menu has them too, then copying its absolute path, and its path in its Checkout.
 What was copied shows in the status bar for a while (`notice.ts`).
+A file's row is marked while a Diff of it comparing the working tree, either way, is shown in any Group, from wherever it was opened: it is about the file as the Explorer shows it, on disk; a commit's changes or the staged ones are not.
 It is asked again on a hint, on focus and by its reload button.
 The Explorer opens from a Checkout's row in Repositories, and from the "+" menu.

@@ -16,10 +16,10 @@ import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
 import { paramValues } from "../address";
 import type { ViewProps } from "../index";
-import { useOpenView } from "../opening";
+import { useOpenView, useShownViews } from "../opening";
 import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
-import { knownCheckouts, placeOf, RowActions, rowMenu } from "./actions";
+import { knownCheckouts, placeOf, RowActions, rowMenu, showsFile } from "./actions";
 import { COSTLY, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
 import {
@@ -143,6 +143,7 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const placeOfRow = (row: Extract<Entry, { type: "entry" }>) =>
     placeOf(row, tops.get(row.parent), known);
   const openView = useOpenView();
+  const shownViews = useShownViews();
   const client = useQueryClient();
   const columns = explorerColumns({
     open: (row) => opened.has(row.id),
@@ -229,6 +230,11 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
         details={() => null}
         folds={(entry) => entry.type === "entry" && entry.folder}
         plain={(entry) => entry.type !== "entry" || !entry.folder}
+        showing={(entry) => {
+          if (entry.type !== "entry" || entry.folder) return false;
+          const place = placeOfRow(entry);
+          return shownViews.some((shown) => showsFile(shown, place));
+        }}
         actions={(entry) =>
           entry.type === "entry" ? <RowActions row={entry} place={placeOfRow(entry)} /> : null
         }
