@@ -9,6 +9,7 @@ import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
+import { checkoutName, checkoutOf } from "../checkout";
 import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
@@ -17,7 +18,6 @@ import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import styles from "./ChangesView.module.css";
 import { ComparedPickers } from "./ComparedPickers";
-import { checkoutName, checkoutOf } from "./checkout";
 import { useFolds } from "./folds";
 import { changesLook, NestedToggle } from "./look";
 import {

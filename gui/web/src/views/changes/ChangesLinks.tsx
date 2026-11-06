@@ -1,8 +1,8 @@
 import { SINCE_HEAD } from "../../revisions";
 import { capitalised } from "../../text";
 import type { Address } from "../address";
+import type { Checkout } from "../checkout";
 import { ViewLink } from "../ViewLink";
-import type { Checkout } from "./checkout";
 
 interface Props {
   checkout: Checkout;

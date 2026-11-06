@@ -6,8 +6,8 @@ import {
 } from "../../components/GitRevisionPicker";
 import { IconButton } from "../../components/IconButton";
 import { HEAD, INDEX, WORKING_TREE } from "../../revisions";
+import type { Checkout } from "../checkout";
 import styles from "./ComparedPickers.module.css";
-import type { Checkout } from "./checkout";
 import type { Compared } from "./rows";
 
 const ROWS: FixedRow[] = [WORKING_TREE, INDEX, HEAD];

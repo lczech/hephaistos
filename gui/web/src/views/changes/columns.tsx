@@ -11,9 +11,9 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cssVars } from "../../components/cssVars";
-import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/list/List";
 import { listColumnHelper } from "../../components/list/table";
+import { TextIcon } from "../../components/TextIcon";
 import { pathParts } from "../../paths";
 import styles from "./ChangesView.module.css";
 import {

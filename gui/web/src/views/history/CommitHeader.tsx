@@ -4,7 +4,7 @@ import { IconButton } from "../../components/IconButton";
 import { TextIcon } from "../../components/TextIcon";
 import { COMMIT_ICON } from "../../icons";
 import { shortHash } from "../../revisions";
-import type { Checkout } from "../changes/checkout";
+import type { Checkout } from "../checkout";
 import { CommitBox, CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitBox.module.css";
 

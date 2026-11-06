@@ -21,7 +21,7 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { changesViews } from "../changes/ChangesLinks";
-import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../changes/checkout";
+import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
 import type { ViewProps } from "../index";
 import { useIsShown } from "../opening";
 import { useTitle } from "../title";

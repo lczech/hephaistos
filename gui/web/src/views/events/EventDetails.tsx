@@ -1,7 +1,7 @@
 import type { Schemas } from "../../api/client";
 import { Fields, Titled } from "../../components/list/Fields";
 import { timeAndAgo } from "../../time";
-import type { Checkout } from "../changes/checkout";
+import type { Checkout } from "../checkout";
 import { CommitBox, type KnownCommit } from "../history/CommitBox";
 import { machineText, priorityName, repositoryText, subjectText } from "./eventText";
 

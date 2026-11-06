@@ -25,7 +25,7 @@ import { HEAD, INDEX, revisionText, shortHash, WORKING_TREE } from "../revisions
 import { atLeast, numberText } from "../text";
 import { useDebounced } from "../useDebounced";
 import { loadErrorText } from "../views/CheckoutError";
-import type { Checkout } from "../views/changes/checkout";
+import type { Checkout } from "../views/checkout";
 import { headText, searchWords } from "../views/history/rows";
 import styles from "./GitRevisionPicker.module.css";
 import popover from "./popover.module.css";

@@ -1,10 +1,10 @@
 import { GitMerge } from "lucide-react";
 import { Ago } from "../../components/Ago";
-import { TextIcon } from "../../components/TextIcon";
 import { Chevron } from "../../components/list/List";
 import { listColumnHelper } from "../../components/list/table";
+import { TextIcon } from "../../components/TextIcon";
 import { numberText } from "../../text";
-import type { Checkout } from "../changes/checkout";
+import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./HistoryView.module.css";
 import { type Entry, type Found, whereText } from "./rows";

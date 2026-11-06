@@ -5,7 +5,7 @@ import { listColumnHelper } from "../../components/list/table";
 import { forgePage } from "../../forges";
 import type { Address } from "../address";
 import { ChangesLinks } from "../changes/ChangesLinks";
-import type { Checkout } from "../changes/checkout";
+import type { Checkout } from "../checkout";
 import { ViewLink } from "../ViewLink";
 import styles from "./RepositoriesView.module.css";
 import {

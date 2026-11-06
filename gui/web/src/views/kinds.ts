@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { FileDiffs, GitCommits } from "../drawnIcons";
 import type { Address, Params } from "./address";
-import { checkoutOf } from "./changes/checkout";
+import { checkoutOf } from "./checkout";
 
 /** A family of Views, whose icons share a colour (`families.module.css`). */
 export type ViewFamily = "overview" | "git" | "machine";

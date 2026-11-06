@@ -6,8 +6,8 @@ import { SINCE_HEAD, shortHash } from "../../revisions";
 import { numberText, plural } from "../../text";
 import { timeAndAgo } from "../../time";
 import { ChangesLinks } from "../changes/ChangesLinks";
-import type { Checkout } from "../changes/checkout";
 import { changesText } from "../changes/rows";
+import type { Checkout } from "../checkout";
 import styles from "./CommitBox.module.css";
 import { type Commit, committedApart, type Ref } from "./rows";
 

@@ -1,6 +1,6 @@
 import { type Atom, useAtom } from "@tanstack/react-store";
 import { keptAtom } from "../../kept";
-import type { Checkout } from "./checkout";
+import type { Checkout } from "../checkout";
 
 /**
  * What is folded in a Checkout's Views of a kind: paths (files; directories ending in `/`, with

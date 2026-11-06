@@ -1,8 +1,8 @@
-// The Checkout whose changes a View shows, by its parameters `clone` or `worktree`.
+// The Checkout a View shows, by its parameters `clone` or `worktree`.
 
-import type { Schemas } from "../../api/client";
-import { pathParts } from "../../paths";
-import { type Params, paramValues } from "../address";
+import type { Schemas } from "../api/client";
+import { pathParts } from "../paths";
+import { type Params, paramValues } from "./address";
 
 type Repository = Schemas["RepositoryJson"];
 
