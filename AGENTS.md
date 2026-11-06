@@ -78,7 +78,7 @@ First inspect the repository and available environment. Present a concise archit
 
 Then begin the smallest useful implementation. Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Keep explanations concise, document important decisions, and verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
 
-Implement one step at a time, with tests, and stop after each step with a short summary and how to try it. The user reviews and commits.
+Implement one step at a time, with tests. Each feature has its own branch and worktree, where each step is its own commit; stop where agreed with the user, with a short summary and how to try it. The user reviews the commits, which may still be reworked, before they are merged onto master.
 
 Never start, stop or restart the user's Daemon; give them the commands.
 Run `hephaistos setup` only with `--no-daemon --no-desktop`, and never `daemon install|uninstall` or `desktop install|uninstall`: whatever `HEPHAISTOS_HOME` says, they replace the user's systemd unit and launcher entry, and restart the Daemon. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).
