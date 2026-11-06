@@ -30,6 +30,7 @@ ROUTES = {
     "log show": "/api/log",
     "config show": "/api/config",
     "daemon status": "/api/daemon",
+    "files": "/api/files",
 }
 
 

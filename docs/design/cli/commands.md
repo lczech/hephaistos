@@ -18,6 +18,7 @@ hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--s
                      | show <id> | kinds
 hephaistos observe [clones] [--clone <path>]…
 hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
+hephaistos files [dir] [--fields size,modified,git] [--json]
 hephaistos db tables | dump <table> [-c <column>]… [--offset <n>] [--reverse] [--table|--blocks]
                                         [--short-ids]
 hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process cli|daemon]
@@ -94,6 +95,14 @@ It refuses to start inside a Clone or at a submodule.
 A clone that may be a missing Clone, moved, is skipped, with the commands for either case.
 Nothing is guessed.
 A clone matching several Repositories, or whose new Repository's name is taken, is skipped with the `clone register` command to register it by hand.
+
+## files
+
+`files` lists what a directory holds, by name, as the GUI's Explorer asks for it: one directory, not what is below its directories.
+It lists any directory this user may, not only Checkouts, hidden entries too.
+Names and kinds come with the listing; `--fields` asks for more, as each costs more: `size` and `modified` a `stat` each, `git` one `git status` of the directory, inside a working tree.
+git's letters are those of its status: `M` modified, `A` added, `R` renamed, `U` unmerged, `?` untracked; `!` marks ignored entries, and `*` directories with changes below them.
+It lists the first `files.max_entries` entries by name and counts the rest.
 
 ## event
 

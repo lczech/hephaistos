@@ -39,6 +39,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("git.timeout", "60.0", "config.toml"),
         ("observe.workers", "4", "HEPHAISTOS_OBSERVE_WORKERS"),
         ("scan.depth", "5", f"config.{HOST}.toml"),
+        ("files.max_entries", "5000", "default"),
         ("watcher.interval", "60.0", "default"),
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),

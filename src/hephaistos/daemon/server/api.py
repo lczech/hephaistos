@@ -2,7 +2,8 @@
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
-`offset`. A Checkout's changes and a file's diff, only here: in a terminal, git shows them.
+`offset`. A Checkout's changes and a file's diff, only here: in a terminal, git shows them. A
+Directory's files, by its absolute path, anywhere this user may list.
 """
 
 import logging
@@ -33,6 +34,7 @@ from hephaistos.core.serialize import (
     DiffsJson,
     EventJson,
     EventKindJson,
+    FilesJson,
     HistoryJson,
     LogJson,
     MachineJson,
@@ -43,7 +45,7 @@ from hephaistos.core.serialize import (
     WorktreeJson,
 )
 from hephaistos.core.state import worktrees
-from hephaistos.core.utils import changes, history, logs, times
+from hephaistos.core.utils import changes, files, history, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon import report
@@ -87,6 +89,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/diff/files": ("data", "focus"),
     "/api/diffs": ("data", "focus"),
     "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
+    "/api/files": ("data", "focus"),  # focus: files made or edited, which change no State
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
@@ -416,6 +419,29 @@ def diff_files(  # noqa: PLR0913 - one parameter per choice
         top, base, target, path, max_bytes=config.settings().gui.diff.max_bytes
     )
     return DiffFilesJson(old=found.old, new=found.new)
+
+
+@router.get("/files")
+def files_list(
+    path: str,
+    *,
+    fields: Annotated[list[files.Field] | None, Query()] = None,
+) -> FilesJson:
+    """What a Directory holds, read now, as `files --json`: its entries by name, not below.
+
+    `path` is absolute. Names and kinds always come; repeat `fields` for more: `size`,
+    `modified`, and `git` for git's status inside a working tree.
+    """
+    try:
+        found = files.listing(
+            Path(path),
+            frozenset(fields or ()),
+            max_entries=config.settings().files.max_entries,
+        )
+    except files.FilesError as error:
+        status = {"invalid": 400, "missing": 404, "denied": 403, "unreadable": 500}[error.reason]
+        raise HTTPException(status, str(error)) from None
+    return serialize.files_json(found)
 
 
 @router.get("/history")

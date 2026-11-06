@@ -251,6 +251,32 @@ def test_errors(client: TestClient, path: str, status: int, error: str) -> None:
     assert response.json()["error"].startswith(error.format(id=some_id))
 
 
+def test_files_as_the_cli_lists_them(client: TestClient, repo: Path) -> None:
+    (repo / "new.txt").write_text("hello\n")
+    response = client.get("/api/files", params={"path": str(repo), "fields": ["git", "size"]})
+    assert response.status_code == 200, response.text
+    assert response.json() == _cli("files", str(repo), "--fields", "size,git")
+    entries = {entry["name"]: entry for entry in response.json()["entries"]}
+    assert (entries["new.txt"]["status"], entries["new.txt"]["size"]) == ("?", 6)
+    assert entries["new.txt"]["modified"] is None  # not asked for
+
+
+@pytest.mark.parametrize(
+    ("params", "status", "error"),
+    [
+        ({"path": "relative"}, 400, "not an absolute path"),
+        ({"path": "/nowhere/at/all"}, 404, "nothing is at"),
+        ({"path": "/", "fields": ["colour"]}, 400, ""),
+    ],
+)
+def test_files_refused(
+    client: TestClient, params: dict[str, str | list[str]], status: int, error: str
+) -> None:
+    response = client.get("/api/files", params=params)
+    assert response.status_code == status
+    assert error in response.json()["error"]
+
+
 def test_changes_of_a_clone_and_a_worktree(client: TestClient, repo: Path) -> None:
     [clone] = _cli("clone", "list")
     [worktree] = _cli("worktree", "list")

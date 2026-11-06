@@ -33,6 +33,11 @@ workers = 8
 # Directory levels searched below the scanned one.
 depth = 3
 
+[files]
+# Entries a Directory's listing gives, by name, in `hephaistos files` and the GUI;
+# the rest are counted.
+max_entries = 5000
+
 # Daemon parts: `hephaistos daemon run` runs those enabled.
 
 [watcher]

@@ -313,6 +313,7 @@ class Status:
     ahead: int | None  # None without upstream, or if it is gone
     behind: int | None
     entries: tuple[Entry, ...]
+    ignored: tuple[str, ...] = ()  # paths `--ignored` reports; a directory's ends in `/`
 
     @property
     def staged(self) -> int:
@@ -340,28 +341,19 @@ class Status:
 
 
 def parse_status(output: str) -> Status:
-    """Parses `git status --porcelain=v2 --branch -z`."""
-    head: str | None = None
-    branch: str | None = None
-    upstream: str | None = None
-    ahead: int | None = None
-    behind: int | None = None
+    """Parses `git status --porcelain=v2 --branch -z`, maybe with `--ignored`."""
+    headers: dict[str, str] = {}
     entries: list[Entry] = []
+    ignored: list[str] = []
     fields = iter(output.split("\0"))
     for field in fields:
-        if field.startswith("# branch.oid "):
-            oid = field.removeprefix("# branch.oid ")
-            head = None if oid == "(initial)" else oid
-        elif field.startswith("# branch.head "):
-            name = field.removeprefix("# branch.head ")
-            branch = None if name == "(detached)" else name
-        elif field.startswith("# branch.upstream "):
-            upstream = field.removeprefix("# branch.upstream ")
-        elif field.startswith("# branch.ab "):
-            plus, minus = field.removeprefix("# branch.ab ").split()
-            ahead, behind = int(plus), -int(minus)
+        if field.startswith("# "):
+            name, _, value = field[2:].partition(" ")
+            headers[name] = value
         elif field.startswith("? "):
             entries.append(Entry(field[2:], "?", "?"))
+        elif field.startswith("! "):
+            ignored.append(field[2:])
         elif field.startswith("1 "):
             parts = field.split(" ", 8)
             entries.append(Entry(parts[8], parts[1][0], parts[1][1]))
@@ -372,13 +364,20 @@ def parse_status(output: str) -> Status:
         elif field.startswith("u "):
             parts = field.split(" ", 10)
             entries.append(Entry(parts[10], parts[1][0], parts[1][1], conflicted=True))
+    oid = headers.get("branch.oid")
+    name = headers.get("branch.head")
+    ahead = behind = None
+    if "branch.ab" in headers:
+        plus, minus = headers["branch.ab"].split()
+        ahead, behind = int(plus), -int(minus)
     return Status(
-        head=head,
-        branch=branch,
-        upstream=upstream,
+        head=None if oid in (None, "(initial)") else oid,
+        branch=None if name in (None, "(detached)") else name,
+        upstream=headers.get("branch.upstream"),
         ahead=ahead,
         behind=behind,
         entries=tuple(entries),
+        ignored=tuple(ignored),
     )
 
 

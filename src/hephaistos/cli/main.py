@@ -17,6 +17,7 @@ from hephaistos.cli import (
     db,
     desktop,
     event,
+    files,
     log,
     machine,
     observe,
@@ -67,6 +68,7 @@ app.add_typer(desktop.app, name="desktop")
 app.command()(observe.observe)
 app.command()(scan.scan)
 app.command()(browse.browse)
+app.command("files")(files.files_)
 
 
 def without_debug(args: list[str]) -> tuple[list[str], bool]:

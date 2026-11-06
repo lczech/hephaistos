@@ -95,9 +95,17 @@ It also names the commit of a hash searched for, with where it is.
 `everywhere=` walks all branches and tags.
 Refs come with their short and full names.
 
+## Files
+
+`/api/files?path=<absolute path>` is `files --json`: what a Directory holds, one at a time, as the Explorer opens its directories.
+It lists any Directory this user may, as a terminal would; the token already allows as much, and more once Terminals come.
+`fields=` asks for more than names and kinds, repeated: `size`, `modified`, `git`.
+A relative path is refused with 400, a missing one with 404, one this user may not list with 403.
+One that fails to read otherwise, as a network filesystem may, gives 500 with what the system said.
+
 ## Errors
 
-Errors are `{"error": "<the CLI's message>", "checkout": …}` with 400, 401, 404 or 410.
+Errors are `{"error": "<the CLI's message>", "checkout": …}` with 400, 401, 403, 404 or 410.
 Unexpected ones are 500, with their traceback only in the log.
 An error about a Clone or Worktree names it in `checkout`, and its Clone too, with which of them is `gone`.
 410 is for a Worktree git removed or a Clone unregistered, whose rows stay for their Events.

@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 21
+    "minor": 22
   },
   "shapes": {
     "components": {
@@ -998,6 +998,165 @@
           "title": "EventKindJson",
           "type": "object"
         },
+        "Field": {
+          "enum": [
+            "size",
+            "modified",
+            "git"
+          ],
+          "type": "string"
+        },
+        "FileEntryJson": {
+          "description": "A file, directory, symlink or other thing in a Directory.\n\n`size` and `modified` come with the field `size` or `modified`; `status`, `ignored` and\n`changed` with `git`, inside a working tree; else they are null. A symlink's are the link's.",
+          "properties": {
+            "changed": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Changed"
+            },
+            "hidden": {
+              "title": "Hidden",
+              "type": "boolean"
+            },
+            "ignored": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ignored"
+            },
+            "kind": {
+              "$ref": "#/components/schemas/Kind"
+            },
+            "modified": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Modified"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            },
+            "target": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target"
+            },
+            "to": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "file",
+                    "directory",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "hidden",
+            "target",
+            "to",
+            "size",
+            "modified",
+            "status",
+            "ignored",
+            "changed"
+          ],
+          "title": "FileEntryJson",
+          "type": "object"
+        },
+        "FilesJson": {
+          "description": "A Directory's entries by name, at most `files.max_entries`, and how many there are.",
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "entries": {
+              "items": {
+                "$ref": "#/components/schemas/FileEntryJson"
+              },
+              "title": "Entries",
+              "type": "array"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "top": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Top"
+            }
+          },
+          "required": [
+            "path",
+            "top",
+            "entries",
+            "count"
+          ],
+          "title": "FilesJson",
+          "type": "object"
+        },
         "FoundCommitJson": {
           "description": "The commit a search names by its hash, and where it is, against the commits searched.",
           "properties": {
@@ -1168,6 +1327,15 @@
           ],
           "title": "InfoJson",
           "type": "object"
+        },
+        "Kind": {
+          "enum": [
+            "file",
+            "directory",
+            "symlink",
+            "other"
+          ],
+          "type": "string"
         },
         "LiveHeartbeatJson": {
           "description": "The Server is alive, at this time.",
@@ -3411,6 +3579,65 @@
             }
           },
           "summary": "Event Show"
+        }
+      },
+      "/api/files": {
+        "get": {
+          "description": "What a Directory holds, read now, as `files --json`: its entries by name, not below.\n\n`path` is absolute. Names and kinds always come; repeat `fields` for more: `size`,\n`modified`, and `git` for git's status inside a working tree.",
+          "operationId": "files_list_api_files_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "path",
+              "required": true,
+              "schema": {
+                "title": "Path",
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "fields",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/Field"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Fields"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/FilesJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "default": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorJson"
+                  }
+                }
+              },
+              "description": "Not a success: the error"
+            }
+          },
+          "summary": "Files List"
         }
       },
       "/api/history": {

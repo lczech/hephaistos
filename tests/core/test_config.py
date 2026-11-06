@@ -82,6 +82,7 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "git.timeout": str(tmp_path / "config.login1.hpc.example.org.toml"),
         "observe.workers": config.DEFAULT,
         "scan.depth": config.DEFAULT,
+        "files.max_entries": config.DEFAULT,
         "watcher.interval": config.DEFAULT,
         "server.enabled": config.DEFAULT,
         "server.port": config.DEFAULT,

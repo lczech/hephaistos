@@ -31,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import changes, git, history, logs
+from hephaistos.core.utils import changes, files, git, history, logs
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 21)
+API_VERSION = ApiVersion(0, 22)
 
 
 class Ref(TypedDict):
@@ -864,6 +864,58 @@ def changes_json(found: changes.Changes, commit: ShownCommitJson | None = None) 
             }
             for group in found.groups
         ],
+    )
+
+
+class FileEntryJson(TypedDict):
+    """A file, directory, symlink or other thing in a Directory.
+
+    `size` and `modified` come with the field `size` or `modified`; `status`, `ignored` and
+    `changed` with `git`, inside a working tree; else they are null. A symlink's are the link's.
+    """
+
+    name: str
+    kind: files.Kind
+    hidden: bool  # its name starts with `.`
+    target: str | None  # a symlink's, as it reads
+    to: Literal["file", "directory", "other"] | None  # what a symlink points to; null if broken
+    size: int | None  # in bytes, a file's
+    modified: str | None
+    status: str | None  # git's letter, as in changes: M, T, A, R, U, ? untracked
+    ignored: bool | None
+    changed: bool | None  # a directory with changes below it
+
+
+class FilesJson(TypedDict):
+    """A Directory's entries by name, at most `files.max_entries`, and how many there are."""
+
+    path: str
+    top: str | None  # the working tree it lies in, if git was asked for and it lies in one
+    entries: list[FileEntryJson]
+    count: int
+
+
+def files_json(found: files.Listing) -> FilesJson:
+    """A Directory's listing, as the API gives it."""
+    return FilesJson(
+        path=str(found.path),
+        top=None if found.top is None else str(found.top),
+        entries=[
+            FileEntryJson(
+                name=entry.name,
+                kind=entry.kind,
+                hidden=entry.hidden,
+                target=entry.target,
+                to=entry.to,
+                size=entry.size,
+                modified=None if entry.modified is None else entry.modified.isoformat(),
+                status=entry.status,
+                ignored=entry.ignored,
+                changed=entry.changed,
+            )
+            for entry in found.entries
+        ],
+        count=found.count,
     )
 
 

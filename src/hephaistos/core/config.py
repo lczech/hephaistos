@@ -133,6 +133,13 @@ class Scan:
 
 
 @dataclass(frozen=True)
+class Files:
+    """The section [files]."""
+
+    max_entries: Annotated[int, AtLeast(1)]
+
+
+@dataclass(frozen=True)
 class Watcher:
     """The section [watcher]."""
 
@@ -196,6 +203,7 @@ class Settings:
     git: Git
     observe: Observe
     scan: Scan
+    files: Files
     watcher: Watcher
     server: Server
     gui: Gui
