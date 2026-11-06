@@ -1,0 +1,20 @@
+/* Rows within others, below them, a step further in for each. */
+.indented {
+  display: block;
+  min-width: 0;
+  padding-left: calc(var(--indent) * var(--space-4));
+}
+
+/* A chevron moved as far, out of its narrow square into the room its row's path leaves. */
+.moved {
+  display: block;
+  translate: calc(var(--indent) * var(--space-4)) 0;
+}
+
+.note {
+  color: var(--text-muted);
+}
+
+.problem {
+  composes: problem from "../text.module.css";
+}

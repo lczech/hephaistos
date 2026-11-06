@@ -222,7 +222,7 @@ describe("the rows", () => {
   });
 
   it("nest a new folder's files in its directories", () => {
-    const found = { changes: [change("new/2.txt"), change("new/x/1.txt")], count: 2 };
+    const found = { items: [change("new/2.txt"), change("new/x/1.txt")], count: 2 };
     const [row] = entries([group("untracked", [SPREAD[5] as Change])], () => found, [], true);
     expect(outline(row?.subRows ?? [])).toEqual(["new/", "  x/", "    1.txt", "  2.txt"]);
   });
@@ -234,7 +234,7 @@ describe("the rows", () => {
     expect(asking[0]?.subRows[0]?.subRows).toMatchObject([
       { type: "note", text: "Loading files…" },
     ]);
-    const found = { changes: [change("new/b"), change("new/a")], count: 2 };
+    const found = { items: [change("new/b"), change("new/a")], count: 2 };
     const listed = entries([untracked], () => found, []);
     expect(listed[0]?.subRows[0]?.subRows.map(entryId)).toEqual([
       "untracked:new/a",

@@ -698,7 +698,7 @@ describe("the Diff View", () => {
         "true",
       );
       expect(JSON.parse(localStorage.getItem("hephaistos.folds.diff") ?? "")).toEqual({
-        "clone:clone-proj": { paths: { stack: ["top.txt"] }, groups: [], opened: [] },
+        "clone:clone-proj": { "paths:stack": ["top.txt"] },
       });
       expect(localStorage.getItem("hephaistos.folds.changes")).toBeNull();
     });
@@ -726,7 +726,7 @@ describe("the Diff View", () => {
       expect(within(untracked).getByText("new.txt")).toBeInTheDocument();
       expect(stacked).toHaveAttribute("aria-expanded", "false");
       expect(JSON.parse(localStorage.getItem("hephaistos.folds.diff") ?? "")).toEqual({
-        "clone:clone-proj": { paths: { stack: ["src/"] }, groups: [], opened: [] },
+        "clone:clone-proj": { "paths:stack": ["src/"] },
       });
     });
 

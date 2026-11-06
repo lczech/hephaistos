@@ -1,0 +1,34 @@
+/* An icon, then a path. */
+.named {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+.path {
+  composes: cut from "../text.module.css";
+  display: block;
+}
+
+/* Cut off from its start, so that its end stays: the text runs right to left, but isolated, so
+ * that it reads left to right. */
+.path[data-from-start] {
+  direction: rtl;
+  text-align: left;
+}
+
+.path[data-deleted] {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.folder {
+  color: var(--text-muted);
+}

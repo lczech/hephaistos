@@ -4,7 +4,16 @@
 
 import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
-import { pathParts } from "../../paths";
+import { directoriesBelow } from "../../components/files/paths";
+import {
+  inOrder,
+  type Loaded,
+  loadedRows,
+  type Note,
+  note,
+  noteId,
+  type Order,
+} from "../../components/list/tree";
 import { INDEX, revisionText, shortHash, WORKING_TREE } from "../../revisions";
 import { counted, numberText } from "../../text";
 import { type Params, paramValues } from "../address";
@@ -14,7 +23,7 @@ export type Change = Schemas["ChangeJson"];
 type GroupName = Group["name"];
 
 /** The files within an opened folder: undefined while they are asked for. */
-export type Within = { changes: Change[]; count: number } | { error: string } | undefined;
+export type Within = Loaded<Change>;
 
 /**
  * A row: all groups' totals; a group of changes; a directory with changes in it, all below it in
@@ -33,7 +42,7 @@ export type Entry =
       subRows: Entry[];
     }
   | { type: "change"; group: Group; change: Change; base: string; subRows: Entry[] }
-  | { type: "note"; id: string; text: string; problem?: boolean; subRows: [] };
+  | Note;
 
 const GROUP_NAMES: Record<GroupName, string> = {
   unmerged: "Unmerged",
@@ -129,34 +138,21 @@ function directoryLines(changes: Change[]): number | undefined {
 export const DEFAULT_SORT = "path";
 export const SORTS = ["path", "lines"];
 
-/** An order of rows by their paths or lines; unknown lines last, either way. */
-function compare<T>(
-  sorted: SortingState,
-  path: (row: T) => string,
-  lines: (row: T) => number | undefined,
-): (a: T, b: T) => number {
-  const [{ id, desc } = { id: DEFAULT_SORT, desc: false }] = sorted;
-  const byPath = (a: T, b: T) => (path(a) < path(b) ? -1 : path(a) > path(b) ? 1 : 0);
-  const sign = desc ? -1 : 1;
-  if (id !== "lines") return (a, b) => sign * byPath(a, b);
-  return (a, b) => {
-    const [x, y] = [lines(a), lines(b)];
-    if (x === y) return byPath(a, b);
-    if (x === undefined) return 1;
-    if (y === undefined) return -1;
-    return sign * (x - y);
-  };
-}
+/** Changes in order: folders first, then files, each as sorted; unknown lines last. */
+const CHANGES: Order<Change> = {
+  rank: (change) => (isFolder(change) ? 0 : 1),
+  values: { path: (change) => change.path, lines: changedLines },
+  fallback: "path",
+};
 
-/** Changes in order: folders first, then files, each as sorted. */
-function ordered(changes: Change[], sorted: SortingState): Change[] {
-  const order = compare<Change>(sorted, (change) => change.path, changedLines);
-  return [...changes].sort((a, b) => Number(isFolder(b)) - Number(isFolder(a)) || order(a, b));
-}
-
-function note(id: string, text: string, problem?: boolean): Entry {
-  return { type: "note", id, text, problem, subRows: [] };
-}
+/** Directories in order, by their paths or their files' lines; unknown lines last. */
+const DIRECTORIES: Order<{ path: string; items: Change[] }> = {
+  values: {
+    path: (directory) => directory.path,
+    lines: (directory) => directoryLines(directory.items),
+  },
+  fallback: "path",
+};
 
 /** That lists stop at the setting's cap, which those cut reached, not at their end. */
 export function moreText(more: number, cap: number): string {
@@ -174,21 +170,13 @@ interface Making {
 
 /** The rows of changes, their paths shown without `base`; a new folder holding its files. */
 function changeRows(group: Group, changes: Change[], base: string, making: Making): Entry[] {
-  return ordered(changes, making.sorted).map((change) => ({
+  return inOrder(changes, making.sorted, CHANGES).map((change) => ({
     type: "change",
     group,
     change,
     base,
     subRows: isFolder(change) ? withinRows(group, change, making) : [],
   }));
-}
-
-/** The directory a change below `base` is shown in: by its path, or nested, the next one. */
-function directoryOf(change: Change, base: string, nested: boolean): string {
-  if (!nested) return pathParts(change.path)[0];
-  const rest = change.path.slice(base.length);
-  const cut = rest.indexOf("/") + 1;
-  return cut === 0 || cut === rest.length ? base : base + rest.slice(0, cut);
 }
 
 /**
@@ -198,61 +186,35 @@ function directoryOf(change: Change, base: string, nested: boolean): string {
  */
 function directoryRows(group: Group, changes: Change[], base: string, making: Making): Entry[] {
   const { sorted, nested } = making;
-  const byDirectory = new Map<string, Change[]>();
-  for (const change of changes) {
-    const directory = directoryOf(change, base, nested);
-    byDirectory.set(directory, [...(byDirectory.get(directory) ?? []), change]);
-  }
-  const order = compare<[string, Change[]]>(
-    sorted,
-    ([path]) => path,
-    ([, changes]) => directoryLines(changes),
+  const { directories, direct } = directoriesBelow(changes, (change) => change.path, base, nested);
+  const rows = inOrder(directories, sorted, DIRECTORIES).map(
+    ({ path, items }): Entry => ({
+      type: "directory",
+      group,
+      path,
+      base,
+      changes: items,
+      subRows: nested
+        ? directoryRows(group, items, path, making)
+        : changeRows(group, items, path, making),
+    }),
   );
-  const directories = [...byDirectory]
-    .filter(([path]) => path !== base)
-    .map(([path, changes]): [string, Change[]] => [nested ? joined(path, changes) : path, changes])
-    .sort(order)
-    .map(
-      ([path, changes]): Entry => ({
-        type: "directory",
-        group,
-        path,
-        base,
-        changes,
-        subRows: nested
-          ? directoryRows(group, changes, path, making)
-          : changeRows(group, changes, path, making),
-      }),
-    );
-  return [...directories, ...changeRows(group, byDirectory.get(base) ?? [], base, making)];
-}
-
-/** A directory joined with those below it while it holds just one: `src/` → `src/hephaistos/`. */
-function joined(path: string, changes: Change[]): string {
-  const [first, ...others] = changes.map((change) => directoryOf(change, path, true));
-  if (first === undefined || first === path || others.some((other) => other !== first)) {
-    return path;
-  }
-  return joined(first, changes);
+  return [...rows, ...changeRows(group, direct, base, making)];
 }
 
 /** The rows within a folder opened: its files, or that they are asked for, or why not. */
 function withinRows(group: Group, folder: Change, making: Making): Entry[] {
-  const id = `${group.name}:${folder.path}:`;
-  const within = making.within(group, folder);
-  if (within === undefined) return [note(`${id}loading`, "Loading files…")];
-  if ("error" in within) return [note(`${id}error`, `Could not load: ${within.error}`, true)];
   // Their own folders are not asked for: git lists their files.
   const inner = { ...making, within: () => undefined };
-  const rows = making.nested
-    ? directoryRows(group, within.changes, folder.path, inner)
-    : changeRows(group, within.changes, folder.path, inner);
-  if (within.count > within.changes.length) {
-    rows.push(
-      note(`${id}more`, moreText(within.count - within.changes.length, within.changes.length)),
-    );
-  }
-  return rows;
+  return loadedRows(
+    `${group.name}:${folder.path}`,
+    making.within(group, folder),
+    (changes) =>
+      making.nested
+        ? directoryRows(group, changes, folder.path, inner)
+        : changeRows(group, changes, folder.path, inner),
+    { more: moreText, loading: "Loading files…" },
+  );
 }
 
 /**
@@ -271,7 +233,7 @@ export function entries(
     if (group.count > group.changes.length) {
       rows.push(
         note(
-          `${group.name}:more`,
+          noteId(group.name, "more"),
           moreText(group.count - group.changes.length, group.changes.length),
         ),
       );

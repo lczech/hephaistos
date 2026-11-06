@@ -1,9 +1,10 @@
 import { type ExpandedState, functionalUpdate, type SortingState } from "@tanstack/react-table";
 import { type ChangesQuery, useChangesWithin } from "../../api/queries";
+import { foldedBy, unfolding, withFolded } from "../../components/files/folds";
 import { useListLayout } from "../../components/list/kept";
 import { useList } from "../../components/list/table";
 import { changesColumns } from "./columns";
-import { type Folds, foldedBy, partFolded, unfolding, withFolded, withPart } from "./folds";
+import { type Folds, partFolded, withPart } from "./folds";
 import {
   type Change,
   changedLines,
@@ -53,7 +54,7 @@ export function useChangesTable(options: Options) {
     }
     const found = answer.data.groups.filter((other) => other.name === group.name);
     return {
-      changes: found.flatMap((other) => other.changes),
+      items: found.flatMap((other) => other.changes),
       count: found.reduce((sum, other) => sum + other.count, 0),
     };
   };

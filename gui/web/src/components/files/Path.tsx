@@ -1,0 +1,56 @@
+// Paths as rows and headers show them: after an icon, the folder quieter than the name.
+
+import { Folder } from "lucide-react";
+import type { ReactNode } from "react";
+import { pathParts } from "../../paths";
+import { TextIcon } from "../TextIcon";
+import styles from "./Path.module.css";
+
+/**
+ * A path after its icon, its folder quieter; struck through if deleted. Cut off where narrow: a
+ * file's at its end, a folder's at its start, so that its last part, the one it is, stays.
+ */
+export function Path({
+  shown,
+  title,
+  icon,
+  deleted,
+}: {
+  shown: string;
+  title: string;
+  icon: ReactNode;
+  deleted?: boolean;
+}) {
+  const [folder, name] = pathParts(shown);
+  return (
+    <span className={styles.named}>
+      {icon}
+      <span
+        className={styles.path}
+        title={title}
+        data-from-start={name.endsWith("/") || undefined}
+        data-deleted={deleted || undefined}
+      >
+        <bdi>
+          <span className={styles.folder}>{folder}</span>
+          {name}
+        </bdi>
+      </span>
+    </span>
+  );
+}
+
+/** A directory's path, or the end of it that is `shown`, after a folder's icon. */
+export function DirectoryPath({ shown, path }: { shown: string; path: string }) {
+  return (
+    <Path
+      shown={shown}
+      title={path}
+      icon={
+        <span className={styles.icon}>
+          <TextIcon icon={Folder} />
+        </span>
+      }
+    />
+  );
+}

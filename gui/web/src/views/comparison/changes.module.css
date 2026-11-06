@@ -40,51 +40,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.note,
 .other,
 .total {
   color: var(--text-muted);
-}
-
-/* An icon, then a path. */
-.named {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.path {
-  composes: cut from "../../components/text.module.css";
-  display: block;
-}
-
-/* Cut off from its start, so that its end stays: the text runs right to left, but isolated, so
- * that it reads left to right. */
-.path[data-from-start] {
-  direction: rtl;
-  text-align: left;
-}
-
-[data-deleted] .path {
-  text-decoration: line-through;
-  text-decoration-color: var(--text-muted);
-}
-
-.folder {
-  color: var(--text-muted);
-}
-
-/* Rows within a directory or a new folder, below it, a step further in for each. */
-.indented {
-  display: block;
-  min-width: 0;
-  padding-left: calc(var(--indent) * var(--space-4));
-}
-
-.moved {
-  display: block;
-  translate: calc(var(--indent) * var(--space-4)) 0;
 }
 
 /* Lines added and removed, each as wide as most counts, in a column ending at the bars. */
@@ -160,8 +118,4 @@
   .columns[data-layout="lines"] [data-column="lines"]:not(li *) {
     margin-right: 0;
   }
-}
-
-.problem {
-  composes: problem from "../../components/text.module.css";
 }

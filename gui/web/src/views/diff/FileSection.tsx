@@ -15,11 +15,12 @@ import { type DiffRows, diffRows, lineCount } from "../../components/diff/height
 import { LazyDiff } from "../../components/diff/LazyDiff";
 import { useDiffScroller } from "../../components/diff/scroller";
 import type { CodeThemes } from "../../components/diff/themes";
+import { DirectoryPath } from "../../components/files/Path";
 import { counted } from "../../text";
 import type { ColorScheme } from "../../theme";
 import type { Params } from "../address";
 import { LoadNote } from "../CheckoutError";
-import { ChangePath, DirectoryPath, Lines } from "../comparison/columns";
+import { ChangePath, Lines } from "../comparison/columns";
 import {
   type Change,
   changedLines,

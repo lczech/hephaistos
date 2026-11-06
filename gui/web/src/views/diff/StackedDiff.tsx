@@ -1,11 +1,12 @@
 import type { SortingState } from "@tanstack/react-table";
 import { type ReactNode, useEffect, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
+import { foldedBy, withFolded } from "../../components/files/folds";
 import { List } from "../../components/list/List";
 import { counted } from "../../text";
 import changesStyles from "../comparison/changes.module.css";
 import { Lines } from "../comparison/columns";
-import { type Folds, foldedBy, partFolded, withFolded, withPart } from "../comparison/folds";
+import { type Folds, partFolded, withPart } from "../comparison/folds";
 import {
   type Change,
   type Entry,

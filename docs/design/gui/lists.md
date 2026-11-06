@@ -21,9 +21,20 @@ A row that opens a View is marked while that View is shown in any Group, focused
 A commit in History is marked so while its Changes are shown.
 Rows may be grouped, a line above each group but the first.
 
+## Trees
+
+A list's tree knows its rows only as rows holding rows (`tree.ts`, `TreeCells.tsx`), whatever they are.
+What a row holds may be asked for once it is opened; notes stand in for it meanwhile, say why it cannot be shown, or how many more there are than listed.
+Rows beside each other come in their View's order: by a rank first, whatever the direction, e.g. folders before files; then by the column sorted by, rows without a value last either way; ties by a fallback column.
+The order is ours, not TanStack's sorting, as the Diff's stack, which is not a list, shows its files in the same order.
+What is folded or opened is kept per browser as sets of row IDs (`hephaistos.folds.<name>`), for what the tree shows, e.g. a Checkout.
+A row is a step further in for each level, its chevron moved as far, before what it is.
+
+Trees of paths are `components/files/`': the directories flat paths lie in, a directory holding a single directory and nothing else joined with it; folds by path, a folded directory folding all below it; and paths after their icon, the folder quieter.
+
 ## Sorting
 
-Columns may sort: TanStack's sorting, off unless a column turns it on.
+Columns may sort: TanStack's sorting, off unless a column turns it on; trees order their rows themselves, by it ([trees](#trees)).
 The order is in the address's fragment (`sort`).
 
 ## Filters

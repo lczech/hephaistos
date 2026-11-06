@@ -25,6 +25,7 @@ import {
 } from "../../api/queries";
 import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
+import { foldedBy, unfolding, withFolded } from "../../components/files/folds";
 import { FindBar } from "../../components/find/FindBar";
 import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { FilesFolded, FilesUnfolded } from "../../drawnIcons";
@@ -37,14 +38,7 @@ import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { checkoutName, checkoutOf } from "../checkout";
 import { ComparedPickers } from "../comparison/ComparedPickers";
-import {
-  foldedBy,
-  partFolded,
-  unfolding,
-  useFolds,
-  withFolded,
-  withPart,
-} from "../comparison/folds";
+import { partFolded, useFolds, withPart } from "../comparison/folds";
 import { changesLook, NestedToggle } from "../comparison/look";
 import {
   type Compared,

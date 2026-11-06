@@ -189,11 +189,7 @@ describe("the Changes View", () => {
     await userEvent.click(unstaged as HTMLElement);
     expect(screen.queryByTitle("src/b.py")).toBeNull();
     expect(JSON.parse(localStorage.getItem("hephaistos.folds.changes") ?? "")).toEqual({
-      "clone:clone-proj": {
-        paths: { staged: ["src/"], unstaged: ["src/"] },
-        groups: [],
-        opened: [],
-      },
+      "clone:clone-proj": { "paths:staged": ["src/"], "paths:unstaged": ["src/"] },
     });
   });
 
@@ -223,7 +219,7 @@ describe("the Changes View", () => {
     await screen.findByTitle("new/a.txt");
     expect(rows()).toEqual(before);
     expect(JSON.parse(localStorage.getItem("hephaistos.folds.changes") ?? "")).toEqual({
-      "clone:clone-proj": { paths: { staged: ["src/app/"] }, groups: [], opened: ["new/"] },
+      "clone:clone-proj": { "paths:staged": ["src/app/"], opened: ["new/"] },
     });
     expect(localStorage.getItem("hephaistos.folds.diff")).toBeNull();
   });

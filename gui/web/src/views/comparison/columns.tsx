@@ -5,16 +5,15 @@ import {
   FilePen,
   FilePlus,
   FileWarning,
-  Folder,
   FolderPlus,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cssVars } from "../../components/cssVars";
-import { Chevron } from "../../components/list/List";
+import { DirectoryPath, Path } from "../../components/files/Path";
+import { Indented, NoteText, TreeChevron } from "../../components/list/TreeCells";
 import { listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
-import { pathParts } from "../../paths";
 import styles from "./changes.module.css";
 import {
   type Change,
@@ -74,42 +73,22 @@ function counted(entry: Entry): { added: number; removed: number } | undefined {
   return added === null || removed === null ? undefined : { added, removed };
 }
 
-/**
- * A path after its icon, its folder quieter. Cut off where narrow: a file's at its end, a
- * folder's at its start, so that its last part, the one it is, stays.
- */
-function Path({ shown, title, icon }: { shown: string; title: string; icon: ReactNode }) {
-  const [folder, name] = pathParts(shown);
-  return (
-    <span className={styles.named}>
-      {icon}
-      <span className={styles.path} title={title} data-from-start={name.endsWith("/") || undefined}>
-        <bdi>
-          <span className={styles.folder}>{folder}</span>
-          {name}
-        </bdi>
-      </span>
-    </span>
-  );
-}
-
 /** A change's row: its path below what the rows around it say, after what happened to it. */
 export function ChangePath({ change, base }: { change: Change; base: string }) {
   const renamed = change.original === null ? "" : `\nrenamed from ${change.original}`;
   return (
-    <span data-deleted={change.status === "D" || undefined}>
-      <Path
-        shown={change.path.slice(base.length)}
-        title={`${change.path}${renamed}`}
-        icon={
-          <KindIcon
-            kind={kindOf(change)}
-            title={`${change.binary ? "binary, " : ""}${statusName(change)}`}
-            binary={change.binary}
-          />
-        }
-      />
-    </span>
+    <Path
+      deleted={change.status === "D"}
+      shown={change.path.slice(base.length)}
+      title={`${change.path}${renamed}`}
+      icon={
+        <KindIcon
+          kind={kindOf(change)}
+          title={`${change.binary ? "binary, " : ""}${statusName(change)}`}
+          binary={change.binary}
+        />
+      }
+    />
   );
 }
 
@@ -117,7 +96,7 @@ export function ChangePath({ change, base }: { change: Change; base: string }) {
 function pathCell(entry: Exclude<Entry, { type: "group" | "total" }>): ReactNode {
   switch (entry.type) {
     case "note":
-      return <span className={entry.problem ? styles.problem : styles.note}>{entry.text}</span>;
+      return <NoteText note={entry} />;
     case "directory":
       return <DirectoryPath shown={entry.path.slice(entry.base.length)} path={entry.path} />;
     default:
@@ -129,21 +108,6 @@ function pathCell(entry: Exclude<Entry, { type: "group" | "total" }>): ReactNode
 function changesOf(entry: Exclude<Entry, { type: "change" | "note" }>): Change[] {
   if (entry.type === "total") return entry.groups.flatMap((group) => group.changes);
   return entry.type === "group" ? entry.group.changes : entry.changes;
-}
-
-/** A directory's path, or the end of it that is `shown`, after a folder's icon. */
-export function DirectoryPath({ shown, path }: { shown: string; path: string }) {
-  return (
-    <Path
-      shown={shown}
-      title={path}
-      icon={
-        <span className={styles.kind}>
-          <TextIcon icon={Folder} />
-        </span>
-      }
-    />
-  );
 }
 
 /** A group's name, and how many of each kind of change it holds. */
@@ -162,29 +126,6 @@ function GroupName({ entry }: { entry: Extract<Entry, { type: "group" }> }) {
 }
 
 /**
- * A row's path, a step further in for each level of `depth`; or its chevron, moved as far, out
- * of its narrow square into the room the path leaves.
- */
-function Indented({
-  depth,
-  moved,
-  children,
-}: {
-  depth: number;
-  moved?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={moved ? styles.moved : styles.indented}
-      style={cssVars({ "--indent": Math.max(0, depth) })}
-    >
-      {children}
-    </span>
-  );
-}
-
-/**
  * The Changes list's columns: the path takes what the others leave, then the lines, then their
  * bars, as long as their share of `most`. Rows that `fold` have a chevron; rows below those at
  * depth `top`, the groups' own, are indented.
@@ -194,14 +135,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
     column.display({
       id: "square",
       // In line with the row's path: a tree's chevrons stand before their folders.
-      cell: ({ row }) =>
-        folds(row.original) ? (
-          <Indented depth={row.depth - top} moved>
-            <Chevron />
-          </Indented>
-        ) : (
-          ""
-        ),
+      cell: ({ row }) => (folds(row.original) ? <TreeChevron depth={row.depth - top} /> : ""),
       enableResizing: false,
       meta: { width: "var(--square)" },
     }),
