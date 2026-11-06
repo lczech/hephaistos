@@ -3,7 +3,7 @@
 
 import type { SortingState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
-import type { Tone } from "../../components/table/ListTable";
+import type { Tone } from "../../components/list/List";
 import { shortPath } from "../../paths";
 import { shortHash } from "../../revisions";
 import { numberText } from "../../text";

@@ -17,8 +17,8 @@ import { arrangeable, type ColumnLook, gridColumns } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import { LinesHead } from "./LinesHead";
-import type { ListFeatures } from "./list";
-import styles from "./table.module.css";
+import styles from "./list.module.css";
+import type { ListFeatures } from "./table";
 
 /** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
 export type Tone = "warning" | "danger" | "alarm" | "muted";
@@ -83,7 +83,7 @@ interface Props<TData extends RowData> {
  * right button, or a long press) hides, shows and moves them, or resets their look; a double
  * click on a column's edge fits it to its cells, at most as wide as the list.
  */
-export function ListTable<TData extends RowData>({
+export function List<TData extends RowData>({
   table,
   className,
   layout,

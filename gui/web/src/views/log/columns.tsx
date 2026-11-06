@@ -1,5 +1,5 @@
-import { Chevron } from "../../components/table/ListTable";
-import { listColumnHelper } from "../../components/table/list";
+import { Chevron } from "../../components/list/List";
+import { listColumnHelper } from "../../components/list/table";
 import { ago, preciseTime } from "../../time";
 import styles from "./LogView.module.css";
 import { extraFields, type LogEntry, processText, tracebackEnd } from "./logText";

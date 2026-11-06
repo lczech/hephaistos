@@ -1,5 +1,5 @@
-import { Fields } from "../../components/table/Fields";
-import table from "../../components/table/table.module.css";
+import { Fields } from "../../components/list/Fields";
+import table from "../../components/list/list.module.css";
 import { timeAndAgo } from "../../time";
 import styles from "./LogView.module.css";
 import { extraFields, type LogEntry, levelName, processText } from "./logText";

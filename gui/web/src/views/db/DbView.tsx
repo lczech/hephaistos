@@ -1,11 +1,11 @@
 import { Sheet } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import { useDbRows, useDbTables } from "../../api/queries";
+import { Fields } from "../../components/list/Fields";
+import { Chevron, List } from "../../components/list/List";
+import { listColumnHelper, useList } from "../../components/list/table";
 import { Picker } from "../../components/Picker";
 import { TextIcon } from "../../components/TextIcon";
-import { Fields } from "../../components/table/Fields";
-import { Chevron, ListTable } from "../../components/table/ListTable";
-import { listColumnHelper, useListTable } from "../../components/table/list";
 import { ViewBar, ViewPage } from "../../components/ViewBar";
 import { paramValues, withParam } from "../address";
 import { loadErrorText } from "../CheckoutError";
@@ -112,7 +112,7 @@ const TABLE_COLUMNS = tableColumn.columns([
 /** The tables, as `db tables` lists them; a row shows its table's rows, in place. */
 function Tables({ show }: { show: (table: string) => void }) {
   const tables = useDbTables();
-  const listTable = useListTable("db", "columns", {
+  const listTable = useList("db", "columns", {
     columns: TABLE_COLUMNS,
     data: tables.data?.tables ?? NO_TABLES,
     getRowId: ({ table }) => table,
@@ -124,7 +124,7 @@ function Tables({ show }: { show: (table: string) => void }) {
   return (
     <ViewPage>
       <Warnings warnings={tables.data?.warnings ?? []} />
-      <ListTable
+      <List
         table={listTable}
         layout="columns"
         choices={{}}
@@ -162,7 +162,7 @@ function Rows({ table, show }: RowsProps) {
     unique.set(JSON.stringify(row), row);
   }
   const listed = [...unique.values()];
-  const listTable = useListTable(`db.${table}`, "columns", {
+  const listTable = useList(`db.${table}`, "columns", {
     columns,
     data: listed,
     getRowId: (row) => JSON.stringify(row),
@@ -196,7 +196,7 @@ function Rows({ table, show }: RowsProps) {
         </Picker>
         <Warnings warnings={pages?.[0]?.warnings ?? []} />
       </ViewBar>
-      <ListTable
+      <List
         table={listTable}
         layout="columns" // no two lines for a table's rows, which may have any columns
         choices={{}}

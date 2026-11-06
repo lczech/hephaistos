@@ -1,6 +1,6 @@
 import type { MouseEvent, TouchEvent } from "react";
 import type { ColumnFilterLook } from "./filters";
-import styles from "./table.module.css";
+import styles from "./list.module.css";
 
 /** How a column is laid out, beyond TanStack's sizes: `tableFeatures({ columnMeta: {} as ColumnLook })`. */
 export interface ColumnLook {

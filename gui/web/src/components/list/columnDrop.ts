@@ -5,7 +5,7 @@ import { type DropItem, isTextDropItem, useDrop } from "react-aria-components";
 import { COLUMN_DRAG } from "./ColumnHeader";
 import { arrangeable, arrangedOrder, movedBeside } from "./columns";
 import { columnOrder, fingerPointer, type ListLayout } from "./kept";
-import type { ListFeatures } from "./list";
+import type { ListFeatures } from "./table";
 
 /** Where a header dragged would go: after this many of the headers shown, at `x` in the row. */
 interface Gap {

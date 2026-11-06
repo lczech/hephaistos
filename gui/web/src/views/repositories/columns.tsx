@@ -1,7 +1,7 @@
 import { Ago } from "../../components/Ago";
 import { ForgeLink } from "../../components/ForgeLink";
-import { Chevron } from "../../components/table/ListTable";
-import { listColumnHelper } from "../../components/table/list";
+import { Chevron } from "../../components/list/List";
+import { listColumnHelper } from "../../components/list/table";
 import { forgePage } from "../../forges";
 import type { Address } from "../address";
 import { ChangesLinks } from "../changes/ChangesLinks";

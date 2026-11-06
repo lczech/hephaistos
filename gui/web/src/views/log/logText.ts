@@ -1,7 +1,7 @@
 // A log record's parts as `hephaistos log show` prints them.
 
 import type { Schemas } from "../../api/client";
-import type { Tone } from "../../components/table/ListTable";
+import type { Tone } from "../../components/list/List";
 
 export type LogEntry = Schemas["LogEntryJson"];
 type LogRecord = LogEntry["record"];

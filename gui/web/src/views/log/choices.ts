@@ -2,7 +2,7 @@
 
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { LogFilters } from "../../api/queries";
-import type { Choice } from "../../components/table/filters";
+import type { Choice } from "../../components/list/filters";
 import { type Params, paramValues, withParam } from "../address";
 import { columnFilters, filteredParams, filteredTitle, SINCE } from "../filters";
 import { columns } from "./columns";

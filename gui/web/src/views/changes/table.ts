@@ -1,7 +1,7 @@
 import { type ExpandedState, functionalUpdate, type SortingState } from "@tanstack/react-table";
 import { type ChangesQuery, useChangesWithin } from "../../api/queries";
-import { useListLayout } from "../../components/table/kept";
-import { useListTable } from "../../components/table/list";
+import { useListLayout } from "../../components/list/kept";
+import { useList } from "../../components/list/table";
 import { changesColumns } from "./columns";
 import { type Folds, foldedBy, partFolded, unfolding, withFolded, withPart } from "./folds";
 import {
@@ -29,7 +29,7 @@ interface Options {
 }
 
 /**
- * The changes as a list's rows (`entries`), for a `ListTable`: groups and directories open until
+ * The changes as a list's rows (`entries`), for a `List`: groups and directories open until
  * folded; new folders closed until opened, their files asked for then; both as `folded` keeps
  * them. Also how to open all, and the list's layout: as the device starts with, as Changes has no
  * choice of it, its narrow look being one line.
@@ -74,7 +74,7 @@ export function useChangesTable(options: Options) {
   // Every row that holds rows open, new folders too.
   const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
   const [layout] = useListLayout("changes");
-  const table = useListTable("changes", layout, {
+  const table = useList("changes", layout, {
     columns,
     data: listed,
     getRowId: entryId,

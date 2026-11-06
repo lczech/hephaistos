@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { Chevron, ListTable } from "./ListTable";
-import { listColumnHelper, useListTable } from "./list";
+import { Chevron, List } from "./List";
+import { listColumnHelper, useList } from "./table";
 
 interface Fruit {
   name: string;
@@ -16,10 +16,10 @@ function Fruits({ fetchNextPage }: { fetchNextPage: () => void }) {
     column.display({ id: "square", cell: Chevron }),
     column.accessor("name", { header: "name" }),
   ]);
-  const table = useListTable("fruits", "columns", { columns, data: FRUITS });
+  const table = useList("fruits", "columns", { columns, data: FRUITS });
   return (
     <div style={{ height: 200, overflow: "auto" }}>
-      <ListTable
+      <List
         table={table}
         layout="columns"
         choices={{}}
@@ -51,10 +51,10 @@ function Long({ name, width }: { name: string; width: number }) {
     column.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
     column.accessor("name", { header: "name", size: 60 }),
   ]);
-  const table = useListTable("long", "columns", { columns, data: [{ name }] });
+  const table = useList("long", "columns", { columns, data: [{ name }] });
   return (
     <div style={{ width, height: 200, display: "flex", flexDirection: "column" }}>
-      <ListTable
+      <List
         table={table}
         layout="columns"
         choices={{}}
@@ -97,10 +97,10 @@ function Coloured() {
     column.accessor("name", { header: "name" }),
     column.display({ id: "colour", header: "colour", cell: () => "red" }),
   ]);
-  const table = useListTable("coloured", "columns", { columns, data: [{ name: "apple" }] });
+  const table = useList("coloured", "columns", { columns, data: [{ name: "apple" }] });
   return (
     <div style={{ width: 600, height: 200, display: "flex", flexDirection: "column" }}>
-      <ListTable
+      <List
         table={table}
         layout="columns"
         choices={{}}

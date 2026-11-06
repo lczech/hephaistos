@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
-import { LayoutList, List } from "lucide-react";
+import { LayoutList, List as ListIcon } from "lucide-react";
 import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
-import { ListTable } from "../../components/table/ListTable";
+import { List } from "../../components/list/List";
 import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
@@ -156,7 +156,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
                       "Show changes grouped like `git status`: staged, not staged, untracked, unmerged",
                   },
                   {
-                    icon: List,
+                    icon: ListIcon,
                     title: "Show all changes since the last commit in one list, each file once",
                   },
                 ]}
@@ -194,7 +194,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
           )}
         </LoadNote>
       )}
-      <ListTable
+      <List
         table={table}
         className={styles.columns}
         grouped

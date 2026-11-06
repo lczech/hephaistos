@@ -4,7 +4,7 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import type { EventFilters } from "../../api/queries";
 import { useEventKinds, useInfo, useMachines, useRepositories } from "../../api/queries";
-import type { Choice } from "../../components/table/filters";
+import type { Choice } from "../../components/list/filters";
 import { shortPath } from "../../paths";
 import { type Params, paramValues, withParam } from "../address";
 import { columnFilters, filteredParams, filteredTitle, SINCE } from "../filters";

@@ -1,8 +1,8 @@
 import { GitMerge } from "lucide-react";
 import { Ago } from "../../components/Ago";
 import { TextIcon } from "../../components/TextIcon";
-import { Chevron } from "../../components/table/ListTable";
-import { listColumnHelper } from "../../components/table/list";
+import { Chevron } from "../../components/list/List";
+import { listColumnHelper } from "../../components/list/table";
 import { numberText } from "../../text";
 import type { Checkout } from "../changes/checkout";
 import { CommitHash, RefLabels } from "./CommitBox";

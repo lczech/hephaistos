@@ -2,8 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { ListLayout } from "./kept";
-import { Chevron, ListTable } from "./ListTable";
-import { listColumnHelper, useListTable } from "./list";
+import { Chevron, List } from "./List";
+import { listColumnHelper, useList } from "./table";
 
 interface Fruit {
   name: string;
@@ -21,14 +21,14 @@ const columns = column.columns([
 
 /** Fruits in a list, filtered by taste or not. */
 function Fruits({ layout = "columns", taste }: { layout?: ListLayout; taste?: string }) {
-  const table = useListTable("fruits", layout, {
+  const table = useList("fruits", layout, {
     columns,
     data: [{ name: "apple", colour: "red", taste: "sweet" }],
     manualFiltering: true,
     state: { columnFilters: taste === undefined ? [] : [{ id: "taste", value: [taste] }] },
   });
   return (
-    <ListTable
+    <List
       table={table}
       layout={layout}
       choices={{}}

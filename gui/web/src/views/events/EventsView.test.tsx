@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
-import { columnWidths } from "../../components/table/kept";
+import { columnWidths } from "../../components/list/kept";
 import { cells } from "../../test/list";
 import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { InPanel } from "../../test/view";

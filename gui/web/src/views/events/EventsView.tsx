@@ -1,10 +1,10 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import type { Schemas } from "../../api/client";
 import { useEvents, useInfo, useMachines } from "../../api/queries";
-import { useListLayout } from "../../components/table/kept";
-import { LayoutToggle } from "../../components/table/LayoutToggle";
-import { ListTable, type Tone } from "../../components/table/ListTable";
-import { useListTable } from "../../components/table/list";
+import { useListLayout } from "../../components/list/kept";
+import { LayoutToggle } from "../../components/list/LayoutToggle";
+import { List, type Tone } from "../../components/list/List";
+import { useList } from "../../components/list/table";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { loadErrorText } from "../CheckoutError";
@@ -41,7 +41,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   const listed = events.data?.pages.flat() ?? NONE;
   const filters = eventColumnFilters(params);
   const [layout, setLayout] = useListLayout("events");
-  const table = useListTable("events", layout, {
+  const table = useList("events", layout, {
     columns: showMachine ? columns : oneMachineColumns,
     data: listed,
     getRowId: (event) => event.id,
@@ -68,7 +68,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
           <LayoutToggle layout={layout} onChange={setLayout} />
         </BarEnd>
       </ViewBar>
-      <ListTable
+      <List
         table={table}
         className={styles.events}
         layout={layout}

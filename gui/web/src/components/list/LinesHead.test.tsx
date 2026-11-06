@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { Chevron, ListTable } from "./ListTable";
-import { listColumnHelper, useListTable } from "./list";
+import { Chevron, List } from "./List";
+import { listColumnHelper, useList } from "./table";
 
 interface Fruit {
   name: string;
@@ -33,7 +33,7 @@ const fruits = [
 function Fruits() {
   const [filters, setFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
-  const table = useListTable("fruits", "lines", {
+  const table = useList("fruits", "lines", {
     columns,
     data: fruits,
     manualFiltering: true,
@@ -46,7 +46,7 @@ function Fruits() {
   });
   return (
     <>
-      <ListTable
+      <List
         table={table}
         layout="lines"
         choices={{

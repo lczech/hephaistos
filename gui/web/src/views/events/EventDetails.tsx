@@ -1,5 +1,5 @@
 import type { Schemas } from "../../api/client";
-import { Fields, Titled } from "../../components/table/Fields";
+import { Fields, Titled } from "../../components/list/Fields";
 import { timeAndAgo } from "../../time";
 import type { Checkout } from "../changes/checkout";
 import { CommitBox, type KnownCommit } from "../history/CommitBox";

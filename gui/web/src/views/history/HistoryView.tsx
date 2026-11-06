@@ -9,11 +9,11 @@ import {
 } from "../../api/queries";
 import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { IconButton } from "../../components/IconButton";
+import { useListLayout } from "../../components/list/kept";
+import { LayoutToggle } from "../../components/list/LayoutToggle";
+import { List } from "../../components/list/List";
+import { useList } from "../../components/list/table";
 import { SearchField } from "../../components/SearchField";
-import { useListLayout } from "../../components/table/kept";
-import { LayoutToggle } from "../../components/table/LayoutToggle";
-import { ListTable } from "../../components/table/ListTable";
-import { useListTable } from "../../components/table/list";
 import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
@@ -86,7 +86,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const allFiles = () => setParams(withParam(params, "path", []));
   const columns = historyColumns(checkout, first?.head, { walked, path, showOn, allFiles });
   const [layout, setLayout] = useListLayout("history");
-  const table = useListTable("history", layout, {
+  const table = useList("history", layout, {
     columns,
     data: listed,
     getRowId: entryId,
@@ -182,7 +182,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           )}
         </LoadNote>
       )}
-      <ListTable
+      <List
         table={table}
         className={styles.history}
         layout={layout}

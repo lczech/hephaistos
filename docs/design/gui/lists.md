@@ -1,6 +1,6 @@
 # Lists
 
-How the GUI's lists work (`components/table/`).
+How the GUI's lists work (`components/list/`).
 
 ## Tables
 

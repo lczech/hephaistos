@@ -1,9 +1,9 @@
 import { functionalUpdate } from "@tanstack/react-table";
 import { useLog } from "../../api/queries";
-import { useListLayout } from "../../components/table/kept";
-import { LayoutToggle } from "../../components/table/LayoutToggle";
-import { ListTable } from "../../components/table/ListTable";
-import { useListTable } from "../../components/table/list";
+import { useListLayout } from "../../components/list/kept";
+import { LayoutToggle } from "../../components/list/LayoutToggle";
+import { List } from "../../components/list/List";
+import { useList } from "../../components/list/table";
 import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { withParam } from "../address";
@@ -30,7 +30,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
   const listed = pages?.flatMap((page) => page.entries) ?? NONE;
   const columnFilters = logColumnFilters(params);
   const [layout, setLayout] = useListLayout("log");
-  const table = useListTable("log", layout, {
+  const table = useList("log", layout, {
     columns,
     data: listed,
     getRowId: (entry) => entry.position,
@@ -68,7 +68,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
           <LayoutToggle layout={layout} onChange={setLayout} />
         </BarEnd>
       </ViewBar>
-      <ListTable
+      <List
         table={table}
         className={styles.log}
         layout={layout}

@@ -4,7 +4,7 @@ import { useDrag } from "react-aria-components";
 import { type ColumnLook, Resizer } from "./columns";
 import { Filter, offeredFilter } from "./Filter";
 import { type Choice, filterText } from "./filters";
-import styles from "./table.module.css";
+import styles from "./list.module.css";
 
 /**
  * What TanStack Table's headers offer, of a list with column filtering, sizing and resizing. The

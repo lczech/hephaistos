@@ -7,7 +7,7 @@ import popover from "../popover.module.css";
 import styles from "./ColumnsMenu.module.css";
 import { arrangedOrder, movedPast } from "./columns";
 import { columnOrder, hiddenColumns, resetLook } from "./kept";
-import type { ListFeatures } from "./list";
+import type { ListFeatures } from "./table";
 
 interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;

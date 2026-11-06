@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { ForgeLink } from "../../components/ForgeLink";
-import { Fields } from "../../components/table/Fields";
+import { Fields } from "../../components/list/Fields";
 import { forgePage } from "../../forges";
 import { shortPath } from "../../paths";
 import { nameOrId } from "../../text";

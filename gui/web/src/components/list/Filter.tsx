@@ -3,7 +3,7 @@ import { Dialog, DialogTrigger, MenuTrigger, Popover, Pressable } from "react-ar
 import { PickMenu } from "../Picker";
 import popover from "../popover.module.css";
 import { type Choice, type ColumnFilterLook, toggled } from "./filters";
-import styles from "./table.module.css";
+import styles from "./list.module.css";
 
 const ALL = ""; // one choice's: all, as no value is empty
 

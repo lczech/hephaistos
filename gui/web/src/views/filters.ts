@@ -1,8 +1,8 @@
 // A list's column filters, kept as its View's parameters.
 
 import type { ColumnFiltersState } from "@tanstack/react-table";
-import type { ColumnLook } from "../components/table/columns";
-import { type Choice, filterText } from "../components/table/filters";
+import type { ColumnLook } from "../components/list/columns";
+import { type Choice, filterText } from "../components/list/filters";
 import { counted } from "../text";
 import { type Params, paramValues, withParam } from "./address";
 

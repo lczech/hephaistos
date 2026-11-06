@@ -4,8 +4,8 @@ import { Picker } from "../Picker";
 import { DIRECTIONS } from "./ColumnHeader";
 import { Filter, offeredFilter } from "./Filter";
 import { type Choice, filterText } from "./filters";
-import type { ListFeatures } from "./list";
-import styles from "./table.module.css";
+import styles from "./list.module.css";
+import type { ListFeatures } from "./table";
 
 const NO_VALUES: string[] = [];
 

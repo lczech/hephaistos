@@ -60,7 +60,7 @@ type ListOptions<TData extends RowData> = Omit<TableOptions<ListFeatures, TData>
  * widths; in columns, also which are hidden and their order. A column filtered or sorted by
  * shows, even if hidden.
  */
-export function useListTable<TData extends RowData>(
+export function useList<TData extends RowData>(
   kind: string,
   layout: ListLayout,
   options: ListOptions<TData>,

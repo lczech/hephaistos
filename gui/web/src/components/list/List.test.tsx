@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { Chevron, ListTable } from "./ListTable";
-import { listColumnHelper, useListTable } from "./list";
+import { Chevron, List } from "./List";
+import { listColumnHelper, useList } from "./table";
 
 interface Fruit {
   name: string;
@@ -24,12 +24,12 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
     }),
     column.accessor("name", { header: "name", meta: { description: "What it is called" } }),
   ]);
-  const table = useListTable("fruits", "columns", {
+  const table = useList("fruits", "columns", {
     columns,
     data: [{ name: "apple" }, { name: "pear" }],
   });
   return (
-    <ListTable
+    <List
       table={table}
       layout="columns"
       choices={{}}

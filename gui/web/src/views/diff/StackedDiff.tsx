@@ -1,7 +1,7 @@
 import type { SortingState } from "@tanstack/react-table";
 import { type ReactNode, useEffect, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
-import { ListTable } from "../../components/table/ListTable";
+import { List } from "../../components/list/List";
 import { counted } from "../../text";
 import changesStyles from "../changes/ChangesView.module.css";
 import { Lines } from "../changes/columns";
@@ -195,7 +195,7 @@ function Untracked(props: UntrackedProps) {
           </button>
         )}
       </p>
-      <ListTable
+      <List
         table={table}
         className={changesStyles.columns}
         layout={layout}

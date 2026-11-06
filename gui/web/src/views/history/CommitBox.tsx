@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { Fields } from "../../components/list/Fields";
 import { TextIcon } from "../../components/TextIcon";
-import { Fields } from "../../components/table/Fields";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { numberText, plural } from "../../text";

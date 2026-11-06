@@ -1,8 +1,8 @@
 import type { Schemas } from "../../api/client";
 import { Ago } from "../../components/Ago";
 import { TextIcon } from "../../components/TextIcon";
-import { Chevron } from "../../components/table/ListTable";
-import { listColumnHelper } from "../../components/table/list";
+import { Chevron } from "../../components/list/List";
+import { listColumnHelper } from "../../components/list/table";
 import { actionOf, entityIcon, kindIcon } from "../../icons";
 import styles from "./EventsView.module.css";
 import { machineText, repositoryText, subjectText, subjectTitle } from "./eventText";
