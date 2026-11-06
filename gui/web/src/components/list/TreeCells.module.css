@@ -2,13 +2,13 @@
 .indented {
   display: block;
   min-width: 0;
-  padding-left: calc(var(--indent) * var(--space-4));
+  padding-left: calc(var(--indent) * var(--level));
 }
 
 /* A chevron moved as far, out of its narrow square into the room its row's path leaves. */
 .moved {
   display: block;
-  translate: calc(var(--indent) * var(--space-4)) 0;
+  translate: calc(var(--indent) * var(--level)) 0;
 }
 
 .note {
@@ -17,4 +17,26 @@
 
 .problem {
   composes: problem from "../text.module.css";
+}
+
+/* Lines below each level's chevron, through the rows within it, while the list is hovered. The
+ * row holds them (it is positioned); from the middle of the first chevron, at the row's start. */
+.guides {
+  position: absolute;
+  inset-block: 0;
+  left: calc(var(--chevron-start, 0px) + (var(--icon-small) - var(--space-hair)) / 2);
+  /* up to the last of its lines, so that none stands on the row's own chevron */
+  width: calc((var(--indent) - 1) * var(--level) + var(--space-hair));
+  background: repeating-linear-gradient(
+    to right,
+    var(--line) 0 var(--space-hair),
+    transparent var(--space-hair) var(--level)
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+ol:hover .guides {
+  opacity: 1;
 }

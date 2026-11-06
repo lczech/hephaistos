@@ -199,6 +199,7 @@ function Untracked(props: UntrackedProps) {
       <List
         table={table}
         className={changesStyles.columns}
+        tree
         layout={layout}
         embedded
         oneLine

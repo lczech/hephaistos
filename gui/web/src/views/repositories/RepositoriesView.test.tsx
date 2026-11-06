@@ -141,6 +141,18 @@ describe("the Repositories View", () => {
     ]);
   });
 
+  it("opens the Explorer of a Clone or Worktree, at its path", async () => {
+    serveRepositories();
+    const open = vi.fn<OpenView>();
+    renderWithQueries(<Repositories open={open} />);
+    await screen.findByText("recent");
+    expect(screen.queryByRole("button", { name: "Files of recent" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Files of ~/recent" }));
+    expect(open.mock.calls.map(([address]) => address)).toEqual([
+      { kind: "explorer", params: { path: "/home/me/recent" } },
+    ]);
+  });
+
   it("opens the Changes and Diff of a Clone or Worktree, as previews", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();

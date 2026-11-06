@@ -37,8 +37,8 @@ function eventsAt(entry: Entry): Address {
 }
 
 /**
- * A row's Views: Events for all; History for a Checkout; Changes and Diff for one with a working
- * tree.
+ * A row's Views: Events for all; History and the Explorer for a Checkout; Changes and Diff for
+ * one with a working tree.
  */
 function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   const name = nameText(entry, home);
@@ -68,6 +68,14 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
           <span />
           <span />
         </>
+      )}
+      {state ? (
+        <ViewLink
+          address={{ kind: "explorer", params: { path: state.path } }}
+          label={`Files of ${name}`}
+        />
+      ) : (
+        <span />
       )}
     </span>
   );
@@ -107,7 +115,7 @@ export const columns = column.columns([
     },
   }),
   column.display({
-    id: "views", // its Events, History, Changes and Diff, each in its place, so that they line up
+    id: "views", // its Events, History, Changes, Diff and Explorer, each in its place, lined up
     enableResizing: false,
     meta: { width: "var(--views)" },
     cell: ({ row, table }) => <Views entry={row.original} home={table.options.meta?.home} />,

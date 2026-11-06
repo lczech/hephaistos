@@ -199,6 +199,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
         table={table}
         className={listStyles.columns}
         grouped
+        tree
         layout={layout}
         oneLine
         choices={{}}

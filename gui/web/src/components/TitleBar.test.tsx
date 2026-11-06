@@ -49,9 +49,10 @@ describe("the title bar", () => {
       ]);
     expect(families).toEqual([
       ["overviews", ["Repositories", "Events"]],
+      ["files", ["Explorer"]],
       ["this machine", ["Daemon", "Log", "Config", "Database"]],
     ]);
-    expect(within(menu).getAllByRole("separator")).toHaveLength(1);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(2);
     await userEvent.click(screen.getByRole("menuitem", { name: "Config" }));
     expect(opened).toEqual([{ kind: "config", params: {} }]);
     expect(screen.queryByRole("menu")).toBeNull();

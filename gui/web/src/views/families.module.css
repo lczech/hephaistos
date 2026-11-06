@@ -8,6 +8,10 @@
   --view: var(--view-git);
 }
 
+.files {
+  --view: var(--view-files);
+}
+
 .machine {
   --view: var(--view-machine);
 }

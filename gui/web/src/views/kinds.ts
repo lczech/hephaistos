@@ -4,6 +4,7 @@ import {
   Calendar,
   Database,
   FileDiff,
+  Files,
   GitCompareArrows,
   type LucideIcon,
   ScrollText,
@@ -14,12 +15,13 @@ import type { Address, Params } from "./address";
 import { checkoutOf } from "./checkout";
 
 /** A family of Views, whose icons share a colour (`families.module.css`). */
-export type ViewFamily = "overview" | "git" | "machine";
+export type ViewFamily = "overview" | "git" | "files" | "machine";
 
 /** What a family's Views are about, as a menu names them. */
 export const FAMILY_NAMES: Record<ViewFamily, string> = {
   overview: "overviews",
   git: "git",
+  files: "files",
   machine: "this machine",
 };
 
@@ -51,6 +53,7 @@ const kinds = {
       params.path === undefined && checkoutOf(params) !== undefined ? FileDiffs : FileDiff,
   },
   history: { name: "History", icon: GitCommits, family: "git" },
+  explorer: { name: "Explorer", icon: Files, family: "files", offered: "menu" },
   daemon: { name: "Daemon", icon: Activity, family: "machine", offered: "menu" },
   log: { name: "Log", icon: ScrollText, family: "machine", offered: "menu" },
   config: { name: "Config", icon: SlidersHorizontal, family: "machine", offered: "menu" },

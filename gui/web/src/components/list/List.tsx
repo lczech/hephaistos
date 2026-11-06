@@ -50,6 +50,8 @@ interface Props<TData extends RowData> {
   embedded?: boolean; // part of a page that scrolls: then it only scrolls sideways itself
   oneLine?: boolean; // its rows stay in one line in the two lines' layout, as high as in columns
   grouped?: boolean; // its rows without depth start groups, a line above each but the first
+  tree?: boolean; // its square holds only a tree's chevrons, so it is as narrow as they are
+  compact?: boolean; // its rows closer together, e.g. a tree of files, a sidebar's list
   choices: Record<string, Choice[] | undefined>; // each filtering column's
   message: string | null; // instead of rows, or below them
   problem?: boolean; // the message says something is wrong, e.g. that loading failed
@@ -90,6 +92,8 @@ export function List<TData extends RowData>({
   embedded,
   oneLine,
   grouped,
+  tree,
+  compact,
   choices,
   message,
   problem,
@@ -199,6 +203,8 @@ export function List<TData extends RowData>({
       data-embedded={embedded || undefined}
       data-one-line={oneLine || undefined}
       data-grouped={grouped || undefined}
+      data-tree={tree || undefined}
+      data-compact={compact || undefined}
     >
       <div ref={grid} className={styles.grid} style={cssVars(columns)}>
         {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu, which the menu key opens from a header's buttons too */}

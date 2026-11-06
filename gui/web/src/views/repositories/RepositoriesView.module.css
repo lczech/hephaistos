@@ -32,7 +32,7 @@
     2 *
     var(--space-half)
   );
-  --view-links: 4; /* Events, History, Changes, Diff */
+  --view-links: 5; /* Events, History, Changes, Diff, Explorer */
   --views: calc(var(--view-links) * var(--icon-size) + (var(--view-links) - 1) * var(--space-2));
 }
 

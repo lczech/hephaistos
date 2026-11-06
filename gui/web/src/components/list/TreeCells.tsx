@@ -1,5 +1,6 @@
 // Cells of a list's tree: what a row is, a step further in for each level within others; its
-// chevron moved as far, so that it stands before its row; and notes standing in for rows.
+// chevron moved as far, so that it stands before its row; guides below the chevrons; and notes
+// standing in for rows.
 
 import type { ReactNode } from "react";
 import { cssVars } from "../cssVars";
@@ -22,6 +23,17 @@ export function TreeChevron({ depth }: { depth: number }) {
     <span className={styles.moved} style={cssVars({ "--indent": Math.max(0, depth) })}>
       <Chevron />
     </span>
+  );
+}
+
+/**
+ * A row's guides: a line below each of the chevrons of the rows it is within, `depth` of them,
+ * shown while the list is hovered. In its square, before or instead of its chevron.
+ */
+export function TreeGuides({ depth }: { depth: number }) {
+  if (depth <= 0) return null;
+  return (
+    <span className={styles.guides} style={cssVars({ "--indent": depth })} aria-hidden="true" />
   );
 }
 

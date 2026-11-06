@@ -1,0 +1,50 @@
+/* A hidden entry, whose name starts with `.`: quieter, and in italics, as the file system hides it. */
+.hidden {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* A symlink pointing nowhere. */
+.broken {
+  color: var(--warning);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-muted);
+}
+
+/* The Directory's path in the bar, each part a button showing that one instead. */
+/* As high as the buttons of the bar, so that it stays in place when they wrap below it. */
+.path {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--icon-size) + 2 * var(--icon-pad-y));
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.part {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.part:last-child {
+  color: var(--text);
+}
+
+.part:is(:hover, :focus-visible) {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.separator {
+  color: var(--text-muted);
+  padding-inline: var(--space-half);
+}

@@ -50,12 +50,14 @@ export function loadedRows<T, R>(
 /**
  * How rows beside each other are ordered: those of a lower `rank` first, whatever the order
  * chosen, e.g. folders before files; then by the column sorted by, its values by `values`, those
- * without one last either way; ties, and an order not chosen, by the `fallback` column.
+ * without one last either way; ties, and an order not chosen, by the `fallback` column. Texts
+ * compare by their characters' codes, or as `collator` compares them, e.g. as people sort names.
  */
 export interface Order<T> {
   rank?: (row: T) => number;
   values: Record<string, (row: T) => string | number | undefined>;
   fallback: string;
+  collator?: Intl.Collator;
 }
 
 /** Rows beside each other, in the `order` sorted by: TanStack's sorting state of a list. */
@@ -64,25 +66,33 @@ export function inOrder<T>(rows: T[], sorted: SortingState, order: Order<T>): T[
   const value = order.values[id] ?? order.values[order.fallback];
   const fallback = order.values[order.fallback];
   const rank = order.rank ?? (() => 0);
+  const compare = comparing(order.collator);
   const sign = desc ? -1 : 1;
   return [...rows].sort((a, b) => {
     const ranked = rank(a) - rank(b);
     if (ranked !== 0) return ranked;
     const [x, y] = [value?.(a), value?.(b)];
-    if (x !== y) {
-      if (x === undefined) return 1;
-      if (y === undefined) return -1;
-      return sign * (x < y ? -1 : 1);
+    if (x !== undefined && y !== undefined) {
+      const compared = compare(x, y);
+      if (compared !== 0) return sign * compared;
+    } else if (x !== y) {
+      return compare(x, y); // unknown last, either way
     }
     return id === order.fallback ? 0 : compare(fallback?.(a), fallback?.(b));
   });
 }
 
-function compare(x: string | number | undefined, y: string | number | undefined): number {
-  if (x === y) return 0;
-  if (x === undefined) return 1;
-  if (y === undefined) return -1;
-  return x < y ? -1 : 1;
+type Value = string | number | undefined;
+
+/** How two values compare: unknown last; texts by `collator`, if given. */
+function comparing(collator: Intl.Collator | undefined): (x: Value, y: Value) => number {
+  return (x, y) => {
+    if (x === y) return 0;
+    if (x === undefined) return 1;
+    if (y === undefined) return -1;
+    if (collator && typeof x === "string" && typeof y === "string") return collator.compare(x, y);
+    return x < y ? -1 : 1;
+  };
 }
 
 /** Named sets of row IDs, e.g. those folded and those opened. */

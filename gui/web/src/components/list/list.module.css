@@ -3,8 +3,24 @@
   composes: dims from "../text.module.css";
   --square: calc(1lh + var(--space-1)); /* as wide as a row is high */
   --column-gap: var(--space-2);
+  /* A tree's level: an icon and the room after it, so that rows within start their icons where
+     their parent's name starts (`components/files/Path.module.css`). */
+  --level: calc(var(--icon-size) + var(--space-1));
+  --row-space: var(--space-half); /* above and below each row's content */
   container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
+}
+
+/* A tree's square holds only its chevron, a little in from the list's edge, reaching into the gap
+ * after it: so that what the row is starts just after the chevron. */
+.frame[data-tree] {
+  --chevron-start: var(--space-1);
+  --square: calc(var(--chevron-start) + var(--icon-small) + var(--space-1) - var(--column-gap));
+}
+
+/* Rows closer together, e.g. a tree of files, a sidebar's list. */
+.frame[data-compact] {
+  --row-space: 0;
 }
 
 .quiet {
@@ -106,7 +122,7 @@
 .row {
   position: relative; /* for its button's outline */
   align-items: center;
-  padding: var(--space-half) var(--space-3) var(--space-half) 0;
+  padding: var(--row-space) var(--space-3) var(--row-space) 0;
   color: var(--text);
   cursor: pointer;
   --view-icon: currentColor; /* links to Views grey, until hovered (below) */
@@ -210,6 +226,11 @@
   transition:
     rotate 0.15s,
     translate 0.15s;
+}
+
+/* A tree's, at its square's start (above). */
+.frame[data-tree] .chevron {
+  margin-inline: var(--chevron-start) 0;
 }
 
 .item:is([data-tone="warning"], [data-tone="danger"]) .chevron {

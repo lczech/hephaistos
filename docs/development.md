@@ -77,6 +77,7 @@ Node comes as a development dependency of the Python project (`nodejs-wheel`), s
 npm, TypeScript (strict), Biome for linting and formatting, and Vitest.
 TanStack Query fetches and refreshes data, through openapi-fetch.
 Its types are generated from the API's schema, `gui/web/openapi.json`, which the API's schema test records.
+`npm run types` also writes what GitHub's Linguist knows of file names (`linguist-languages`, pinned), compactly, for the Explorer's icons (`gui/scripts/linguist.mjs`); neither is in git.
 Styles are CSS modules plus one theme file of named values, with no component library so far.
 Vite builds into `gui/web/dist/` (not in git), which the Server serves.
 `gui/package.json` is one npm package for the GUI and the Desktop, and Electron's app.

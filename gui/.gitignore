@@ -1,3 +1,4 @@
 node_modules/
 dist/
 web/src/api/schema.d.ts
+web/src/components/files/linguist.json

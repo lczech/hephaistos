@@ -141,3 +141,19 @@ While HEAD's commits show, a row above them says what is not committed, with its
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.
 They say if no branch or tag leads to the commit any more, and what amends of it led to.
 History opens from a Checkout's row in Repositories, and from the bars of its Changes and of a file's Diff.
+
+## Explorer
+
+The Explorer View shows what a Directory holds, as a tree (`explorer?path=…`), on disk, as `/api/files` lists it: any Directory this user may list, the home directory without `path`.
+Its bar shows the path, from `~` under the home directory, each part showing that Directory instead, in the same Panel.
+Folders come first, then files, by name as people sort them: case ignored, numbers by their value, as VS Code does.
+A folder opens and closes; it is asked for once opened, or once pointed at, so that opening shows it at once.
+What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
+A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`.
+Hidden entries, whose names start with `.`, show quieter and in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
+Icons say what an entry is: a folder, open or not; a Checkout's top, registered; a symlink, to a file or a folder, or pointing nowhere, in the problem colour; a folder that cannot be listed; else a file's kind.
+A file's kind comes from its name: exact names first, ours then GitHub's Linguist's (`CMakeLists.txt`), but for locks and configs, which our extensions say better than Linguist's formats (`uv.lock`); then extensions, our own table first, for binary files and some we show otherwise, then Linguist's, by the language's type or, for a few, the language (`components/files/kinds.ts`).
+Extensions Linguist leaves undecided, as languages of different types claim them, are listed in a test, so that an update leaving more fails there.
+Files open nothing yet.
+It is asked again on a hint, on focus and by its reload button.
+The Explorer opens from a Checkout's row in Repositories, and from the "+" menu.

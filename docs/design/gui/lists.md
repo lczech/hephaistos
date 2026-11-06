@@ -28,7 +28,10 @@ What a row holds may be asked for once it is opened; notes stand in for it meanw
 Rows beside each other come in their View's order: by a rank first, whatever the direction, e.g. folders before files; then by the column sorted by, rows without a value last either way; ties by a fallback column.
 The order is ours, not TanStack's sorting, as the Diff's stack, which is not a list, shows its files in the same order.
 What is folded or opened is kept per browser as sets of row IDs (`hephaistos.folds.<name>`), for what the tree shows, e.g. a Checkout.
-A row is a step further in for each level, its chevron moved as far, before what it is.
+A row is a step further in for each level, its chevron moved as far, before what it is, so that its icon starts where its parent's name does.
+A tree's square holds only its chevron, a little in from the list's edge and reaching into the gap after it, so that what the row is starts just after it (`tree`).
+A list may set its rows closer together (`compact`): the Explorer does, as a sidebar's list will.
+While the list is pointed at, a thin line runs below each open row's chevron, through the rows within it.
 
 Trees of paths are `components/files/`': the directories flat paths lie in, a directory holding a single directory and nothing else joined with it; folds by path, a folded directory folding all below it; and paths after their icon, the folder quieter.
 

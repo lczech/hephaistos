@@ -58,7 +58,7 @@ A refusal by the Server reads "Cannot show this:" and its message; a request tha
 Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
 Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
 
-An icon of a View is in its family's colour, the same in both themes (`views/families.module.css`): git's orange for git's Views (Changes, Diff, History), violet for overviews (Repositories, Events), teal for this Machine's own (Daemon, Log, Config, Database).
+An icon of a View is in its family's colour, the same in both themes (`views/families.module.css`): git's orange for git's Views (Changes, Diff, History), violet for overviews (Repositories, Events), blue for files (Explorer), teal for this Machine's own (Daemon, Log, Config, Database).
 It is so in tabs, in View bars, in lists of kinds, and in links beside content, e.g. a file's header in a Diff.
 In a list's rows, where links repeat, they are grey until the row is hovered or holds the focus.
 A test keeps the families' colours to icons of Views.

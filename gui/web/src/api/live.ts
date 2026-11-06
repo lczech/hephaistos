@@ -11,13 +11,13 @@ export type Hint = Schemas["LiveHintsJson"]["hints"][number];
 
 /** What each hint has asked again. */
 export const HINTED: Record<Hint, KeyName[]> = {
-  data: ["repositories", "machines", "events", "db", "changes", "diff", "history"],
+  data: ["repositories", "machines", "events", "db", "changes", "diff", "history", "files"],
   daemon: ["daemon"],
   log: ["log"],
 };
 
 /** Asked again when the page gains focus: what changes by hand, which no hint covers. */
-export const ON_FOCUS: KeyName[] = ["config", "daemon", "changes", "diff", "history"];
+export const ON_FOCUS: KeyName[] = ["config", "daemon", "changes", "diff", "history", "files"];
 
 /** Asked again only on connecting, as everything is: what changes only with the Daemon. */
 export const ON_CONNECT: KeyName[] = ["info", "eventKinds"];

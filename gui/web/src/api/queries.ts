@@ -34,6 +34,7 @@ export const KEYS = {
   changes: ["changes"],
   diff: ["diff"],
   history: ["history"],
+  files: ["files"],
   config: ["config"],
   eventKinds: ["events", "kinds"],
   events: ["events", "list"],
@@ -99,6 +100,22 @@ export function useChanges(query: ChangesQuery) {
 /** The changes within each of these folders, as `useChanges` gives them for the Checkout. */
 export function useChangesWithin(query: ChangesQuery, folders: string[]) {
   return useQueries({ queries: folders.map((path) => changesQuery({ ...query, path })) });
+}
+
+/** Which Directory's entries, with which fields: `/api/files`'s parameters. */
+export type FilesQuery = NonNullable<paths["/api/files"]["get"]["parameters"]["query"]>;
+
+/** What a Directory holds, as `/api/files` lists it: to ask for it, or for it ahead of time. */
+export function filesQuery(query: FilesQuery) {
+  return {
+    queryKey: [...KEYS.files, query],
+    queryFn: async () => unwrap(await api.GET("/api/files", { params: { query } })),
+  };
+}
+
+/** What each of these Directories holds, read anew on a hint or focus, as files change by hand. */
+export function useFilesOf(queries: FilesQuery[]) {
+  return useQueries({ queries: queries.map(filesQuery) });
 }
 
 /** Which file's diff: `/api/diff`'s parameters, which `/api/diff/files` shares. */
