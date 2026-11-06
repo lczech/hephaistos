@@ -40,6 +40,8 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("observe.workers", "4", "HEPHAISTOS_OBSERVE_WORKERS"),
         ("scan.depth", "5", f"config.{HOST}.toml"),
         ("files.max_entries", "5000", "default"),
+        ("files.max_paths", "200000", "default"),
+        ("files.search_seconds", "10.0", "default"),
         ("watcher.interval", "60.0", "default"),
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),

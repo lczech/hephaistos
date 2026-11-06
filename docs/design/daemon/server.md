@@ -97,11 +97,14 @@ Refs come with their short and full names.
 
 ## Files
 
-`/api/files?path=<absolute path>` is `files --json`: what a Directory holds, one at a time, as the Explorer opens its directories.
+`/api/files?path=<absolute path>` is `files list --json`: what a Directory holds, one at a time, as the Explorer opens its directories.
 It lists any Directory this user may, as a terminal would; the token already allows as much, and more once Terminals come.
 `fields=` asks for more than names and kinds, repeated: `size`, `modified`, `git`.
 A relative path is refused with 400, a missing one with 404, one this user may not list with 403.
 One that fails to read otherwise, as a network filesystem may, gives 500 with what the system said.
+`/api/files/paths?path=<absolute path>` is `files paths --json`: every path below a Directory, for the Explorer to find by name itself, as typed, asking nothing more.
+Hidden ones come unless `hidden=false`; what git ignores only with `ignored=true`.
+`stopped` says whether it stopped at `files.max_paths` or after `files.search_seconds`, and `limit` at how many.
 
 ## Errors
 

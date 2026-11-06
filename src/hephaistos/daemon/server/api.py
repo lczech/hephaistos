@@ -38,6 +38,7 @@ from hephaistos.core.serialize import (
     HistoryJson,
     LogJson,
     MachineJson,
+    PathsJson,
     Ref,
     RepositoryJson,
     RowsJson,
@@ -45,7 +46,7 @@ from hephaistos.core.serialize import (
     WorktreeJson,
 )
 from hephaistos.core.state import worktrees
-from hephaistos.core.utils import changes, files, history, logs, times
+from hephaistos.core.utils import changes, file_search, files, history, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon import report
@@ -90,6 +91,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/diffs": ("data", "focus"),
     "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
     "/api/files": ("data", "focus"),  # focus: files made or edited, which change no State
+    "/api/files/paths": ("focus",),  # not on hints: listing all below may take seconds
     "/api/events": ("data",),
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
@@ -421,13 +423,16 @@ def diff_files(  # noqa: PLR0913 - one parameter per choice
     return DiffFilesJson(old=found.old, new=found.new)
 
 
+_FILES_STATUS = {"invalid": 400, "missing": 404, "denied": 403, "unreadable": 500}  # by reason
+
+
 @router.get("/files")
 def files_list(
     path: str,
     *,
     fields: Annotated[list[files.Field] | None, Query()] = None,
 ) -> FilesJson:
-    """What a Directory holds, read now, as `files --json`: its entries by name, not below.
+    """What a Directory holds, read now, as `files list --json`: its entries by name, not below.
 
     `path` is absolute. Names and kinds always come; repeat `fields` for more: `size`,
     `modified`, and `git` for git's status inside a working tree.
@@ -439,9 +444,30 @@ def files_list(
             max_entries=config.settings().files.max_entries,
         )
     except files.FilesError as error:
-        status = {"invalid": 400, "missing": 404, "denied": 403, "unreadable": 500}[error.reason]
-        raise HTTPException(status, str(error)) from None
+        raise HTTPException(_FILES_STATUS[error.reason], str(error)) from None
     return serialize.files_json(found)
+
+
+@router.get("/files/paths")
+def files_paths(path: str, *, hidden: bool = True, ignored: bool = False) -> PathsJson:
+    """The paths below a Directory, read now, as `files paths --json`: to find files by name.
+
+    `path` is absolute. Hidden ones too unless `hidden` is false, as in the CLI; those git
+    ignores only with `ignored`. At most `files.max_paths`, found within `files.search_seconds`;
+    `stopped` says which ended it, if either.
+    """
+    settings = config.settings().files
+    try:
+        found = file_search.paths(
+            Path(path),
+            hidden=hidden,
+            ignored=ignored,
+            max_paths=settings.max_paths,
+            seconds=settings.search_seconds,
+        )
+    except files.FilesError as error:
+        raise HTTPException(_FILES_STATUS[error.reason], str(error)) from None
+    return serialize.paths_json(found)
 
 
 @router.get("/history")

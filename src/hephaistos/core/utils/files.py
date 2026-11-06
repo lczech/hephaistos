@@ -114,7 +114,7 @@ def _points_to(path: Path) -> Literal["file", "directory", "other"] | None:
     return "file" if stat.S_ISREG(mode) else "other"
 
 
-def _checked(path: Path) -> Path:
+def checked(path: Path) -> Path:
     """`path`, if it is an absolute path of a directory this user may list."""
     if not path.is_absolute():
         raise FilesError(f"not an absolute path: {path}", "invalid")
@@ -213,7 +213,7 @@ def listing(path: Path, fields: frozenset[Field] = frozenset(), *, max_entries: 
 
     Raises FilesError if it cannot be listed.
     """
-    directory = _checked(path)
+    directory = checked(path)
     try:
         with os.scandir(directory) as found:
             names = sorted(found, key=lambda item: item.name)

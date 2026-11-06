@@ -1595,6 +1595,51 @@
         "title": "PassJson",
         "type": "object"
       },
+      "PathsJson": {
+        "description": "The paths below a Directory, by name, a folder's ending in `/`.\n\nAt most `files.max_paths`, found within `files.search_seconds`. `stopped` says why there may\nbe more: `max_paths` listed, or `time` up; `limit`, the number of paths or seconds it stopped\nat.",
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "stopped": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stop"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "paths",
+          "stopped",
+          "limit"
+        ],
+        "title": "PathsJson",
+        "type": "object"
+      },
       "PersonJson": {
         "description": "Who wrote or committed a commit, and when.",
         "properties": {
@@ -2101,6 +2146,13 @@
         "title": "SourceJson",
         "type": "object"
       },
+      "Stop": {
+        "enum": [
+          "max_paths",
+          "time"
+        ],
+        "type": "string"
+      },
       "SubjectRef": {
         "description": "What an Event is about: its ID, type (`clone`), and its name or its path, if known.",
         "properties": {
@@ -2555,7 +2607,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.24"
+    "version": "0.25"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3619,7 +3671,7 @@
     },
     "/api/files": {
       "get": {
-        "description": "What a Directory holds, read now, as `files --json`: its entries by name, not below.\n\n`path` is absolute. Names and kinds always come; repeat `fields` for more: `size`,\n`modified`, and `git` for git's status inside a working tree.",
+        "description": "What a Directory holds, read now, as `files list --json`: its entries by name, not below.\n\n`path` is absolute. Names and kinds always come; repeat `fields` for more: `size`,\n`modified`, and `git` for git's status inside a working tree.",
         "operationId": "files_list_api_files_get",
         "parameters": [
           {
@@ -3674,6 +3726,66 @@
           }
         },
         "summary": "Files List"
+      }
+    },
+    "/api/files/paths": {
+      "get": {
+        "description": "The paths below a Directory, read now, as `files paths --json`: to find files by name.\n\n`path` is absolute. Hidden ones too unless `hidden` is false; those git ignores only with\n`ignored`. At most `files.max_paths`, found within `files.search_seconds`; `stopped` says\nwhich ended it, if either.",
+        "operationId": "files_paths_api_files_paths_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hidden",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Hidden",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ignored",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Ignored",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathsJson"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorJson"
+                }
+              }
+            },
+            "description": "Not a success: the error"
+          }
+        },
+        "summary": "Files Paths"
       }
     },
     "/api/history": {

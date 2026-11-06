@@ -18,7 +18,9 @@ hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--s
                      | show <id> | kinds
 hephaistos observe [clones] [--clone <path>]…
 hephaistos scan [dir] [--depth <n>] [-v] [--yes] [--import-history]
-hephaistos files [dir] [--fields size,modified,git] [--json]
+hephaistos files list [dir] [--fields size,modified,git] [--json]
+                 | search <text> [dir] [--case] [--word] [--regex] [--no-hidden] [--ignored] [--json]
+                 | paths [dir] [--no-hidden] [--ignored] [--json]
 hephaistos db tables | dump <table> [-c <column>]… [--offset <n>] [--reverse] [--table|--blocks]
                                         [--short-ids]
 hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process cli|daemon]
@@ -98,7 +100,7 @@ A clone matching several Repositories, or whose new Repository's name is taken, 
 
 ## files
 
-`files` lists what a directory holds, by name, as the GUI's Explorer asks for it: one directory, not what is below its directories.
+`files list` lists what a directory holds, by name, as the GUI's Explorer asks for it: one directory, not what is below its directories.
 It lists any directory this user may, not only Checkouts, hidden entries too.
 Names and kinds come with the listing; `--fields` asks for more, as each costs more: `size` and `modified` a `stat` each, and a folder's size, its number of entries, a listing of it; `git` one `git status` of the directory, inside a working tree.
 git's letters are shown as `git status --short` shows them, staged then not: `M` modified, `A` added, `R` renamed, `U` unmerged, `??` untracked, `!!` ignored; `*` marks directories with changes below them.
@@ -106,6 +108,15 @@ Inside a folder git reports as a whole, untracked or ignored, as `build/`, every
 The JSON has both letters (`index`, `worktree`) and the one a GUI shows (`status`): unmerged, else the working tree's, else the index's, as VS Code chooses.
 A path git reports twice, staged as deleted and untracked again (after `git rm --cached`), has the staged letters; where `git status` fails, e.g. as too slow, the entries come without letters.
 It lists the first `files.max_entries` entries by name and counts the rest.
+
+`files search` finds files and folders below a directory by name, as the Explorer's find row does, one path below the directory per line, a folder's ending in `/`.
+It matches what is typed within names, case ignored; with a `/` in it, within paths below the directory.
+`--case` matches case, `--word` whole words, `--regex` takes it as a regular expression.
+These are Python's, unlike the GUI's, which are JavaScript's made to know words in any script: Python's `\w` leaves out combining marks (`é` written as `e` and an accent) and connectors other than `_`.
+`files paths` lists every path it looks through, unmatched.
+Hidden ones come too, as `files list` and the Explorer show them, unless `--no-hidden`; inside working trees, git lists them, leaving out what it ignores unless `--ignored`, then a walk does.
+Neither goes into `.git` folders below the directory, nor follows symlinks.
+It stops at `files.max_paths` paths, or after `files.search_seconds`, saying so.
 
 ## event
 

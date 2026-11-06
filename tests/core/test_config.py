@@ -83,6 +83,8 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "observe.workers": config.DEFAULT,
         "scan.depth": config.DEFAULT,
         "files.max_entries": config.DEFAULT,
+        "files.max_paths": config.DEFAULT,
+        "files.search_seconds": config.DEFAULT,
         "watcher.interval": config.DEFAULT,
         "server.enabled": config.DEFAULT,
         "server.port": config.DEFAULT,

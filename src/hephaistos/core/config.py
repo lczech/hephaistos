@@ -137,6 +137,8 @@ class Files:
     """The section [files]."""
 
     max_entries: Annotated[int, AtLeast(1)]
+    max_paths: Annotated[int, AtLeast(1)]
+    search_seconds: Annotated[float, Above(0)]
 
 
 @dataclass(frozen=True)

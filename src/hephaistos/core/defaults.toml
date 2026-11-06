@@ -37,6 +37,11 @@ depth = 3
 # Entries a Directory's listing gives, by name, in `hephaistos files` and the GUI;
 # the rest are counted.
 max_entries = 5000
+# Paths a search by name lists below a Directory, in `hephaistos files search` and the GUI's
+# Explorer; it stops there, saying so.
+max_paths = 200000
+# Seconds a search may take to list them; it stops then, saying so.
+search_seconds = 10.0
 
 # Daemon parts: `hephaistos daemon run` runs those enabled.
 

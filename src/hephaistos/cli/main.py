@@ -62,13 +62,13 @@ app.add_typer(worktree.app, name="worktree")
 app.add_typer(event.app, name="event")
 app.add_typer(db.app, name="db")
 app.add_typer(log.app, name="log")
+app.add_typer(files.app, name="files")
 app.add_typer(config_command.app, name="config")
 app.add_typer(daemon.app, name="daemon")
 app.add_typer(desktop.app, name="desktop")
 app.command()(observe.observe)
 app.command()(scan.scan)
 app.command()(browse.browse)
-app.command("files")(files.files_)
 
 
 def without_debug(args: list[str]) -> tuple[list[str], bool]:

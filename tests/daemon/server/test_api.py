@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import shutil
 import uuid
@@ -255,7 +256,7 @@ def test_files_as_the_cli_lists_them(client: TestClient, repo: Path) -> None:
     (repo / "new.txt").write_text("hello\n")
     response = client.get("/api/files", params={"path": str(repo), "fields": ["git", "size"]})
     assert response.status_code == 200, response.text
-    assert response.json() == _cli("files", str(repo), "--fields", "size,git")
+    assert response.json() == _cli("files", "list", str(repo), "--fields", "size,git")
     entries = {entry["name"]: entry for entry in response.json()["entries"]}
     assert (entries["new.txt"]["status"], entries["new.txt"]["size"]) == ("?", 6)
     assert entries["new.txt"]["modified"] is None  # not asked for
@@ -275,6 +276,47 @@ def test_files_refused(
     response = client.get("/api/files", params=params)
     assert response.status_code == status
     assert error in response.json()["error"]
+
+
+def test_file_paths_as_the_cli_lists_them(client: TestClient, repo: Path) -> None:
+    (repo / "src").mkdir()
+    (repo / "src" / "new.txt").write_text("hello\n")
+    response = client.get("/api/files/paths", params={"path": str(repo)})  # hidden ones too
+    assert response.status_code == 200, response.text
+    assert response.json() == _cli("files", "paths", str(repo))
+    assert "src/new.txt" in response.json()["paths"]
+    assert response.json()["stopped"] is None
+
+
+def test_file_paths_hidden_and_ignored_as_asked(client: TestClient, repo: Path) -> None:
+    (repo / ".gitignore").write_text("build/\n")
+    (repo / "build").mkdir()
+    (repo / "build" / "out").write_text("")
+    (repo / ".env").write_text("")
+
+    def listed(**params: str) -> list[str]:
+        response = client.get("/api/files/paths", params={"path": str(repo), **params})
+        assert response.status_code == 200, response.text
+        return response.json()["paths"]
+
+    assert ".env" in listed()  # hidden ones by default, as the Explorer shows them
+    assert "build/out" not in listed()
+    assert ".env" not in listed(hidden="false")
+    assert "build/out" in listed(ignored="true")
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root may list anything")
+def test_file_paths_refused(client: TestClient, tmp_path: Path) -> None:
+    response = client.get("/api/files/paths", params={"path": "/nowhere/at/all"})
+    assert response.status_code == 404
+    assert "nothing is at" in response.json()["error"]
+    assert client.get("/api/files/paths", params={"path": "relative"}).status_code == 400
+    closed = tmp_path / "closed"
+    closed.mkdir(mode=0o000)
+    try:
+        assert client.get("/api/files/paths", params={"path": str(closed)}).status_code == 403
+    finally:
+        closed.chmod(0o700)
 
 
 def test_changes_of_a_clone_and_a_worktree(client: TestClient, repo: Path) -> None:

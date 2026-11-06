@@ -30,7 +30,9 @@ ROUTES = {
     "log show": "/api/log",
     "config show": "/api/config",
     "daemon status": "/api/daemon",
-    "files": "/api/files",
+    "files list": "/api/files",
+    "files paths": "/api/files/paths",
+    "files search": "/api/files/paths",  # matched by the GUI itself, as typed
 }
 
 

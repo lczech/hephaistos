@@ -31,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import changes, files, git, history, logs
+from hephaistos.core.utils import changes, file_search, files, git, history, logs
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 24)
+API_VERSION = ApiVersion(0, 25)
 
 
 class Ref(TypedDict):
@@ -922,6 +922,30 @@ def files_json(found: files.Listing) -> FilesJson:
             for entry in found.entries
         ],
         count=found.count,
+    )
+
+
+class PathsJson(TypedDict):
+    """The paths below a Directory, by name, a folder's ending in `/`.
+
+    At most `files.max_paths`, found within `files.search_seconds`. `stopped` says why there may
+    be more: `max_paths` listed, or `time` up; `limit`, the number of paths or seconds it stopped
+    at.
+    """
+
+    path: str
+    paths: list[str]
+    stopped: file_search.Stop | None
+    limit: float | None
+
+
+def paths_json(found: file_search.Paths, paths: Sequence[str] | None = None) -> PathsJson:
+    """The paths below a Directory, as the API gives them; or only `paths` of them, matched."""
+    return PathsJson(
+        path=str(found.path),
+        paths=list(found.paths if paths is None else paths),
+        stopped=found.stopped,
+        limit=found.limit,
     )
 
 
