@@ -14,7 +14,7 @@ import { Path } from "../../components/files/Path";
 import { Indented, NoteText, TreeChevron, TreeGuides } from "../../components/list/TreeCells";
 import { listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
-import { sizeText } from "../../text";
+import { numberText, plural, sizeParts } from "../../text";
 import { letterName } from "../comparison/rows";
 import styles from "./ExplorerView.module.css";
 import type { Entry } from "./rows";
@@ -113,6 +113,27 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
   );
 }
 
+/**
+ * An entry's size: a file's amount, then its unit; a folder's number of entries, then `items`;
+ * either in a box as wide as the widest, so that all numbers line up at their end.
+ */
+function SizeCell({ entry }: { entry: Shown["entry"] }) {
+  if (entry.items !== null) {
+    return (
+      <>
+        {numberText(entry.items)} <span className={styles.unit}>{plural(entry.items, "item")}</span>
+      </>
+    );
+  }
+  if (entry.size === null) return "";
+  const [amount, unit] = sizeParts(entry.size);
+  return (
+    <>
+      {amount} <span className={styles.unit}>{unit}</span>
+    </>
+  );
+}
+
 /** git's letter for an entry, in its colour, or a dot for changes below a folder. */
 function GitCell({ row }: { row: Shown }) {
   const { status, changed, ignored } = row.entry;
@@ -175,7 +196,8 @@ export function explorerColumns(looks: Looks) {
       cell: ({ row }) => (row.original.type === "entry" ? <GitCell row={row.original} /> : ""),
     }),
     column.accessor(
-      (entry) => (entry.type === "entry" ? (entry.entry.size ?? undefined) : undefined),
+      (entry) =>
+        entry.type === "entry" ? (entry.entry.size ?? entry.entry.items ?? undefined) : undefined,
       {
         id: "size",
         header: "size",
@@ -183,11 +205,8 @@ export function explorerColumns(looks: Looks) {
         sortDescFirst: true,
         size: 80,
         meta: { align: "right", figures: true, ...COSTLY[0]?.meta },
-        cell: ({ row }) => {
-          const entry = row.original;
-          const size = entry.type === "entry" ? entry.entry.size : null;
-          return size === null ? "" : sizeText(size);
-        },
+        cell: ({ row }) =>
+          row.original.type === "entry" ? <SizeCell entry={row.original.entry} /> : "",
       },
     ),
     column.accessor(

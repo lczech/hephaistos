@@ -53,6 +53,7 @@ def test_gives_sizes_and_times_when_asked(tmp_path: Path) -> None:
     entries = _by_name(found)
     assert entries["README"].size == len("hello\n")
     assert entries["src"].size is None  # only files have one
+    assert (entries["src"].items, entries["to-src"].items, entries["README"].items) == (1, 1, None)
     readme = tmp_path / "d" / "README"
     assert entries["README"].modified is not None
     assert entries["README"].modified.timestamp() == pytest.approx(readme.stat().st_mtime)

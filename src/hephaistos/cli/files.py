@@ -92,6 +92,8 @@ def files_(
 
     def cell(entry: Entry, field: Field) -> str:
         if field == "size":
+            if entry.items is not None:
+                return number_text(entry.items, "item")
             return "" if entry.size is None else size_text(entry.size)
         if field == "modified":
             return "" if entry.modified is None else formatted(entry.modified)

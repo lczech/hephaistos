@@ -2,8 +2,9 @@
 
 One Directory at a time, not what is below its directories: a tree asks for each as it opens.
 Names and kinds come with the listing itself; other fields only when asked for, as they cost
-more: sizes and times a `stat` each, which network filesystems make slow, and git's status a
-`git status` of the Directory, in a working tree. Only reads, as everywhere in the Core.
+more: sizes and times a `stat` each, which network filesystems make slow; a folder's size, its
+number of entries, a listing of it; and git's status a `git status` of the Directory, in a
+working tree. Only reads, as everywhere in the Core.
 """
 
 import os
@@ -48,6 +49,7 @@ class Entry:
     target: str | None = None  # a symlink's, as it reads
     to: Literal["file", "directory", "other"] | None = None  # a symlink's, followed; None if broken
     size: int | None = None  # in bytes, a file's
+    items: int | None = None  # a folder's entries, with `size`; None if it cannot be listed
     modified: datetime | None = None
     status: str | None = (
         None  # git's letter shown: U unmerged, else the working tree's, else the index's
@@ -77,6 +79,20 @@ def _kind(mode: int) -> Kind:
     if stat.S_ISDIR(mode):
         return "directory"
     return "file" if stat.S_ISREG(mode) else "other"
+
+
+def _holds(kind: Kind, item: os.DirEntry[str]) -> bool:
+    """Whether an entry holds others: a folder, or a symlink to one."""
+    return kind == "directory" or (kind == "symlink" and Path(item.path).is_dir())
+
+
+def _items(path: str) -> int | None:
+    """How many entries a folder holds, as its size; None if it cannot be listed."""
+    try:
+        with os.scandir(path) as found:
+            return sum(1 for _ in found)
+    except OSError:
+        return None
 
 
 def _target(path: Path) -> str | None:
@@ -229,6 +245,7 @@ def _entry(item: os.DirEntry[str], fields: frozenset[Field], statuses: _Git | No
         target=_target(Path(item.path)) if symlink else None,
         to=_points_to(Path(item.path)) if symlink else None,
         size=own.st_size if own and "size" in fields and kind == "file" else None,
+        items=_items(item.path) if "size" in fields and _holds(kind, item) else None,
         modified=(
             datetime.fromtimestamp(own.st_mtime, UTC) if own and "modified" in fields else None
         ),

@@ -1041,6 +1041,17 @@
             ],
             "title": "Index"
           },
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
           "kind": {
             "$ref": "#/components/schemas/Kind"
           },
@@ -1127,6 +1138,7 @@
           "target",
           "to",
           "size",
+          "items",
           "modified",
           "status",
           "index",
@@ -2543,7 +2555,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.23"
+    "version": "0.24"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -42,18 +42,29 @@ export function nameOrId({ name, id }: { name: string | null; id: string }): str
   return name ?? shortId(id);
 }
 
-/** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`: as the CLI's `size_text`. */
-export function sizeText(bytes: number): string {
+/**
+ * A size in bytes, as its amount and unit: `512`, `B`; `3.4`, `kB`; `12`, `kB`; `1.2`, `MB`. In
+ * the unit its rounded amount stays below 1000 in: 999,600 bytes are `1.0` `MB`, not `1000` `kB`.
+ */
+export function sizeParts(bytes: number): [string, string] {
+  if (bytes < 1000) return [`${bytes}`, "B"];
   const units: [number, string][] = [
-    [1e9, "GB"],
-    [1e6, "MB"],
     [1e3, "kB"],
+    [1e6, "MB"],
   ];
   for (const [size, unit] of units) {
-    if (bytes >= size) {
-      const value = bytes / size;
-      return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${unit}`;
-    }
+    if (Math.round(bytes / size) < 1000) return [amount(bytes / size), unit];
   }
-  return `${bytes} B`;
+  return [amount(bytes / 1e9), "GB"];
+}
+
+/** One decimal below 10 (as rounded: 9.96 is `10`), else whole: `3.4`, `12`. */
+function amount(value: number): string {
+  const tenth = value.toFixed(1);
+  return Number(tenth) < 10 ? tenth : `${Math.round(value)}`;
+}
+
+/** A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`: as the CLI's `size_text`. */
+export function sizeText(bytes: number): string {
+  return sizeParts(bytes).join(" ");
 }

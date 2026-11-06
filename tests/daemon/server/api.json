@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 23
+    "minor": 24
   },
   "shapes": {
     "components": {
@@ -1046,6 +1046,17 @@
               ],
               "title": "Index"
             },
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Items"
+            },
             "kind": {
               "$ref": "#/components/schemas/Kind"
             },
@@ -1132,6 +1143,7 @@
             "target",
             "to",
             "size",
+            "items",
             "modified",
             "status",
             "index",

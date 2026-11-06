@@ -41,6 +41,14 @@ def test_shows_the_fields_asked_for(tmp_path: Path) -> None:
         "B",
         "??",
     ]
+    (repo / "docs").mkdir()
+    (repo / "docs" / "a.md").write_text("")
+    folders = runner.invoke(app, ["files", str(repo), "--fields", "size"]).output.split("\n")
+    assert next(line for line in folders if line.startswith("docs/")).split() == [
+        "docs/",
+        "1",
+        "item",
+    ]
 
 
 @pytest.mark.usefixtures("paths")
@@ -72,6 +80,7 @@ def test_json_lists_entries_and_their_count(tmp_path: Path) -> None:
         "target": "src",
         "to": "directory",
         "size": None,
+        "items": None,
         "modified": None,
         "status": None,
         "index": None,

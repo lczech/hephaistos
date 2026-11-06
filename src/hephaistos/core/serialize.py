@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 23)
+API_VERSION = ApiVersion(0, 24)
 
 
 class Ref(TypedDict):
@@ -880,6 +880,7 @@ class FileEntryJson(TypedDict):
     target: str | None  # a symlink's, as it reads
     to: Literal["file", "directory", "other"] | None  # what a symlink points to; null if broken
     size: int | None  # in bytes, a file's
+    items: int | None  # a folder's entries, with `size`; null if it cannot be listed
     modified: str | None
     status: str | None  # git's letter shown: U unmerged, else the working tree's, else the index's
     index: str | None  # git's letter for what is staged: M, T, A, R, D; ? untracked
@@ -910,6 +911,7 @@ def files_json(found: files.Listing) -> FilesJson:
                 target=entry.target,
                 to=entry.to,
                 size=entry.size,
+                items=entry.items,
                 modified=None if entry.modified is None else entry.modified.isoformat(),
                 status=entry.status,
                 index=entry.index,

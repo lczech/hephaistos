@@ -69,3 +69,11 @@
   color: var(--text-muted);
   padding-inline: var(--space-half);
 }
+
+/* A size's unit, `kB`, or a folder's `items`, in a box as wide as the widest of them, so that all
+ * numbers line up at their end. */
+.unit {
+  display: inline-block;
+  min-width: 5ch;
+  text-align: left;
+}

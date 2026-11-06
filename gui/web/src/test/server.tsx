@@ -210,6 +210,7 @@ export function fileEntry(
     target: null,
     to: null,
     size: null,
+    items: null,
     modified: null,
     status: null,
     index: null,

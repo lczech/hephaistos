@@ -56,4 +56,14 @@ describe("sizeText", () => {
       "5.0 GB",
     ]);
   });
+
+  it("gives sizes in the unit they round to", () => {
+    expect([999, 9_960, 999_499, 999_600, 9_960_000].map(sizeText)).toEqual([
+      "999 B",
+      "10 kB",
+      "999 kB",
+      "1.0 MB",
+      "10 MB",
+    ]);
+  });
 });

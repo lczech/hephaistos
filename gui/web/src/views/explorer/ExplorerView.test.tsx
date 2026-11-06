@@ -46,6 +46,11 @@ function Explorer({ initial = {} }: { initial?: Params }) {
   return <InPanel view={ExplorerView} kind="explorer" params={initial} />;
 }
 
+/** The size cell saying `text`, its amount and unit together, if any. */
+const sizeCell = (text: string) =>
+  [...document.querySelectorAll("[data-column=size]")].find((cell) => cell.textContent === text) ??
+  null;
+
 const names = () =>
   screen
     .getAllByRole("listitem")
@@ -101,7 +106,7 @@ describe("the Explorer View", () => {
 
   it("colours names by git, its letters spelled out, asking for sizes and times only shown", async () => {
     const git: Record<string, Partial<Schemas["FileEntryJson"]>> = {
-      proj: { kind: "directory", changed: true },
+      proj: { kind: "directory", changed: true, items: 3 },
       "notes.md": {
         status: "M",
         index: "A",
@@ -123,6 +128,7 @@ describe("the Explorer View", () => {
           ...found,
           ...(fields.has("git") ? git[found.name] : {}),
           size: fields.has("size") ? (git[found.name]?.size ?? null) : null,
+          items: fields.has("size") ? (git[found.name]?.items ?? null) : null,
           modified: fields.has("modified") ? (git[found.name]?.modified ?? null) : null,
         }));
         return json({ path: "/home/me", top: "/home/me", entries, count: entries.length });
@@ -138,13 +144,14 @@ describe("the Explorer View", () => {
     expect(screen.getByTitle("changes below it")).toHaveTextContent("•");
     expect(screen.getByText(".bashrc").closest("[data-ignored]")).not.toBeNull();
     expect(asked).toEqual(["", "git"]); // sizes and times hidden: not asked for
-    expect(screen.queryByText("3.4 kB")).toBeNull();
+    expect(sizeCell("3.4 kB")).toBeNull();
     unmount();
 
     localStorage.setItem("hephaistos.lists.explorer.hidden", "[]"); // all columns shown
     forgetKept();
     renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
-    expect(await screen.findByText("3.4 kB")).toBeInTheDocument();
+    await waitFor(() => expect(sizeCell("3.4 kB")).not.toBeNull());
+    expect(sizeCell("3 items")).not.toBeNull(); // a folder's entries
     expect(asked.at(-1)).toBe("git,size,modified");
   });
 

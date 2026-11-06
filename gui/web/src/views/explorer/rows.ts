@@ -45,7 +45,7 @@ const ORDER: Order<FileEntry> = {
   rank: (entry) => (opens(entry) ? 0 : 1), // folders first
   values: {
     name: (entry) => entry.name,
-    size: (entry) => entry.size ?? undefined,
+    size: (entry) => entry.size ?? entry.items ?? undefined, // a folder's: its entries
     modified: (entry) => entry.modified ?? undefined, // ISO 8601, so in order as text
   },
   fallback: "name",
