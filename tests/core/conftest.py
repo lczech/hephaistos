@@ -20,22 +20,22 @@ def kill_server(keeper: TmuxKeeper) -> None:
 
 
 @pytest.fixture
-def keeper() -> Iterator[TmuxKeeper]:
-    """A keeper on this test's own socket (its HEPHAISTOS_HOME gives it one), without systemd
+def keeper(paths: Paths) -> Iterator[TmuxKeeper]:
+    """A Keeper on this test's own socket (its HEPHAISTOS_HOME gives it one), without systemd
     (the tests' systemctl fails); its server ended afterwards."""
-    found = TmuxKeeper.from_settings(Paths.from_environment())
+    found = TmuxKeeper.from_settings(paths)
     yield found
     kill_server(found)
 
 
 @pytest.fixture
-def systemd_keeper(monkeypatch: pytest.MonkeyPatch) -> Iterator[TmuxKeeper]:
-    """A keeper with the real systemd user manager; skips the test where there is none."""
+def systemd_keeper(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> Iterator[TmuxKeeper]:
+    """A Keeper with the real systemd user manager; skips the test where there is none."""
     fake = Path(os.environ["PATH"].split(os.pathsep)[0])  # the tests' failing systemctl
     assert (fake / "systemctl").exists()
     monkeypatch.setenv("PATH", os.environ["PATH"].removeprefix(f"{fake}{os.pathsep}"))
     if scopes.detect() is None:
         pytest.skip("needs systemd's user manager")
-    found = TmuxKeeper.from_settings(Paths.from_environment())
+    found = TmuxKeeper.from_settings(paths)
     yield found
     kill_server(found)

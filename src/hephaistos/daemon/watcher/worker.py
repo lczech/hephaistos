@@ -20,6 +20,7 @@ from multiprocessing.process import BaseProcess
 
 from hephaistos.core import config
 from hephaistos.core.observers import clones as observer
+from hephaistos.core.observers import terminals
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import DatabaseBusyError, HephaistosError
 from hephaistos.core.utils.paths import Paths
@@ -42,6 +43,7 @@ class Done:
     worktrees: int
     updated: int  # Checkouts whose State changed
     skipped: int  # Clones moved, unregistered or observed by another process meanwhile
+    terminals: int = 0  # open; 0 also where they couldn't be observed
 
 
 @dataclass(frozen=True)
@@ -72,10 +74,11 @@ def _lower_priority() -> None:
 
 
 def observed(paths: Paths) -> Done | PassFailed:
-    """Observes this Machine's Clones, retrying while the database is busy."""
+    """Observes this Machine's Clones, then its Terminals, retrying while the database is busy."""
     for delay in (*BUSY_RETRY_DELAYS, None):
         try:
             result = observer.observe(paths)
+            changes = terminals.observe(paths).changes
         except DatabaseBusyError as error:
             if delay is None:
                 return PassFailed(str(error))
@@ -93,6 +96,7 @@ def observed(paths: Paths) -> Done | PassFailed:
                 result.worktrees,
                 result.updated,
                 result.skipped,
+                0 if changes is None else changes.open,
             )
     raise AssertionError  # the last delay is None
 

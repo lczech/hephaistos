@@ -16,7 +16,7 @@ from hephaistos.core.db.values import Decoder, ValueType
 from hephaistos.core.events import events
 from hephaistos.core.registry import clones, filesystems, machines, mounts, repositories
 from hephaistos.core.state import clones as clone_states
-from hephaistos.core.state import worktrees
+from hephaistos.core.state import terminals, worktrees
 from hephaistos.core.utils.errors import HephaistosError
 
 DECODERS: dict[Table, Mapping[str, Decoder]] = {
@@ -28,6 +28,7 @@ DECODERS: dict[Table, Mapping[str, Decoder]] = {
     Table.REGISTRY_CLONES: clones.DECODERS,
     Table.STATE_CLONES: clone_states.DECODERS,
     Table.STATE_WORKTREES: worktrees.DECODERS,
+    Table.STATE_TERMINALS: terminals.DECODERS,
     Table.EVENTS: events.DECODERS,
 }
 

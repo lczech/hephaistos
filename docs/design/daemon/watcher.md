@@ -10,6 +10,7 @@ With interval 0, it passes only when asked.
 Passes never overlap.
 A request waits for a pass that starts after it arrives, so that the pass sees what the user just did.
 Requests arriving during a pass share the next one.
+Each pass observes the Clones, then the Terminals; one logs how many of each.
 
 ## The worker
 

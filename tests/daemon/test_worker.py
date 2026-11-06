@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from hephaistos.core.observers import clones as observer
+from hephaistos.core.observers import terminals
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import DatabaseBusyError
 from hephaistos.core.utils.paths import Paths
@@ -123,6 +124,11 @@ def test_a_busy_database_is_retried(paths: Paths, monkeypatch: pytest.MonkeyPatc
         return observer.Result([], 2, 0, 3, 1)
 
     monkeypatch.setattr(observer, "observe", busy)
+
+    def no_terminals(_: Paths) -> terminals.Result:
+        return terminals.Result(None)
+
+    monkeypatch.setattr(terminals, "observe", no_terminals)
     assert worker.observed(paths) == Done(0, 2, 3, 1, 0)
     attempts.clear()
 

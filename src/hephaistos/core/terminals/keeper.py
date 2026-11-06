@@ -33,8 +33,9 @@ class NoSuchSessionError(KeeperError):
 class Session:
     """A Terminal as its Keeper sees it at one moment."""
 
-    key: str  # the keeper's own ID for it, e.g. tmux's `$3`
-    terminal_id: uuid.UUID | None  # ours; None until adopted
+    key: str  # the Keeper's own ID for it, e.g. tmux's `$3`
+    terminal_id: uuid.UUID | None  # ours; None until adopted, or if `id_text` isn't one
+    id_text: str  # as the Keeper holds it: empty until adopted
     name: str
     directory: Path  # where it started
     current_directory: Path | None  # where its foreground process is; None if unknown
@@ -51,6 +52,10 @@ class Keeper(Protocol):
 
     def check(self) -> None:
         """Raises KeeperError unless the Keeper can run here, e.g. a tool missing or too old."""
+        ...
+
+    def running(self) -> bool:
+        """Whether its server runs: if not, it crashed, was killed, or the Machine rebooted."""
         ...
 
     def sessions(self) -> list[Session]:
@@ -73,8 +78,13 @@ class Keeper(Protocol):
         """
         ...
 
-    def adopt(self, name: str, terminal_id: uuid.UUID) -> None:
-        """Gives a session found without an ID, e.g. one started by hand, this one."""
+    def adopt(self, session: Session, terminal_id: uuid.UUID) -> uuid.UUID | None:
+        """Gives a session `terminal_id`, unless its ID changed since `session` was listed.
+
+        For a session found without an ID, e.g. one started by hand, or with one that isn't
+        valid or is another's. Returns the ID it has then, which another process may have given
+        it meanwhile; None if it is gone.
+        """
         ...
 
     def rename(self, name: str, new_name: str) -> None:

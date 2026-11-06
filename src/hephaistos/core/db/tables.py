@@ -34,6 +34,7 @@ class Table(StrEnum):
     REGISTRY_CLONES = "registry_clones"
     STATE_CLONES = "state_clones"
     STATE_WORKTREES = "state_worktrees"
+    STATE_TERMINALS = "state_terminals"
     EVENTS = "events"
 
     @property

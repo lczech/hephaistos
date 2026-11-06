@@ -1,6 +1,6 @@
 # Terminals
 
-How the Core keeps Terminals alive ([ADR 002](../decisions/002-technology-stack.md)).
+How the Core keeps Terminals alive and observes them ([ADR 002](../decisions/002-technology-stack.md)).
 
 ## The Keeper
 
@@ -32,6 +32,7 @@ It makes tmux a plain terminal:
 - `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`);
 - extended keys (e.g. Shift+Enter) and focus events;
 - a short escape time, so Esc doesn't lag;
+- the server staying after its last session, so that no server means it crashed or was killed;
 - `history-limit` from `terminals.history`;
 - none of tmux's keys but Ctrl+B d (detach), Ctrl+B [ and PageUp (copy mode), and Ctrl+B Ctrl+B (a Ctrl+B for the program).
 
@@ -58,7 +59,7 @@ One `list-panes -a` lists all sessions, each as its first pane, counting the oth
 tmux prints paths as they are, tabs and newlines included; newer versions write other control characters as octal escapes.
 So fields are separated by a tab, a Unit Separator and a tab, escaped or not, and each pane ends with a Record Separator.
 A pane whose fields don't add up is skipped and logged, never misread.
-Without a server, there are no sessions; the server ends with its last one.
+Without a server, there are no sessions.
 
 ### Killing
 
@@ -71,3 +72,29 @@ What ignores SIGHUP outlives it.
 Terminals need tmux 3.2a or later; an older one or none fails with a message naming `terminals.tmux.path`.
 A version we can't read, e.g. `master`, counts as new enough, and is logged.
 The tests run with every minor version since 3.2a ([development](../development.md#tests)).
+
+## Observing
+
+Each Machine stores its Terminals in `state_terminals` ([data](data.md)), as the Keeper last showed them; the Watcher observes them in each pass.
+The Keeper runs outside any transaction, then one write session compares its sessions with the rows.
+
+A Terminal is **open** while its session runs, and **lost** once it can't run any more:
+- its session gone, the server running in the same boot: it ended, e.g. its shell exited, and its row goes;
+- the server gone in the same boot: it crashed or was killed, so its Terminals are lost;
+- another boot (Linux's boot ID): they are lost too.
+
+Lost ones keep their row and name, to be restored with both, or killed.
+Terminals record no Events ([ADR 001](../decisions/001-data-ownership.md)).
+
+A session without an ID, e.g. one started by hand on our socket, is adopted: it gets one and a row.
+So does one whose ID isn't valid, or is another session's.
+One named like a lost Terminal takes that one's ID, so that `tmux -L hephaistos new -s api` after a reboot brings `api` back.
+tmux compares and sets the ID in one command, so two processes adopting at once agree on it.
+
+Names are unique per Machine, lost Terminals included.
+A Terminal renamed by hand to another's name takes it; the other moves to a free name, e.g. `api-1`.
+Names hephaistos gives have ASCII letters, digits, `-` and `_`, at most 64, not starting with `-`; adopted ones keep tmux's name, whatever it is.
+A new Terminal's default name is its directory's, numbered from 1: `hephaistos-1`, `hephaistos-2`.
+
+Without a working Keeper, e.g. without tmux, a Machine without Terminals is no news; with some, it is logged, and their rows stay as they were, their age showing it.
+

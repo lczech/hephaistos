@@ -88,6 +88,8 @@ _ESCAPED = {"\t\\037\t": _SEPARATOR, "\\036\n": _END}  # as newer tmux prints th
 _NO_SERVER = re.compile(
     r"^(no server running on |error connecting to |server exited unexpectedly)", re.MULTILINE
 )
+#: How tmux says that a server has no sessions left, e.g. to `list-panes -a`.
+_NO_SESSIONS = re.compile(r"^no current target", re.MULTILINE)
 _NO_SESSION = re.compile(r"^(can't find session|no such session)", re.MULTILINE)
 _DUPLICATE = re.compile(r"^duplicate session", re.MULTILINE)
 
@@ -119,7 +121,8 @@ def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
 def config_text(history: int) -> str:
     """Our tmux config, ending with the marker that names it by its hash.
 
-    A plain terminal: no status bar, and none of tmux's keys but detaching and copy mode.
+    A plain terminal: no status bar, and none of tmux's keys but detaching and copy mode. The
+    server outlives its last session, so that no server means it crashed or was killed.
     """
     variables = " ".join(UPDATED_VARIABLES)
     body = f"""\
@@ -131,6 +134,7 @@ set-environment -g COLORTERM truecolor
 set -g extended-keys on
 set -g focus-events on
 set -s escape-time 10
+set -s exit-empty off
 set -g history-limit {history}
 set -g update-environment "{variables}"
 unbind -a -T prefix
@@ -314,6 +318,7 @@ class TmuxKeeper:
             session = Session(
                 key=key,
                 terminal_id=parsed_id,
+                id_text=terminal_id,
                 name=name,
                 directory=Path(directory),
                 current_directory=Path(current) if current else None,
@@ -334,7 +339,7 @@ class TmuxKeeper:
         self.check()
         result = self._client("list-panes", "-a", "-F", _FORMAT)
         if result.returncode != 0:
-            if _NO_SERVER.search(result.stderr):
+            if _NO_SERVER.search(result.stderr) or _NO_SESSIONS.search(result.stderr):
                 return []
             raise self._failed(["list-panes"], result)
         found: dict[str, Session] = {}
@@ -409,12 +414,35 @@ class TmuxKeeper:
             raise self._failed(args, result)
         return self.session(name)
 
-    def adopt(self, name: str, terminal_id: uuid.UUID) -> None:
-        """Gives a session found without an ID this one."""
+    def adopt(self, session: Session, terminal_id: uuid.UUID) -> uuid.UUID | None:
+        """Sets the session's ID; see `Keeper.adopt`.
+
+        tmux compares and sets in one command, so two processes adopting at once agree. The
+        session is named by its key, `$3`, single-quoted against tmux expanding `$`. An ID
+        set by hand to text that can't go into the comparison is replaced without one.
+        """
         self.check()
-        result = self._client("set-option", "-t", f"={name}:", ID_OPTION, str(terminal_id))
+        if not re.fullmatch(r"\$\d+", session.key):
+            raise KeeperError(f"tmux session key {session.key!r} isn't one")
+        command = f"set-option -t '{session.key}' {ID_OPTION} {terminal_id}"
+        if re.fullmatch(r"[\w-]*", session.id_text):
+            condition = f"#{{==:#{{{ID_OPTION}}},{session.id_text}}}"
+            setting = ["if-shell", "-F", "-t", session.key, condition, command]
+        else:
+            setting = ["set-option", "-t", session.key, ID_OPTION, str(terminal_id)]
+        shown = f"#{{session_id}} #{{{ID_OPTION}}}"
+        result = self._client(*setting, ";", "display-message", "-p", "-t", session.key, shown)
         if result.returncode != 0:
-            raise self._not_found(name, result) or self._failed(["set-option"], result)
+            if self._not_found(session.name, result):
+                return None
+            raise self._failed(["if-shell"], result)
+        key, _, found = result.stdout.strip().partition(" ")
+        if key != session.key:  # gone: tmux showed another session instead
+            return None
+        try:
+            return uuid.UUID(found)
+        except ValueError:
+            return None
 
     def rename(self, name: str, new_name: str) -> None:
         """Renames a session; see `Keeper.rename`."""
@@ -436,7 +464,7 @@ class TmuxKeeper:
             self._kill_hard(session)
         result = self._client("kill-session", "-t", f"={name}")
         if result.returncode != 0:
-            if force and (_NO_SESSION.search(result.stderr) or _NO_SERVER.search(result.stderr)):
+            if force and self._not_found(name, result):
                 return  # gone with its processes, as it should
             raise self._not_found(name, result) or self._failed(["kill-session"], result)
 
@@ -464,6 +492,8 @@ class TmuxKeeper:
         self, name: str, result: subprocess.CompletedProcess[str]
     ) -> NoSuchSessionError | None:
         """NoSuchSessionError if tmux found no such session, or no server at all."""
-        if _NO_SESSION.search(result.stderr) or _NO_SERVER.search(result.stderr):
+        if any(
+            pattern.search(result.stderr) for pattern in (_NO_SESSION, _NO_SESSIONS, _NO_SERVER)
+        ):
             return NoSuchSessionError(f"no terminal named {name}")
         return None

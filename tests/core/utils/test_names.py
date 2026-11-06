@@ -39,6 +39,25 @@ def test_names_outside_their_rules_are_refused(name: str) -> None:
         _NO_DOTS.check(name)
 
 
+_LETTER_FIRST = Names(
+    kind="test",
+    characters="a-z_-",
+    described="letters",
+    max_length=5,
+    first="a-z",
+    first_described="a letter",
+)
+
+
+def test_a_narrower_first_character() -> None:
+    assert _LETTER_FIRST.derived("_-_ab") == "ab"
+    assert _LETTER_FIRST.derived("--") is None
+    _LETTER_FIRST.check("a_-")
+    for name in ("-a", "_a"):
+        with pytest.raises(HephaistosError, match=r"at most 5, start with a letter$"):
+            _LETTER_FIRST.check(name)
+
+
 @pytest.mark.parametrize("name", [".", "..", "a/b", "x" * 101])
 def test_repository_names_outside_the_rules_are_refused(name: str) -> None:
     with pytest.raises(

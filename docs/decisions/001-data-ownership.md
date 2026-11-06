@@ -13,7 +13,7 @@ Every Machine keeps a full local copy of all data in its own database. The GUI o
 | Data | Written by | Sync rule |
 |---|---|---|
 | State: Checkouts' git status, Worktrees, Terminals, Agents | only its own Machine | newest snapshot wins |
-| Events: Agent started / waiting for input / ended / failed, Terminal created / closed, Clone registered, Worktree added / removed, Branch switched | only the Machine where they occurred; immutable | union |
+| Events: Agent started / waiting for input / ended / failed, Clone registered, Worktree added / removed, Branch switched | only the Machine where they occurred; immutable | union |
 | Registry: Repositories, their Clones, Clusters, Links, inbox read position, settings | any Machine | last write wins, per record |
 
 - Peers exchange everything they hold, so data spreads through whichever Machines are connected (e.g. laptop ↔ always-on Machine ↔ Cluster). Which Machines sync with each other is declared as [Links](../glossary.md) in the Registry.
@@ -27,7 +27,9 @@ Every Machine keeps a full local copy of all data in its own database. The GUI o
 ## Event sources
 
 Not exhaustive; for example:
-- **State changes**, found by comparing successive State snapshots: Branch switched, Terminal closed. These catch changes made outside our app.
+- **State changes**, found by comparing successive State snapshots: Branch switched. These catch changes made outside our app.
+
+Terminals record no Events: opening and ending them is routine, and their State shows what is open. Events for them may come with the inbox, e.g. one ended unexpectedly.
 - **Our own actions**: Clone registered, editor opened (although that might be too much to track every time - probably not needed).
 - **Pushed by Provider hooks**: Agent waiting for input, turn finished. These are moments a poll would miss.
 

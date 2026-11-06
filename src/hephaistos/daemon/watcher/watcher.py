@@ -36,6 +36,7 @@ def _log_pass(outcome: Done | PassFailed, duration: float, trigger: Trigger) -> 
         "worktrees": outcome.worktrees,
         "updated": outcome.updated,
         "skipped": outcome.skipped,
+        "terminals": outcome.terminals,
         "duration": duration,
         "trigger": trigger,
     }

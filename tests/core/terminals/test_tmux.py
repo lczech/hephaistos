@@ -53,11 +53,12 @@ def written(path: Path, lines: int = 1) -> str:
 
 
 def gone(pid: int) -> bool:
+    """Whether a process ended. A zombie counts: Ubuntu's tmux, built with systemd, sometimes
+    reaps a pane's process only when its next child ends."""
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] == "Z"
+    except FileNotFoundError:
         return True
-    return False
 
 
 @pytest.mark.parametrize(
@@ -174,10 +175,12 @@ def test_after_the_server_died(keeper: TmuxKeeper, tmp_path: Path) -> None:
         keeper.rename("api", "web")
 
 
-def test_the_server_ends_with_its_last_session(keeper: TmuxKeeper, tmp_path: Path) -> None:
+def test_the_server_outlives_its_last_session(keeper: TmuxKeeper, tmp_path: Path) -> None:
     new(keeper, "api", tmp_path)
     keeper.kill("api")
-    eventually(lambda: not keeper.running())
+    time.sleep(0.2)
+    assert keeper.running()
+    assert keeper.sessions() == []
 
 
 def test_concurrent_creators_share_one_server(keeper: TmuxKeeper, tmp_path: Path) -> None:
@@ -233,11 +236,39 @@ def test_control_characters_made_by_hand(keeper: TmuxKeeper, tmp_path: Path) -> 
 
 def test_adopt(keeper: TmuxKeeper, tmp_path: Path) -> None:
     tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
+    found = keeper.session("mine")
+    assert (found.terminal_id, found.id_text) == (None, "")
     terminal_id = uuid.uuid4()
-    keeper.adopt("mine", terminal_id)
+    assert keeper.adopt(found, terminal_id) == terminal_id
     assert keeper.session("mine").terminal_id == terminal_id
-    with pytest.raises(NoSuchSessionError):
-        keeper.adopt("other", terminal_id)
+
+
+def test_adopting_agrees_with_another_adopter(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
+    listed = keeper.session("mine")  # both listed it without an ID
+    first, second = uuid.uuid4(), uuid.uuid4()
+    assert keeper.adopt(listed, first) == first
+    assert keeper.adopt(listed, second) == first  # the other got there first
+
+
+@pytest.mark.parametrize("text", ["not-an-id", 'it\'s "odd" #{x}', "a b;c"])
+def test_adopting_replaces_an_id_that_isnt_one(
+    keeper: TmuxKeeper, tmp_path: Path, text: str
+) -> None:
+    tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
+    tmux(keeper, "set-option", "-t", "=mine:", "@hephaistos_id", text)
+    found = keeper.session("mine")
+    assert (found.terminal_id, found.id_text) == (None, text)
+    terminal_id = uuid.uuid4()
+    assert keeper.adopt(found, terminal_id) == terminal_id
+
+
+def test_adopting_a_session_gone(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(keeper, "other", tmp_path)  # keeps the server
+    tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
+    found = keeper.session("mine")
+    keeper.kill("mine")
+    assert keeper.adopt(found, uuid.uuid4()) is None
 
 
 def option(keeper: TmuxKeeper, name: str) -> str:
@@ -371,7 +402,6 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
     assert cgroup(server) not in (unit, cgroup(os.getpid()))
     assert cgroup(server).endswith(".scope")
     systemd_keeper.kill("api")
-    eventually(lambda: not systemd_keeper.running())
 
     def ended() -> bool:
         command = ["systemctl", "--user", "is-active", unit]

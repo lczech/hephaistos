@@ -118,6 +118,26 @@ CREATE TABLE state_worktrees (
 ) STRICT;
 CREATE UNIQUE INDEX state_worktrees_name ON state_worktrees (clone_id, name) WHERE removed = 0;
 
+CREATE TABLE state_terminals (
+    id                BLOB PRIMARY KEY CHECK (length(id) = 16),
+    name              TEXT NOT NULL CHECK (name <> ''),  -- the Keeper's; adopted ones may be any
+    directory         TEXT NOT NULL,  -- where it started
+    command           TEXT CHECK (  -- its arguments as a JSON list; NULL for a shell
+        command IS NULL OR CASE WHEN json_valid(command) THEN json_type(command) = 'array' ELSE 0 END
+    ),
+    status            TEXT NOT NULL CHECK (status IN ('open', 'lost')),
+    boot_id           TEXT NOT NULL CHECK (boot_id <> ''),  -- of the boot it last ran in
+    started_at        INTEGER NOT NULL,  -- milliseconds since 1970 by the Machine's clock
+    active_at         INTEGER NOT NULL,  -- likewise: its last input or output
+    current_directory TEXT,  -- of its foreground process; NULL if unknown
+    program           TEXT NOT NULL,  -- in its foreground, e.g. bash; last known while lost
+    clients           INTEGER NOT NULL CHECK (clients >= 0),  -- attached, e.g. Terminal emulators
+    panes             INTEGER NOT NULL CHECK (panes >= 1),  -- more if split outside hephaistos
+    observed_at       INTEGER NOT NULL,
+    observed_by       BLOB NOT NULL REFERENCES registry_machines (id)
+) STRICT;
+CREATE UNIQUE INDEX state_terminals_name ON state_terminals (observed_by, name);
+
 -- Events
 
 CREATE TABLE events (
