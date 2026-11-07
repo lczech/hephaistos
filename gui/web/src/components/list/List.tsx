@@ -1,4 +1,4 @@
-import { FlexRender, type ReactTable, type RowData } from "@tanstack/react-table";
+import type { ReactTable, RowData, Cell as TableCell } from "@tanstack/react-table";
 import { ChevronRight, FunnelX } from "lucide-react";
 import {
   type HTMLAttributes,
@@ -557,7 +557,7 @@ export function List<TData extends RowData>({
               second: false,
               node: still ? (
                 <Cell key={first.column.id} {...cellData(first.column)}>
-                  <FlexRender cell={first} />
+                  <CellContent cell={first} />
                 </Cell>
               ) : (
                 <Cell key={first.column.id} {...cellData(first.column)}>
@@ -579,7 +579,7 @@ export function List<TData extends RowData>({
                     }}
                     onAuxClick={view && middle}
                   >
-                    <FlexRender cell={first} />
+                    <CellContent cell={first} />
                   </button>
                 </Cell>
               ),
@@ -591,12 +591,12 @@ export function List<TData extends RowData>({
                   {actions && cell.column.columnDef.meta?.identifies ? (
                     <span className={styles.withActions}>
                       <span className={styles.named}>
-                        <FlexRender cell={cell} />
+                        <CellContent cell={cell} />
                       </span>
                       <span className={styles.actions}>{actions(row.original)}</span>
                     </span>
                   ) : (
-                    <FlexRender cell={cell} />
+                    <CellContent cell={cell} />
                   )}
                 </Cell>
               ),
@@ -919,6 +919,17 @@ function showWholeText(event: PointerEvent) {
   const text = cell.textContent?.trim() ?? "";
   if (text === "") cell.removeAttribute("title");
   else cell.title = text;
+}
+
+/**
+ * A cell's content: its column's `cell`, called. TanStack's `FlexRender` renders it as a component
+ * instead, whose type is new whenever a View builds its columns anew, e.g. on each render; React
+ * then mounts every cell again, dropping a selection, the focus or a tooltip in it. So a column's
+ * `cell` calls no hooks itself; the components it renders may.
+ */
+function CellContent<TData extends RowData>({ cell }: { cell: TableCell<ListFeatures, TData> }) {
+  const render = cell.column.columnDef.cell;
+  return typeof render === "function" ? render(cell.getContext()) : (render ?? null);
 }
 
 /** A row's square: the chevron that turns as its details open. */

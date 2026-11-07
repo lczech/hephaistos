@@ -461,6 +461,21 @@ describe("the History View", () => {
     expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
   });
 
+  it("keeps its rows' elements when its queries are fetched again", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj", { staged: 2 })])]),
+      "GET /api/history": () => json(page([HEAD])),
+    });
+    const { client } = renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    const uncommitted = await screen.findByText("Uncommitted: 2 staged");
+    const subject = screen.getByText("Commit 3");
+    await act(() => client.invalidateQueries()); // as a live hint does
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.getByText("Uncommitted: 2 staged")).toBe(uncommitted);
+    expect(screen.getByText("Commit 3")).toBe(subject);
+  });
+
   it("says when there are none", async () => {
     serveHistory(() => json({ head: null, branch: null, refs: [], commits: [], next: null }));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);

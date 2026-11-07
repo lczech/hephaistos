@@ -47,6 +47,15 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
 }
 
 describe("a list's rows", () => {
+  it("keep their cells' elements when the View builds its columns anew", () => {
+    const { rerender } = render(<Fruits act={vi.fn()} />);
+    const name = screen.getByText("pear");
+    const peel = screen.getAllByRole("button", { name: "Peel" })[1];
+    rerender(<Fruits act={vi.fn()} />); // another `act`: other columns, as on each render
+    expect(screen.getByText("pear")).toBe(name);
+    expect(screen.getAllByRole("button", { name: "Peel" })[1]).toBe(peel);
+  });
+
   it("open by a button named by the row, while their cells' buttons act on their own", async () => {
     const act = vi.fn();
     render(<Fruits act={act} />);

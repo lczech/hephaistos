@@ -21,6 +21,7 @@ A list that is part of a page, the Diff's untracked files, draws the rows near t
 ## Rows
 
 A row opens by the button in its first cell, or by a click anywhere else on it but on its cells' own buttons and links, and not by one selecting text.
+A row's cells update in place as their data comes again, so a selection, the focus or a tooltip in them stays: `List` calls each column's `cell`, which therefore calls no hooks itself, rather than rendering it as a component, which a View building its columns anew would make a new one each time.
 What a row opens, and how it shows that, is in [interaction](interaction.md#rows):
 - details below it;
 - the rows within it, where it folds (`getSubRows`, `data-depth`): the Changes View's groups, directories with changes, and new folders, whose files are asked for once opened;
