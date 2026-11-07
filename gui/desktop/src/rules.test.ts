@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { destination, type Key, keyAction } from "./rules.js";
+import { allowed, destination, type Key, keyAction } from "./rules.js";
 
 const SERVER = "http://127.0.0.1:8264";
 
@@ -12,6 +12,18 @@ describe("where the page may go", () => {
     expect(destination("file:///etc/passwd", SERVER)).toBe("none");
     expect(destination("vscode://file/x", SERVER)).toBe("none");
     expect(destination("not a url", SERVER)).toBe("none");
+  });
+});
+
+describe("what the page may ask for", () => {
+  it("is copying, for its own page only", () => {
+    expect(allowed("clipboard-sanitized-write", `${SERVER}/#token=abc`, SERVER)).toBe(true);
+    expect(allowed("clipboard-sanitized-write", SERVER, SERVER)).toBe(true); // checks give origins
+    expect(allowed("clipboard-sanitized-write", "http://127.0.0.1:8299/", SERVER)).toBe(false);
+    expect(allowed("clipboard-sanitized-write", SERVER, null)).toBe(false);
+    expect(allowed("clipboard-read", SERVER, SERVER)).toBe(false);
+    expect(allowed("media", SERVER, SERVER)).toBe(false);
+    expect(allowed("clipboard-sanitized-write", "not a url", SERVER)).toBe(false);
   });
 });
 

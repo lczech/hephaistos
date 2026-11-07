@@ -9,6 +9,7 @@ interface Props {
   address: Address;
   label: string; // what it shows: `The Daemon's log`
   named?: boolean; // the name of the kind after its icon, where there is room: `Log`
+  text?: string; // what it says after its icon instead: `3 warnings`
   icon?: LucideIcon; // instead of the icon of the kind
   quiet?: boolean; // greyed out, when what it shows needs no look, e.g. no changes
   note?: string; // after the label in its tooltip: `no changes`
@@ -18,7 +19,7 @@ interface Props {
  * A button with a kind's icon, in its family's colour, that shows a View, as a preview: in its Group, or beside it by the
  * middle button or Alt.
  */
-export function ViewLink({ address, label, named = false, icon, quiet, note }: Props) {
+export function ViewLink({ address, label, named = false, text, icon, quiet, note }: Props) {
   const open = useOpenView();
   const kind = viewKind(address.kind);
   const Icon = icon ?? viewIcon(address);
@@ -27,7 +28,7 @@ export function ViewLink({ address, label, named = false, icon, quiet, note }: P
       type="button"
       className={[
         styles.link,
-        named && styles.named,
+        (named || text !== undefined) && styles.named,
         quiet && styles.quiet,
         familyClass(address.kind),
       ]
@@ -39,7 +40,7 @@ export function ViewLink({ address, label, named = false, icon, quiet, note }: P
       aria-label={label}
     >
       {Icon ? <Icon className={familyIcon} aria-hidden="true" /> : "→"}
-      {named && kind?.name}
+      {text ?? (named && kind?.name)}
     </button>
   );
 }

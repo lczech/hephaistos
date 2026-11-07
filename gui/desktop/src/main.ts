@@ -15,7 +15,7 @@ import {
 } from "electron";
 import { onScreen, savedBounds } from "./bounds.js";
 import { Connector } from "./connecting.js";
-import { guard, refusePermissions, WEB_PREFERENCES } from "./guard.js";
+import { guard, limitPermissions, WEB_PREFERENCES } from "./guard.js";
 import { runner } from "./hephaistos.js";
 import { waitingPage } from "./page.js";
 import type { KeyAction } from "./rules.js";
@@ -137,7 +137,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on("window-all-closed", () => app.quit());
   void app.whenReady().then(() => {
     // The GUI needs no camera, notifications or the like; each gets allowed when a feature does.
-    refusePermissions(session.defaultSession);
+    limitPermissions(session.defaultSession, () => server);
     window = openWindow();
     // A renewed token: the GUI takes the new link without reloading, as a browser tab would.
     followToken(tokenFile, () => void connector.now(), { watch, read });

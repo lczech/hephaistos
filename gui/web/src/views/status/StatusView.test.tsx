@@ -42,7 +42,7 @@ function open(): void {
 }
 
 describe("the Status View", () => {
-  it("lists the checks, with what to do, and checks again when asked", async () => {
+  it("lists the checks, with what to do; Refresh checks again and asks for a pass", async () => {
     open();
     const requests = serve(routes());
     renderWithQueries(<App />);
@@ -53,10 +53,12 @@ describe("the Status View", () => {
     ).toHaveProperty("tagName", "CODE");
     expect(screen.getByText("ionice").closest("li")).toHaveAttribute("data-outcome", "note");
     expect(screen.getByText("gui").closest("li")).toHaveTextContent(/built for API/);
-    const asked = () => requests.filter((r) => new URL(r.url).pathname === "/api/status").length;
-    expect(asked()).toBe(1);
-    await userEvent.click(screen.getByRole("button", { name: "Check again" }));
-    await waitFor(() => expect(asked()).toBe(2));
+    const asked = (path: string) => requests.filter((r) => new URL(r.url).pathname === path).length;
+    expect(asked("/api/status")).toBe(1);
+    const passes = asked("/api/observe"); // one as the GUI opens
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(asked("/api/status")).toBe(2));
+    expect(asked("/api/observe")).toBe(passes + 1);
   });
 
   it("shows a problem in its tab's icon and the status bar's", async () => {
@@ -76,10 +78,13 @@ describe("the Status View", () => {
     open();
     const requests = serve(routes());
     renderWithQueries(<App />);
-    expect(await screen.findByText(/^1 error and 3 warnings in the last/)).toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole("button", { name: "The log's warnings and errors of the last day" }),
-    );
+    const link = await screen.findByRole("button", {
+      name: "The log's warnings and errors of the last day",
+    });
+    expect(link).toHaveTextContent("1 error and 3 warnings");
+    expect(link.parentElement).toHaveTextContent(/^1 error and 3 warnings in the last day$/);
+    expect(screen.queryByRole("button", { name: "The settings" })).not.toBeInTheDocument();
+    await userEvent.click(link);
     await waitFor(() => {
       const log = requests.find((r) => new URL(r.url).pathname === "/api/log");
       expect(new URL(log?.url ?? "http://x").searchParams.get("level")).toBe("warning");
@@ -91,6 +96,7 @@ describe("the Status View", () => {
     serve(routes([], { warnings: 0, errors: 0 }));
     renderWithQueries(<App />);
     expect(await screen.findByText("No errors or warnings in the last day")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "The log" })).toHaveTextContent("Log");
   });
 
   it("copies About for an issue, with the setup's problems and notes", async () => {

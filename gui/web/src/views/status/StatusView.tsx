@@ -1,13 +1,15 @@
-import { ClipboardCopy, Eye, RotateCw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ClipboardCopy } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { type Connection, useConnection } from "../../api/live";
-import { useDaemon, useInfo, useObserve, useStatus } from "../../api/queries";
+import { KEYS, useDaemon, useInfo, useObserve, useStatus } from "../../api/queries";
 import { Quoted } from "../../components/Quoted";
 import { TextIcon } from "../../components/TextIcon";
+import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { OUTCOME_ICONS } from "../../icons";
 import { counted } from "../../text";
-import { fullTime } from "../../time";
+import { ago, fullTime } from "../../time";
 import { useNow } from "../../useNow";
 import { apiFit, builtFor } from "../../version";
 import { loadErrorText } from "../CheckoutError";
@@ -53,8 +55,9 @@ function Checks({ checks }: { checks: CheckJson[] }) {
       {checks.map((check, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: a check may come twice, e.g. the unit's
         <li key={i} className={styles.check} data-outcome={check.outcome}>
-          <TextIcon icon={OUTCOME_ICONS[check.outcome]} label={check.outcome} />
-          <span className={styles.name}>{check.name}</span>
+          <span className={styles.name}>
+            <TextIcon icon={OUTCOME_ICONS[check.outcome]} label={check.outcome} /> {check.name}
+          </span>
           <span>
             <Quoted text={check.text} />
             {check.fix !== null && (
@@ -106,14 +109,39 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
+/** The log's warnings and errors of the last day, linking to them; else to the whole log. */
+function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
+  if (counts.errors + counts.warnings === 0) {
+    return (
+      <p className={styles.links}>
+        <span className={styles.quiet}>No errors or warnings in the last day</span>
+        <ViewLink address={{ kind: "log", params: {} }} label="The log" named />
+      </p>
+    );
+  }
+  const text = `${counted(counts.errors, "error")} and ${counted(counts.warnings, "warning")}`;
+  return (
+    <p className={styles.links}>
+      <ViewLink
+        address={{ kind: "log", params: { level: "warning", since: "1d" } }}
+        label="The log's warnings and errors of the last day"
+        text={text}
+      />
+      {" in the last day"}
+    </p>
+  );
+}
+
 /**
  * This Machine's setup, its Daemon, and what runs, as `hephaistos status` shows them: the setup as
- * the Daemon checks it while this shows, and how the Daemon is doing, kept current.
+ * the Daemon checks it while this shows, and how the Daemon is doing, kept current. Refresh also
+ * asks for a pass, which the last pass shows.
  */
 export function StatusView() {
   const status = useStatus();
   const daemon = useDaemon();
   const info = useInfo();
+  const client = useQueryClient();
   const observing = useObserve();
   const connection = useConnection();
   const now = useNow();
@@ -130,98 +158,72 @@ export function StatusView() {
       />
     ) : null;
   const watcher = daemon.data?.watcher ?? null;
-  const counts = status.data?.log;
   const about =
     status.data && process
       ? aboutRows(status.data.about, process, builtFor(), navigator.userAgent)
       : null;
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: KEYS.status });
+    observing.mutate();
+  };
   return (
-    <section className={styles.view}>
-      {connection.state === "disconnected" && <Disconnected connection={connection} now={now} />}
-      <div className={styles.status} data-stale={stale || undefined}>
-        <h2 className={styles.heading}>Setup</h2>
-        {status.data === undefined && (
-          <p className={status.isError ? styles.problem : styles.quiet}>
-            {status.isError ? loadErrorText(status.error) : "Checking…"}
-          </p>
-        )}
-        <Checks checks={checks} />
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.action}
-            onClick={() => status.refetch()}
-            disabled={status.isFetching}
-          >
-            <TextIcon icon={RotateCw} />
-            {status.isFetching ? "Checking…" : "Check again"}
-          </button>
-        </div>
+    <ViewPage>
+      <ViewBar>
+        {status.data !== undefined && <span>checked {ago(status.dataUpdatedAt, now)}</span>}
+        <BarEnd>
+          <Refresh busy={status.isFetching || observing.isPending} onClick={refresh} />
+        </BarEnd>
+      </ViewBar>
+      <section className={styles.view}>
+        {connection.state === "disconnected" && <Disconnected connection={connection} now={now} />}
+        <div className={styles.status} data-stale={stale || undefined}>
+          <h2 className={styles.heading}>Setup</h2>
+          {status.data === undefined && (
+            <p className={status.isError ? styles.problem : styles.quiet}>
+              {status.isError ? loadErrorText(status.error) : "Checking…"}
+            </p>
+          )}
+          <Checks checks={checks} />
 
-        <h2 className={styles.heading}>Running</h2>
-        {process === undefined ? (
-          <p className={daemon.isError ? styles.problem : styles.quiet}>
-            {daemon.isError ? loadErrorText(daemon.error) : "Loading the daemon's status…"}
-          </p>
-        ) : (
-          <Fields
-            rows={[
-              [
-                "Daemon",
-                <>
-                  {daemonText(process, now)} {log}
-                </>,
-              ],
-              ["Last pass", lastPassText(watcher?.last_pass ?? null, now)],
-              ["Watcher", watcherText(watcher, now)],
-              ["Server", serverText(daemon.data?.server ?? null, now)],
-            ]}
-          />
-        )}
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.action}
-            onClick={() => observing.mutate()}
-            disabled={observing.isPending}
-          >
-            <TextIcon icon={Eye} />
-            {observing.isPending ? "Observing…" : "Observe now"}
-          </button>
+          <h2 className={styles.heading}>Running</h2>
+          {process === undefined ? (
+            <p className={daemon.isError ? styles.problem : styles.quiet}>
+              {daemon.isError ? loadErrorText(daemon.error) : "Loading the daemon's status…"}
+            </p>
+          ) : (
+            <Fields
+              rows={[
+                [
+                  "Daemon",
+                  <>
+                    {daemonText(process, now)} {log}
+                  </>,
+                ],
+                ["Last pass", lastPassText(watcher?.last_pass ?? null, now)],
+                ["Watcher", watcherText(watcher, now)],
+                ["Server", serverText(daemon.data?.server ?? null, now)],
+              ]}
+            />
+          )}
           {observing.isError && <p className={styles.error}>{observing.error.message}</p>}
-        </div>
 
-        <h2 className={styles.heading}>Log</h2>
-        <p className={styles.links}>
-          {counts === undefined ? null : counts.errors + counts.warnings === 0 ? (
-            <span className={styles.quiet}>No errors or warnings in the last day</span>
+          <h2 className={styles.heading}>Log</h2>
+          {status.data !== undefined && <LogCounts counts={status.data.log} />}
+
+          <h2 className={styles.heading}>About</h2>
+          {about === null ? (
+            <p className={styles.quiet}>Loading…</p>
           ) : (
             <>
-              {counted(counts.errors, "error")} and {counted(counts.warnings, "warning")} in the
-              last day
-              <ViewLink
-                address={{ kind: "log", params: { level: "warning", since: "1d" } }}
-                label="The log's warnings and errors of the last day"
+              <Fields rows={about} />
+              <CopyButton
+                text={aboutMarkdown(about, checks, info.data?.home)}
+                label="Copy for an issue"
               />
             </>
           )}
-          <ViewLink address={{ kind: "log", params: {} }} label="The log" named />
-          <ViewLink address={{ kind: "config", params: {} }} label="The settings" named />
-        </p>
-
-        <h2 className={styles.heading}>About</h2>
-        {about === null ? (
-          <p className={styles.quiet}>Loading…</p>
-        ) : (
-          <>
-            <Fields rows={about} />
-            <CopyButton
-              text={aboutMarkdown(about, checks, info.data?.home)}
-              label="Copy for an issue"
-            />
-          </>
-        )}
-      </div>
-    </section>
+        </div>
+      </section>
+    </ViewPage>
   );
 }

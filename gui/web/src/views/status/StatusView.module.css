@@ -67,7 +67,7 @@
 /* A check per line: its outcome's icon, what it checked, and what it found, with what to do. */
 .checks {
   display: grid;
-  grid-template-columns: max-content max-content 1fr;
+  grid-template-columns: max-content 1fr;
   gap: var(--space-1) var(--space-2);
   margin: 0;
   padding: 0;
@@ -78,15 +78,15 @@
   display: contents;
 }
 
-.check[data-outcome="ok"] > svg {
+.check[data-outcome="ok"] svg {
   color: var(--success);
 }
 
-.check[data-outcome="problem"] > svg {
+.check[data-outcome="problem"] svg {
   color: var(--warning);
 }
 
-.check[data-outcome="note"] > svg {
+.check[data-outcome="note"] svg {
   color: var(--text-muted);
 }
 

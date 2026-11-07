@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { Session, WebContents } from "electron";
 import { describe, expect, it, vi } from "vitest";
-import { guard, refusePermissions, WEB_PREFERENCES } from "./guard.js";
+import { guard, limitPermissions, WEB_PREFERENCES } from "./guard.js";
 
 const SERVER = "http://127.0.0.1:8264";
 
@@ -93,9 +93,14 @@ describe("the page of the window", () => {
     });
   });
 
-  it("is refused every permission it asks for, or checks", () => {
-    type Request = (contents: object, name: string, answer: (granted: boolean) => void) => void;
-    type Check = (contents: object, name: string) => boolean;
+  it("is refused every permission it asks for, or checks, but what a feature needs", () => {
+    type Request = (
+      contents: object,
+      name: string,
+      answer: (granted: boolean) => void,
+      details: { requestingUrl: string },
+    ) => void;
+    type Check = (contents: object, name: string, origin: string) => boolean;
     const handlers: { request?: Request; check?: Check } = {};
     const session = {
       setPermissionRequestHandler: (handler: Request) => {
@@ -105,12 +110,19 @@ describe("the page of the window", () => {
         handlers.check = handler;
       },
     };
-    refusePermissions(session as unknown as Session);
-    for (const name of ["media", "notifications", "geolocation"]) {
+    const server = "http://127.0.0.1:8264";
+    limitPermissions(session as unknown as Session, () => server);
+    const granted = (name: string, origin: string) => {
       const answer = vi.fn();
-      handlers.request?.({}, name, answer);
-      expect(answer).toHaveBeenCalledWith(false);
-      expect(handlers.check?.({}, name)).toBe(false);
+      handlers.request?.({}, name, answer, { requestingUrl: `${origin}/` });
+      const given = answer.mock.calls[0]?.[0];
+      expect(handlers.check?.({}, name, origin)).toBe(given);
+      return given;
+    };
+    for (const name of ["media", "notifications", "geolocation"]) {
+      expect(granted(name, server)).toBe(false);
     }
+    expect(granted("clipboard-sanitized-write", server)).toBe(true);
+    expect(granted("clipboard-sanitized-write", "https://example.com")).toBe(false);
   });
 });

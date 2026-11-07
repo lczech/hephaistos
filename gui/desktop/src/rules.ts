@@ -15,6 +15,20 @@ export function destination(url: string, server: string | null): "window" | "bro
   return parsed.protocol === "https:" || parsed.protocol === "http:" ? "browser" : "none";
 }
 
+// What the page may ask for, each for a feature that needs it: copying, e.g. the Status View's About.
+const ALLOWED = new Set(["clipboard-sanitized-write"]);
+
+/** Whether the page from `origin` gets a permission; only ours, and only what a feature needs. */
+export function allowed(permission: string, origin: string, server: string | null): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  return server !== null && parsed.origin === server && ALLOWED.has(permission);
+}
+
 export type KeyAction =
   | "reload"
   | "zoomIn"

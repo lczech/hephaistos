@@ -186,7 +186,7 @@ describe("the GUI", () => {
     expect(token()).toBeNull();
   });
 
-  it("passes when asked, and shows why one failed", async () => {
+  it("passes when the Status View refreshes, and shows why one failed", async () => {
     signIn();
     saveViews("status");
     let passes = 0;
@@ -200,7 +200,7 @@ describe("the GUI", () => {
       },
     });
     renderWithQueries(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Observe now" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Refresh" }));
     expect(await screen.findByText("the pass failed: git is gone")).toBeInTheDocument();
     expect(passes).toBe(2);
   });
