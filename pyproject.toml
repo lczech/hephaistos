@@ -88,4 +88,7 @@ addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = ["error"]
 timeout = 120  # seconds: a hanging test fails, rather than stalling the run
-markers = ["tmux: runs real tmux; scripts/test_tmux_versions.sh runs these with several versions"]
+markers = [
+    "tmux: runs real tmux; scripts/test_tmux_versions.sh runs these with several versions",
+    "stress: processes racing each other; scripts/test_under_load.sh runs these in a loop beside the suite",
+]

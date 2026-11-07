@@ -97,6 +97,7 @@ def test_default_names_skip_sessions_made_by_hand(
     assert actions.create(set_up, proj).name == "proj-3"
 
 
+@pytest.mark.stress
 def test_default_names_race(set_up: Paths, proj: Path) -> None:
     script = (
         "import sys; from pathlib import Path;"
@@ -216,6 +217,7 @@ def test_kill_with_force(set_up: Paths, proj: Path, tmp_path: Path) -> None:
     assert stored(set_up) == {}
 
 
+@pytest.mark.stress
 def test_kills_at_once(set_up: Paths, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
 
@@ -232,6 +234,7 @@ def test_kills_at_once(set_up: Paths, proj: Path) -> None:
     assert stored(set_up) == {}
 
 
+@pytest.mark.stress
 def test_a_rename_racing_a_kill(set_up: Paths, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
 

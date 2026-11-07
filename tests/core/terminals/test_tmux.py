@@ -391,6 +391,7 @@ def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
         hanging.sessions()
 
 
+@pytest.mark.stress  # races tmux's own move, see `create`
 def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
     created = new(systemd_keeper, "api", tmp_path, "sleep", "60")
     server = scope_of(int(tmux(systemd_keeper, "display-message", "-p", "#{pid}")))

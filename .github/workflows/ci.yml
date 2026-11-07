@@ -78,3 +78,14 @@ jobs:
           key: tmux-${{ runner.os }}-${{ hashFiles('scripts/test_tmux_versions.sh') }}
       - run: uv sync --locked
       - run: scripts/test_tmux_versions.sh
+
+  # Races between processes show under load: the stress tests in a loop beside the suite.
+  under-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: command -v tmux || (sudo apt-get update && sudo apt-get install --yes tmux)
+      - run: uv sync --locked
+      - run: scripts/test_under_load.sh
