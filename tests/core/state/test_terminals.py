@@ -12,7 +12,7 @@ from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import Changes, TerminalStatus
 from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.ids import Timestamp, new_id
+from hephaistos.core.utils.ids import MAX_DRIFT_MS, Timestamp, new_id, wall_ms
 from hephaistos.core.utils.paths import Paths
 
 BOOT = "boot-1"
@@ -200,6 +200,19 @@ def test_a_creator_tells_what_a_row_stored_first_runs(set_up: Paths) -> None:
             command={api: ("make", "test")},
         )
     assert stored(set_up)["api"].command == ("make", "test")
+
+
+def test_newer_readings_with_the_clock_ahead(set_up: Paths) -> None:
+    """After a Peer's clock, ahead of ours, the clock runs ahead of the wall: what counts as
+    newer still follows the order of the writes."""
+    with write_session(set_up) as written:
+        written.clock.receive(Timestamp.of(wall_ms() + MAX_DRIFT_MS - 60_000))
+    api, web = new_id(), new_id()
+    update(set_up, session("api", api))
+    started = clock(set_up)
+    update(set_up, session("api", api), session("web", web))  # web created meanwhile
+    assert update(set_up, session("api", api), started=started).ended == 0
+    assert update(set_up).ended == 2
 
 
 def test_an_older_snapshot_leaves_a_newer_name(set_up: Paths) -> None:
