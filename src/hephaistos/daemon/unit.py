@@ -49,6 +49,7 @@ class UnitState:
     enabled: bool
     active: str  # `active`, `inactive`, `failed`, `activating`, …
     exit_code: int | None  # of the last run, if it ended
+    main_pid: int | None = None  # of the Daemon it runs, while it runs
 
 
 @dataclass(frozen=True)
@@ -228,7 +229,7 @@ def unit_state() -> UnitState | None:
     """What systemd says about our unit; None if systemd is not available."""
     if not is_available():
         return None
-    properties = "LoadState,UnitFileState,ActiveState,ExecMainStatus"
+    properties = "LoadState,UnitFileState,ActiveState,ExecMainStatus,MainPID"
     lines = _systemctl("show", UNIT_NAME, f"--property={properties}").splitlines()
     values: dict[str, str] = {}
     for line in lines:
@@ -236,11 +237,13 @@ def unit_state() -> UnitState | None:
         values[key] = value
     active = values.get("ActiveState", "")
     code = values.get("ExecMainStatus", "")
+    pid = values.get("MainPID", "")
     return UnitState(
         installed=values.get("LoadState") == "loaded",
         enabled=values.get("UnitFileState") == "enabled",
         active=active,
         exit_code=int(code) if code.isdigit() and active != "active" else None,
+        main_pid=int(pid) if pid.isdigit() and pid != "0" else None,
     )
 
 

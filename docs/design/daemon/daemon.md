@@ -68,7 +68,7 @@ Without systemd user services, `daemon run` in tmux takes their place.
 
 `daemon status` shows:
 - the unit;
-- the Daemon, from the lock and `daemon.json`;
+- the Daemon, from the lock and `daemon.json`, and whether systemd runs it: whether the unit's main process is this Daemon;
 - the last pass, and what asked for it;
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.

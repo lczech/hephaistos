@@ -316,6 +316,35 @@ def test_a_daemon_run_by_hand(
 
 
 @pytest.mark.usefixtures("repo")
+def test_another_daemon_beside_the_units_is_not_under_systemd(
+    paths: Paths,
+    systemd: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
+    other = {**os.environ, "HEPHAISTOS_HOME": str(tmp_path / "scratch")}
+    setup = [str(systemd), "setup", "--name", "scratch", "--no-daemon", "--no-desktop"]
+    subprocess.run(setup, env=other, check=True, capture_output=True)
+    command = [str(systemd), "daemon", "run"]
+    with subprocess.Popen(command, env=other, stderr=subprocess.PIPE) as by_hand:
+        try:
+            assert by_hand.stderr is not None
+            by_hand.stderr.readline()  # "Running: …", once it holds the lock
+            capsys.readouterr()
+            assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 0
+            assert f"Daemon     running, pid {_pid(paths)}," in capsys.readouterr().out
+            monkeypatch.setenv("HEPHAISTOS_HOME", other["HEPHAISTOS_HOME"])
+            assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 0
+            shown = capsys.readouterr().out
+            assert f"Daemon     running (not under systemd), pid {by_hand.pid}," in shown
+        finally:
+            by_hand.send_signal(signal.SIGTERM)
+            by_hand.wait(timeout=10)
+
+
+@pytest.mark.usefixtures("repo")
 def test_status_warns_about_its_unit(
     systemd: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -8,7 +8,6 @@ Directory's files, by its absolute path, anywhere this user may list.
 
 import asyncio
 import logging
-import os
 import socket
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
@@ -707,7 +706,7 @@ async def status(paths: PathsOf, request: Request) -> StatusJson:
 
     The Daemon records these checks in its status, which `status` shows beside its own.
     """
-    found = await asyncio.to_thread(checks.run, os.environ)
+    found = await asyncio.to_thread(checks.run)  # in the Daemon: no shell to compare with
     record = cast("RecordChecks | None", request.app.state.record)
     if record is not None:
         record(found)  # in the event loop, as the Daemon's other parts report

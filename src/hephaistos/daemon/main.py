@@ -204,7 +204,7 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
         except HephaistosError as error:
             log.warning("cannot update this machine: %s", error)
         version = running_version()
-        found_checks = checks.run(os.environ)
+        found_checks = checks.run()
         daemon = Daemon(paths, names, version, found_checks)
         log.info(
             "running: %s",

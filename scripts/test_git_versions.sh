@@ -1,8 +1,9 @@
 #!/bin/sh
 # Runs the tests with the given git versions, each built once from source.
-# Usage: scripts/test_git_versions.sh [version...]   default: those on our Machines
+# Usage: scripts/test_git_versions.sh [version...]
+#   default: the oldest we run (git.MIN_VERSION), and those on our Machines
 set -u
-versions=${*:-2.43.7 2.47.3 2.53.0}
+versions=${*:-2.31.8 2.43.7 2.47.3 2.53.0}
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/hephaistos/git"
 failed=""
 

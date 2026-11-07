@@ -9,11 +9,12 @@ from pathlib import Path
 import pytest
 
 from hephaistos import __version__
-from hephaistos.core.utils import logs
+from hephaistos.core.utils import git, logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import about, checks, report, unit
 from hephaistos.daemon.status import Check
-from support import create, git, run_cli
+from support import create, run_cli
+from support import git as run_git
 
 
 def _found(env: dict[str, str] | None = None) -> dict[str, list[tuple[str, str | None]]]:
@@ -29,6 +30,18 @@ def test_without_git_or_ionice(systemd: Path, monkeypatch: pytest.MonkeyPatch) -
     found = _found()
     assert found["git"] == [("problem", "install git")]
     assert found["ionice"] == [("note", "install util-linux")]
+
+
+def test_git_too_old(monkeypatch: pytest.MonkeyPatch) -> None:
+    old = git.Installation(Path("/old/git"), "git version 2.30.9")
+    monkeypatch.setattr(git, "installation", lambda: old)
+    monkeypatch.setattr(unit, "is_available", lambda: False)
+    (check,) = [check for check in checks.run() if check.name == "git"]
+    assert check == Check(
+        "git", "problem", "2.30.9 is too old; need 2.31 or later", "upgrade git to 2.31 or later"
+    )
+    assert git.Installation(Path("/git"), "git version 2.39.3 (Apple Git-146)").numbers == (2, 39)
+    assert git.Installation(Path("/git"), "git version weird").numbers is None
 
 
 def test_git_and_its_version(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -71,13 +84,15 @@ def test_the_unit_as_installed(
     assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
     found = _found()
     assert found["unit"] == [("ok", None)]
-    assert found["linger"] == [("problem", "`hephaistos daemon install --linger`")]
+    assert found["linger"] == [("note", "`hephaistos daemon install --linger`")]
     (tmp_path / "linger").mkdir()
     (tmp_path / "linger" / getpass.getuser()).touch()
     assert _found()["linger"] == [("ok", None)]
     assert run_cli(monkeypatch, "daemon", "stop", program=str(systemd)) == 0
     elsewhere = {**os.environ, "XDG_STATE_HOME": "/s"}
     assert _found(elsewhere)["unit"] == [("problem", "`hephaistos daemon install`")]
+    by_the_daemon = [c for c in checks.run() if c.name == "unit"]  # its paths are its own
+    assert [(c.outcome, c.text) for c in by_the_daemon] == [("ok", "installed and enabled")]
     assert [check.text for check in checks.unit_problems(elsewhere)] == [
         (
             "it uses other directories than this shell"
@@ -123,10 +138,10 @@ def test_running_version(tmp_path: Path) -> None:
     assert about.running_version(tmp_path) == __version__  # not a checkout
     checkout = create(tmp_path / "checkout")
     (checkout / "src" / "hephaistos").mkdir(parents=True)
-    short = git(checkout, "rev-parse", "--short", "HEAD")
+    short = run_git(checkout, "rev-parse", "--short", "HEAD")
     assert about.running_version(checkout) == f"{__version__} ({short})"
     (checkout / "README.md").write_text("new\n")
-    git(checkout, "add", "README.md")  # staged, not committed
+    run_git(checkout, "add", "README.md")  # staged, not committed
     assert about.running_version(checkout) == f"{__version__} ({short}-dirty)"
 
 

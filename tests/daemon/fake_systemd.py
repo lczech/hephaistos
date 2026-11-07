@@ -83,6 +83,7 @@ def systemctl(args: list[str]) -> int:
             print(f"UnitFileState={'enabled' if state['enabled'] else 'disabled'}")
             print(f"ActiveState={'active' if running else 'inactive'}")
             print("ExecMainStatus=0")
+            print(f"MainPID={state['pid'] if running else 0}")
         case "enable":
             state["enabled"] = True
             if "--now" in rest:

@@ -54,6 +54,7 @@ LOCAL_VARIABLES = frozenset(
         "GIT_GRAFT_FILE",
         "GIT_IMPLICIT_WORK_TREE",
         "GIT_INDEX_FILE",
+        "GIT_INTERNAL_SUPER_PREFIX",  # listed by git 2.31 to 2.39, at least
         "GIT_NO_REPLACE_OBJECTS",
         "GIT_OBJECT_DIRECTORY",
         "GIT_PREFIX",
@@ -64,12 +65,23 @@ LOCAL_VARIABLES = frozenset(
 )
 
 
+# The oldest git we run, as scripts/test_git_versions.sh tests it: before, `worktree list` gives
+# no lock reasons, and reflogs word rebases and new worktrees otherwise than Events expect.
+MIN_VERSION = (2, 31)
+
+
 @dataclass(frozen=True)
 class Installation:
     """The git that we run."""
 
     executable: Path
     version: str  # as `git --version` says it, e.g. `git version 2.43.0`
+
+    @property
+    def numbers(self) -> tuple[int, int] | None:
+        """Its major and minor version, e.g. `(2, 43)`; None if `version` doesn't say."""
+        found = re.search(r"(\d+)\.(\d+)", self.version)
+        return None if found is None else (int(found[1]), int(found[2]))
 
 
 def installation() -> Installation:

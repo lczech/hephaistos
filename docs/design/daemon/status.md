@@ -11,11 +11,12 @@ A note is a choice that is fine, e.g. no systemd on a cluster, or the Daemon run
 What goes wrong for a while, e.g. a failed pass or a lost connection, isn't a check: the Daemon's status shows it ([Daemon](daemon.md#status)).
 
 The checks, in `daemon/checks.py`, each part adding its own:
-- git: found on the PATH, and its version; a problem without it.
+- git: found on the PATH, at least 2.31: before, `worktree list` gives no lock reasons, and reflogs word rebases and new worktrees otherwise; `scripts/test_git_versions.sh` tests that one too.
 - SQLite: Python's, at least 3.37.
 - systemd: its version; a note without user services.
-- The unit, with systemd: a note if not installed or disabled; a problem if a unit of another installation is in the way, its program is gone, or it uses other directories than those of this process.
-- Linger, with the unit enabled: a problem if off, as the Daemon then stops at logout.
+- The unit, with systemd: a note if not installed or disabled; a problem if a unit of another installation is in the way, its program is gone, or, asked from a shell, it uses other directories than those of this shell.
+  A Daemon does not compare its own: it is the one the unit runs, or another on purpose, e.g. a scratch one.
+- Linger, with the unit enabled: a note if off, as the Daemon then stops at logout; fine where someone is logged in while it should run, as on a laptop, not on an always-on Machine.
 - ionice: a note if missing, as passes then run at normal I/O priority.
 
 The checks run in the process that asks, as the PATH may differ: in the Daemon for the GUI, in the shell for the CLI.

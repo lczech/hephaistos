@@ -34,8 +34,14 @@ class Report:
 
     @property
     def under_systemd(self) -> bool:
-        """Whether systemd runs the Daemon."""
-        return self.unit is not None and self.unit.active == "active"
+        """Whether systemd runs the Daemon: its unit's process is it, not one run by hand."""
+        state, found = self.unit, self.status
+        return (
+            state is not None
+            and state.active == "active"
+            and found is not None
+            and state.main_pid == found.pid
+        )
 
     @property
     def current(self) -> Status | None:

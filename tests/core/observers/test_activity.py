@@ -80,6 +80,7 @@ def test_commits_in_a_clone_with_reftable_refs(paths: Paths, tmp_path: Path) -> 
     assert _kinds(observer.observe(paths)) == ["clone.committed"]
 
 
+@needs_git(2, 42)  # `worktree add --orphan`
 def test_worktree_without_commits(paths: Paths, repo: Path, tmp_path: Path) -> None:
     orphan = tmp_path / "orphan"
     git(repo, "worktree", "add", "--quiet", "--orphan", "-b", "pages", str(orphan))
