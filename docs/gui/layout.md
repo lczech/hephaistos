@@ -66,7 +66,8 @@ The steps are kept until the page is left.
 
 ## Empty Groups
 
-A Group stays when its last Panel closes or moves away (dockview's `closeEmptyGroups: false`), so a Layout keeps its shape.
+A Group closes when its last Panel closes or moves away, unless it is the last Group.
+With the setting `gui.keep_empty_groups`, it stays, so a Layout keeps its shape (dockview's `closeEmptyGroups: false`).
 An empty Group offers Views to start with.
 An empty Group other than the last offers to close; so does Ctrl+W.
 Ctrl+W closes the active Panel, or the active empty Group.

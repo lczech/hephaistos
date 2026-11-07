@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchField } from "../components/SearchField";
 import { saveViews as save } from "../test/layout";
-import { daemon, json, renderWithQueries, serve } from "../test/server";
+import { daemon, json, renderWithQueries, serve, setting } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
 import { useKeyTarget } from "../views/keys";
@@ -110,12 +110,28 @@ beforeEach(() => {
     ...page,
     toJSON: () => page,
   });
-  serve({
-    "GET /api/daemon": () => json(daemon()),
-    "GET /api/events": () => json([]),
-    "GET /api/repositories": () => json([]),
-  });
+  serve(ROUTES);
 });
+
+const ROUTES = {
+  "GET /api/daemon": () => json(daemon()),
+  "GET /api/events": () => json([]),
+  "GET /api/repositories": () => json([]),
+};
+
+/** With `gui.keep_empty_groups` on; rendered once the GUI knows it. */
+async function renderKeepingEmptyGroups() {
+  const requests = serve({
+    ...ROUTES,
+    "GET /api/config": () => json({ settings: [setting("gui.keep_empty_groups", true)] }),
+  });
+  const rendered = await renderWorkbench();
+  await waitFor(() =>
+    expect(requests.map((request) => new URL(request.url).pathname)).toContain("/api/config"),
+  );
+  await nextFrame();
+  return rendered;
+}
 
 describe("the Workbench", () => {
   it("starts with the Repositories and Events, and saves its Layout", async () => {
@@ -131,8 +147,17 @@ describe("the Workbench", () => {
     );
   });
 
-  it("closes the active Panel on Ctrl+W, then its emptied Group, but not the last", async () => {
+  it("closes a Group with its last Panel, but not the last Group", async () => {
     await renderWorkbench();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
+    await userEvent.keyboard("{Control>}w{/Control}");
+    expect(groups()).toEqual([["Repositories"]]);
+    await userEvent.keyboard("{Control>}w{/Control}");
+    expect(groups()).toEqual([[]]);
+  });
+
+  it("closes the active Panel on Ctrl+W, then its emptied Group, but not the last", async () => {
+    await renderKeepingEmptyGroups();
     expect(await screen.findByText("No events yet.")).toBeInTheDocument();
     await userEvent.keyboard("{Control>}w{/Control}");
     expect(groups()).toEqual([["Repositories"], []]);
@@ -145,7 +170,7 @@ describe("the Workbench", () => {
   });
 
   it("keeps a Group emptied, also once restored, until it is closed", async () => {
-    const { unmount } = await renderWorkbench();
+    const { unmount } = await renderKeepingEmptyGroups();
     const [, events] = screen.getAllByRole("tab");
     await userEvent.click(within(events as HTMLElement).getByRole("button", { name: "Close tab" }));
     expect(groups()).toEqual([["Repositories"], []]);
@@ -553,7 +578,7 @@ describe("the Workbench", () => {
 
   it("offers Views in an empty Group", async () => {
     save("gone");
-    await renderWorkbench();
+    await renderKeepingEmptyGroups();
     const [tab] = screen.getAllByRole("tab");
     await userEvent.click(within(tab as HTMLElement).getByRole("button", { name: "Close tab" }));
     expect(tabs()).toEqual([]);

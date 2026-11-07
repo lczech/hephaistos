@@ -2,6 +2,7 @@ import "dockview-react/dist/styles/dockview.css";
 import "./dock.css";
 import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import { useEffect, useRef, useState } from "react";
+import { useSetting } from "../api/queries";
 import { asAddress, viewKey } from "../views/address";
 import { ShownContext } from "../views/opening";
 import { defaultLayout, keep, keyTarget, PANEL, THEME } from "./dock";
@@ -113,8 +114,12 @@ function restore(api: DockviewApi): void {
   }
 }
 
-/** The Groups and Panels: the saved Layout, or the default one; telling Views which are shown. */
+/**
+ * The Groups and Panels: the saved Layout, or the default one; telling Views which are shown.
+ * A Group but the last closes with its last Panel, unless `gui.keep_empty_groups` keeps it.
+ */
 export function Workbench() {
+  const keepEmpty = useSetting("gui.keep_empty_groups") === true;
   const attached = useRef<{ dispose: () => void }[]>([]);
   const visits = useRef<Visits | null>(null);
   const [shown, setShown] = useState<ReadonlySet<string>>(new Set());
@@ -149,7 +154,7 @@ export function Workbench() {
           rightHeaderActionsComponent={GroupActions}
           watermarkComponent={Placeholder}
           noPanelsOverlay="emptyGroup"
-          closeEmptyGroups={false}
+          closeEmptyGroups={!keepEmpty}
           defaultRenderer="always" // Views shown once stay drawn while hidden (`PanelView`)
           theme={THEME}
           onReady={ready}

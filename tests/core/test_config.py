@@ -86,6 +86,7 @@ def test_layers_override_key_by_key(tmp_path: Path) -> None:
         "server.enabled": config.DEFAULT,
         "server.port": config.DEFAULT,
         "gui.theme": config.DEFAULT,
+        "gui.keep_empty_groups": config.DEFAULT,
         "gui.text.size": config.DEFAULT,
         "gui.text.font": config.DEFAULT,
         "gui.code.size": config.DEFAULT,

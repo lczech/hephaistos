@@ -56,6 +56,9 @@ port = 8264
 # Whether the GUI is light or dark: system (as the system is), light or dark.
 # Set it for one Machine in config.<hostname>.toml.
 theme = "system"
+# Whether a group of tabs stays, empty, once its last tab is closed, until closed
+# itself. The last group always stays.
+keep_empty_groups = false
 
 [gui.text]
 # The size of what Views show, in pixels; tabs and bars keep theirs.

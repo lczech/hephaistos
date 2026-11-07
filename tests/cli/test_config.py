@@ -43,6 +43,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("server.enabled", "true", "default"),
         ("server.port", "8264", "default"),
         ("gui.theme", "system", "default"),
+        ("gui.keep_empty_groups", "false", "default"),
         ("gui.text.size", "13", "default"),
         ("gui.text.font", "system-ui, sans-serif", "default"),
         ("gui.code.size", "13", "default"),
@@ -56,7 +57,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     ]
     width = max(len(value) for _, value, _ in rows)
     assert result.stdout.splitlines()[: len(rows) + 2] == [
-        *(f"{key:<20}  {value:<{width}}  {source}" for key, value, source in rows),
+        *(f"{key:<21}  {value:<{width}}  {source}" for key, value, source in rows),
         "",
         f"Host: {HOST}",
     ]

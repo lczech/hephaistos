@@ -41,8 +41,8 @@ export function secondsAgo(value: number): string {
 }
 
 /** A setting as `/api/config` lists it, applied from its default. */
-export function setting(key: string, value: string | number): Schemas["SettingJson"] {
-  const type = typeof value === "number" ? "int" : "text";
+export function setting(key: string, value: string | number | boolean): Schemas["SettingJson"] {
+  const type = typeof value === "number" ? "int" : typeof value === "boolean" ? "bool" : "text";
   return { key, description: "", type, value, source: "default", applied: value };
 }
 

@@ -180,6 +180,7 @@ class Gui:
     """The section [gui]."""
 
     theme: Theme
+    keep_empty_groups: bool
     text: Text
     code: Code
     diff: Diff
