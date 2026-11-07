@@ -130,6 +130,7 @@ describe("the Status View", () => {
     expect(text.indexOf("\nAbout:\n")).toBeGreaterThan(text.indexOf("- ionice (note)"));
     expect(text).toContain("- hephaistos: 0.1.0 (abc1234)\n");
     expect(text).toContain("- Daemon: running under systemd, pid 4242, since ");
+    expect(text).not.toContain("not under systemd");
     expect(text).toContain("- Time zone: Europe/Berlin\n");
     expect(text).toContain(`- linger (problem): ${PROBLEM.text}\n`);
     expect(text).toContain("- ionice (note): not installed\n");

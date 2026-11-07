@@ -20,7 +20,7 @@ export function shellText(userAgent: string): string {
 
 function runningText(process: Process): string {
   if (!process.running) return "not running";
-  const how = process.under_systemd ? "under systemd" : "by hand";
+  const how = process.under_systemd ? "under systemd" : "not under systemd";
   const since = process.started_at === null ? "" : `, since ${fullTime(process.started_at)}`;
   return `running ${how}, pid ${process.pid}${since}`;
 }

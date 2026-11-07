@@ -56,7 +56,10 @@ def _unit(shell: Shell) -> list[Check]:
     if installed is None:
         return [
             Check(
-                "unit", "note", "not installed: the daemon runs only when started by hand", INSTALL
+                "unit",
+                "note",
+                "not installed: the daemon runs only by `hephaistos daemon run`",
+                INSTALL,
             )
         ]
     found: list[Check] = []

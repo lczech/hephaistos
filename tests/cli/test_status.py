@@ -12,7 +12,6 @@ from hephaistos.daemon import status, unit
 from hephaistos.daemon.status import Check, Checked, Status
 
 runner = CliRunner()
-NOW = datetime.now(UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -50,8 +49,9 @@ def test_status_without_a_daemon(paths: Paths) -> None:
 def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
     machines.set_up(paths, "laptop")
     paths.state_dir.mkdir(parents=True, exist_ok=True)
-    _warn(paths, NOW - timedelta(hours=2), "WARNING")
-    _warn(paths, NOW - timedelta(hours=1), "ERROR")
+    now = datetime.now(UTC)  # not the module's: "5m ago" must hold when this runs
+    _warn(paths, now - timedelta(hours=2), "WARNING")
+    _warn(paths, now - timedelta(hours=1), "ERROR")
     shell = runner.invoke(app, ["status", "--json"])
     sqlite = next(
         check for check in json.loads(shell.output)["checks"] if check["name"] == "sqlite"
@@ -60,7 +60,7 @@ def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
         Check("git", "problem", "git is not installed", "install git"),
         Check("sqlite", "ok", sqlite["text"]),  # as in the shell: not listed
     )
-    started = datetime.now(UTC) - timedelta(minutes=5)  # NOW is that of collecting the tests
+    started = now - timedelta(minutes=5)
     daemon = Status(4242, "0.1.0", started, checks=Checked(started, checks))
     status.write(paths.state_dir, daemon)
     with status.held_lock(paths.state_dir):
@@ -73,7 +73,8 @@ def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
         "problem",
         "git is not installed; install git",
     ]
-    assert lines[heading + 2] == "Running:"
+    assert lines[heading + 2] == "About:"
+    assert lines.index("About:") < lines.index("Running:")
     assert lines[-1] == (
         "Log: 1 error and 1 warning in the last 24 h;"
         " `hephaistos log show --level warning --since 24h`"

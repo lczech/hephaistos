@@ -7,7 +7,7 @@ The GUI shows the same in its Status View ([views](../gui/views.md#status)).
 
 A check finds one thing ok, a problem, or a note.
 A problem stops or degrades a feature until the user changes something: installs, upgrades, reinstalls or changes a setting; it says what to do.
-A note is a choice that is fine, e.g. no systemd on a cluster, or the Daemon run by hand.
+A note is a choice that is fine, e.g. no systemd on a cluster, or the Daemon run by `hephaistos daemon run` rather than systemd.
 What goes wrong for a while, e.g. a failed pass or a lost connection, isn't a check: the Daemon's status shows it ([Daemon](daemon.md#status)).
 
 The checks, in `daemon/checks.py`, each part adding its own:
@@ -45,6 +45,6 @@ The log's warnings and errors of the last 24 hours are counted, errors including
 
 `hephaistos status` prints its own checks, under "Setup, checked in this shell".
 While the Daemon runs, the problems and notes it recorded that the shell's checks lack follow, with when it ran them, e.g. git missing from its PATH.
-Then come the lines of `daemon status`, About, and the log's counts, naming the `log show` that lists them.
+Then come About, the lines of `daemon status`, and the log's counts, naming the `log show` that lists them: the Status View's order.
 `--json` gives what `/api/status` gives: the checks, About, the log's counts, and `daemon status --json`.
 It runs on the default settings if the config is broken, to look into that.
