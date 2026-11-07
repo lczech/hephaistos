@@ -255,12 +255,13 @@ def _end_or_lose(
     return ended, lost
 
 
-def update(
+def update(  # noqa: PLR0913 - keyword-only after the first two: what one observation found
     session: WriteSession,
     found: Sequence[Session],
     *,
     running: bool,
     boot_id: str,
+    started: Timestamp,
     command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
 ) -> Changes:
     """Stores what the Keeper showed of this Machine's Terminals.
@@ -271,11 +272,16 @@ def update(
     that name moves to a free one. `command` holds what new rows run, for Terminals just
     created; others found anew run a shell, or whatever was started by hand, which the Keeper
     doesn't say.
+
+    `started` is the clock before the Keeper was asked. A row observed later, e.g. of a
+    Terminal another process created meanwhile, is a newer reading than `found`, so it stays
+    as it is, and so does a session whose name such a row holds: the next observation has both.
     """
     observed_at = session.tick()
     known = {state.id: state for state in on_this_machine(session)}
+    newer = {state.id for state in known.values() if state.observed_at > started}
     seen = {item.terminal_id: item for item in found if item.terminal_id is not None}
-    missing = [state for state in known.values() if state.id not in seen]
+    missing = [state for state in known.values() if state.id not in seen and state.id not in newer]
     # First, so that the names of ended Terminals become free.
     ended, lost = _end_or_lose(
         session, missing, running=running, boot_id=boot_id, observed_at=observed_at
@@ -285,6 +291,8 @@ def update(
 
     for terminal_id, item in seen.items():
         holder = names.get(item.name)
+        if terminal_id in newer or holder in newer:
+            continue
         if holder is not None and holder != terminal_id:  # a lost one, or one renamed meanwhile
             other = known[holder]
             moved = _free_name(NAMES.derived(other.name) or DEFAULT_BASE, names)

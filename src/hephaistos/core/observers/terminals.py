@@ -91,6 +91,7 @@ def observe(
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     with read_session(paths) as session:
+        started = session.clock_value  # rows observed after it are newer than what we find
         stored = state.on_this_machine(session)
     try:
         found = keeper.sessions()
@@ -104,6 +105,11 @@ def observe(
         return Result(None, str(error))
     with write_session(paths) as session:
         changes = state.update(
-            session, found, running=running, boot_id=boot_id(boot_file), command=command
+            session,
+            found,
+            running=running,
+            boot_id=boot_id(boot_file),
+            started=started,
+            command=command,
         )
     return Result(changes)

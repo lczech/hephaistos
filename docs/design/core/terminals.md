@@ -78,6 +78,7 @@ The tests run with every minor version since 3.2a ([development](../development.
 
 Each Machine stores its Terminals in `state_terminals` ([data](data.md)), as the Keeper last showed them; the Watcher observes them in each pass.
 The Keeper runs outside any transaction, then one write session compares its sessions with the rows.
+A row observed after the Keeper was asked, e.g. of a Terminal another process created meanwhile, is a newer reading: it stays as it is, as Clones' do ([observation](observation.md)).
 
 A Terminal is **open** while its session runs, and **lost** once it can't run any more:
 - its session gone, the server running in the same boot: it ended, e.g. its shell exited, and its row goes;

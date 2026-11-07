@@ -12,7 +12,7 @@ from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import Changes, TerminalStatus
 from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.ids import new_id
+from hephaistos.core.utils.ids import Timestamp, new_id
 from hephaistos.core.utils.paths import Paths
 
 BOOT = "boot-1"
@@ -44,9 +44,23 @@ def session(name: str, terminal_id: uuid.UUID | None = None, **changed: object) 
     return replace(made, **changed)
 
 
-def update(paths: Paths, *found: Session, running: bool = True, boot: str = BOOT) -> Changes:
+def clock(paths: Paths) -> Timestamp:
+    """The clock now, as an observation reads it before asking the Keeper."""
+    with read_session(paths) as read:
+        return read.clock_value
+
+
+def update(
+    paths: Paths,
+    *found: Session,
+    running: bool = True,
+    boot: str = BOOT,
+    started: Timestamp | None = None,
+) -> Changes:
+    """Stores `found`, as asked when `started`; by default, just now."""
+    started = clock(paths) if started is None else started
     with write_session(paths) as written:
-        return terminals.update(written, found, running=running, boot_id=boot)
+        return terminals.update(written, found, running=running, boot_id=boot, started=started)
 
 
 def stored(paths: Paths) -> dict[str, terminals.TerminalState]:
@@ -162,6 +176,28 @@ def test_names_made_by_hand_are_kept(set_up: Paths, name: str) -> None:
     assert list(stored(set_up)) == [name]
 
 
+def test_an_older_snapshot_leaves_newer_rows(set_up: Paths) -> None:
+    api = new_id()
+    started = clock(set_up)  # sessions listed: none yet
+    update(set_up, session("api", api))  # created and observed meanwhile, by another process
+    assert update(set_up, started=started) == Changes(open=0, added=0, ended=0, lost=0)
+    assert statuses(set_up) == {"api": "open"}
+    assert update(set_up, running=False, started=started).lost == 0
+    assert update(set_up).ended == 1  # a snapshot taken since has it gone
+
+
+def test_an_older_snapshot_leaves_a_newer_name(set_up: Paths) -> None:
+    api = new_id()
+    update(set_up, session("api", api))
+    started = clock(set_up)  # lists `api`
+    update(set_up, session("web", api))  # renamed and observed meanwhile
+    update(set_up, session("api", api), started=started)
+    assert {name: state.id for name, state in stored(set_up).items()} == {"web": api}
+    other = new_id()  # listed by the old snapshot, named as a newer row is
+    assert update(set_up, session("web", other), started=started).added == 0
+    assert {name: state.id for name, state in stored(set_up).items()} == {"web": api}
+
+
 def test_another_machines_names_are_its_own(set_up: Paths) -> None:
     update(set_up, session("api", new_id()))
     with write_session(set_up) as written:
@@ -191,6 +227,7 @@ def test_commands_are_kept(set_up: Paths) -> None:
             [session("api", api)],
             running=True,
             boot_id=BOOT,
+            started=written.clock_value,
             command={api: ("make", "test")},
         )
     update(set_up, session("api", api))
