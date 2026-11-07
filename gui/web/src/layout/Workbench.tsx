@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSetting } from "../api/queries";
 import { asAddress, viewKey } from "../views/address";
 import { ShownContext } from "../views/opening";
+import { evenOutByDoubleClick } from "./dividers";
 import { defaultLayout, keep, keyTarget, PANEL, THEME } from "./dock";
 import { GroupActions } from "./GroupActions";
 import { PanelView } from "./PanelView";
@@ -139,6 +140,7 @@ export function Workbench() {
       searchByKey(api),
       keepMoved(api),
       keepShown(api, setShown),
+      evenOutByDoubleClick(api),
     ];
     restore(api);
     visits.current = keepVisits(api); // from the Views restored

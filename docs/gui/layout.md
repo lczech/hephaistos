@@ -57,7 +57,15 @@ Each Group shows the first of its tabs that was shown, else its first; the focus
 No tab stays a preview.
 The buttons make no rows; rows made by hand within the columns stay while the button pressed is the current count's.
 That button is pressed while the top has that many columns, rows within them or not; pressing it again only evens out their widths.
-Dockview evens out a split's parts as a Group is added to it and removed: `columns.ts` does so for the top.
+
+## Dividers
+
+Double-clicking a divider between Groups evens out the split it divides: all its parts, side by side or one above another, not only the two beside it (`layout/dividers.ts`).
+Splits within those parts keep their sizes.
+Dockview evens out a split's parts as a Group is added to it and removed, so `layout/splits.ts` does that, beside one of the split's own Groups or at the top's edge; the column buttons even out the top so too.
+A split of splits only, e.g. two rows of two Groups each, is sized through a Group of each part instead.
+Dockview has no event for a divider's double-click, nor a way to name a divider's split, so `dividers.ts` alone reads its elements: its dividers (`dv-sash`) and how its grid nests them.
+A browser test keeps watch on both, for when dockview changes.
 
 ## Previews
 

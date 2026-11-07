@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { arrange, columnCount, deal, type GridNode, type GroupTabs, readingOrder } from "./columns";
+import { arrange, columnCount, deal, type GroupTabs, readingOrder } from "./columns";
+import type { GridNode } from "./splits";
 
 const leaf = (id: string): GridNode => ({ type: "leaf", data: { id } });
 const branch = (...data: GridNode[]): GridNode => ({ type: "branch", data });

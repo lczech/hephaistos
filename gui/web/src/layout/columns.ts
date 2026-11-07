@@ -4,21 +4,10 @@
 
 import type { DockviewApi, DockviewGroupPanel } from "dockview-react";
 import { keep } from "./dock";
+import { evenOut, type Grid, type GridNode } from "./splits";
 
 /** The counts of columns the title bar offers. */
 export const COUNTS = [1, 2, 3, 4] as const;
-
-/** A node of dockview's grid, as `toJSON` gives it: a Group (`leaf`) or a split (`branch`). */
-export interface GridNode {
-  type: "leaf" | "branch";
-  data: { id: string } | GridNode[];
-}
-
-/** The grid as `toJSON` gives it: the root split, and whether it lays its parts out side by side. */
-export interface Grid {
-  root: GridNode;
-  orientation: string; // "HORIZONTAL": side by side
-}
 
 /** The Groups' IDs in reading order: left to right, top to bottom, within splits as without. */
 export function readingOrder(node: GridNode): string[] {
@@ -82,11 +71,6 @@ export function arrange(groups: readonly GroupTabs[], count: number): Column[] {
   });
 }
 
-/** Spreads the top's columns evenly: dockview does, as a Group is added there and removed. */
-function equalise(api: DockviewApi): void {
-  api.removeGroup(api.addGroup({ direction: "right", skipSetActive: true }));
-}
-
 /**
  * Makes `count` columns of Groups side by side, of equal widths, with all tabs dealt among them
  * (`arrange`), each tab kept, none a preview. Where the grid has as many already, it only
@@ -95,7 +79,7 @@ function equalise(api: DockviewApi): void {
 export function arrangeColumns(api: DockviewApi, count: number): void {
   const grid = api.toJSON().grid;
   if (columnCount(grid) === count) {
-    equalise(api);
+    evenOut(api, []);
     return;
   }
   const focused = api.activePanel?.id;
