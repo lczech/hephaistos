@@ -111,29 +111,30 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
   );
 }
 
-/** The log's warnings and errors of the last day, linking to them; else to the whole log. */
+/** The log's warnings and errors of the last day, linking to them; else to the whole log: the
+ * link in the label's column, what it shows in the value's. */
 function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
   const found = [
     ...(counts.errors > 0 ? [counted(counts.errors, "error")] : []),
     ...(counts.warnings > 0 ? [counted(counts.warnings, "warning")] : []),
   ];
-  if (found.length === 0) {
-    return (
-      <p className={styles.line}>
-        <ViewLink address={{ kind: "log", params: {} }} label="The log" named />{" "}
-        <span className={styles.after}>No errors or warnings in the last day</span>
-      </p>
-    );
-  }
   return (
-    <p className={styles.line}>
-      <ViewLink
-        address={{ kind: "log", params: { level: "warning", since: "1d" } }}
-        label="The log's warnings and errors of the last day"
-        named
-      />{" "}
-      <span className={styles.after}>{found.join(" and ")} in the last day</span>
-    </p>
+    <>
+      <span className={styles.link}>
+        {found.length === 0 ? (
+          <ViewLink address={{ kind: "log", params: {} }} label="The log" named />
+        ) : (
+          <ViewLink
+            address={{ kind: "log", params: { level: "warning", since: "1d" } }}
+            label="The log's warnings and errors of the last day"
+            named
+          />
+        )}
+      </span>
+      <span>
+        {found.length === 0 ? "No errors or warnings" : found.join(" and ")} in the last day
+      </span>
+    </>
   );
 }
 
@@ -190,6 +191,20 @@ export function StatusView() {
           )}
           <Checks checks={checks} />
 
+          <h2 className={styles.heading}>About</h2>
+          {about === null ? (
+            <p className={styles.quiet}>Loading…</p>
+          ) : (
+            <>
+              <Fields rows={about} />
+              <CopyButton
+                text={statusMarkdown(checks, about, info.data?.home)}
+                label="Copy Setup and About"
+                title="Copy Setup and About as Markdown"
+              />
+            </>
+          )}
+
           <h2 className={styles.heading}>Running</h2>
           {process === undefined ? (
             <p className={daemon.isError ? styles.problem : styles.quiet}>
@@ -214,20 +229,6 @@ export function StatusView() {
 
           <h2 className={styles.heading}>Log</h2>
           {status.data !== undefined && <LogCounts counts={status.data.log} />}
-
-          <h2 className={styles.heading}>About</h2>
-          {about === null ? (
-            <p className={styles.quiet}>Loading…</p>
-          ) : (
-            <>
-              <Fields rows={about} />
-              <CopyButton
-                text={statusMarkdown(checks, about, info.data?.home)}
-                label="Copy Setup and About"
-                title="Copy Setup and About as Markdown"
-              />
-            </>
-          )}
         </div>
       </section>
     </ViewPage>

@@ -2,9 +2,19 @@
   composes: page from "../../components/text.module.css";
 }
 
-/* What the Daemon reported last: dimmed while that may be out of date. */
+/* What the Daemon reported last: dimmed while that may be out of date. One grid of a label's
+   column and a value's, across all sections, so that they line up; what isn't a row spans both.
+   The sections' lists take part in it (`display: contents`). */
 .status {
   composes: dims from "../../components/text.module.css";
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+}
+
+.status > :is(h2, p, div) {
+  grid-column: 1 / -1;
 }
 
 /* What to check while the live connection is lost. */
@@ -23,13 +33,7 @@
   margin-top: var(--space-1);
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-}
-
+.fields,
 .field {
   display: contents;
 }
@@ -46,16 +50,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  margin-top: var(--space-2);
 }
 
 .action {
   composes: action from "../../components/controls.module.css";
 }
 
-/* A section's title: Setup, Running, Log, About. */
+/* A section's title: Setup, About, Running, Log. */
 .heading {
-  margin: var(--space-4) 0 var(--space-2);
+  margin: var(--space-3) 0 var(--space-1);
   font-size: inherit;
   font-weight: var(--weight-strong);
 }
@@ -64,16 +68,8 @@
   margin-top: 0;
 }
 
-/* A check per line: its outcome's icon, what it checked, and what it found, with what to do. */
-.checks {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: var(--space-1) var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
+/* A check per line: its outcome's icon and what it checked; what it found, with what to do. */
+.checks,
 .check {
   display: contents;
 }
@@ -98,13 +94,10 @@
   color: var(--text-muted);
 }
 
-.line {
-  margin: 0;
-}
-
-/* What follows a named link, whose margin is made for text before it: room of its own. */
-.after {
-  margin-left: var(--space-2);
+/* A named link as a label: at the column's start, its icon under the checks' icons. Its own
+   margins are made for text before it in a line; with `.status`, this outweighs `.link.named`. */
+.status .link > button {
+  margin-left: calc(-1 * var(--space-1));
 }
 
 .quiet {

@@ -82,7 +82,10 @@ describe("the Status View", () => {
       name: "The log's warnings and errors of the last day",
     });
     expect(link).toHaveTextContent(/^Log$/);
-    expect(link.parentElement).toHaveTextContent(/^Log 1 error and 3 warnings in the last day$/);
+    expect(link).toHaveTextContent(/^Log$/);
+    expect(link.parentElement?.nextElementSibling).toHaveTextContent(
+      /^1 error and 3 warnings in the last day$/,
+    ); // its value
     expect(screen.queryByRole("button", { name: "The settings" })).not.toBeInTheDocument();
     await userEvent.click(link);
     await waitFor(() => {
@@ -98,12 +101,18 @@ describe("the Status View", () => {
     const some = await screen.findByRole("button", {
       name: "The log's warnings and errors of the last day",
     });
-    expect(some.parentElement).toHaveTextContent(/^Log 2 warnings in the last day$/);
+    expect(some).toHaveTextContent(/^Log$/);
+    expect(some.parentElement?.nextElementSibling).toHaveTextContent(
+      /^2 warnings in the last day$/,
+    ); // its value
     unmount();
     serve(routes([], { warnings: 0, errors: 0 }));
     renderWithQueries(<App />);
     const link = await screen.findByRole("button", { name: "The log" });
-    expect(link.parentElement).toHaveTextContent(/^Log No errors or warnings in the last day$/);
+    expect(link).toHaveTextContent(/^Log$/);
+    expect(link.parentElement?.nextElementSibling).toHaveTextContent(
+      /^No errors or warnings in the last day$/,
+    ); // its value
   });
 
   it("copies Setup, every check, and About as Markdown", async () => {
