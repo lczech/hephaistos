@@ -137,7 +137,7 @@ pytest tests the Core, with fake plugins standing in for real tools.
 `scripts/test_git_versions.sh` runs them with several git versions.
 Vitest and Testing Library test the GUI, in jsdom.
 What only a browser lays out, e.g. what the diff renderer draws, is tested in real browsers: Playwright's Chromium, Firefox and WebKit.
-Those tests guard what we rely on that the renderer does not promise.
+Those tests guard what we rely on that the renderer does not promise, and looks once wrong and seen only there, e.g. the Explorer's tree.
 GUI tests reach no Server: each test answers the requests it expects, and any other fails, also after the test ended.
 The Vite dev server proxies `/api` to the Server, but not for Vitest.
 

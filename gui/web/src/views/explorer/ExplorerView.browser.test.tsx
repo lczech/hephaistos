@@ -1,0 +1,222 @@
+import { screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { server, userEvent } from "vitest/browser";
+import type { Schemas } from "../../api/client";
+import {
+  clone,
+  fileEntry,
+  info,
+  json,
+  renderWithQueries,
+  repository,
+  serve,
+} from "../../test/server";
+import { InPanel } from "../../test/view";
+import { ExplorerView } from "./ExplorerView";
+import type { FileEntry } from "./rows";
+
+// How the Explorer's tree lays out, as a browser draws it: what was wrong once, seen only there.
+
+const folder = (name: string, items: number) => fileEntry(name, { kind: "directory", items });
+
+/** A Checkout at /r: a folder holding a folder of many files, and files of some sizes. */
+const DISK: Record<string, FileEntry[]> = {
+  "/r": [
+    folder("a", 2),
+    fileEntry("small.txt", { size: 486 }),
+    fileEntry("big.txt", { size: 19_000 }),
+    fileEntry("README.md", { size: 5, status: "M", worktree: "M" }),
+  ],
+  "/r/a": [folder("b", 40), fileEntry("a1.txt", { size: 1 })],
+  "/r/a/b": Array.from({ length: 40 }, (_, at) =>
+    fileEntry(`f${String(at).padStart(2, "0")}.txt`, { size: at }),
+  ),
+};
+
+function serveDisk() {
+  serve({
+    "GET /api/info": () => json(info()),
+    "GET /api/repositories": () =>
+      json([repository("r", [{ ...clone("r"), path: "/r", resolved_path: "/r" }])]),
+    "GET /api/files": (request) => {
+      const query = new URL(request.url).searchParams;
+      const path = query.get("path") ?? "";
+      const fields = new Set(query.getAll("fields"));
+      const entries = (DISK[path] ?? []).map((found) => ({
+        ...found,
+        size: fields.has("size") ? found.size : null,
+        items: fields.has("size") ? found.items : null,
+        status: fields.has("git") ? found.status : null,
+        worktree: fields.has("git") ? found.worktree : null,
+      }));
+      const answer: Schemas["FilesJson"] = {
+        path,
+        top: fields.has("git") ? "/r" : null,
+        entries,
+        count: entries.length,
+      };
+      return json(answer);
+    },
+    "GET /api/files/paths": () => {
+      const below = (path: string, prefix: string): string[] =>
+        (DISK[path] ?? []).flatMap((found) =>
+          found.kind === "directory"
+            ? [
+                `${prefix}${found.name}/`,
+                ...below(`${path}/${found.name}`, `${prefix}${found.name}/`),
+              ]
+            : [`${prefix}${found.name}`],
+        );
+      const answer: Schemas["PathsJson"] = {
+        path: "/r",
+        paths: below("/r", "").sort(),
+        stopped: null,
+        limit: null,
+      };
+      return json(answer);
+    },
+  });
+}
+
+/** The Explorer at /r, in a Panel this large, all its columns shown. */
+async function explorer(width = 700, height = 320) {
+  localStorage.setItem("hephaistos.lists.explorer.hidden", "[]");
+  serveDisk();
+  renderWithQueries(
+    <div style={{ width, height, display: "flex", flexDirection: "column" }}>
+      <InPanel view={ExplorerView} kind="explorer" params={{ path: "/r" }} />
+    </div>,
+  );
+  await screen.findByText("README.md");
+}
+
+const rowOf = (name: string) =>
+  [...document.querySelectorAll("li")].find(
+    (item) => item.querySelector(":scope > div bdi")?.textContent === name,
+  )?.firstElementChild as HTMLElement;
+
+const box = (element: Element | null | undefined) => {
+  if (!element) throw new Error("not shown");
+  return element.getBoundingClientRect();
+};
+
+/** Where an element's first text ends, as drawn. */
+function textEnd(element: Element): number {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const range = new Range();
+  range.selectNodeContents(walker.nextNode() as Node);
+  return range.getBoundingClientRect().right;
+}
+
+describe("the Explorer's tree, as drawn", () => {
+  it("lines up sizes' and folders' numbers at their end", async () => {
+    await explorer();
+    const size = (name: string) => rowOf(name).querySelector("[data-column=size]") as Element;
+    await waitFor(() => expect(size("a").textContent).toBe("2 items"));
+    const ends = ["a", "small.txt", "big.txt"].map((name) => textEnd(size(name)));
+    for (const end of ends) expect(end).toBeCloseTo(ends[0] as number, 0);
+  });
+
+  it("starts a row's icon where its parent's name does, its guides short of its chevron", async () => {
+    await explorer();
+    await userEvent.click(screen.getByText("a"));
+    await userEvent.click(await screen.findByText("b"));
+    await screen.findByText("f00.txt");
+    const [a, b, f] = [rowOf("a"), rowOf("b"), rowOf("f00.txt")];
+    expect(box(b.querySelector("[data-column=name] svg")).left).toBeCloseTo(
+      box(a.querySelector("bdi")).left,
+      0,
+    );
+    const chevron = box(b.querySelector("svg"));
+    const guides = box(b.querySelector("[aria-hidden=true]:not(svg)"));
+    expect(guides.right).toBeLessThanOrEqual(chevron.left);
+    // A file two levels in has a line below each chevron it is within, the last below b's.
+    const lines = box(f.querySelector("[aria-hidden=true]:not(svg)"));
+    expect(lines.right).toBeGreaterThan(chevron.left);
+    expect(lines.right).toBeLessThan(chevron.right);
+  });
+
+  it("keeps open folders in view below the header, deeper ones below and under them", async () => {
+    await explorer();
+    await userEvent.click(screen.getByText("a"));
+    await userEvent.click(await screen.findByText("b"));
+    await screen.findByText("f39.txt");
+    const head = document.querySelector("[data-column]")?.parentElement as HTMLElement;
+    let scroller: HTMLElement | null = head;
+    while (scroller && getComputedStyle(scroller).overflowY === "visible") {
+      scroller = scroller.parentElement;
+    }
+    (scroller as HTMLElement).scrollTop = 10_000;
+    await waitFor(() => expect(box(rowOf("f39.txt")).bottom).toBeLessThan(box(scroller).bottom));
+    const [a, b] = [rowOf("a"), rowOf("b")];
+    expect(box(a).top).toBeCloseTo(box(head).bottom, 0);
+    expect(box(b).top).toBeCloseTo(box(a).bottom, 0);
+    const z = (element: Element) => Number(getComputedStyle(element).zIndex);
+    expect(z(head)).toBeGreaterThan(z(a));
+    expect(z(a)).toBeGreaterThan(z(b));
+  });
+
+  it("shows a row's links after its name, clear of its git letter", async () => {
+    await explorer();
+    const row = rowOf("README.md");
+    await waitFor(() => expect(row.querySelector("[data-column=git]")?.textContent).toBe("M"));
+    await userEvent.hover(row.querySelector("bdi") as Element);
+    const diff = await screen.findByRole("button", { name: "Diff of README.md" });
+    await waitFor(() => expect(getComputedStyle(diff).visibility).toBe("visible"));
+    expect(box(diff).right).toBeLessThanOrEqual(box(row.querySelector("[data-column=git]")).left);
+    expect(box(diff).left).toBeGreaterThanOrEqual(box(row.querySelector("bdi")).left);
+  });
+
+  it("hides a row's links once the pointer left it, also after a press dragged off them", async () => {
+    await explorer();
+    const row = rowOf("README.md");
+    await waitFor(() => expect(row.querySelector("[data-column=git]")?.textContent).toBe("M"));
+    await userEvent.hover(row.querySelector("bdi") as Element);
+    const diff = await screen.findByRole("button", { name: "Diff of README.md" });
+    await userEvent.dragAndDrop(diff, rowOf("small.txt").querySelector("bdi") as Element);
+    await waitFor(() => expect(diff.checkVisibility()).toBe(false));
+  });
+
+  it("centres git's letters in their column", async () => {
+    await explorer();
+    const cell = rowOf("README.md").querySelector("[data-column=git]") as Element;
+    await waitFor(() => expect(cell.textContent).toBe("M"));
+    const letter = new Range();
+    letter.selectNodeContents(cell);
+    const middle = (rect: DOMRect) => (rect.left + rect.right) / 2;
+    expect(middle(letter.getBoundingClientRect())).toBeCloseTo(middle(box(cell)), 0);
+  });
+
+  // Not in WebKit: its buttons keep the font of the browser, larger than that of the page, so
+  // their icons, sized by `em`, are larger than the formula of the path says.
+  it.skipIf(server.browser === "webkit")(
+    "keeps its path in place when its buttons wrap below it",
+    async () => {
+      const where = async (width: number) => {
+        document.body.replaceChildren();
+        await explorer(width);
+        const part = screen.getByRole("button", { name: "r" });
+        const bar = part.closest("header") as HTMLElement;
+        const buttons = screen.getByRole("button", { name: "Hidden files" });
+        return { path: box(part).top - box(bar).top, wrapped: box(buttons).top > box(part).bottom };
+      };
+      const wide = await where(700);
+      const narrow = await where(140);
+      expect([wide.wrapped, narrow.wrapped]).toEqual([false, true]);
+      expect(narrow.path).toBeCloseTo(wide.path, 0);
+    },
+  );
+
+  it("keeps its find row in one line where it fits, its field narrower", async () => {
+    await explorer(480);
+    await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
+    await userEvent.keyboard("missing");
+    const row = document.querySelector("search") as HTMLElement;
+    await waitFor(() => expect(row.querySelector("output")?.textContent).not.toBe(""));
+    const boxes = [...row.children].map(box);
+    // On one line: each overlaps all others from top to bottom.
+    expect(Math.max(...boxes.map(({ top }) => top))).toBeLessThan(
+      Math.min(...boxes.map(({ bottom }) => bottom)),
+    );
+  });
+});
