@@ -269,9 +269,9 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     `found` are its sessions with an ID (those without are left for the next observation),
     `running` whether its server runs. A Terminal not found ended if the server runs in the
     same boot; else it is lost. A found one takes its name from the Keeper; another holding
-    that name moves to a free one. `command` holds what new rows run, for Terminals just
-    created; others found anew run a shell, or whatever was started by hand, which the Keeper
-    doesn't say.
+    that name moves to a free one. `command` holds what Terminals just created run, also for
+    rows another process stored first; others found anew run a shell, or whatever was started
+    by hand, which the Keeper doesn't say.
 
     `started` is the clock before the Keeper was asked. A row observed later, e.g. of a
     Terminal another process created meanwhile, is a newer reading than `found`, so it stays
@@ -279,6 +279,12 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     """
     observed_at = session.tick()
     known = {state.id: state for state in on_this_machine(session)}
+    for terminal_id, run in (command or {}).items():
+        old = known.get(terminal_id)
+        if old is not None and old.command is None:
+            # Stored first by another process, which can't know what it runs: its creator does.
+            known[terminal_id] = replace(old, command=run, observed_at=observed_at)
+            _write(session, known[terminal_id])
     newer = {state.id for state in known.values() if state.observed_at > started}
     seen = {item.terminal_id: item for item in found if item.terminal_id is not None}
     missing = [state for state in known.values() if state.id not in seen and state.id not in newer]

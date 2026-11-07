@@ -186,6 +186,22 @@ def test_an_older_snapshot_leaves_newer_rows(set_up: Paths) -> None:
     assert update(set_up).ended == 1  # a snapshot taken since has it gone
 
 
+def test_a_creator_tells_what_a_row_stored_first_runs(set_up: Paths) -> None:
+    api = new_id()
+    started = clock(set_up)  # the creator lists its new session
+    update(set_up, session("api", api))  # another process stores it first, without a command
+    with write_session(set_up) as written:
+        terminals.update(
+            written,
+            [session("api", api)],
+            running=True,
+            boot_id=BOOT,
+            started=started,
+            command={api: ("make", "test")},
+        )
+    assert stored(set_up)["api"].command == ("make", "test")
+
+
 def test_an_older_snapshot_leaves_a_newer_name(set_up: Paths) -> None:
     api = new_id()
     update(set_up, session("api", api))
