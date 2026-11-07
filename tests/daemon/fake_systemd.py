@@ -65,6 +65,9 @@ def _stop(state: dict[str, object]) -> None:
 
 
 def systemctl(args: list[str]) -> int:
+    if args == ["--version"]:  # needs no user session
+        print("systemd 255 (fake)")
+        return 0
     if os.environ.get("FAKE_SYSTEMD_UNAVAILABLE"):
         print("Failed to connect to bus: No medium found", file=sys.stderr)
         return 1

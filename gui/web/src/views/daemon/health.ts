@@ -20,14 +20,22 @@ export function daemonHealth(
     return { health: "lost", reasons: [disconnectedText(connection.since, now)] };
   }
   if (daemon === undefined) return { health: "good", reasons: ["running"] };
-  const { watcher, server, warnings } = daemon;
-  const reasons = [...warnings];
+  const { watcher, server } = daemon;
+  const reasons = setupProblems(daemon);
   if (watcher?.last_pass?.error) reasons.push(`last pass failed: ${watcher.last_pass.error}`);
   if (watcher?.stalled) reasons.push("the watcher has stalled");
   if (server?.error) reasons.push(`the server failed: ${server.error}`);
   return reasons.length > 0
     ? { health: "warning", reasons }
     : { health: "good", reasons: ["running"] };
+}
+
+/** The problems the Daemon's checks of the setup found, as it ran them last. */
+export function setupProblems(daemon: Schemas["DaemonJson"]): string[] {
+  const checks = daemon.checks?.checks ?? [];
+  return checks
+    .filter((check) => check.outcome === "problem")
+    .map((check) => `${check.name}: ${check.text}`);
 }
 
 /** When the live connection is tried again, e.g. `trying again in 8 s`. */

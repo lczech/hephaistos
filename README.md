@@ -29,6 +29,7 @@ hephaistos event list --repo hephaistos
 hephaistos db tables                # the database as stored; `db dump <table>` for its rows
 hephaistos daemon install --linger # optional: the Daemon from boot on, not only from login
 hephaistos daemon status
+hephaistos status                  # this Machine's setup checked, and what runs, e.g. for an issue
 curl -H "Authorization: Bearer $(hephaistos daemon token)" 127.0.0.1:8264/api/repositories
 hephaistos browse                  # the GUI in your browser
 hephaistos desktop open            # the GUI in its own window, also from the desktop's app list

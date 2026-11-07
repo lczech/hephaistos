@@ -31,10 +31,11 @@ hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process
 hephaistos config show [<key>|<section>|--json] | defaults
 hephaistos daemon run | status [--json] | token [--url] [--renew] [--yes]
                   | install [--linger] [--yes] | uninstall [--yes] | start | stop | restart
+hephaistos status [--json]
 hephaistos [--debug] …
 ```
 
-`setup`: [setup](../core/setup.md); `daemon`: [Daemon](../daemon/daemon.md) and, for `token`, [Server](../daemon/server.md#token).
+`setup`: [setup](../core/setup.md); `daemon`: [Daemon](../daemon/daemon.md) and, for `token`, [Server](../daemon/server.md#token); `status`: [Status](../daemon/status.md).
 Common options have one-letter short forms, e.g. `-r`, `-k` and `-n`.
 Heavy imports happen only inside commands, to keep startup fast, e.g. for shell completion.
 

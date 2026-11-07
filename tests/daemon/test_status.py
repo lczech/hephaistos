@@ -8,7 +8,7 @@ import pytest
 
 from hephaistos.daemon import status
 from hephaistos.daemon.errors import NotStartedError
-from hephaistos.daemon.status import PassStatus, ServerStatus, Status
+from hephaistos.daemon.status import Check, Checked, PassStatus, ServerStatus, Status
 
 STARTED = datetime(2026, 10, 10, 6, 0, tzinfo=UTC)
 LATER = STARTED + timedelta(minutes=2)
@@ -19,6 +19,10 @@ WRITTEN = Status(
     parts=("watcher", "server"),
     watcher=PassStatus(STARTED, 0.4, "the worker died"),
     server=ServerStatus("127.0.0.1:8264", listening=True, requests=3, last_request_at=LATER),
+    checks=Checked(
+        STARTED,
+        (Check("git", "ok", "2.43.0, /usr/bin/git"), Check("ionice", "note", "missing", "install")),
+    ),
 )
 
 
@@ -54,6 +58,16 @@ def test_values_of_another_type_are_unreadable(
     path = tmp_path / status.STATUS_NAME
     data = json.loads(path.read_text())
     (data if part is None else data[part])[field] = value
+    path.write_text(json.dumps(data))
+    assert status.read(tmp_path) is None
+
+
+@pytest.mark.parametrize(("field", "value"), [("outcome", "fine"), ("fix", 1), ("name", None)])
+def test_checks_of_another_type_are_unreadable(tmp_path: Path, field: str, value: object) -> None:
+    status.write(tmp_path, WRITTEN)
+    path = tmp_path / status.STATUS_NAME
+    data = json.loads(path.read_text())
+    data["checks"]["checks"][0][field] = value
     path.write_text(json.dumps(data))
     assert status.read(tmp_path) is None
 

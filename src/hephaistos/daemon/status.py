@@ -25,6 +25,8 @@ STATUS_NAME = "daemon.json"
 
 Trigger = Literal["watcher", "api"]  # what asked for a pass: the timer, or a request
 
+type Outcome = Literal["ok", "problem", "note"]  # of a check (`checks.py`)
+
 
 @dataclass(frozen=True)
 class PassStatus:
@@ -34,6 +36,24 @@ class PassStatus:
     duration: float  # seconds
     error: str | None = None
     trigger: Trigger = "watcher"
+
+
+@dataclass(frozen=True)
+class Check:
+    """What a check of the setup found about one thing, e.g. git (`checks.py`)."""
+
+    name: str  # what it checked, e.g. `git`
+    outcome: Outcome
+    text: str  # what it found
+    fix: str | None = None  # what to do, for a problem or a note
+
+
+@dataclass(frozen=True)
+class Checked:
+    """The checks the Daemon ran last, and when."""
+
+    at: datetime
+    checks: tuple[Check, ...]
 
 
 @dataclass(frozen=True)
@@ -65,6 +85,7 @@ class Status:
     parts: tuple[str, ...] = ()  # those running
     watcher: PassStatus | None = None  # its last pass
     server: ServerStatus | None = None
+    checks: Checked | None = None  # at its start, and when the GUI asked
 
     @property
     def last_seen_at(self) -> datetime:
@@ -113,6 +134,42 @@ def _texts(value: object) -> tuple[str, ...]:
     return tuple(_of(item, str) for item in cast("list[object]", _of(value, list)))
 
 
+def _outcome(value: object) -> Outcome:
+    """What a check found, from JSON."""
+    match _of(value, str):
+        case "ok" | "problem" | "note" as outcome:
+            return outcome
+        case other:
+            raise ValueError(f"not an outcome: {other!r}")
+
+
+def _checked_json(checked: Checked) -> dict[str, object]:
+    """The Daemon's checks as JSON values."""
+    return {
+        "at": _at(checked.at),
+        "checks": [
+            {"name": check.name, "outcome": check.outcome, "text": check.text, "fix": check.fix}
+            for check in checked.checks
+        ],
+    }
+
+
+def _checked_from(data: Any) -> Checked:  # noqa: ANN401 - JSON, checked here
+    """The Daemon's checks from their JSON values; raises if any don't fit."""
+    return Checked(
+        datetime.fromisoformat(_of(data["at"], str)),
+        tuple(
+            Check(
+                _of(check["name"], str),
+                _outcome(check["outcome"]),
+                _of(check["text"], str),
+                _optional(check["fix"], str),
+            )
+            for check in cast("list[Any]", _of(data["checks"], list))
+        ),
+    )
+
+
 def _status_json(status: Status) -> dict[str, object]:
     """A status as JSON values."""
     passed, server = status.watcher, status.server
@@ -141,6 +198,7 @@ def _status_json(status: Status) -> dict[str, object]:
             "refused": server.refused,
             "live": server.live,
         },
+        "checks": None if status.checks is None else _checked_json(status.checks),
     }
 
 
@@ -172,6 +230,7 @@ def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked here
             refused=_of(server["refused"], int),
             live=_of(server["live"], int),
         ),
+        checks=None if data["checks"] is None else _checked_from(data["checks"]),
     )
 
 

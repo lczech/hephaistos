@@ -12,7 +12,7 @@ from hephaistos.cli import tty
 from hephaistos.core.utils.installation import Difference
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
-from hephaistos.daemon.main import running_version
+from hephaistos.daemon.about import running_version
 from support import run_cli
 
 UNIT = "~/.config/systemd/user/hephaistos.service"
@@ -22,7 +22,7 @@ ASK = "this command asks for confirmation only when run interactively"
 def _calls() -> list[str]:
     """The fake systemctl and loginctl calls, without the queries."""
     calls = (Path(os.environ["FAKE_SYSTEMD"]) / "calls").read_text().splitlines()
-    return [call for call in calls if " show" not in call]
+    return [call for call in calls if " show" not in call and not call.endswith(" --version")]
 
 
 def _pid(paths: Paths) -> int:
@@ -327,10 +327,13 @@ def test_status_warns_about_its_unit(
     capsys.readouterr()
     assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 3
     assert capsys.readouterr().err.splitlines() == [
-        "warning: the systemd unit for the daemon runs /gone/hephaistos, which no longer exists",
         (
-            "warning: the systemd unit for the daemon uses other directories than this shell"
-            " (XDG_STATE_HOME: not set in the unit, /s in this shell)"
+            "warning: unit: it runs /gone/hephaistos, which no longer exists;"
+            " `hephaistos daemon install`"
+        ),
+        (
+            "warning: unit: it uses other directories than this shell"
+            " (XDG_STATE_HOME: not set in the unit, /s in this shell); `hephaistos daemon install`"
         ),
     ]
 

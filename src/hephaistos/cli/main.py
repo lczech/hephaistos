@@ -23,6 +23,7 @@ from hephaistos.cli import (
     observe,
     repo,
     scan,
+    status,
     terminal,
     tty,
     worktree,
@@ -41,7 +42,7 @@ DEBUG_OPTION = "--debug"
 OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", EX_CONFIG: "not started", 130: "interrupted"}
 # Commands that run on the default settings if the config is broken: to look into it, or to
 # stop the Daemon. Not `daemon run`: a Daemon on other settings than intended would mislead.
-ON_DEFAULTS = frozenset({"log", "config", "daemon"})
+ON_DEFAULTS = frozenset({"log", "config", "daemon", "status"})
 SHOWS_CONFIG = "config"  # reports a broken config itself
 RUNS_DAEMON = [
     "daemon",
@@ -71,6 +72,7 @@ app.add_typer(desktop.app, name="desktop")
 app.command()(observe.observe)
 app.command()(scan.scan)
 app.command()(browse.browse)
+app.command()(status.status)
 
 
 def without_debug(args: list[str]) -> tuple[list[str], bool]:

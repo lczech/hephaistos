@@ -6,11 +6,12 @@ back with `before`, newest first; the log, back with `before` too; and tables' r
 Directory's files, by its absolute path, anywhere this user may list.
 """
 
+import asyncio
 import logging
 import os
 import socket
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal, TypedDict, cast
@@ -62,11 +63,12 @@ from hephaistos.core.utils import (
 )
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
-from hephaistos.daemon import report
-from hephaistos.daemon.report import DaemonJson
+from hephaistos.daemon import checks, report
+from hephaistos.daemon.about import about as about_of
+from hephaistos.daemon.report import DaemonJson, StatusJson
 from hephaistos.daemon.server.errors import CheckoutError, ErrorCheckoutJson, ErrorJson
 from hephaistos.daemon.server.live import Hint, Live
-from hephaistos.daemon.status import Trigger
+from hephaistos.daemon.status import Check, Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 
 DEFAULT_LIMIT = 20  # Events, as `event list` shows
@@ -82,6 +84,7 @@ router = APIRouter(
 )
 
 type Observe = Callable[[Trigger], Awaitable[Done | PassFailed]]  # the Watcher's pass
+type RecordChecks = Callable[[Sequence[Check]], None]  # in the Daemon's status
 
 type Current = Hint | Literal["focus", "reconnect"]
 
@@ -113,6 +116,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/events/kinds": ("reconnect",),
     "/api/events/{event_id}": ("data",),
     "/api/daemon": ("daemon", "focus"),  # focus: its systemd unit
+    "/api/status": ("focus",),  # not by hints: it runs the checks, so only while shown
     "/api/config": ("focus",),
     "/api/db/tables": ("data",),
     "/api/db/tables/{table}": ("data",),
@@ -694,7 +698,23 @@ def event_show(paths: PathsOf, event_id: uuid.UUID) -> EventJson:
 @router.get("/daemon")
 def daemon(paths: PathsOf) -> DaemonJson:
     """How the Daemon is doing, as `daemon status --json`."""
-    return report.report_json(report.report(paths, os.environ), datetime.now(UTC))
+    return report.report_json(report.report(paths), datetime.now(UTC))
+
+
+@router.get("/status")
+async def status(paths: PathsOf, request: Request) -> StatusJson:
+    """This Machine's setup, as the Daemon finds it, and how it is doing, as `status --json`.
+
+    The Daemon records these checks in its status, which `status` shows beside its own.
+    """
+    found = await asyncio.to_thread(checks.run, os.environ)
+    record = cast("RecordChecks | None", request.app.state.record)
+    if record is not None:
+        record(found)  # in the event loop, as the Daemon's other parts report
+    now = datetime.now(UTC)
+    return await asyncio.to_thread(
+        lambda: report.status_json(paths, found, about_of(), report.report(paths), now)
+    )
 
 
 @router.post("/observe", status_code=204)

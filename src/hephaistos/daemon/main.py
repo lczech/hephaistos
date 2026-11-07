@@ -11,22 +11,21 @@ import logging
 import os
 import signal
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Protocol
 
-from hephaistos import __version__
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import SOURCE, Paths, own_checkout
-from hephaistos.daemon import status
+from hephaistos.core.utils.paths import Paths
+from hephaistos.daemon import checks, status
+from hephaistos.daemon.about import running_version
 from hephaistos.daemon.errors import NotStartedError, PartError
 from hephaistos.daemon.server.server import Server, address
-from hephaistos.daemon.status import PassStatus, ServerStatus, Status
+from hephaistos.daemon.status import Check, Checked, PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.watcher import Watcher
 
 FIRST_RESTART_DELAY = 1.0  # seconds before restarting a crashed part; doubles with each crash
@@ -51,12 +50,12 @@ class Part(Protocol):
         ...
 
 
-def running_version(source: Path = SOURCE) -> str:
-    """Our version, with the commit it runs from a checkout, e.g. `0.1.0 (bfc66f6-dirty)`."""
-    if (checkout := own_checkout(source)) is None:
-        return __version__
-    described = git.describe(checkout)
-    return __version__ if described is None else f"{__version__} ({described})"
+def log_checks(found: Sequence[Check]) -> None:
+    """Logs checks: problems as warnings, the others as info."""
+    for check in found:
+        level = logging.WARNING if check.outcome == "problem" else logging.INFO
+        fix = "" if check.fix is None else f"; {check.fix}"
+        log.log(level, "setup: %s %s: %s%s", check.name, check.outcome, check.text, fix)
 
 
 def _enabled(settings: config.Settings) -> list[str]:
@@ -104,8 +103,10 @@ class Daemon:
     The Watcher observes on request even while its timer, the part, does not run.
     """
 
-    def __init__(self, paths: Paths, names: list[str], version: str) -> None:
-        """Prepares the parts named; `run` starts them."""
+    def __init__(
+        self, paths: Paths, names: list[str], version: str, found: Sequence[Check] = ()
+    ) -> None:
+        """Prepares the parts named, with the checks `found` at the start; `run` starts them."""
         self._paths = paths
         self._watcher = Watcher(paths, self._on_pass)
         port = config.settings().server.port
@@ -115,10 +116,13 @@ class Daemon:
             datetime.now(UTC),
             parts=tuple(names),
             server=ServerStatus(address(port), listening=False) if Server.name in names else None,
+            checks=Checked(datetime.now(UTC), tuple(found)),
         )
         builders: dict[str, Callable[[], Part]] = {
             Watcher.name: lambda: self._watcher,
-            Server.name: lambda: Server(paths, version, self._on_server, self._watcher.observe),
+            Server.name: lambda: Server(
+                paths, version, self._on_server, self._watcher.observe, self._on_checks
+            ),
         }
         self._parts = [builders[name]() for name in names]
         self._stopping = asyncio.Event()
@@ -131,6 +135,14 @@ class Daemon:
     def _on_server(self, now: ServerStatus) -> None:
         """Records how the Server is doing in the status file."""
         self._save(dataclasses.replace(self._status, server=now))
+
+    def _on_checks(self, found: Sequence[Check]) -> None:
+        """Records the checks the Server ran, logging what changed since the last ones."""
+        before = () if self._status.checks is None else self._status.checks.checks
+        log_checks(checks.changed(before, found))
+        self._save(
+            dataclasses.replace(self._status, checks=Checked(datetime.now(UTC), tuple(found)))
+        )
 
     def _save(self, new: Status) -> None:
         """Keeps the status, and writes it to the status file."""
@@ -192,7 +204,8 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
         except HephaistosError as error:
             log.warning("cannot update this machine: %s", error)
         version = running_version()
-        daemon = Daemon(paths, names, version)
+        found_checks = checks.run(os.environ)
+        daemon = Daemon(paths, names, version, found_checks)
         log.info(
             "running: %s",
             ", ".join(names),
@@ -204,6 +217,7 @@ def run(paths: Paths, announce: Callable[[str], None]) -> None:
                 "git_version": found.version,
             },
         )
+        log_checks(found_checks)
         announce(f"Running: {', '.join(names)}; Ctrl+C stops the daemon")
         reason = daemon.run()
         log.info("stopped: %s", reason)

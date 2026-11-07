@@ -1,11 +1,122 @@
 {
   "api": {
     "major": 0,
-    "minor": 31
+    "minor": 32
   },
   "shapes": {
     "components": {
       "schemas": {
+        "AboutJson": {
+          "description": "What runs, and on what; None for what isn't known.",
+          "properties": {
+            "api": {
+              "title": "Api",
+              "type": "string"
+            },
+            "desktop": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Desktop"
+            },
+            "git": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Git"
+            },
+            "kernel": {
+              "title": "Kernel",
+              "type": "string"
+            },
+            "locale": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            },
+            "os": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Os"
+            },
+            "python": {
+              "title": "Python",
+              "type": "string"
+            },
+            "schema": {
+              "title": "Schema",
+              "type": "integer"
+            },
+            "sqlite": {
+              "title": "Sqlite",
+              "type": "string"
+            },
+            "systemd": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Systemd"
+            },
+            "time_zone": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Time Zone"
+            },
+            "version": {
+              "title": "Version",
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "api",
+            "schema",
+            "python",
+            "sqlite",
+            "git",
+            "systemd",
+            "os",
+            "kernel",
+            "desktop",
+            "locale",
+            "time_zone"
+          ],
+          "title": "AboutJson",
+          "type": "object"
+        },
         "ApiVersionJson": {
           "description": "The API's version: clients need the same `major`, and `minor` for what it added.",
           "properties": {
@@ -274,6 +385,63 @@
             "commit"
           ],
           "title": "ChangesJson",
+          "type": "object"
+        },
+        "CheckJson": {
+          "description": "What a check found.",
+          "properties": {
+            "fix": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fix"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            },
+            "outcome": {
+              "$ref": "#/components/schemas/Outcome"
+            },
+            "text": {
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "outcome",
+            "text",
+            "fix"
+          ],
+          "title": "CheckJson",
+          "type": "object"
+        },
+        "CheckedJson": {
+          "description": "The checks the Daemon ran last, and when.",
+          "properties": {
+            "checked_at": {
+              "title": "Checked At",
+              "type": "string"
+            },
+            "checks": {
+              "items": {
+                "$ref": "#/components/schemas/CheckJson"
+              },
+              "title": "Checks",
+              "type": "array"
+            }
+          },
+          "required": [
+            "checked_at",
+            "checks"
+          ],
+          "title": "CheckedJson",
           "type": "object"
         },
         "CheckoutRef": {
@@ -670,6 +838,16 @@
         "DaemonJson": {
           "description": "How the Daemon is doing; its parts only while it runs, the Server only if enabled.",
           "properties": {
+            "checks": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CheckedJson"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "daemon": {
               "$ref": "#/components/schemas/ProcessJson"
             },
@@ -693,13 +871,6 @@
                 }
               ]
             },
-            "warnings": {
-              "items": {
-                "type": "string"
-              },
-              "title": "Warnings",
-              "type": "array"
-            },
             "watcher": {
               "anyOf": [
                 {
@@ -716,7 +887,7 @@
             "daemon",
             "watcher",
             "server",
-            "warnings"
+            "checks"
           ],
           "title": "DaemonJson",
           "type": "object"
@@ -1715,6 +1886,30 @@
           "title": "LiveTokenJson",
           "type": "object"
         },
+        "LogCountsJson": {
+          "description": "The log's recent records that may need looking at.",
+          "properties": {
+            "errors": {
+              "title": "Errors",
+              "type": "integer"
+            },
+            "since": {
+              "title": "Since",
+              "type": "string"
+            },
+            "warnings": {
+              "title": "Warnings",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "since",
+            "warnings",
+            "errors"
+          ],
+          "title": "LogCountsJson",
+          "type": "object"
+        },
         "LogEntryJson": {
           "description": "A log record as written, and where its line starts: day and byte, `2026-10-14:18734`.",
           "properties": {
@@ -1856,6 +2051,14 @@
           "enum": [
             "date",
             "topo"
+          ],
+          "type": "string"
+        },
+        "Outcome": {
+          "enum": [
+            "ok",
+            "problem",
+            "note"
           ],
           "type": "string"
         },
@@ -2448,6 +2651,35 @@
             "error"
           ],
           "title": "SourceJson",
+          "type": "object"
+        },
+        "StatusJson": {
+          "description": "This Machine's setup, as checked by whoever asks, what runs, and how the Daemon is doing.",
+          "properties": {
+            "about": {
+              "$ref": "#/components/schemas/AboutJson"
+            },
+            "checks": {
+              "items": {
+                "$ref": "#/components/schemas/CheckJson"
+              },
+              "title": "Checks",
+              "type": "array"
+            },
+            "daemon": {
+              "$ref": "#/components/schemas/DaemonJson"
+            },
+            "log": {
+              "$ref": "#/components/schemas/LogCountsJson"
+            }
+          },
+          "required": [
+            "checks",
+            "about",
+            "log",
+            "daemon"
+          ],
+          "title": "StatusJson",
           "type": "object"
         },
         "Stop": {
@@ -5027,6 +5259,35 @@
             }
           },
           "summary": "Repository Show"
+        }
+      },
+      "/api/status": {
+        "get": {
+          "description": "This Machine's setup, as the Daemon finds it, and how it is doing, as `status --json`.\n\nThe Daemon records these checks in its status, which `status` shows beside its own.",
+          "operationId": "status_api_status_get",
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/StatusJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "default": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorJson"
+                  }
+                }
+              },
+              "description": "Not a success: the error"
+            }
+          },
+          "summary": "Status"
         }
       },
       "/api/terminals": {

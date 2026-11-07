@@ -9,7 +9,7 @@ import { loadErrorText } from "../CheckoutError";
 import { ViewLink } from "../ViewLink";
 import styles from "./DaemonView.module.css";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
-import { retryText } from "./health";
+import { retryText, setupProblems } from "./health";
 
 type Lost = Extract<Connection, { state: "disconnected" }>;
 
@@ -47,7 +47,8 @@ export function DaemonView() {
       </section>
     );
   }
-  const { daemon: process, watcher, server, warnings } = daemon.data;
+  const { daemon: process, watcher, server } = daemon.data;
+  const warnings = setupProblems(daemon.data);
   const log = process.pid !== null && (
     <ViewLink
       address={{ kind: "log", params: { process: "daemon", pid: String(process.pid) } }}

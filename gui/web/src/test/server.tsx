@@ -101,7 +101,7 @@ export function daemon(): Schemas["DaemonJson"] {
       refused: 0,
       live: 1,
     },
-    warnings: [],
+    checks: { checked_at: secondsAgo(7200), checks: [] },
   };
 }
 

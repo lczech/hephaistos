@@ -13,7 +13,7 @@ from hephaistos.core.serialize import API_VERSION
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server import api, live, web
-from hephaistos.daemon.server.api import Observe
+from hephaistos.daemon.server.api import Observe, RecordChecks
 from hephaistos.daemon.server.errors import CheckoutError, error_response
 from hephaistos.daemon.server.guard import Counts, Guard
 
@@ -42,12 +42,19 @@ async def _refused_by_core(_: Request, error: Exception) -> Response:
     return error_response(str(error), 400)
 
 
-def create_app(
-    paths: Paths, counts: Counts, version: str, observe: Observe, gui: Path | None
+def create_app(  # noqa: PLR0913 - what the Daemon gives its Server
+    paths: Paths,
+    counts: Counts,
+    version: str,
+    observe: Observe,
+    gui: Path | None,
+    *,
+    record: RecordChecks | None = None,
 ) -> FastAPI:
     """The Server's app for this Machine, counting its requests in `counts`.
 
-    `observe` has the Watcher run a pass; `gui` holds the GUI's built files, if there are any.
+    `observe` has the Watcher run a pass; `gui` holds the GUI's built files, if there are any;
+    `record`, if given, records the checks run for a client in the Daemon's status.
     """
     app = FastAPI(
         title="hephaistos",
@@ -59,6 +66,7 @@ def create_app(
     app.state.paths = paths
     app.state.version = version
     app.state.observe = observe
+    app.state.record = record
     app.state.gui = gui
     guard = Guard(paths, counts)
     app.state.live = live.Live(paths, counts, guard)

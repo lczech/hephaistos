@@ -196,6 +196,28 @@ def is_available() -> bool:
         return False
 
 
+def version() -> str | None:
+    """The version of systemd, e.g. `systemd 255 (255.4-1ubuntu8)`; None if it doesn't run."""
+    try:
+        result = _run("systemctl", "--version")
+    except SystemdError:
+        return None
+    lines = result.stdout.splitlines()
+    return lines[0].strip() if result.returncode == 0 and lines else None
+
+
+def user_environment() -> dict[str, str]:
+    """The environment systemd gives user services, e.g. the desktop's; empty without one."""
+    try:
+        result = _run("systemctl", "--user", "show-environment")
+    except SystemdError:
+        return {}
+    if result.returncode != 0:
+        return {}
+    pairs = (line.partition("=") for line in result.stdout.splitlines())
+    return {name: value for name, _, value in pairs if name}
+
+
 def _require_systemd() -> None:
     """Raises SystemdError if systemd user services are not available."""
     if not is_available():

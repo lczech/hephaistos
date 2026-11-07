@@ -410,7 +410,7 @@ def test_the_server_needs_the_websocket_library(
 ) -> None:
     monkeypatch.setitem(sys.modules, "websockets", None)  # as if not installed
     reported: list[ServerStatus] = []
-    server = Server(paths, "0.1.0", reported.append, FakeWatcher().observe)
+    server = Server(paths, "0.1.0", reported.append, FakeWatcher().observe, lambda _: None)
     with pytest.raises(PartError, match="the websockets package is missing"):
         asyncio.run(server.run())
     assert reported[-1].error is not None
@@ -423,7 +423,7 @@ def test_the_server_makes_the_token_private_at_start(
     token.token(paths)
     paths.token.chmod(0o644)
     monkeypatch.setitem(sys.modules, "websockets", None)  # to stop right after
-    server = Server(paths, "0.1.0", lambda _: None, FakeWatcher().observe)
+    server = Server(paths, "0.1.0", lambda _: None, FakeWatcher().observe, lambda _: None)
     with pytest.raises(PartError):
         asyncio.run(server.run())
     assert stat.S_IMODE(paths.token.stat().st_mode) == 0o600

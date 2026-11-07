@@ -1,17 +1,25 @@
-"""How the Daemon is doing: what `daemon status` shows and `/api/daemon` returns."""
+"""How the Daemon is doing: what `daemon status` shows and `/api/daemon` returns.
 
-from collections.abc import Mapping
+With this Machine's setup, also what `status` shows and `/api/status` returns.
+"""
+
+import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TypedDict
 
 from hephaistos.core import config
+from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
-from hephaistos.daemon.status import PassStatus, ServerStatus, Status, Trigger
+from hephaistos.daemon.about import AboutJson
+from hephaistos.daemon.checks import CheckedJson, CheckJson, check_json, checked_json
+from hephaistos.daemon.status import Check, PassStatus, ServerStatus, Status, Trigger
 from hephaistos.daemon.unit import ForeignUnitError, UnitState
 
 STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
+RECENT_LOG = timedelta(hours=24)  # how far back `status` counts the log's warnings and errors
 
 
 @dataclass(frozen=True)
@@ -23,7 +31,6 @@ class Report:
     linger: bool
     running: bool
     status: Status | None  # of the running Daemon, else of the last one
-    warnings: tuple[str, ...]
 
     @property
     def under_systemd(self) -> bool:
@@ -37,30 +44,19 @@ class Report:
         return found if self.running and found is not None and found.stopped_at is None else None
 
 
-def report(paths: Paths, env: Mapping[str, str]) -> Report:
-    """How the Daemon is doing; `env` is that of the shell, compared with that of the unit."""
+def report(paths: Paths) -> Report:
+    """How the Daemon is doing."""
     state = unit.unit_state()
-    warnings: list[str] = []
     try:
         installed = unit.installed_text()
-    except ForeignUnitError as error:
-        installed = None
-        warnings.append(str(error))
-    if installed is not None:
-        executable = unit.installed_executable(installed)
-        if executable is not None and not executable.exists():
-            warnings.append(
-                f"the systemd unit for the daemon runs {executable}, which no longer exists"
-            )
-        if differences := unit.path_differences(installed, env):
-            warnings.append(unit.other_directories_text(differences))
+    except ForeignUnitError:
+        installed = None  # not ours; a check says so
     return Report(
         unit=state,
         installed=installed if state is None or state.installed else None,
         linger=unit.has_linger(),
         running=status.is_running(paths.state_dir),
         status=status.read(paths.state_dir),
-        warnings=tuple(warnings),
     )
 
 
@@ -139,7 +135,7 @@ class DaemonJson(TypedDict):
     daemon: ProcessJson
     watcher: WatcherJson | None
     server: ServerJson | None
-    warnings: list[str]
+    checks: CheckedJson | None  # its own, as it ran them last
 
 
 def _at(value: datetime | None) -> str | None:
@@ -212,5 +208,43 @@ def report_json(found: Report, now: datetime) -> DaemonJson:
         ),
         watcher=None if current is None else _watcher_json(current, now),
         server=None if current is None or current.server is None else _server_json(current.server),
-        warnings=list(found.warnings),
+        checks=None if current is None or current.checks is None else checked_json(current.checks),
+    )
+
+
+class LogCountsJson(TypedDict):
+    """The log's recent records that may need looking at."""
+
+    since: str
+    warnings: int
+    errors: int  # and critical
+
+
+class StatusJson(TypedDict):
+    """This Machine's setup, as checked by whoever asks, what runs, and how the Daemon is doing."""
+
+    checks: list[CheckJson]
+    about: AboutJson
+    log: LogCountsJson
+    daemon: DaemonJson
+
+
+def log_counts(paths: Paths, now: datetime) -> LogCountsJson:
+    """How many warnings and errors the log holds from the last RECENT_LOG."""
+    since = now - RECENT_LOG
+    selection = logs.Selection(since=since, level=logging.WARNING)
+    levels = [entry.record["level"] for entry in logs.read(paths.state_dir, selection).entries]
+    warnings = levels.count("WARNING")
+    return LogCountsJson(since=since.isoformat(), warnings=warnings, errors=len(levels) - warnings)
+
+
+def status_json(
+    paths: Paths, found: Sequence[Check], about: AboutJson, daemon: Report, now: datetime
+) -> StatusJson:
+    """The setup as `found`, what runs, and how the Daemon is doing."""
+    return StatusJson(
+        checks=[check_json(check) for check in found],
+        about=about,
+        log=log_counts(paths, now),
+        daemon=report_json(daemon, now),
     )

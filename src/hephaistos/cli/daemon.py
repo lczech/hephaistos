@@ -24,7 +24,7 @@ from hephaistos.core.config import TimeFormat
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, own_checkout, short_path
 from hephaistos.core.utils.text import number_text
-from hephaistos.daemon import report, unit
+from hephaistos.daemon import checks, report, unit
 from hephaistos.daemon import status as daemon_status
 from hephaistos.daemon.errors import NotStartedError
 from hephaistos.daemon.report import Report
@@ -278,7 +278,7 @@ def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False)
     """
     paths = Paths.from_environment()
     now = datetime.now(UTC)
-    found = report.report(paths, os.environ)
+    found = report.report(paths)
     if as_json:
         print_json(report.report_json(found, now))
     else:
@@ -287,8 +287,8 @@ def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False)
         raise typer.Exit(NOT_RUNNING)
 
 
-def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) -> None:
-    """Prints a report as `status` shows it: a line each, warnings on stderr."""
+def when_formatter(time_format: TimeFormat | None, now: datetime) -> Callable[[datetime], str]:
+    """How `status` words a time: `3m ago`, or `at 14:03`."""
     shown = time_formatter(time_format, TimeFormat.RELATIVE, now)
     relative = chosen_time_format(time_format, TimeFormat.RELATIVE) is TimeFormat.RELATIVE
 
@@ -298,6 +298,13 @@ def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) 
             return f"at {text}"
         return text if text == "now" else f"{text} ago"
 
+    return when
+
+
+def status_fields(
+    found: Report, now: datetime, when: Callable[[datetime], str]
+) -> list[tuple[str, str]]:
+    """The lines of `status`: the unit, the Daemon, and its parts while it runs."""
     fields = [("Unit", _unit_text(found)), ("Daemon", _daemon_text(found, when))]
     current = found.current
     if current is not None:
@@ -305,9 +312,15 @@ def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) 
         fields.append(("Watcher", _watcher_text(current, now, when)))
     if current is not None and current.server is not None:
         fields.append(("Server", _server_text(current.server, when)))
-    print_fields(fields)
-    for warning in found.warnings:
-        typer.echo(f"warning: {warning}", err=True)
+    return fields
+
+
+def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) -> None:
+    """Prints a report as `status` shows it: a line each, the unit's problems on stderr."""
+    print_fields(status_fields(found, now, when_formatter(time_format, now)))
+    for problem in checks.unit_problems(os.environ):
+        fix = "" if problem.fix is None else f"; {problem.fix}"
+        typer.echo(f"warning: {problem.name}: {problem.text}{fix}", err=True)
 
 
 @app.command()

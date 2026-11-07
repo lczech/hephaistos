@@ -21,18 +21,18 @@ import pytest
 from websockets.exceptions import ConnectionClosed
 from websockets.sync.client import ClientConnection, connect
 
-from hephaistos import __version__
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.events import events
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import main, status
+from hephaistos.daemon.checks import check_json
 from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.server import token
-from hephaistos.daemon.status import PassStatus, ServerStatus, Status
+from hephaistos.daemon.status import Checked, PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.watcher import STOPPING, Watcher
 from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDiedError
-from support import SlowGit, create, git, logged
+from support import SlowGit, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
 
@@ -361,6 +361,7 @@ def test_observes_until_stopped(paths: Paths, repo: Path) -> None:
     messages = _messages(paths)
     assert messages[0] == "start: hephaistos daemon run"
     assert messages[1] == "running: watcher"
+    assert str(messages[2]).startswith("setup: git ok: ")  # its checks, at the start
     assert "pass: 1 events" in messages
     assert messages[-2:] == ["stopped: SIGTERM", "end: ok"]
     with status.held_lock(paths.state_dir):  # released, as the worker ended too
@@ -377,14 +378,6 @@ def test_ctrl_c_stops_it_and_a_crash_is_noticed(paths: Paths) -> None:
     assert daemon.returncode == 0
     assert "the previous daemon (pid 41233) ended without stopping" in _messages(paths)
     assert "stopped: SIGINT" in _messages(paths)
-
-
-def test_running_version(tmp_path: Path) -> None:
-    assert main.running_version(tmp_path) == __version__  # not a checkout
-    checkout = create(tmp_path / "checkout")
-    (checkout / "src" / "hephaistos").mkdir(parents=True)
-    short = git(checkout, "rev-parse", "--short", "HEAD")
-    assert main.running_version(checkout) == f"{__version__} ({short})"
 
 
 def _get(port: int, path: str, headers: dict[str, str], method: str = "GET") -> tuple[int, Any]:
@@ -441,6 +434,34 @@ def test_serves_until_stopped(paths: Paths) -> None:
     assert f"listening on 127.0.0.1:{port}" in messages
     assert "refused GET /api/info?token=… from 127.0.0.1: wrong token" in str(messages)
     assert value not in str(logged(paths))
+
+
+def _checked(paths: Paths, after: datetime) -> Checked | None:
+    """The checks the Daemon recorded, once recorded after `after`."""
+    found = status.read(paths.state_dir)
+    checked = None if found is None else found.checks
+    return checked if checked is not None and checked.at > after else None
+
+
+@pytest.mark.usefixtures("repo")
+def test_records_its_checks_at_start_and_when_asked(paths: Paths) -> None:
+    daemon = _daemon(port=0)
+    try:
+        port = _until(lambda: _server(paths, daemon)).port
+        started = _until(lambda: _checked(paths, datetime.min.replace(tzinfo=UTC)))
+        assert started.checks[0].name == "git"
+        headers = {"Authorization": f"Bearer {token.token(paths)}"}
+        status_code, answer = _get(port, "/api/status", headers)
+        assert status_code == 200
+        asked = _until(lambda: _checked(paths, started.at))
+        assert [check_json(check) for check in asked.checks] == answer["checks"]
+        assert answer["daemon"]["checks"]["checks"] == answer["checks"]
+    finally:
+        daemon.send_signal(signal.SIGTERM)
+        _, err = daemon.communicate(timeout=WAIT)
+    assert daemon.returncode == 0, err
+    logged_checks = [m for m in _messages(paths) if str(m).startswith("setup: git ")]
+    assert len(logged_checks) == 1  # at the start; asked again, nothing changed
 
 
 @pytest.mark.usefixtures("repo")

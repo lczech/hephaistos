@@ -835,6 +835,29 @@ def test_daemon_is_what_status_prints(client: TestClient, monkeypatch: pytest.Mo
     assert client.get("/api/daemon").json() == json.loads(result.output)
 
 
+def test_status_is_what_status_prints_and_is_recorded(
+    paths: Paths, repo: Path, counts: Counts, watcher: FakeWatcher, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded: list[list[str]] = []
+
+    def record(found: Any) -> None:  # noqa: ANN401 - the checks
+        recorded.append([check.name for check in found])
+
+    app = create_app(paths, counts, VERSION, watcher.observe, None, record=record)
+    client = TestClient(app, base_url="http://localhost:8264")
+    client.headers["Authorization"] = f"Bearer {token.token(paths)}"
+    del repo
+    monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl, nor git
+    result = runner.invoke(cli, ["status", "--json"])
+    assert result.exit_code == 0, result.output
+    printed, answered = json.loads(result.output), client.get("/api/status").json()
+    for shown in (printed, answered):
+        del shown["log"]["since"]  # now, less a day
+    assert answered == printed
+    assert [check["name"] for check in answered["checks"]] == ["git", "sqlite", "systemd", "ionice"]
+    assert recorded == [["git", "sqlite", "systemd", "ionice"]]
+
+
 def test_no_docs_but_the_schema_with_the_token(client: TestClient) -> None:
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 200

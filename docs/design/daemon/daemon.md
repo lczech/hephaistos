@@ -2,6 +2,7 @@
 
 How the Daemon runs its parts, and how it is installed and checked ([ADR 002](../../decisions/002-technology-stack.md), [ADR 003](../../decisions/003-core.md)).
 Its parts: the [Watcher](watcher.md) and the [Server](server.md); later Sync.
+The checks of this Machine's setup: [Status](status.md).
 
 ## Running
 
@@ -28,7 +29,8 @@ A second signal exits at once.
 - its version, from a checkout with its commit, e.g. `0.1.0 (bfc66f6-dirty)`;
 - its start and stop;
 - the Watcher's last pass: when, how long, any error, and what asked for it;
-- the Server's address and counts of requests.
+- the Server's address and counts of requests;
+- the checks of the setup it ran last, and when ([Status](status.md#checks)).
 
 It is written at most every 2 s, replaced as a whole and never half written.
 A start that finds no stop time logs that the previous Daemon ended without stopping.
@@ -36,6 +38,7 @@ A start that finds no stop time logs that the previous Daemon ended without stop
 ## Log
 
 - INFO: start (parts, interval, git and its version), stop, and passes that record Events.
+- WARNING, or INFO for the others: the checks' problems, at the start and as they change.
 - DEBUG: passes that record none.
 - ERROR: failed passes and crashes.
 
@@ -70,6 +73,6 @@ Without systemd user services, `daemon run` in tmux takes their place.
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.
 
-It warns if the program of the unit is gone, or if the unit uses other directories than the shell.
+It warns of the problems that the checks in this shell find with the systemd unit for the daemon: its program gone, or other directories than those of this shell.
 It exits with 0 if the Daemon runs, 3 if not.
 `--json` gives what the Server's `/api/daemon` gives.

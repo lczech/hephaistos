@@ -35,6 +35,7 @@ ROUTES = {
     "files list": "/api/files",
     "files paths": "/api/files/paths",
     "files search": "/api/files/paths",  # matched by the GUI itself, as typed
+    "status": "/api/status",
 }
 
 

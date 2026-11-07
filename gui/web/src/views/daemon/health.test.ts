@@ -25,11 +25,19 @@ describe("the Daemon's health", () => {
       stalled: true,
       last_pass: status.watcher.last_pass && { ...status.watcher.last_pass, error: "disk full" },
     };
-    const troubled = { ...status, watcher, warnings: ["HEPHAISTOS_HOME differs"] };
+    const checks = {
+      checked_at: new Date(NOW).toISOString(),
+      checks: [
+        { name: "git", outcome: "ok" as const, text: "2.43.0", fix: null },
+        { name: "unit", outcome: "problem" as const, text: "HEPHAISTOS_HOME differs", fix: null },
+        { name: "ionice", outcome: "note" as const, text: "not installed", fix: null },
+      ],
+    };
+    const troubled = { ...status, watcher, checks };
     expect(daemonHealth(live, troubled, NOW)).toEqual({
       health: "warning",
       reasons: [
-        "HEPHAISTOS_HOME differs",
+        "unit: HEPHAISTOS_HOME differs",
         "last pass failed: disk full",
         "the watcher has stalled",
       ],
