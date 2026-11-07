@@ -92,7 +92,10 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
         _observed(paths, keeper, command=hint)
         with read_session(paths) as session:
             created = state.by_id(session, terminal_id)
-        if created is None:
+        if created is None or created.status is TerminalStatus.LOST:
+            if created is not None or not keeper.running():
+                lost = f"terminal {escaped(chosen)} was lost at once: tmux's server ended"
+                raise HephaistosError(lost)
             raise HephaistosError(f"terminal {escaped(chosen)} ended at once: its command exited")
         return created
     raise HephaistosError(

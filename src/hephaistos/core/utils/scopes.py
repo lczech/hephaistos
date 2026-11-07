@@ -81,6 +81,10 @@ def detect() -> Scopes | None:
             check=False,
             timeout=TIMEOUT,
         )
+    except subprocess.TimeoutExpired:
+        # Its manager is there but stuck, e.g. under heavy load: worth knowing, unlike its absence.
+        log.warning("no systemd scopes: systemctl didn't answer within %g s", TIMEOUT)
+        return None
     except (OSError, subprocess.SubprocessError) as error:
         log.info("no systemd scopes: systemctl failed: %s", error)
         return None

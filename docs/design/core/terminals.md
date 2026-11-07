@@ -47,6 +47,7 @@ So where systemd's user manager answers, the tmux server starts in a scope of it
 A tmux built with systemd support, e.g. Ubuntu's, also moves each new pane into a scope of its own, `tmux-spawn-*.scope`, while the pane starts; whichever move comes last holds it.
 Stopping the Daemon, or an out-of-memory kill of one Terminal, ends no other.
 Elsewhere, e.g. on clusters, both start as plain processes.
+A user manager that doesn't answer within 5 s, e.g. under heavy load, is logged as a warning, and the Terminal starts without a scope of its own.
 
 ### Environment
 
@@ -110,5 +111,5 @@ A lost Terminal has no session, so renaming or killing one changes its row alone
 A new Terminal starts in an existing directory we can enter, stored with symlinks resolved.
 A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
-A command that ends before the Terminal is observed is reported as having ended at once.
+A command that ends before the Terminal is observed is reported as having ended at once; a server that ends meanwhile, as lost at once.
 
