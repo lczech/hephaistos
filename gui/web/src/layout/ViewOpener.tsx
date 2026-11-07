@@ -5,6 +5,7 @@ import { type Opening, OpenViewContext } from "../views/opening";
 import { openView } from "./dock";
 
 const DockRegistry = createContext<(api: DockviewApi | null) => void>(() => {});
+const Dock = createContext<DockviewApi | null>(null);
 
 /**
  * Lets everything within open Views, e.g. the status bar: in (or beside) the active Group of the
@@ -17,7 +18,9 @@ export function ViewOpener({ children }: { children: ReactNode }) {
   };
   return (
     <DockRegistry value={setDock}>
-      <OpenViewContext value={open}>{children}</OpenViewContext>
+      <Dock value={dock}>
+        <OpenViewContext value={open}>{children}</OpenViewContext>
+      </Dock>
     </DockRegistry>
   );
 }
@@ -25,4 +28,9 @@ export function ViewOpener({ children }: { children: ReactNode }) {
 /** How the Workbench tells the ViewOpener around it which dockview to open Views in. */
 export function useDockRegistry(): (api: DockviewApi | null) => void {
   return useContext(DockRegistry);
+}
+
+/** The Workbench's dockview, for what acts on its Groups from outside it, e.g. the title bar. */
+export function useDock(): DockviewApi | null {
+  return useContext(Dock);
 }

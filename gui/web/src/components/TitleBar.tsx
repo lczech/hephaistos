@@ -9,6 +9,7 @@ import {
   Separator,
 } from "react-aria-components";
 import icon from "../../../../assets/icon.svg";
+import { ColumnButtons } from "../layout/ColumnButtons";
 import { viewIconClass } from "../views/families";
 import { FAMILY_NAMES, KINDS, MENU_FAMILIES } from "../views/kinds";
 import { useOpenView } from "../views/opening";
@@ -53,7 +54,8 @@ function ViewMenu() {
 }
 
 /**
- * The bar at the top: the icon, then the View menu. In the Desktop it is the window's title
+ * The bar at the top: the icon and the View menu, and at its end the buttons making columns of
+ * Groups. In the Desktop it is the window's title
  * bar, dragging the window, the window's buttons drawn over its right end (the Window Controls
  * Overlay); in a browser, a bar like the others.
  */
@@ -62,6 +64,7 @@ export function TitleBar() {
     <header className={styles.bar}>
       <img className={styles.icon} src={icon} alt="" />
       <ViewMenu />
+      <ColumnButtons />
     </header>
   );
 }

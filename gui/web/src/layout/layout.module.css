@@ -79,3 +79,19 @@
   composes: action from "../components/controls.module.css";
   margin-top: var(--space-3);
 }
+
+/* The title bar's buttons making columns of Groups, at its right end; they don't drag the
+   Desktop's window. */
+.columns {
+  display: flex;
+  gap: var(--space-half);
+  margin-left: auto;
+  app-region: no-drag;
+}
+
+.column {
+  composes: icon from "../components/controls.module.css";
+  --icon-size: var(--icon-large);
+  --icon-pad-y: var(--space-half);
+  --icon-pad-x: var(--space-1);
+}

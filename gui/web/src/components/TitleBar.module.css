@@ -10,7 +10,12 @@
   height: env(titlebar-area-height, var(--title-bar-height));
   padding-block: 0;
   padding-left: calc(env(titlebar-area-x, 0px) + var(--space-2));
-  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  padding-right: calc(
+    100vw -
+    env(titlebar-area-x, 0px) -
+    env(titlebar-area-width, 100vw) +
+    var(--space-2)
+  );
   box-sizing: content-box; /* its border below the buttons */
   border-bottom: 1px solid var(--border);
   background: var(--bar);

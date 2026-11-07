@@ -46,6 +46,19 @@ Opening a View that a Panel shows focuses that Panel, its tab flashing in the ac
 Two Panels may show the same View.
 Later, Views also open from sidebars (dockview's edge groups) and a command palette.
 
+## Columns
+
+The title bar's buttons make one to four columns of Groups side by side, of even widths (`layout/columns.ts`).
+They deal every tab, in reading order (left to right, top to bottom), into that many runs, the longer ones first, differing by one tab at most.
+So going from one count to another and back gives the same Groups again, while no tab opens, closes or moves in between.
+With fewer tabs than columns, the last columns are empty Groups, whatever `gui.keep_empty_groups` says; empty Groups before are dropped.
+Each run reuses its first tab's Group, unless an earlier run did, so that the Group keeps its steps back and forward; other Groups close.
+Each Group shows the first of its tabs that was shown, else its first; the focus stays on its tab.
+No tab stays a preview.
+The buttons make no rows; rows made by hand within the columns stay while the button pressed is the current count's.
+That button is pressed while the top has that many columns, rows within them or not; pressing it again only evens out their widths.
+Dockview evens out a split's parts as a Group is added to it and removed: `columns.ts` does so for the top.
+
 ## Previews
 
 A link opens its View as a preview.
