@@ -71,6 +71,15 @@ Lines between Groups and between a list's groups of rows have their own colours 
 Scrollbars are as VS Code's (`scrollbars.css`): no track, a quiet thumb (`--fill-scrollbar`), lighter while the pointer is over what scrolls, lighter again over the thumb, and most while dragged.
 The diffs keep their renderer's own, whose layout counts on their size, in the same shades; Firefox shows only the thumb's colour.
 
+## The title bar
+
+In the Desktop, the GUI draws the window's title bar (`components/TitleBar.tsx`); the window's buttons are Chromium's, over its right end ([Desktop](../desktop/desktop.md#the-window)).
+It shows only where the page learns of those buttons (the Window Controls Overlay), so not in a browser.
+It is as high as the buttons, with a line below it, and ends where they start (`env(titlebar-area-*)`).
+All of it drags the window, and a double-click maximises it.
+It holds the icon, larger than a tab's, centred where the first tab's icon is.
+The page says the bars' colour (`--bar`) as its theme colour, which the buttons take.
+
 ## Icons
 
 Icons are monochrome, from Lucide (`lucide-react`).

@@ -1,0 +1,31 @@
+/* As high as the window's buttons, which cover its right end, with its border below them; its
+   content ends before them. All of it drags the window, but what says `app-region: no-drag`,
+   e.g. buttons later. Its padding is a tab's, so the icon lines up with the first tab's
+   (`layout.module.css`). */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  height: env(titlebar-area-height); /* shown only where the overlay says it */
+  padding-block: 0;
+  padding-left: calc(env(titlebar-area-x, 0px) + var(--space-2));
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  box-sizing: content-box; /* its border below the buttons */
+  border-bottom: 1px solid var(--border);
+  background: var(--bar);
+  color: var(--text-muted);
+  font-size: var(--chrome-size);
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  app-region: drag;
+}
+
+.icon {
+  --logo-size: 20px;
+  width: var(--logo-size);
+  height: var(--logo-size);
+  /* centred on where a tab's icon is, larger than it */
+  margin-inline: calc((var(--icon-text) - var(--logo-size)) / 2);
+}

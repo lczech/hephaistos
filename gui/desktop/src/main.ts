@@ -18,6 +18,7 @@ import { Connector } from "./connecting.js";
 import { runner } from "./hephaistos.js";
 import { waitingPage } from "./page.js";
 import { destination, type KeyAction, keyAction } from "./rules.js";
+import { buttonColours, TITLE_BAR_HEIGHT } from "./titleBar.js";
 
 const BACKGROUND = { light: "#ffffff", dark: "#1e1e1e" }; // the GUI's, against a white flash
 const ZOOM_STEP = 0.5; // a zoom level is 20%
@@ -134,10 +135,20 @@ function openWindow(): BrowserWindow {
     ...bounds,
     title: label ? `hephaistos · ${label}` : "hephaistos",
     backgroundColor: nativeTheme.shouldUseDarkColors ? BACKGROUND.dark : BACKGROUND.light,
+    // No title bar of the system's: the GUI draws its own, Chromium the window's buttons.
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      ...buttonColours(null, nativeTheme.shouldUseDarkColors),
+      height: TITLE_BAR_HEIGHT,
+    },
     // Electron's defaults, stated: the page gets no Node and runs in Chromium's sandbox.
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   if (maximized) opened.maximize();
+  // The GUI says its bar's colour as its theme colour; the window's buttons take it.
+  opened.webContents.on("did-change-theme-color", (_event, colour) => {
+    opened.setTitleBarOverlay(buttonColours(colour, nativeTheme.shouldUseDarkColors));
+  });
   // The page's title replaces the window's, unless kept: then the label stays in it.
   if (label) opened.on("page-title-updated", (event) => event.preventDefault());
   opened.on("close", () => {

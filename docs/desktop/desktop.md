@@ -15,6 +15,8 @@ It follows a renewed token by watching its file.
 The page stays on the Server; other web pages open in the browser.
 The page gets no Node, and is refused permission requests.
 The window keeps only reload, zoom, full screen, developer tools and quit as its keys; all others reach the page.
+It has no title bar of the system's: the GUI draws its own ([looks](../gui/looks.md#the-title-bar)), and Chromium the window's buttons over its right end (Electron's `titleBarOverlay`, `src/titleBar.ts`).
+The buttons take the page's theme colour as it changes, their symbols light or dark against it.
 One Desktop runs per `HEPHAISTOS_HOME`, with its profile in the state directory.
 `HEPHAISTOS_DESKTOP_LABEL`, if set, follows "hephaistos" in the window's title, e.g. a worktree's name.
 

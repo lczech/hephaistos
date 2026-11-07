@@ -34,6 +34,20 @@ export function useColorScheme(): ColorScheme {
 /** Says a scheme on the page's root, for theme.css; the system's before the first render. */
 export function showScheme(scheme: ColorScheme = systemScheme()): void {
   document.documentElement.dataset.theme = scheme;
+  showThemeColour();
+}
+
+/** Says the title bar's colour as the page's theme colour: the Desktop colours its window's
+ * buttons with it, and browsers their own bars. */
+function showThemeColour(): void {
+  const colour = getComputedStyle(document.documentElement).getPropertyValue("--bar").trim();
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta === null) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.append(meta);
+  }
+  meta.content = colour;
 }
 
 /** Keeps the page's scheme as `useColorScheme` has it. */

@@ -15,4 +15,15 @@ describe("light or dark", () => {
     showScheme(); // the system's: jsdom says none, so light
     expect(document.documentElement.dataset.theme).toBe("light");
   });
+
+  it("says the bars' colour as the page's theme colour, for the window's buttons", () => {
+    const root = document.documentElement;
+    root.style.setProperty("--bar", "#181818");
+    showScheme("dark");
+    root.style.setProperty("--bar", "#f8f8f8");
+    showScheme("light");
+    const metas = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+    expect([...metas].map((meta) => meta.content)).toEqual(["#f8f8f8"]);
+    root.style.removeProperty("--bar");
+  });
 });

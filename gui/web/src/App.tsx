@@ -3,6 +3,7 @@ import styles from "./App.module.css";
 import { useLiveUpdates } from "./api/live";
 import { useInfo } from "./api/queries";
 import { StatusBar } from "./components/StatusBar";
+import { TitleBar } from "./components/TitleBar";
 import { TokenHint } from "./components/TokenHint";
 import { ViewOpener } from "./layout/ViewOpener";
 import { Workbench } from "./layout/Workbench";
@@ -26,6 +27,7 @@ function Shell() {
   return (
     <ViewOpener>
       <div className={styles.app}>
+        <TitleBar />
         {fits?.hint && (
           <p className={fits.usable ? styles.banner : styles.blocker} role="alert">
             {fits.hint}
