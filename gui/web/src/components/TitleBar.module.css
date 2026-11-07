@@ -53,3 +53,22 @@
 .item {
   composes: item from "./controls.module.css";
 }
+
+/* Before the window's buttons, a line, as between a View bar's toggles and its buttons
+   (`ViewBar.module.css`), with --space-2 on each side: the bar's padding, and the room left
+   for it. */
+.bar[data-window-buttons] > :last-child {
+  position: relative;
+  margin-right: calc(var(--space-2) + var(--space-hair));
+}
+
+.bar[data-window-buttons] > :last-child::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--space-2) - var(--space-hair));
+  width: var(--space-hair);
+  height: var(--icon-large);
+  background: var(--line);
+  translate: 0 -50%;
+}

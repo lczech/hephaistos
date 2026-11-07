@@ -76,6 +76,7 @@ The diffs keep their renderer's own, whose layout counts on their size, in the s
 The title bar (`components/TitleBar.tsx`) holds the icon and the View menu ([layout](layout.md#opening)), and at its end the buttons making columns ([layout](layout.md#columns)): Lucide's `square` and `columns-2` to `-4`.
 In the Desktop, it is the window's title bar; the window's buttons are Chromium's, over its right end ([Desktop](../desktop/desktop.md#the-window)).
 There it is as high as the buttons, with a line below it, and ends where they start (`env(titlebar-area-*)`).
+A line parts its own buttons from the window's, as in a View's bar ([toggles](#toggles)); the page learns of those from the Window Controls Overlay.
 In a browser, it is as high (`--title-bar-height`; a test keeps the Desktop's alike).
 Of it, all but its buttons drags the window, and a double-click maximises it.
 The icon is larger than a tab's, centred where the first tab's icon is.

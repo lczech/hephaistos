@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useSyncExternalStore } from "react";
 import {
   Button,
   Menu,
@@ -16,6 +16,26 @@ import { useOpenView } from "../views/opening";
 import popover from "./popover.module.css";
 import { TextIcon } from "./TextIcon";
 import styles from "./TitleBar.module.css";
+
+/** What TypeScript's DOM types don't have yet: Chromium's `navigator.windowControlsOverlay`. */
+interface WindowControlsOverlay extends EventTarget {
+  readonly visible: boolean;
+}
+
+function overlay(): WindowControlsOverlay | undefined {
+  return (navigator as { windowControlsOverlay?: WindowControlsOverlay }).windowControlsOverlay;
+}
+
+function onOverlayChange(changed: () => void): () => void {
+  const controls = overlay();
+  controls?.addEventListener("geometrychange", changed);
+  return () => controls?.removeEventListener("geometrychange", changed);
+}
+
+/** Whether the window's buttons are over the bar's end: in the Desktop, not in a browser. */
+function useWindowButtons(): boolean {
+  return useSyncExternalStore(onOverlayChange, () => overlay()?.visible ?? false);
+}
 
 /** The View menu: every kind that stands alone, by family, opened in the active Group. */
 function ViewMenu() {
@@ -60,8 +80,9 @@ function ViewMenu() {
  * Overlay); in a browser, a bar like the others.
  */
 export function TitleBar() {
+  const windowButtons = useWindowButtons();
   return (
-    <header className={styles.bar}>
+    <header className={styles.bar} data-window-buttons={windowButtons || undefined}>
       <img className={styles.icon} src={icon} alt="" />
       <ViewMenu />
       <ColumnButtons />
