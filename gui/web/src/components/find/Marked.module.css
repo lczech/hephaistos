@@ -1,0 +1,11 @@
+/* A match, as the find row's marks look (`marks.ts`); the current one stronger: the find's colours,
+ * not a state's fill. */
+.mark {
+  background-color: var(--found);
+  color: var(--found-text);
+}
+
+.current {
+  composes: mark;
+  background-color: var(--found-current);
+}

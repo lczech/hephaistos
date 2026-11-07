@@ -3,13 +3,15 @@
 import { Folder } from "lucide-react";
 import type { ReactNode } from "react";
 import { pathParts } from "../../paths";
+import { Marked } from "../find/Marked";
 import { TextIcon } from "../TextIcon";
 import styles from "./Path.module.css";
 
 /**
  * A path after its icon, its folder quieter, unless `whole`, as a chain of folders joined is one
- * name; struck through if deleted. Cut off where narrow: a file's at its end, a folder's at its
- * start, so that its last part, the one it is, stays.
+ * name; struck through if deleted; matches found in it marked, in all of it (`marked`). Cut off
+ * where narrow: a file's at its end, a folder's at its start, so that its last part, the one it
+ * is, stays.
  */
 export function Path({
   shown,
@@ -17,12 +19,14 @@ export function Path({
   icon,
   deleted,
   whole,
+  marked,
 }: {
   shown: string;
   title: string;
   icon: ReactNode;
   deleted?: boolean;
   whole?: boolean;
+  marked?: { marks: readonly [number, number][]; current: boolean };
 }) {
   const [folder, name] = pathParts(shown);
   return (
@@ -35,8 +39,14 @@ export function Path({
         data-deleted={deleted || undefined}
       >
         <bdi>
-          {whole ? folder : <span className={styles.folder}>{folder}</span>}
-          {name}
+          {marked ? (
+            <Marked text={shown} {...marked} />
+          ) : (
+            <>
+              {whole ? folder : <span className={styles.folder}>{folder}</span>}
+              {name}
+            </>
+          )}
         </bdi>
       </span>
     </span>

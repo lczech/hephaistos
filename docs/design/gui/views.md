@@ -166,3 +166,17 @@ What was copied shows in the status bar for a while (`notice.ts`).
 A file's row is marked while a Diff of it comparing the working tree, either way, is shown in any Group, from wherever it was opened: it is about the file as the Explorer shows it, on disk; a commit's changes or the staged ones are not.
 It is asked again on a hint, on focus and by its reload button.
 The Explorer opens from a Checkout's row in Repositories, and from the "+" menu.
+
+### Finding by name
+
+The Explorer finds files and folders below its Directory by name, in the find row ([interaction](interaction.md#find)), opened by its bar's button or Ctrl+F.
+It matches names as typed, or, where what is typed has a `/`, paths below the Directory: `explorer/col`.
+The Server lists every path below once as the row opens (`/api/files/paths`), and the find row's worker matches them, so typing asks for nothing; the list is asked again on focus and by the reload button, not on hints, as listing all may take seconds.
+It finds what the tree would show: hidden entries only while they show; what git ignores only with the row's own toggle (`ignored` in the fragment), as ignored folders such as `node_modules` would drown the rest.
+The tree shows only the matches, in the folders holding them, each folder its own row, not joined, as each may be a match; a folder matched that holds no other match opens to all it holds.
+It shows the first 1,000 matches, in the order listed, and the row says so, as it says when listing stopped at `files.max_paths` or after `files.search_seconds`.
+Their rows show at once from the list, their fields once their folders' listings come.
+The folders holding matches open for the search only, apart from those kept; folding one, or "Close all folders", hides its matches until the search ends or looks for something else, which starts with all its folders open.
+Enter and Shift+Enter step through the matches in the tree's order, opening the folders holding the one stepped to and scrolling it into view below the rows stuck above it.
+Closing the row shows the tree as kept, with the folders holding the match stepped to opened, scrolled to it.
+Showing another Directory searches that one.

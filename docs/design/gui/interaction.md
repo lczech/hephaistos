@@ -122,10 +122,12 @@ Refs are named by their full names (`refs/heads/main`), never mistaken for anoth
 ## Find
 
 Find searches a View's content from a row below its bar (`components/find/`), opened by a button at the bar's end or Ctrl+F.
-The Diff is its first user ([views](views.md#diff)); Terminals and files are to follow.
+Where the View is narrow, its field narrows, down to a few words, before what follows it wraps.
+The Diff finds in its diffs ([views](views.md#finding)), the Explorer files and folders by name ([views](views.md#finding-by-name)), with a toggle of its own; Terminals are to follow.
 It matches as typed, or matching case, whole words, or a regular expression.
 Regular expressions are those of JavaScript, with `\w`, `\b` and `\d` meaning words and digits in any script, as whole words do.
-It says which match of how many, from the first.
+It says which match of how many, from the first, and why there may be more than shown.
+While it looks, its search icon turns, as the reload button does.
 Enter and Shift+Enter go to the next match and the one before; Escape closes the row.
 Matches are marked on what is drawn, the current one stronger, its line too, by the CSS Custom Highlight API.
 The current match is brought into view, also from lines not drawn yet.

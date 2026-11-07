@@ -35,6 +35,7 @@ export const KEYS = {
   diff: ["diff"],
   history: ["history"],
   files: ["files"],
+  paths: ["paths"],
   config: ["config"],
   eventKinds: ["events", "kinds"],
   events: ["events", "list"],
@@ -116,6 +117,24 @@ export function filesQuery(query: FilesQuery) {
 /** What each of these Directories holds, read anew on a hint or focus, as files change by hand. */
 export function useFilesOf(queries: FilesQuery[]) {
   return useQueries({ queries: queries.map(filesQuery) });
+}
+
+/** Below which Directory, and which: `/api/files/paths`' parameters. */
+export type PathsQuery = NonNullable<paths["/api/files/paths"]["get"]["parameters"]["query"]>;
+
+/**
+ * Every path below a Directory, to find files by name; while `query` is given. Asked again on
+ * focus or by reloading, not on hints: listing all may take seconds.
+ */
+export function usePathsBelow(query: PathsQuery | undefined) {
+  return useQuery({
+    queryKey: [...KEYS.paths, query],
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await api.GET("/api/files/paths", { params: { query: query ?? { path: "" } }, signal }),
+      ),
+    enabled: query !== undefined,
+  });
 }
 
 /** Which file's diff: `/api/diff`'s parameters, which `/api/diff/files` shares. */

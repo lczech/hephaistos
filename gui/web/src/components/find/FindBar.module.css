@@ -4,9 +4,12 @@
   composes: bar from "../ViewBar.module.css";
 }
 
+/* As wide as a search field where there is room; narrower, down to a few words, before what
+ * follows it wraps, as a row wraps by its items' first widths. */
 .field {
   composes: field from "../SearchField.module.css";
-  flex: 0 1 var(--field-width);
+  flex: 1 1 12ch;
+  max-width: var(--field-width);
 }
 
 .input {
@@ -35,4 +38,21 @@
 
 .bar[data-busy] .status {
   opacity: var(--dimmed);
+}
+
+/* While busy, its search icon turns, as Refresh's does. */
+.bar[data-busy] .searching {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar[data-busy] .searching {
+    animation: none;
+  }
 }

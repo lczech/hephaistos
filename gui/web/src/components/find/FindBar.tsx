@@ -1,5 +1,14 @@
-import { ArrowDown, ArrowUp, CaseSensitive, Regex, Search, WholeWord, X } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CaseSensitive,
+  LoaderCircle,
+  Regex,
+  Search,
+  WholeWord,
+  X,
+} from "lucide-react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Input, TextField, Toolbar } from "react-aria-components";
 import { atLeast, numberText } from "../../text";
 import { useKeyTarget } from "../../views/keys";
@@ -22,6 +31,9 @@ interface FindBarProps {
   current: number; // which of them
   onStep: (by: 1 | -1) => void;
   onClose: () => void;
+  busy?: boolean; // looking also for what to find in, e.g. while the Server lists it
+  more?: ReactNode; // options of the View's own, after the others: toggles
+  note?: { text: string; title: string }; // after which match, e.g. why there may be more
 }
 
 const OPTIONS = [
@@ -45,6 +57,9 @@ export function FindBar({
   current,
   onStep,
   onClose,
+  busy = false,
+  more,
+  note,
 }: FindBarProps) {
   const target = useKeyTarget("search");
   const keys = (event: KeyboardEvent) => {
@@ -60,7 +75,7 @@ export function FindBar({
       className={styles.bar}
       aria-label="Find"
       onKeyDown={keys}
-      data-busy={finding?.busy || undefined}
+      data-busy={busy || finding?.busy || undefined}
     >
       <TextField
         className={styles.field}
@@ -69,8 +84,17 @@ export function FindBar({
         onChange={(text) => onChange({ ...query, text }, true)}
         onBlur={onTypingEnd}
       >
-        <TextIcon icon={Search} />
-        <Input ref={target} className={styles.input} placeholder="Find" autoFocus />
+        <TextIcon
+          icon={busy || finding?.busy ? LoaderCircle : Search}
+          className={styles.searching}
+        />
+        <Input
+          ref={target}
+          className={styles.input}
+          placeholder="Find"
+          spellCheck={false}
+          autoFocus
+        />
       </TextField>
       <Toolbar className={styles.tools} aria-label="How to find">
         {OPTIONS.map(({ key, icon, label }) => (
@@ -83,9 +107,15 @@ export function FindBar({
             ways={[{ icon, title: label }]}
           />
         ))}
+        {more}
       </Toolbar>
-      <output className={styles.status} data-error={(finding && "error" in finding) || undefined}>
+      <output
+        className={styles.status}
+        data-error={(finding && "error" in finding) || undefined}
+        title={note?.title}
+      >
         {statusText(finding, current, count)}
+        {note && finding && "matches" in finding && `; ${note.text}`}
       </output>
       <Toolbar className={styles.tools} aria-label="Matches">
         <IconButton

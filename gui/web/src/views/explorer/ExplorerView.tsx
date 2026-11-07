@@ -1,9 +1,18 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type Atom, useAtom } from "@tanstack/react-store";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
-import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
-import { filesQuery, KEYS, useFilesOf, useInfo, useRepositories } from "../../api/queries";
+import { Eye, EyeOff, FileSearch, FileXCorner } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  filesQuery,
+  KEYS,
+  useFilesOf,
+  useInfo,
+  usePathsBelow,
+  useRepositories,
+} from "../../api/queries";
+import { FindBar } from "../../components/find/FindBar";
+import { useCurrentMatch, useFind } from "../../components/find/useFind";
 import { IconButton } from "../../components/IconButton";
 import { useListLayout } from "../../components/list/kept";
 import { List } from "../../components/list/List";
@@ -14,8 +23,10 @@ import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/Vie
 import { FoldersFolded } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
-import { paramValues } from "../address";
+import { paramValues, withParam } from "../address";
+import { findOf, NOTHING_TYPED, withFind } from "../find";
 import type { ViewProps } from "../index";
+import { useKeyTarget } from "../keys";
 import { useOpenView, useShownViews } from "../opening";
 import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
@@ -31,7 +42,18 @@ import {
   type Making,
   rows,
   SORTS,
+  shownPaths,
 } from "./rows";
+import {
+  bare,
+  foldersOf,
+  foundPaths,
+  inTreeOrder,
+  listedOf,
+  searchNote,
+  searchOf,
+  useSearchLines,
+} from "./search";
 
 /** How Explorers show: hidden entries too, or not; for all of them, kept in this browser. */
 function explorerLook(): Atom<{ hidden: boolean }> {
@@ -43,6 +65,19 @@ function explorerLook(): Atom<{ hidden: boolean }> {
 
 const OPENED = "opened";
 const NONE: ReadonlySet<string> = new Set();
+const IGNORED = "ignored"; // in the fragment: a search finds what git ignores too
+
+/**
+ * The folders a search folded of those holding its matches, and opened of others, below which
+ * Directory, for what it looks for (`pattern`): only while it searches that, apart from those
+ * kept; another pattern starts with its folders open.
+ */
+interface SearchFolds {
+  root: string | undefined;
+  pattern: string | undefined;
+  folded: ReadonlySet<string>;
+  opened: ReadonlySet<string>;
+}
 
 /** A path's parts, each with the path it names: from `~` if under `home`, else from `/`. */
 export function pathParts(path: string, home: string | undefined): [string, string][] {
@@ -89,8 +124,17 @@ function PathBar({
  * What a Directory holds (`path`, else the home directory), as a tree: folders first, each
  * opened asked for then, what is opened kept per Directory in this browser. Hidden entries show
  * quieter, in italics, unless left out. Read anew on a hint, on focus, or by reloading.
+ * Its find row finds files and folders below it by name (`search.ts`): the tree shows only them,
+ * in the folders holding them, opened for the search; closed, it reveals the match stepped to.
  */
-export function ExplorerView({ params, setParams, fragment, setFragment, setTitle }: ViewProps) {
+export function ExplorerView({
+  params,
+  setParams,
+  fragment,
+  setFragment,
+  endTyping,
+  setTitle,
+}: ViewProps) {
   const info = useInfo();
   const home = info.data?.home;
   const [given] = paramValues(params.path);
@@ -100,9 +144,45 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
 
   const [look, setLook] = useAtom(explorerLook());
   const [sets, setSets] = useKeptSets("explorer", root);
-  const opened = sets[OPENED] ?? NONE;
-  const setOpened = (next: ReadonlySet<string>) => setSets({ ...sets, [OPENED]: next });
+  const kept = sets[OPENED] ?? NONE;
+  const setKept = (next: ReadonlySet<string>) => setSets({ ...sets, [OPENED]: next });
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
+
+  // Finding by name: every path below, listed once, matched as typed off the page.
+  const finding = findOf(fragment);
+  const ignoredToo = fragment[IGNORED] !== undefined;
+  const findKey = useKeyTarget(finding ? undefined : "search"); // the field's, once open
+  const findButton = useRef<HTMLButtonElement>(null); // focused again once the row closes
+  const byPath = finding?.text.includes("/") ?? false;
+  const listing = usePathsBelow(
+    finding && root !== undefined
+      ? { path: root, hidden: look.hidden, ignored: ignoredToo }
+      : undefined,
+  );
+  const listedPaths = listing.data?.paths;
+  const lines = useSearchLines(listedPaths, byPath);
+  const searched = useFind(lines, finding?.text ? finding : undefined);
+  const matches = searched && "matches" in searched ? searched.matches : undefined;
+  const found =
+    searched && "matches" in searched
+      ? foundPaths(listedPaths ?? [], searched.matches, { more: searched.more, byPath })
+      : undefined;
+  const search = found && searchOf(found.paths);
+  // What is looked for, as matched: typing anew is another search.
+  const pattern =
+    finding && [finding.text, finding.matchCase, finding.wholeWord, finding.regex].join("\0");
+  const fresh: SearchFolds = { root, pattern, folded: NONE, opened: NONE };
+  const [folds, setFolds] = useState<SearchFolds>(fresh);
+  const own = folds.root === root && folds.pattern === pattern ? folds : fresh;
+  const opened = search
+    ? new Set([...[...search.folders].filter((id) => !own.folded.has(id)), ...own.opened])
+    : kept;
+  const setOpened = (next: ReadonlySet<string>) => {
+    if (!search) return setKept(next);
+    const folded = [...search.folders].filter((id) => !next.has(id));
+    setFolds({ ...fresh, folded: new Set(folded), opened: new Set(next) });
+  };
+  const listedFound = search && root !== undefined && listedOf(root, found.paths, search.folders);
 
   // What each folder holds is asked for twice: names and kinds, which come at once, to show;
   // then git's letters and what the shown columns need, which cost more, to fill in.
@@ -123,10 +203,11 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
     }),
   );
   const making: Making = {
-    loaded: (path) => loaded.get(path),
+    loaded: (path) => loaded.get(path) ?? (listedFound ? listedFound.get(path) : undefined),
     opened,
     hidden: look.hidden,
     sorted,
+    search,
   };
   const needed = root === undefined ? [] : asked(root, making, making.loaded);
   if (needed.join("\0") !== wanted.join("\0")) setWanted(needed);
@@ -134,6 +215,55 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const listed: Entry[] = root === undefined ? [] : rows(root, making);
   const holding = folders(listed);
   const expanded = Object.fromEntries([...holding.keys()].map((id) => [id, opened.has(id)]));
+
+  // Stepping through the matches, in the tree's order, opens the folders holding the one stepped
+  // to and scrolls to it; closing the find row reveals it among the folders kept open.
+  const order =
+    search && found && root !== undefined
+      ? inTreeOrder(
+          rows(root, { ...making, opened: search.folders }),
+          new Set(found.paths.map(bare)),
+        )
+      : [];
+  const [current, step] = useCurrentMatch(matches, order.length);
+  const currentPath = search ? order[current] : undefined;
+  // The match revealed, below the root it was found in: another's paths are others.
+  const [revealed, setRevealed] = useState<{ root: string | undefined; path: string }>();
+  const shownCurrent = finding ? currentPath : revealed?.root === root ? revealed?.path : undefined;
+  const view = useRef<HTMLElement>(null);
+  const scrolled = useRef<string | undefined>(undefined); // the root and path scrolled to
+  useEffect(() => {
+    const at = `${root}\0${shownCurrent}`;
+    if (shownCurrent === undefined || scrolled.current === at) return;
+    const row = view.current?.querySelector("[data-current]");
+    if (!row) return; // not yet shown, e.g. its folder still asked for
+    row.scrollIntoView({ block: "nearest" });
+    scrolled.current = at;
+  });
+  const stepTo = (by: 1 | -1) => {
+    const next = order[(current + by + order.length) % order.length];
+    if (next === undefined) return;
+    const holders = new Set(foldersOf(next));
+    setFolds({ ...own, folded: new Set([...own.folded].filter((id) => !holders.has(id))) });
+    scrolled.current = undefined;
+    step(by);
+  };
+  const setFinding = (next: typeof finding, typed = false) =>
+    setFragment(withFind(fragment, next), typed);
+  const openFind = () => {
+    setRevealed(undefined);
+    setFinding(NOTHING_TYPED);
+  };
+  const closeFind = () => {
+    if (currentPath !== undefined) {
+      setKept(new Set([...kept, ...foldersOf(currentPath)]));
+      setRevealed({ root, path: currentPath });
+      scrolled.current = undefined;
+    }
+    setFolds(fresh);
+    setFragment(withParam(withFind(fragment, undefined), IGNORED, []));
+    findButton.current?.focus();
+  };
 
   const repositories = useRepositories();
   const known = knownCheckouts(repositories.data ?? []);
@@ -147,6 +277,11 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const client = useQueryClient();
   const columns = explorerColumns({
     open: (row) => opened.has(row.id),
+    marked: (row) => {
+      const marks = search && found?.marks.get(bare(row.id));
+      return marks ? { marks, current: bare(row.id) === currentPath } : undefined;
+    },
+    current: (row) => shownCurrent !== undefined && shownPaths(row).includes(shownCurrent),
     checkout: (path) => checkouts.has(path),
     denied: (path) => {
       const found = loaded.get(path);
@@ -186,16 +321,28 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
   const rootLoaded = root === undefined ? undefined : loaded.get(root);
   let message: string | null = null;
   if (root === undefined) message = info.isError ? "Could not ask for the home directory." : null;
+  else if (finding && listing.error) message = `Could not find: ${listing.error.message}`;
+  else if (search && listed.length === 0) message = "No files or folders found.";
   else if (rootLoaded !== undefined && !("error" in rootLoaded) && listed.length === 0) {
     message = "Empty.";
   }
   return (
-    <ViewPage>
+    <ViewPage ref={view}>
       <ViewBar>
         {root !== undefined && (
           <PathBar path={root} home={home} onShow={(path) => setParams({ path })} />
         )}
         <BarEnd>
+          <Toggle
+            ref={(button) => {
+              findButton.current = button;
+              return findKey(button);
+            }}
+            label="Find files and folders by name"
+            on={finding !== undefined}
+            onChange={(on) => (on ? openFind() : closeFind())}
+            ways={[{ icon: FileSearch, title: "Find files and folders by name (Ctrl+F)" }]}
+          />
           <Toggle
             label="Hidden files"
             on={look.hidden}
@@ -213,10 +360,36 @@ export function ExplorerView({ params, setParams, fragment, setFragment, setTitl
           />
           <Refresh
             busy={[...answers, ...details].some((answer) => answer.isFetching)}
-            onClick={() => void client.invalidateQueries({ queryKey: KEYS.files })}
+            onClick={() => {
+              void client.invalidateQueries({ queryKey: KEYS.files });
+              void client.invalidateQueries({ queryKey: KEYS.paths });
+            }}
           />
         </BarEnd>
       </ViewBar>
+      {finding && (
+        <FindBar
+          label="Find files and folders by name"
+          query={finding}
+          onChange={setFinding}
+          onTypingEnd={endTyping}
+          finding={searched}
+          count={order.length}
+          current={current}
+          onStep={stepTo}
+          onClose={closeFind}
+          busy={listing.isFetching}
+          note={searchNote(found, listing.data)}
+          more={
+            <Toggle
+              label="Include git-ignored files and folders"
+              on={ignoredToo}
+              onChange={(on) => setFragment(withParam(fragment, IGNORED, on ? ["1"] : []))}
+              ways={[{ icon: FileXCorner, title: "Include git-ignored files and folders" }]}
+            />
+          }
+        />
+      )}
       <List
         table={table}
         layout={layout}

@@ -63,23 +63,43 @@ export function below(path: string, relative: string): string {
   return `${base}${relative}`.replace(/\/$/, "") || "/";
 }
 
+/**
+ * What a search shows: the entries matched and the folders holding them, by their paths below
+ * the Directory without a final `/` (`shown`); in the folders holding them, by their IDs, `""`
+ * for the Directory (`within`), only those.
+ */
+export interface Search {
+  shown: ReadonlySet<string>;
+  within: ReadonlySet<string>;
+}
+
 /** How rows are made: what each folder holds, as asked for; which are open; what shows. */
 export interface Making {
   loaded: (path: string) => Loaded<FileEntry>;
   opened: ReadonlySet<string>;
   hidden: boolean; // entries whose names start with `.` show too
   sorted: SortingState;
+  search?: Search; // only what it found, folders not joined
 }
 
-function shownOf(items: FileEntry[], making: Making): FileEntry[] {
-  return making.hidden ? items : items.filter((item) => !item.hidden);
+/** The entries in the folder whose rows are below `prefix` that show. */
+function shownOf(items: FileEntry[], prefix: string, making: Making): FileEntry[] {
+  const { search } = making;
+  return items.filter(
+    (item) =>
+      (making.hidden || !item.hidden) &&
+      (!search?.within.has(prefix) || search.shown.has(`${prefix}${item.name}`)),
+  );
 }
 
-/** The folder a row opened shows the entries of: through those holding a single folder. */
+/**
+ * The folder a row opened shows the entries of: through those holding a single folder; not while
+ * searching, as each folder may be a match.
+ */
 function joined(path: string, shown: string, making: Making): [string, string] {
   const loaded = making.loaded(path);
-  if (loaded === undefined || "error" in loaded) return [path, shown];
-  const items = shownOf(loaded.items, making);
+  if (making.search || loaded === undefined || "error" in loaded) return [path, shown];
+  const items = shownOf(loaded.items, "", making);
   const [only] = items;
   if (items.length !== 1 || loaded.count !== loaded.items.length || !only || !opens(only)) {
     return [path, shown];
@@ -94,7 +114,7 @@ export function entryRows(
   items: FileEntry[],
   making: Making,
 ): Entry[] {
-  return inOrder(shownOf(items, making), making.sorted, ORDER).map((entry): Entry => {
+  return inOrder(shownOf(items, prefix, making), making.sorted, ORDER).map((entry): Entry => {
     const folder = opens(entry);
     const id = `${prefix}${entry.name}${folder ? "/" : ""}`;
     const at = below(path, entry.name);
@@ -130,6 +150,16 @@ export function entryRows(
       ),
     };
   });
+}
+
+/**
+ * The paths below the Directory a row shows, without a final `/`: its own, or each of a chain
+ * of folders joined, `src`, `src/app`.
+ */
+export function shownPaths(row: Extract<Entry, { type: "entry" }>): string[] {
+  const start = row.id.replace(/\/$/, "").slice(0, -row.entry.name.length); // its folder's
+  const parts = row.shown.split("/");
+  return parts.map((_, at) => `${start}${parts.slice(0, at + 1).join("/")}`);
 }
 
 /** That a folder lists only the first entries, as the setting allows. */

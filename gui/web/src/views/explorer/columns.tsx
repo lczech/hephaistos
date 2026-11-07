@@ -29,6 +29,8 @@ export interface Looks {
   checkout: (path: string) => boolean; // a registered Checkout's top
   denied: (path: string) => boolean; // a folder this user may not list
   ahead: (row: Shown) => void; // asks for what a folder holds before it is opened
+  marked: (row: Shown) => { marks: [number, number][]; current: boolean } | undefined; // found
+  current: (row: Shown) => boolean; // the match stepped to, or revealed once the search closed
 }
 
 /** An entry's icon: a folder's open or not, a Checkout's, a symlink's, else its kind's. */
@@ -82,7 +84,7 @@ function gitTitle(row: Shown): string {
 
 /**
  * An entry's name after its icon, coloured by git's letter, or for changes below a folder; hidden
- * ones quieter, in italics; ignored ones quieter; broken symlinks marked.
+ * ones quieter, in italics; ignored ones quieter; broken symlinks marked; matches found marked.
  */
 function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
   const broken = row.entry.kind === "symlink" && row.entry.to === null;
@@ -91,6 +93,7 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
       whole
       shown={row.shown}
       title={titleOf(row)}
+      marked={looks.marked(row)}
       icon={
         <span className={broken ? styles.broken : styles.icon}>
           <TextIcon icon={iconOf(row, looks)} />
@@ -106,6 +109,7 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
       data-hidden={row.entry.hidden || undefined}
       data-ignored={row.entry.ignored || undefined}
       data-git={gitTone(row)}
+      data-current={looks.current(row) || undefined}
       onPointerEnter={ahead}
     >
       {name}

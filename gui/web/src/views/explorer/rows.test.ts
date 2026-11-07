@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Loaded } from "../../components/list/tree";
 import { fileEntry } from "../../test/server";
-import { asked, below, type Entry, type FileEntry, type Making, rows } from "./rows";
+import { asked, below, type Entry, type FileEntry, type Making, rows, shownPaths } from "./rows";
 
 const entry = fileEntry;
 
@@ -45,6 +45,13 @@ describe("the Explorer's rows", () => {
 
   it("leave hidden entries out if asked", () => {
     expect(text(rows("/r", making([], { hidden: false })))).toEqual(["src", "B2.txt", "b10.txt"]);
+  });
+
+  it("say which paths they show, each folder of a chain joined", () => {
+    const [, src] = rows("/r", making(["src/"]));
+    expect(src?.type === "entry" && shownPaths(src)).toEqual(["src", "src/app"]);
+    const main = src?.subRows.find((row) => row.type === "entry" && row.shown === "main.py");
+    expect(main?.type === "entry" && shownPaths(main)).toEqual(["src/app/main.py"]);
   });
 
   it("open folders through those holding a single folder, joined", () => {

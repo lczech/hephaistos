@@ -17,7 +17,15 @@ export const HINTED: Record<Hint, KeyName[]> = {
 };
 
 /** Asked again when the page gains focus: what changes by hand, which no hint covers. */
-export const ON_FOCUS: KeyName[] = ["config", "daemon", "changes", "diff", "history", "files"];
+export const ON_FOCUS: KeyName[] = [
+  "config",
+  "daemon",
+  "changes",
+  "diff",
+  "history",
+  "files",
+  "paths",
+];
 
 /** Asked again only on connecting, as everything is: what changes only with the Daemon. */
 export const ON_CONNECT: KeyName[] = ["info", "eventKinds"];
