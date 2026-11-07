@@ -20,7 +20,6 @@ from hephaistos.daemon.status import ServerStatus, Status
 from support import logged, run_cli
 
 runner = CliRunner()
-NOW = datetime.now(UTC)
 
 
 def test_not_set_up_doesnt_start(
@@ -131,7 +130,8 @@ def test_token_url_only_for_our_own_server(paths: Paths) -> None:
         ours.bind(("127.0.0.1", 0))
         port = ours.getsockname()[1]
         listening = ServerStatus(f"127.0.0.1:{port}", listening=True)
-        status.write(paths.state_dir, Status(os.getpid(), "0.1.0", NOW, server=listening))
+        started = datetime.now(UTC)
+        status.write(paths.state_dir, Status(os.getpid(), "0.1.0", started, server=listening))
         assert url() == (
             f"your user does not hold port {port};"
             " hephaistos gives the token only to a server of your user"
@@ -153,17 +153,15 @@ def test_token_url_only_for_our_own_server(paths: Paths) -> None:
             "listening on 127.0.0.1:8264; no requests yet",
         ),
         (
-            ServerStatus("127.0.0.1:8264", listening=True, requests=1, last_request_at=NOW),
+            ServerStatus("127.0.0.1:8264", listening=True, requests=1),
             "listening on 127.0.0.1:8264; 1 request since start, last now",
         ),
         (
-            ServerStatus(
-                "127.0.0.1:8264", listening=True, requests=12, last_request_at=NOW, refused=3
-            ),
+            ServerStatus("127.0.0.1:8264", listening=True, requests=12, refused=3),
             "listening on 127.0.0.1:8264; 12 requests since start, last now; 3 refused",
         ),
         (
-            ServerStatus("127.0.0.1:8264", listening=True, requests=2, last_request_at=NOW, live=1),
+            ServerStatus("127.0.0.1:8264", listening=True, requests=2, live=1),
             "listening on 127.0.0.1:8264; 2 requests since start, last now; 1 live connection",
         ),
     ],
@@ -178,9 +176,10 @@ def test_status_of_the_server(
 ) -> None:
     monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl
     paths.state_dir.mkdir(parents=True)
-    if server.last_request_at is not None:  # "now" when the test runs, not when it was collected
-        server = dataclasses.replace(server, last_request_at=datetime.now(UTC))
-    found = Status(os.getpid(), "0.1.0", NOW, parts=("server",), server=server)
+    now = datetime.now(UTC)  # here, not at import: tests running before must not age it
+    if server.requests:
+        server = dataclasses.replace(server, last_request_at=now)
+    found = Status(os.getpid(), "0.1.0", now, parts=("server",), server=server)
     status.write(paths.state_dir, found)
     with status.held_lock(paths.state_dir):
         assert run_cli(monkeypatch, "daemon", "status") == 0
