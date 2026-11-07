@@ -5,7 +5,16 @@ import { App } from "./App";
 import { Boundary } from "./components/Boundary";
 import { saveGrid, saveViews } from "./test/layout";
 import { lastSocket } from "./test/live";
-import { daemon, event, info, json, renderWithQueries, serve, setting } from "./test/server";
+import {
+  daemon,
+  event,
+  info,
+  json,
+  renderWithQueries,
+  serve,
+  setting,
+  status,
+} from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
 import { builtFor } from "./version";
 
@@ -17,6 +26,7 @@ function signIn(): void {
 const ok = {
   "GET /api/info": () => json(info()),
   "GET /api/daemon": () => json(daemon()),
+  "GET /api/status": () => json(status()),
   "GET /api/repositories": () => json([]),
   "GET /api/events": () => json([]),
   "POST /api/observe": () => new Response(null, { status: 204 }),
@@ -35,7 +45,7 @@ describe("the GUI", () => {
 
   it("shows the Daemon and this Machine, asking for a pass as it opens", async () => {
     signIn();
-    saveViews("daemon");
+    saveViews("status");
     const requests = serve(ok);
     renderWithQueries(<App />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
@@ -52,21 +62,22 @@ describe("the GUI", () => {
     expect(observe?.headers.get("Authorization")).toBe("Bearer secret");
   });
 
-  it("shows the Daemon's health in the status bar, and the Daemon when asked", async () => {
+  it("shows the health in the status bar, and the Status View when asked", async () => {
     signIn();
     serve(ok);
     renderWithQueries(<App />);
     await waitFor(() => lastSocket());
     act(() => lastSocket().open());
     const health = await screen.findByRole("button", {
-      name: "Daemon: running; open the Daemon view",
+      name: "Status: running; open the Status view",
     });
     expect(health).toHaveAttribute("data-health", "good");
+    expect(health.querySelector("svg")).toHaveClass("lucide-circle-check");
     await userEvent.click(health);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
   });
 
-  it("opens the Daemon from the status bar in the active Group", async () => {
+  it("opens the Status View from the status bar in the active Group", async () => {
     signIn();
     saveGrid([{ tabs: ["repositories"] }, { tabs: ["events"] }], "HORIZONTAL");
     serve(ok);
@@ -75,13 +86,13 @@ describe("the GUI", () => {
     await waitFor(() => lastSocket());
     act(() => lastSocket().open());
     await userEvent.click(
-      await screen.findByRole("button", { name: "Daemon: running; open the Daemon view" }),
+      await screen.findByRole("button", { name: "Status: running; open the Status view" }),
     );
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
     const tabsByGroup = [...document.querySelectorAll(".dv-groupview")].map((group) =>
       [...group.querySelectorAll("[role=tab]")].map((tab) => tab.getAttribute("aria-label")),
     );
-    expect(tabsByGroup).toEqual([["repositories"], ["Events", "Daemon"]]); // the first not drawn
+    expect(tabsByGroup).toEqual([["repositories"], ["Events", "Status"]]); // the first not drawn
   });
 
   it("takes its fonts and sizes from the settings", async () => {
@@ -142,13 +153,16 @@ describe("the GUI", () => {
     act(() => lastSocket().drop());
     expect(screen.getByText("disconnected")).toHaveAttribute("data-state", "disconnected");
     expect(
-      screen.getByRole("button", { name: "Daemon: disconnected; open the Daemon view" }),
+      screen.getByRole("button", { name: "Status: disconnected; open the Status view" }),
     ).toHaveAttribute("data-health", "lost");
+    expect(
+      screen.getByRole("button", { name: /^Status: disconnected/ }).querySelector("svg"),
+    ).toHaveClass("lucide-circle-x");
   });
 
-  it("tells in the Daemon View what to check while disconnected", async () => {
+  it("tells in the Status View what to check while disconnected", async () => {
     signIn();
-    saveViews("daemon");
+    saveViews("status");
     serve(ok);
     renderWithQueries(<App />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
@@ -174,7 +188,7 @@ describe("the GUI", () => {
 
   it("passes when asked, and shows why one failed", async () => {
     signIn();
-    saveViews("daemon");
+    saveViews("status");
     let passes = 0;
     serve({
       ...ok,
@@ -191,13 +205,19 @@ describe("the GUI", () => {
     expect(passes).toBe(2);
   });
 
-  it("names the restart for a Daemon of an older version", async () => {
+  it("names the restart for a Daemon of an older version, also in the Status View", async () => {
     signIn();
-    saveViews("daemon");
+    saveViews("status");
     serve({ ...ok, "GET /api/info": () => json(info({ major: 0, minor: 0 })) });
     renderWithQueries(<App />);
     expect(await screen.findByText(/restart it: `hephaistos daemon restart`/)).toBeInTheDocument();
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+    const check = screen.getByText("gui").closest("li");
+    expect(check).toHaveAttribute("data-outcome", "problem");
+    expect(check).toHaveTextContent(/restart it: hephaistos daemon restart$/);
+    act(() => lastSocket().open());
+    const health = screen.getByRole("button", { name: /^Status: This GUI is built for API/ });
+    expect(health).toHaveAttribute("data-health", "warning");
   });
 
   it("shows nothing but the hint for another major", async () => {

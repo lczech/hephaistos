@@ -28,7 +28,15 @@ export const HINTED: Record<Hint, KeyName[]> = {
 
 /** Asked again each time the page gains focus: what changes by hand, which no hint covers, e.g.
  * a file edited, the working tree of a Checkout, or a setting. */
-export const ON_FOCUS: KeyName[] = ["config", "daemon", "changes", "diff", "files", "paths"];
+export const ON_FOCUS: KeyName[] = [
+  "config",
+  "daemon",
+  "status",
+  "changes",
+  "diff",
+  "files",
+  "paths",
+];
 
 /** Asked again on gaining focus with the pass, at most every FOCUS_GAP: what changes only with
  * git activity, e.g. a commit, which the pass finds and hints at too. */

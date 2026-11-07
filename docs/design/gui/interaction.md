@@ -77,7 +77,7 @@ The Group's back (the mouse's back button, Alt+←) returns from either.
 ## Wording
 
 The GUI's text is in sentence case, its terms lowercase: "this checkout", "No events match", "Open a view".
-A View's name keeps its capital where it names that View: "the Daemon view", tab titles, the "+" menu ([glossary](../../glossary.md)).
+A View's name keeps its capital where it names that View: "the Status view", tab titles, the "+" menu ([glossary](../../glossary.md)).
 
 ## Tooltips
 

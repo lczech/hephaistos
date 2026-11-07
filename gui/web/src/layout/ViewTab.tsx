@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { TextIcon } from "../components/TextIcon";
 import { asAddress } from "../views/address";
 import { viewIconClass } from "../views/families";
-import { viewIcon } from "../views/kinds";
+import { viewIcon, viewKind } from "../views/kinds";
 import { isPreview, keep, noteTab } from "./dock";
 import styles from "./layout.module.css";
 import { useSideButtons } from "./visits";
@@ -16,6 +16,7 @@ import { useSideButtons } from "./visits";
 export function ViewTab(props: IDockviewPanelHeaderProps) {
   const address = asAddress(props.params);
   const Icon = address && viewIcon(address);
+  const TabIcon = address && viewKind(address.kind)?.TabIcon;
   const preview = isPreview(props.params);
   const sideButtons = useSideButtons(() => props.api.group);
   const { api } = props;
@@ -38,7 +39,11 @@ export function ViewTab(props: IDockviewPanelHeaderProps) {
       title={title}
       onMouseUp={sideButtons}
     >
-      {Icon && <TextIcon icon={Icon} className={viewIconClass(address.kind)} />}
+      {TabIcon ? (
+        <TabIcon className={viewIconClass(address.kind)} />
+      ) : (
+        Icon && <TextIcon icon={Icon} className={viewIconClass(address.kind)} />
+      )}
       <DockviewDefaultTab {...props} />
     </div>
   );

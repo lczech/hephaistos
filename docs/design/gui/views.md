@@ -57,11 +57,19 @@ The Log View lists this Machine's log records, filtered by level, time and proce
 A row opens the record's details.
 Later, another Machine's log comes from its Server: `log?machine=…` ([ADR 005](../../decisions/005-gui.md)).
 
-## Config and Daemon
+## Config
 
 The Config View lists the settings, with their values and where each comes from.
-The Daemon View shows the Daemon's process, Watcher and Server, and what to check when it cannot be reached.
-It observes on request.
+
+## Status
+
+The Status View shows this Machine's setup, its Daemon and what runs, as `hephaistos status` does ([Status](../daemon/status.md)).
+- Setup lists the checks, which the Daemon runs when the View opens, the page gains focus, or on "Check again"; and this GUI's own: whether it fits the API the Daemon runs.
+- Running shows the Daemon's process, Watcher and Server, and what to check when it cannot be reached; it observes on request.
+- Log counts the warnings and errors of the last day, linking to them in the Log View, beside links to the Log and Config Views.
+- About lists the versions and the system; "Copy for an issue" copies it as Markdown, with the setup's problems and notes, the home directory as `~`.
+
+Its icon is a plain circle; in its tabs, it takes the health's shape, as the status bar's icon does ([layout](layout.md#views-and-dockview)).
 
 ## Database
 

@@ -2,7 +2,6 @@ import type { ComponentType } from "react";
 import type { Params } from "./address";
 import { ChangesView } from "./changes/ChangesView";
 import { ConfigView } from "./config/ConfigView";
-import { DaemonView } from "./daemon/DaemonView";
 import { DbView } from "./db/DbView";
 import { DiffView } from "./diff/DiffView";
 import { EventsView } from "./events/EventsView";
@@ -12,6 +11,7 @@ import { HistoryView } from "./history/HistoryView";
 import type { KindName } from "./kinds";
 import { LogView } from "./log/LogView";
 import { RepositoriesView } from "./repositories/RepositoriesView";
+import { StatusView } from "./status/StatusView";
 
 /**
  * What a View gets: its address's parameters, what it shows, and its fragment, how it is looked at
@@ -35,7 +35,7 @@ type View = ComponentType<ViewProps>;
 /** Each kind's View. Views know nothing of Panels: `layout/` places them. */
 export const VIEWS: Record<string, View> = {
   repositories: RepositoriesView,
-  daemon: DaemonView,
+  status: StatusView,
   events: EventsView,
   changes: ChangesView,
   diff: DiffView,

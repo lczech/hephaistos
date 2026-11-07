@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchField } from "../components/SearchField";
 import { saveViews as save, saveGrid } from "../test/layout";
-import { daemon, info, json, renderWithQueries, serve, setting } from "../test/server";
+import { daemon, info, json, renderWithQueries, serve, setting, status } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
 import { useKeyTarget } from "../views/keys";
@@ -123,6 +123,7 @@ beforeEach(() => {
 
 const ROUTES = {
   "GET /api/daemon": () => json(daemon()),
+  "GET /api/status": () => json(status()),
   "GET /api/events": () => json([]),
   "GET /api/repositories": () => json([]),
   "GET /api/config": () => json({ settings: [] }),
@@ -276,7 +277,7 @@ describe("the Workbench", () => {
   });
 
   it("takes Alt+← and Alt+→ from the browser, also with nothing to go to", async () => {
-    save("daemon");
+    save("status");
     await renderWorkbench();
     for (const key of ["ArrowLeft", "ArrowRight"]) {
       const event = new KeyboardEvent("keydown", { key, altKey: true, cancelable: true });
@@ -288,10 +289,10 @@ describe("the Workbench", () => {
   });
 
   it("restores the saved Layout, saying which Views no longer exist", async () => {
-    save("gone", "daemon");
+    save("gone", "status");
     await renderWorkbench();
     expect(await screen.findByText(/no longer exists/)).toBeInTheDocument();
-    expect(tabs()).toEqual(["gone", "daemon"]);
+    expect(tabs()).toEqual(["gone", "status"]);
   });
 
   it("builds a View once its tab is first shown, then keeps it drawn while hidden", async () => {
@@ -331,8 +332,8 @@ describe("the Workbench", () => {
       a: {
         id: "a",
         contentComponent: "view",
-        title: "Daemon",
-        params: { kind: "daemon", params: {} },
+        title: "Status",
+        params: { kind: "status", params: {} },
       },
       b: {
         id: "b",
@@ -349,9 +350,9 @@ describe("the Workbench", () => {
     );
     await renderWorkbench();
     const asked = () => requests.map((request) => new URL(request.url).pathname);
-    await waitFor(() => expect(asked()).toContain("/api/daemon")); // the Daemon shown
+    await waitFor(() => expect(asked()).toContain("/api/status")); // the Status shown
     await nextFrame();
-    expect(tabs()).toEqual(["Daemon", "Diff: proj"]);
+    expect(tabs()).toEqual(["Status", "Diff: proj"]);
     expect(asked().filter((path) => /changes|diff/.test(path))).toEqual([]);
   });
 
@@ -380,13 +381,13 @@ describe("the Workbench", () => {
       ...ROUTES,
       "GET /api/log": () => json({ entries: [], skipped: 0 }),
     });
-    save("daemon", "events");
+    save("status", "events");
     await renderWorkbench();
     const link = await screen.findByRole("button", { name: "The daemon's log" });
     expect(link).toHaveTextContent("Log");
     await altClick(link);
     // Events, never shown, keeps the title its Layout saved: its View is built once shown.
-    expect(groups()).toEqual([["daemon", "events"], ["Log: daemon[4242]*"]]);
+    expect(groups()).toEqual([["status", "events"], ["Log: daemon[4242]*"]]);
     await waitFor(() =>
       expect(savedViews()).toContainEqual({
         kind: "log",

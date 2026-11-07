@@ -1,7 +1,7 @@
 import {
-  Activity,
   BookCopy,
   Calendar,
+  Circle,
   Database,
   FileDiff,
   Files,
@@ -10,9 +10,11 @@ import {
   ScrollText,
   SlidersHorizontal,
 } from "lucide-react";
+import type { ComponentType } from "react";
 import { FileDiffs, GitCommits, GitTipsJoining } from "../drawnIcons";
 import type { Address, Params } from "./address";
 import { checkoutOf } from "./checkout";
+import { StatusIcon } from "./status/StatusIcon";
 
 /** A family of Views, whose icons share a colour (`families.module.css`). */
 export type ViewFamily = "overview" | "git" | "files" | "machine";
@@ -38,6 +40,7 @@ export interface ViewKind {
   family: ViewFamily;
   iconOf?: (params: Params) => LucideIcon; // a View's own, if its parameters change it
   offered?: Offered; // none: opened only from other Views
+  TabIcon?: ComponentType<{ className?: string }>; // in its tabs, if what it shows changes it
 }
 
 const kinds = {
@@ -55,7 +58,8 @@ const kinds = {
   history: { name: "History", icon: GitCommits, family: "git" },
   graph: { name: "Graph", icon: GitTipsJoining, family: "git" },
   explorer: { name: "Explorer", icon: Files, family: "files", offered: "menu" },
-  daemon: { name: "Daemon", icon: Activity, family: "machine", offered: "menu" },
+  // A plain circle until known; its tabs show the health's (`status/health.ts`).
+  status: { name: "Status", icon: Circle, family: "machine", offered: "menu", TabIcon: StatusIcon },
   log: { name: "Log", icon: ScrollText, family: "machine", offered: "menu" },
   config: { name: "Config", icon: SlidersHorizontal, family: "machine", offered: "menu" },
   db: { name: "Database", icon: Database, family: "machine", offered: "menu" },

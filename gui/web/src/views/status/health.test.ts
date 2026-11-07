@@ -43,4 +43,11 @@ describe("the Daemon's health", () => {
       ],
     });
   });
+
+  it("warns of a GUI that doesn't fit the API, as a problem of the setup", () => {
+    const hint = "This GUI is built for API 0.22; the daemon runs 0.21: restart it";
+    expect(daemonHealth(live, daemon(), NOW, hint)).toEqual({ health: "warning", reasons: [hint] });
+    expect(daemonHealth(live, undefined, NOW, hint).health).toBe("warning");
+    expect(daemonHealth({ state: "connecting" }, undefined, NOW, hint).health).toBe("waiting");
+  });
 });

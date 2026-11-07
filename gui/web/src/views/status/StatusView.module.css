@@ -49,8 +49,60 @@
   margin-top: var(--space-4);
 }
 
-.observe {
+.action {
   composes: action from "../../components/controls.module.css";
+}
+
+/* A section's title: Setup, Running, Log, About. */
+.heading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: inherit;
+  font-weight: var(--weight-strong);
+}
+
+.heading:first-child {
+  margin-top: 0;
+}
+
+/* A check per line: its outcome's icon, what it checked, and what it found, with what to do. */
+.checks {
+  display: grid;
+  grid-template-columns: max-content max-content 1fr;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: contents;
+}
+
+.check[data-outcome="ok"] > svg {
+  color: var(--success);
+}
+
+.check[data-outcome="problem"] > svg {
+  color: var(--warning);
+}
+
+.check[data-outcome="note"] > svg {
+  color: var(--text-muted);
+}
+
+.name {
+  color: var(--text-muted);
+}
+
+.fix {
+  color: var(--text-muted);
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
 }
 
 .quiet {
@@ -66,6 +118,7 @@
   color: var(--danger);
 }
 
-.notice code {
+.notice code,
+.checks code {
   white-space: nowrap;
 }

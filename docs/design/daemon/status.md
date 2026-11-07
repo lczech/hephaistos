@@ -1,6 +1,7 @@
 # Status
 
 How this Machine's setup is checked, and what `hephaistos status` and the Server's `/api/status` show: the checks, what runs, and the log's recent warnings and errors.
+The GUI shows the same in its Status View ([views](../gui/views.md#status)).
 
 ## Checks
 

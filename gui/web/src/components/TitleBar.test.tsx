@@ -50,7 +50,7 @@ describe("the title bar", () => {
     expect(families).toEqual([
       ["overviews", ["Repositories", "Events"]],
       ["files", ["Explorer"]],
-      ["this machine", ["Daemon", "Log", "Config", "Database"]],
+      ["this machine", ["Status", "Log", "Config", "Database"]],
     ]);
     expect(within(menu).getAllByRole("separator")).toHaveLength(2);
     await userEvent.click(screen.getByRole("menuitem", { name: "Config" }));

@@ -33,7 +33,7 @@
   position: absolute;
 }
 
-/* The Daemon's icon, coloured by its health; it opens the Daemon View. */
+/* The health's icon, coloured by it; it opens the Status View. */
 .health {
   composes: icon from "./controls.module.css";
   --icon-size: var(--icon-large);

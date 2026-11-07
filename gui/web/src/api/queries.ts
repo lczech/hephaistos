@@ -33,6 +33,7 @@ export const QUERY_DEFAULTS: QueryClientConfig = {
 export const KEYS = {
   info: ["info"],
   daemon: ["daemon"],
+  status: ["status"],
   machines: ["machines"],
   repositories: ["repositories"],
   changes: ["changes"],
@@ -67,6 +68,14 @@ export function useDaemon() {
   return useQuery({
     queryKey: KEYS.daemon,
     queryFn: async () => unwrap(await api.GET("/api/daemon")),
+  });
+}
+
+/** The setup, as the Daemon checks it for this: asked only while shown, as checking takes calls. */
+export function useStatus() {
+  return useQuery({
+    queryKey: KEYS.status,
+    queryFn: async () => unwrap(await api.GET("/api/status")),
   });
 }
 

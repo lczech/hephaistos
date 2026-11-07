@@ -105,6 +105,33 @@ export function daemon(): Schemas["DaemonJson"] {
   };
 }
 
+/** This Machine's setup and what runs, as `/api/status` gives them: all well. */
+export function status(checks: Schemas["CheckJson"][] = []): Schemas["StatusJson"] {
+  return {
+    checks: [
+      { name: "git", outcome: "ok", text: "2.43.0, /usr/bin/git", fix: null },
+      { name: "sqlite", outcome: "ok", text: "3.45.1", fix: null },
+      ...checks,
+    ],
+    about: {
+      version: "0.1.0 (abc1234)",
+      api: `${builtFor().major}.${builtFor().minor}`,
+      schema: 3,
+      python: "3.12.3",
+      sqlite: "3.45.1",
+      git: "2.43.0",
+      systemd: "systemd 255",
+      os: "Ubuntu 24.04.5 LTS",
+      kernel: "7.0.0-38-generic",
+      desktop: "GNOME on wayland",
+      locale: "en_GB.UTF-8",
+      time_zone: "Europe/Berlin",
+    },
+    log: { since: secondsAgo(86_400), warnings: 0, errors: 0 },
+    daemon: daemon(),
+  };
+}
+
 /** An Event as `/api/events` lists it; IDs count up, so later ones are newer. */
 export function event(n: number, fields: Partial<Schemas["EventJson"]> = {}): Schemas["EventJson"] {
   const id = `0199e000-0000-7000-8000-${String(n).padStart(12, "0")}`;

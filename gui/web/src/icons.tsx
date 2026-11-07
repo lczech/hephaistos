@@ -12,9 +12,13 @@ import {
   BookMinus,
   BookPlus,
   Box,
+  Circle,
+  CircleAlert,
   CircleCheck,
   CircleChevronUp,
+  CircleDashed,
   CircleQuestionMark,
+  CircleX,
   Cloud,
   Computer,
   Cpu,
@@ -48,7 +52,9 @@ import {
   Undo2,
   Watch,
 } from "lucide-react";
+import type { Schemas } from "./api/client";
 import { FolderBranch } from "./drawnIcons";
+import type { Health } from "./views/status/health";
 
 /** What an Event of this kind did: `clone.branch_created` → `branch created`. */
 export function actionOf(kind: string): string {
@@ -123,6 +129,22 @@ export const REF_ICONS: Record<"branch" | "remote" | "tag", LucideIcon> = {
   branch: GitBranch,
   remote: Cloud,
   tag: Tag,
+};
+
+/** The health of this Machine's setup and Daemon, in the status bar and the Status View's tab:
+ * of one family, its colour telling it too where it shows. */
+export const HEALTH_ICONS: Record<Health, LucideIcon> = {
+  waiting: CircleDashed,
+  good: CircleCheck,
+  warning: CircleAlert,
+  lost: CircleX,
+};
+
+/** What a check of the setup found, in the Status View. */
+export const OUTCOME_ICONS: Record<Schemas["CheckJson"]["outcome"], LucideIcon> = {
+  ok: CircleCheck,
+  problem: CircleAlert,
+  note: Circle,
 };
 
 /** The icon for the kind of an Event: its own, else that of its action, else a dot. */

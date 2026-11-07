@@ -1,16 +1,8 @@
 import { useConfig, useInfo } from "../../api/queries";
+import { Quoted } from "../../components/Quoted";
 import { loadErrorText } from "../CheckoutError";
 import styles from "./ConfigView.module.css";
 import { appliedText, sourceRows, sourceText, valueText } from "./configText";
-
-/** Text with its `quoted` parts as code, as `defaults.toml`'s comments quote them. */
-function Described({ text }: { text: string }) {
-  // Splitting on a captured group puts the quoted parts at odd places.
-  return text.split(/`([^`]+)`/).map((part, i) =>
-    // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one text, in its order
-    i % 2 === 1 ? <code key={i}>{part}</code> : part,
-  );
-}
 
 /** The settings the Daemon finds, and where each comes from, as `hephaistos config show`. */
 export function ConfigView() {
@@ -40,7 +32,7 @@ export function ConfigView() {
                 {sourceText(setting.source)}
               </span>
               <span className={styles.description}>
-                <Described
+                <Quoted
                   text={
                     applied === undefined
                       ? setting.description

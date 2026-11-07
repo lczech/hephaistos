@@ -63,11 +63,12 @@ A refusal by the Server reads "Cannot show this:" and its message; a request tha
 Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
 Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
 
-An icon of a View is in its family's colour, the same in both themes (`views/families.module.css`): git's orange for git's Views (Changes, Diff, History), violet for overviews (Repositories, Events), blue for files (Explorer), teal for this Machine's own (Daemon, Log, Config, Database).
+An icon of a View is in its family's colour, the same in both themes (`views/families.module.css`): git's orange for git's Views (Changes, Diff, History), violet for overviews (Repositories, Events), blue for files (Explorer), teal for this Machine's own (Status, Log, Config, Database).
 It is so in tabs, in View bars, in lists of kinds, and in links beside content, e.g. a file's header in a Diff.
 In a list's rows, where links repeat, they are grey until the row is hovered or holds the focus.
 A test keeps the families' colours to icons of Views.
-The Daemon's icon in the status bar is coloured by its health instead.
+The health's icon in the status bar is coloured by the health instead: green, yellow, red, or as text while connecting.
+So are the checks' icons in the Status View: green when ok, yellow for a problem, grey for a note.
 
 The tab shown in the Group that has the focus is underlined in the accent (`--mark-line`, `layout/dock.css`).
 
@@ -91,7 +92,7 @@ The page says the bars' colour (`--bar`) as its theme colour, which the buttons 
 ## Icons
 
 Icons are monochrome, from Lucide (`lucide-react`).
-One thing has one icon, defined once in `icons.tsx`: Event kinds, actions and entity types, a dot for anything else.
+One thing has one icon, defined once in `icons.tsx`: Event kinds, actions and entity types, a dot for anything else; and the health and checks' outcomes.
 A test requires one for every Event kind and chassis.
 Where Lucide has none, `drawnIcons.ts` draws one from Lucide's own shapes, in its style.
 A toggle or button never shows the icon of an entity, so that each icon keeps standing for its entity.

@@ -3,7 +3,7 @@ import { addressText, asAddress, paramValues, parseAddress, viewKey, withParam }
 
 describe("addresses", () => {
   it("are the kind, with parameters sorted", () => {
-    expect(addressText({ kind: "daemon", params: {} })).toBe("daemon");
+    expect(addressText({ kind: "status", params: {} })).toBe("status");
     expect(addressText({ kind: "events", params: { since: "2h", repository: "01" } })).toBe(
       "events?repository=01&since=2h",
     );
@@ -12,7 +12,7 @@ describe("addresses", () => {
   it("read back as they were written", () => {
     const address = { kind: "file", params: { path: "/a b/c~1.txt", line: "3" } };
     expect(parseAddress(addressText(address))).toEqual(address);
-    expect(parseAddress("daemon")).toEqual({ kind: "daemon", params: {} });
+    expect(parseAddress("status")).toEqual({ kind: "status", params: {} });
   });
 
   it("keep any text, whatever characters it has", () => {
@@ -26,11 +26,11 @@ describe("addresses", () => {
   it("say how a View is looked at in their fragment, which leaves it the same View", () => {
     const searched = { kind: "diff", params: { path: "a.py" }, fragment: { find: "beta" } };
     expect(addressText(searched)).toBe("diff?path=a.py#find=beta");
-    expect(addressText({ kind: "daemon", params: {}, fragment: { sort: "name" } })).toBe(
-      "daemon#sort=name",
+    expect(addressText({ kind: "status", params: {}, fragment: { sort: "name" } })).toBe(
+      "status#sort=name",
     );
-    expect(parseAddress("daemon#sort=name")).toEqual({
-      kind: "daemon",
+    expect(parseAddress("status#sort=name")).toEqual({
+      kind: "status",
       params: {},
       fragment: { sort: "name" },
     });

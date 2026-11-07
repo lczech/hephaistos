@@ -1,16 +1,14 @@
 import { useAtom } from "@tanstack/react-store";
 import { type Connection, useConnection } from "../api/live";
 import { useDaemon, useInfo } from "../api/queries";
+import { HEALTH_ICONS } from "../icons";
 import { noticeAtom } from "../notice";
 import { ago, fullTime } from "../time";
 import { useNow } from "../useNow";
-import { daemonHealth, disconnectedText, retryText } from "../views/daemon/health";
-import { KINDS } from "../views/kinds";
 import { useOpenView } from "../views/opening";
+import { disconnectedText, retryText, useHealth } from "../views/status/health";
 import styles from "./StatusBar.module.css";
 import { TextIcon } from "./TextIcon";
-
-const Icon = KINDS.daemon.icon;
 
 /** The live connection, in a word, and in more words for its tooltip. */
 function connectionText(connection: Connection, now: number): [string, string] {
@@ -27,8 +25,9 @@ function connectionText(connection: Connection, now: number): [string, string] {
   }
 }
 
-/** One line at the bottom: this Machine, or for a while what was just done (`notify`); at its end, how the Daemon is doing and whether the
- * live connection to it is. The Daemon's icon opens the Daemon View. */
+/** One line at the bottom: this Machine, or for a while what was just done (`notify`); at its
+ * end, how its setup and Daemon are doing, and whether the live connection is. The health's icon
+ * opens the Status View. */
 export function StatusBar() {
   const info = useInfo();
   const daemon = useDaemon();
@@ -36,9 +35,10 @@ export function StatusBar() {
   const open = useOpenView();
   const now = useNow();
   const [notice] = useAtom(noticeAtom);
-  const { health, reasons } = daemonHealth(connection, daemon.data, now);
+  const { health, reasons } = useHealth();
+  const Icon = HEALTH_ICONS[health];
   const lastPass = daemon.data?.watcher?.last_pass;
-  const title = `Daemon: ${reasons.join("; ")}${lastPass ? `; last pass ${ago(lastPass.finished_at, now)}` : ""}`;
+  const title = `Status: ${reasons.join("; ")}${lastPass ? `; last pass ${ago(lastPass.finished_at, now)}` : ""}`;
   const [text, details] = connectionText(connection, now);
   const where =
     info.data &&
@@ -56,9 +56,9 @@ export function StatusBar() {
           type="button"
           className={styles.health}
           data-health={health}
-          onClick={() => open({ kind: "daemon", params: {} })}
+          onClick={() => open({ kind: "status", params: {} })}
           title={title}
-          aria-label={`Daemon: ${reasons.join("; ")}; open the Daemon view`}
+          aria-label={`Status: ${reasons.join("; ")}; open the Status view`}
         >
           <TextIcon icon={Icon} />
         </button>
