@@ -81,8 +81,8 @@ describe("the Status View", () => {
     const link = await screen.findByRole("button", {
       name: "The log's warnings and errors of the last day",
     });
-    expect(link).toHaveTextContent("1 error and 3 warnings");
-    expect(link.parentElement).toHaveTextContent(/^1 error and 3 warnings in the last day$/);
+    expect(link).toHaveTextContent(/^Log$/);
+    expect(link.parentElement).toHaveTextContent(/^Log 1 error and 3 warnings in the last day$/);
     expect(screen.queryByRole("button", { name: "The settings" })).not.toBeInTheDocument();
     await userEvent.click(link);
     await waitFor(() => {
@@ -91,23 +91,34 @@ describe("the Status View", () => {
     });
   });
 
-  it("says when the log has nothing to look at", async () => {
+  it("names only what the log has, else links to all of it", async () => {
     open();
+    serve(routes([], { warnings: 2, errors: 0 }));
+    const { unmount } = renderWithQueries(<App />);
+    const some = await screen.findByRole("button", {
+      name: "The log's warnings and errors of the last day",
+    });
+    expect(some.parentElement).toHaveTextContent(/^Log 2 warnings in the last day$/);
+    unmount();
     serve(routes([], { warnings: 0, errors: 0 }));
     renderWithQueries(<App />);
-    expect(await screen.findByText("No errors or warnings in the last day")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "The log" })).toHaveTextContent("Log");
+    const link = await screen.findByRole("button", { name: "The log" });
+    expect(link.parentElement).toHaveTextContent(/^Log No errors or warnings in the last day$/);
   });
 
-  it("copies About for an issue, with the setup's problems and notes", async () => {
+  it("copies Setup, every check, and About as Markdown", async () => {
     open();
     serve(routes([PROBLEM, NOTE, PATHS]));
     const writeText = vi.fn(async (_: string) => {});
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     renderWithQueries(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Copy for an issue" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Copy Setup and About" }));
     expect(await screen.findByText("Copied")).toBeInTheDocument();
     const text = writeText.mock.calls[0]?.[0] ?? "";
+    expect(text).toMatch(
+      /^\*\*hephaistos status\*\*\n\nSetup:\n- git \(ok\): 2\.43\.0, \/usr\/bin\/git\n/,
+    );
+    expect(text.indexOf("\nAbout:\n")).toBeGreaterThan(text.indexOf("- ionice (note)"));
     expect(text).toContain("- hephaistos: 0.1.0 (abc1234)\n");
     expect(text).toContain("- Daemon: running under systemd, pid 4242, since ");
     expect(text).toContain("- Time zone: Europe/Berlin\n");

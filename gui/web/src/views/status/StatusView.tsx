@@ -14,7 +14,7 @@ import { useNow } from "../../useNow";
 import { apiFit, builtFor } from "../../version";
 import { loadErrorText } from "../CheckoutError";
 import { ViewLink } from "../ViewLink";
-import { aboutMarkdown, aboutRows } from "./about";
+import { aboutRows, statusMarkdown } from "./about";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 import { retryText } from "./health";
 import styles from "./StatusView.module.css";
@@ -86,8 +86,8 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-/** Copies `text`, saying so for a moment, or why it couldn't. */
-function CopyButton({ text, label }: { text: string; label: string }) {
+/** Copies `text`, saying so for a moment beside it, or why it couldn't, moving nothing. */
+function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
   const [said, setSaid] = useState<string | null>(null);
   const copy = async () => {
     try {
@@ -100,34 +100,39 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   };
   return (
     <div className={styles.actions}>
-      <button type="button" className={styles.action} onClick={copy}>
+      <button type="button" className={styles.action} onClick={copy} title={title}>
         <TextIcon icon={ClipboardCopy} />
         {label}
       </button>
-      {said !== null && <p className={styles.quiet}>{said}</p>}
+      <span className={styles.quiet} role="status">
+        {said}
+      </span>
     </div>
   );
 }
 
 /** The log's warnings and errors of the last day, linking to them; else to the whole log. */
 function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
-  if (counts.errors + counts.warnings === 0) {
+  const found = [
+    ...(counts.errors > 0 ? [counted(counts.errors, "error")] : []),
+    ...(counts.warnings > 0 ? [counted(counts.warnings, "warning")] : []),
+  ];
+  if (found.length === 0) {
     return (
-      <p className={styles.links}>
-        <span className={styles.quiet}>No errors or warnings in the last day</span>
-        <ViewLink address={{ kind: "log", params: {} }} label="The log" named />
+      <p className={styles.line}>
+        <ViewLink address={{ kind: "log", params: {} }} label="The log" named />{" "}
+        <span className={styles.after}>No errors or warnings in the last day</span>
       </p>
     );
   }
-  const text = `${counted(counts.errors, "error")} and ${counted(counts.warnings, "warning")}`;
   return (
-    <p className={styles.links}>
+    <p className={styles.line}>
       <ViewLink
         address={{ kind: "log", params: { level: "warning", since: "1d" } }}
         label="The log's warnings and errors of the last day"
-        text={text}
-      />
-      {" in the last day"}
+        named
+      />{" "}
+      <span className={styles.after}>{found.join(" and ")} in the last day</span>
     </p>
   );
 }
@@ -169,8 +174,8 @@ export function StatusView() {
   return (
     <ViewPage>
       <ViewBar>
-        {status.data !== undefined && <span>checked {ago(status.dataUpdatedAt, now)}</span>}
         <BarEnd>
+          {status.data !== undefined && <span>checked {ago(status.dataUpdatedAt, now)}</span>}
           <Refresh busy={status.isFetching || observing.isPending} onClick={refresh} />
         </BarEnd>
       </ViewBar>
@@ -217,8 +222,9 @@ export function StatusView() {
             <>
               <Fields rows={about} />
               <CopyButton
-                text={aboutMarkdown(about, checks, info.data?.home)}
-                label="Copy for an issue"
+                text={statusMarkdown(checks, about, info.data?.home)}
+                label="Copy Setup and About"
+                title="Copy Setup and About as Markdown"
               />
             </>
           )}

@@ -1,4 +1,4 @@
-// The Status View's About: what runs and on what, as rows, and as Markdown to paste into an issue.
+// The Status View's About: what runs and on what, as rows; with Setup, as Markdown to paste.
 
 import type { Schemas } from "../../api/client";
 import { fullTime } from "../../time";
@@ -53,24 +53,22 @@ export function aboutRows(
 }
 
 /**
- * About as Markdown, with the setup's problems and notes, which an issue wants too; `home`, which
- * names the user, as `~`.
+ * Setup and About as Markdown, every check included; `home`, which names the user, as `~`.
  */
-export function aboutMarkdown(
-  rows: [string, string][],
+export function statusMarkdown(
   checks: CheckJson[],
+  rows: [string, string][],
   home: string | undefined,
 ): string {
   const lines = [
     "**hephaistos status**",
     "",
+    "Setup:",
+    ...checks.map((check) => `- ${check.name} (${check.outcome}): ${check.text}`),
+    "",
+    "About:",
     ...rows.map(([label, value]) => `- ${label}: ${value}`),
   ];
-  const found = checks.filter((check) => check.outcome !== "ok");
-  if (found.length > 0) {
-    lines.push("", "Setup:");
-    lines.push(...found.map((check) => `- ${check.name} (${check.outcome}): ${check.text}`));
-  }
   const text = `${lines.join("\n")}\n`;
   return home === undefined || home === "/" ? text : text.replaceAll(home, "~");
 }

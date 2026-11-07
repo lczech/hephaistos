@@ -98,11 +98,13 @@
   color: var(--text-muted);
 }
 
-.links {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.line {
   margin: 0;
+}
+
+/* What follows a named link, whose margin is made for text before it: room of its own. */
+.after {
+  margin-left: var(--space-2);
 }
 
 .quiet {
