@@ -94,6 +94,7 @@ Any of several is for a set: kinds, Repositories; none means all.
 Filters are the View's parameters, by the names of the API's, which filters like the CLI.
 So they are saved with the Layout, and the tab's title names them.
 A filter may be linked: set only from outside, e.g. by a link, and offered only while set.
+In columns, a button at the header's end clears them all, kept in view where the columns scroll sideways.
 
 ## Layouts
 
