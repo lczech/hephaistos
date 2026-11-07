@@ -1,32 +1,36 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+import type { Address } from "../views/address";
+import { OpenViewContext } from "../views/opening";
 import { TitleBar } from "./TitleBar";
 
-/** The Window Controls Overlay as the Desktop's Chromium has it, visible or not. */
-function stubOverlay(visible: boolean) {
-  const overlay = Object.assign(new EventTarget(), { visible });
-  Object.defineProperty(navigator, "windowControlsOverlay", { value: overlay, configurable: true });
-  return overlay;
-}
-
-afterEach(() => {
-  Reflect.deleteProperty(navigator, "windowControlsOverlay");
-});
-
 describe("the title bar", () => {
-  it("isn't drawn in a browser, which has its own", () => {
-    render(<TitleBar />);
-    expect(screen.queryByRole("banner")).toBeNull();
-  });
-
-  it("is drawn while the window's buttons are over the page", () => {
-    const overlay = stubOverlay(false);
-    render(<TitleBar />);
-    expect(screen.queryByRole("banner")).toBeNull();
-    act(() => {
-      overlay.visible = true;
-      overlay.dispatchEvent(new Event("geometrychange"));
-    });
-    expect(screen.getByRole("banner")).toBeInTheDocument();
+  it("offers every View that stands alone by family, opening it where Views open", async () => {
+    const opened: Address[] = [];
+    render(
+      <OpenViewContext value={(address) => opened.push(address)}>
+        <TitleBar />
+      </OpenViewContext>,
+    );
+    expect(screen.getByRole("banner")).toBeInTheDocument(); // in a browser too
+    await userEvent.click(screen.getByRole("button", { name: "View" }));
+    const menu = screen.getByRole("menu");
+    const families = within(menu)
+      .getAllByRole("group")
+      .map((family) => [
+        family.getAttribute("aria-label"),
+        within(family)
+          .getAllByRole("menuitem")
+          .map((item) => item.textContent),
+      ]);
+    expect(families).toEqual([
+      ["overviews", ["Repositories", "Events"]],
+      ["this machine", ["Daemon", "Log", "Config", "Database"]],
+    ]);
+    expect(within(menu).getAllByRole("separator")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Config" }));
+    expect(opened).toEqual([{ kind: "config", params: {} }]);
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });

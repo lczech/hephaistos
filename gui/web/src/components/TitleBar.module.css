@@ -1,13 +1,13 @@
-/* As high as the window's buttons, which cover its right end, with its border below them; its
-   content ends before them. All of it drags the window, but what says `app-region: no-drag`,
-   e.g. buttons later. Its padding is a tab's, so the icon lines up with the first tab's
-   (`layout.module.css`). */
+/* As high as the Desktop's window buttons, which cover its right end there, with its border
+   below them; its content ends before them (`env(titlebar-area-*)`, unset in a browser). All of
+   it drags the window, but what is clicked in it (`app-region: no-drag`). Its padding is a
+   tab's, so the icon lines up with the first tab's (`layout.module.css`). */
 .bar {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   flex: none;
-  height: env(titlebar-area-height); /* shown only where the overlay says it */
+  height: env(titlebar-area-height, var(--title-bar-height));
   padding-block: 0;
   padding-left: calc(env(titlebar-area-x, 0px) + var(--space-2));
   padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
@@ -28,4 +28,23 @@
   height: var(--logo-size);
   /* centred on where a tab's icon is, larger than it */
   margin-inline: calc((var(--icon-text) - var(--logo-size)) / 2);
+}
+
+/* A menu's name, as VS Code's: quiet until hovered or opened. */
+.menu {
+  composes: icon from "./controls.module.css";
+  --icon-pad-y: var(--space-half);
+  --icon-pad-x: var(--space-2);
+  margin-left: var(--space-1);
+  font: inherit;
+  app-region: no-drag;
+}
+
+.menu[data-pressed] {
+  background: var(--fill-on);
+  color: var(--text);
+}
+
+.item {
+  composes: item from "./controls.module.css";
 }

@@ -1,32 +1,67 @@
-import { useSyncExternalStore } from "react";
+import { Fragment } from "react";
+import {
+  Button,
+  Menu,
+  MenuItem,
+  MenuSection,
+  MenuTrigger,
+  Popover,
+  Separator,
+} from "react-aria-components";
 import icon from "../../../../assets/icon.svg";
+import { viewIconClass } from "../views/families";
+import { FAMILY_NAMES, KINDS, MENU_FAMILIES } from "../views/kinds";
+import { useOpenView } from "../views/opening";
+import popover from "./popover.module.css";
+import { TextIcon } from "./TextIcon";
 import styles from "./TitleBar.module.css";
 
-// The window's title bar, where the Desktop leaves it to the page (the Window Controls
-// Overlay): the window's buttons stay Chromium's, drawn over the bar's right end.
-
-/** What TypeScript's DOM types don't have yet: Chromium's `navigator.windowControlsOverlay`. */
-interface WindowControlsOverlay extends EventTarget {
-  readonly visible: boolean;
+/** The View menu: every kind that stands alone, by family, opened in the active Group. */
+function ViewMenu() {
+  const open = useOpenView();
+  return (
+    <MenuTrigger>
+      <Button className={styles.menu}>View</Button>
+      <Popover className={popover.popover} placement="bottom start">
+        <Menu
+          className={popover.menu}
+          aria-label="Views"
+          onAction={(kind) => open({ kind: String(kind), params: {} })}
+        >
+          {MENU_FAMILIES.map(({ family, kinds }, at) => (
+            <Fragment key={family}>
+              {at > 0 && <Separator className={popover.separator} />}
+              <MenuSection aria-label={FAMILY_NAMES[family]}>
+                {kinds.map((kind) => (
+                  <MenuItem
+                    key={kind}
+                    id={kind}
+                    className={styles.item}
+                    textValue={KINDS[kind].name}
+                  >
+                    <TextIcon icon={KINDS[kind].icon} className={viewIconClass(kind)} />
+                    {KINDS[kind].name}
+                  </MenuItem>
+                ))}
+              </MenuSection>
+            </Fragment>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
 }
 
-function overlay(): WindowControlsOverlay | undefined {
-  return (navigator as { windowControlsOverlay?: WindowControlsOverlay }).windowControlsOverlay;
-}
-
-function onOverlayChange(changed: () => void): () => void {
-  const controls = overlay();
-  controls?.addEventListener("geometrychange", changed);
-  return () => controls?.removeEventListener("geometrychange", changed);
-}
-
-/** The bar at the top: the icon, dragging the window; only in the Desktop. */
+/**
+ * The bar at the top: the icon, then the View menu. In the Desktop it is the window's title
+ * bar, dragging the window, the window's buttons drawn over its right end (the Window Controls
+ * Overlay); in a browser, a bar like the others.
+ */
 export function TitleBar() {
-  const shown = useSyncExternalStore(onOverlayChange, () => overlay()?.visible ?? false);
-  if (!shown) return null;
   return (
     <header className={styles.bar}>
       <img className={styles.icon} src={icon} alt="" />
+      <ViewMenu />
     </header>
   );
 }

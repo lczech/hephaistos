@@ -30,6 +30,9 @@
   --radius: 6px;
   --mark-line: 2px; /* a line marking what has the focus: the focused Group's tab */
   --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* a popover's, over what it covers */
+  /* The title bar's, without its line: the Desktop's window buttons' (a test keeps it so with
+     gui/desktop/src/titleBar.ts), which say it there; the same in a browser. */
+  --title-bar-height: 31px;
 
   /* Widths things keep. */
   --comparison-width: 34rem; /* two Revisions compared, or the commit in their place, in a bar */

@@ -99,6 +99,7 @@ Keyboard navigation in lists comes later.
 
 React Aria Components (`react-aria-components`, unstyled), styled with our tokens, provide controls beyond the browser's own.
 Menus and popovers open by our own buttons (`Pressable`), for their tooltips: the "+" menu, filters (a menu for one choice, a dialog for many), the header menu.
+The View menu's button says its name, so it is React Aria's, without a tooltip.
 
 ### Search field
 

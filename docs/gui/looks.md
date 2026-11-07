@@ -73,11 +73,13 @@ The diffs keep their renderer's own, whose layout counts on their size, in the s
 
 ## The title bar
 
-In the Desktop, the GUI draws the window's title bar (`components/TitleBar.tsx`); the window's buttons are Chromium's, over its right end ([Desktop](../desktop/desktop.md#the-window)).
-It shows only where the page learns of those buttons (the Window Controls Overlay), so not in a browser.
-It is as high as the buttons, with a line below it, and ends where they start (`env(titlebar-area-*)`).
-All of it drags the window, and a double-click maximises it.
-It holds the icon, larger than a tab's, centred where the first tab's icon is.
+The title bar (`components/TitleBar.tsx`) holds the icon and the View menu ([layout](layout.md#opening)).
+In the Desktop, it is the window's title bar; the window's buttons are Chromium's, over its right end ([Desktop](../desktop/desktop.md#the-window)).
+There it is as high as the buttons, with a line below it, and ends where they start (`env(titlebar-area-*)`).
+In a browser, it is as high (`--title-bar-height`; a test keeps the Desktop's alike).
+Of it, all but what is clicked drags the window, and a double-click maximises it.
+The icon is larger than a tab's, centred where the first tab's icon is.
+A menu's name is quiet, as VS Code's, until hovered or opened.
 The page says the bars' colour (`--bar`) as its theme colour, which the buttons take.
 
 ## Icons

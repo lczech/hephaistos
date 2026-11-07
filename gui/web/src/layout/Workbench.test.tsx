@@ -194,19 +194,22 @@ describe("the Workbench", () => {
     expect(icons(events as HTMLElement)).toContainEqual(expect.stringMatching(/lucide-calendar/));
     const [add] = screen.getAllByRole("button", { name: "Open a view" });
     await userEvent.click(add as HTMLElement);
-    const choice = screen.getByRole("menuitem", { name: "Config" });
-    expect(icons(choice)).toEqual([expect.stringMatching(/lucide-sliders/)]);
+    const choice = screen.getByRole("menuitem", { name: "Events" });
+    expect(icons(choice)).toEqual([expect.stringMatching(/lucide-calendar/)]);
   });
 
-  it('offers the Views that stand alone by its "+", opening one in its Group', async () => {
+  it('offers the Views at hand by its "+", opening one in its Group', async () => {
     await renderWorkbench();
-    const [, inEvents] = screen.getAllByRole("button", { name: "Open a view" });
-    await userEvent.click(inEvents as HTMLElement);
+    const [repositories] = screen.getAllByRole("tab");
+    await userEvent.click(
+      within(repositories as HTMLElement).getByRole("button", { name: "Close tab" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Open a view" }));
     const choices = screen.getAllByRole("menuitem").map((choice) => choice.textContent);
-    expect(choices).toEqual(["Repositories", "Events", "Daemon", "Log", "Config", "Database"]);
-    await userEvent.click(screen.getByRole("menuitem", { name: "Config" }));
+    expect(choices).toEqual(["Repositories", "Events"]);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Repositories" }));
     expect(screen.queryByRole("menu")).toBeNull();
-    expect(groups()).toEqual([["Repositories"], ["Events", "Config"]]);
+    expect(groups()).toEqual([["Events", "Repositories"]]);
   });
 
   it("gives a tab its whole title as a tooltip, as it changes", async () => {

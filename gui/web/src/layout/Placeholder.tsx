@@ -2,13 +2,10 @@ import type { DockviewApi, IWatermarkPanelProps } from "dockview-react";
 import { useSyncExternalStore } from "react";
 import { TextIcon } from "../components/TextIcon";
 import { viewIconClass } from "../views/families";
-import { KINDS, type KindName } from "../views/kinds";
+import { AT_HAND, KINDS } from "../views/kinds";
 import { openView } from "./dock";
 import styles from "./layout.module.css";
 import { useSideButtons } from "./visits";
-
-// The Views to start with.
-const SUGGESTED: KindName[] = ["repositories", "events"];
 
 /** How many Groups there are, following them as they come and go. */
 function useGroupCount(api: DockviewApi): number {
@@ -23,7 +20,7 @@ function useGroupCount(api: DockviewApi): number {
   return useSyncExternalStore(subscribe, () => api.groups.length);
 }
 
-/** What an empty Group shows: Views to open in it, and, unless it is the last, closing it. */
+/** What an empty Group shows: Views at hand to open in it, and, unless it is the last, closing it. */
 export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
   const groups = useGroupCount(containerApi);
   const sideButtons = useSideButtons(group);
@@ -32,7 +29,7 @@ export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
     <div className={styles.placeholder} onMouseUp={sideButtons}>
       <p>Open a view:</p>
       <ul className={styles.views}>
-        {SUGGESTED.map((kind) => {
+        {AT_HAND.map((kind) => {
           const { name, icon } = KINDS[kind];
           return (
             <li key={kind}>

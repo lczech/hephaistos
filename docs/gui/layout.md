@@ -33,8 +33,9 @@ The page's own fragment carries the token (`#token=…`).
 
 ## Opening
 
-"+" in each Group's tab bar lists the kinds that stand alone, not Changes, Diff or History, which need a Checkout.
-An empty Group lists a few kinds to start with.
+Each kind that stands alone says where it is offered (`views/kinds.ts`); Changes, Diff and History need a Checkout, so open only from other Views.
+The View menu, in the title bar, lists all that stand alone, by family, and opens one in the active Group.
+"+" in each Group's tab bar and an empty Group list those at hand: Repositories and Events; the others are only in the View menu.
 Views open other Views by links ([interaction](interaction.md#links)).
 A link opens by a click in its own Group, and beside it by the middle button or Alt+click, as browsers open a link in place or in a new tab.
 Ctrl and Shift stay free for selecting in lists.
@@ -68,7 +69,7 @@ The steps are kept until the page is left.
 
 A Group closes when its last Panel closes or moves away, unless it is the last Group.
 With the setting `gui.keep_empty_groups`, it stays, so a Layout keeps its shape (dockview's `closeEmptyGroups: false`).
-An empty Group offers Views to start with.
+An empty Group offers the Views at hand.
 An empty Group other than the last offers to close; so does Ctrl+W.
 Ctrl+W closes the active Panel, or the active empty Group.
 Only the Desktop passes Ctrl+W to the page; browsers close their tab.
