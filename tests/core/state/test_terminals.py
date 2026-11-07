@@ -311,6 +311,7 @@ def test_many_terminals(set_up: Paths) -> None:
 
 def test_names_sort_numbers_as_numbers() -> None:
     names = ["proj-10", "proj-2", "proj-1", "api", "proj-100", "proj-9b"]
+    assert sorted(["x²", "x1", "x٣"], key=terminals.name_order) == ["x1", "x²", "x٣"]  # by hand
     assert sorted(names, key=terminals.name_order) == [
         "api",
         "proj-1",

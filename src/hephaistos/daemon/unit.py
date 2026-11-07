@@ -242,8 +242,8 @@ def unit_state() -> UnitState | None:
         installed=values.get("LoadState") == "loaded",
         enabled=values.get("UnitFileState") == "enabled",
         active=active,
-        exit_code=int(code) if code.isdigit() and active != "active" else None,
-        main_pid=int(pid) if pid.isdigit() and pid != "0" else None,
+        exit_code=int(code) if code.isdecimal() and active != "active" else None,
+        main_pid=int(pid) if pid.isdecimal() and pid != "0" else None,
     )
 
 

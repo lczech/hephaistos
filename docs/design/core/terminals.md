@@ -16,7 +16,8 @@ A session's snapshot has the Terminal's ID (none until adopted), its name, where
 Each Terminal is one tmux session with one pane.
 Its ID is a session option, `@hephaistos_id`, set by the same command list that creates the session, so no one sees it without one.
 Each Terminal's programs find its ID in `HEPHAISTOS_TERMINAL`.
-Targets name sessions exactly (`=name`), as tmux otherwise also matches a prefix.
+Renaming and killing target a session by tmux's ID (`$3`), found by its name, as tmux may print a name otherwise than it takes it.
+tmux reads some arguments specially, so each holding a name, a path or a value is written to be taken literally: one ending in `;` would end the command (`\;`), and a `#` in a name or directory starts a format (`##`).
 tmux refuses a name that is taken, which settles races between creators.
 
 ### Socket and config
@@ -58,9 +59,11 @@ A new Terminal also gets its creator's variables that a terminal emulator passes
 ### Listing
 
 One `list-panes -a` lists all sessions, each as its first pane, counting the others.
-tmux prints paths as they are, tabs and newlines included; newer versions write other control characters as octal escapes.
+tmux prints paths as they are, tabs and newlines included; some builds, e.g. Ubuntu's 3.4, write other control characters, bytes that aren't UTF-8 and `$` as escapes (`\037`, `\b`, `\$`), but a backslash as itself.
 So fields are separated by a tab, a Unit Separator and a tab, escaped or not, and each pane ends with a Record Separator.
-A pane whose fields don't add up is skipped and logged, never misread.
+A path's escapes count where the path so read exists and the text as printed doesn't.
+tmux runs with `-u`, else without a UTF-8 locale, e.g. in a Daemon, it prints `_` for each character beyond ASCII; its output is decoded as bytes, as text mode would turn a `\r` into a `\n`.
+A pane whose fields don't add up is skipped and logged, never misread; so is a session without a name, which tmux 3.8 makes of `new -s '#'`.
 Without a server, there are no sessions.
 
 ### Killing
@@ -108,7 +111,8 @@ Creating, renaming and killing a Terminal (`core/terminals/actions.py`) serve th
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
 A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it.
 
-A new Terminal starts in an existing directory we can enter, stored with symlinks resolved.
+A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as the database's text is.
+Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that aren't UTF-8, so that they never stop an observation.
 A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
 A command that ends before the Terminal is observed is reported as having ended at once; a server that ends meanwhile, as lost at once.

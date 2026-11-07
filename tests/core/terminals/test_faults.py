@@ -91,7 +91,7 @@ def test_the_server_ending_right_after_a_create(
         tmp_path,
         "tmux",
         f'"{real}" "$@"; status=$?\n'
-        f'case " $* " in *" new-session "*) "{real}" -L "$2" kill-server ;; esac\n'
+        f'case " $* " in *" new-session "*) "{real}" -L {keeper.socket} kill-server ;; esac\n'
         "exit $status",
     )
     with pytest.raises(HephaistosError, match=r"^terminal api was lost at once: tmux's server"):
@@ -139,3 +139,14 @@ def test_systemd_stuck_when_creating(
     assert [record.getMessage() for record in caplog.records] == [
         "no systemd scopes: systemctl didn't answer within 0.3 s"
     ]
+
+
+def test_paths_that_arent_utf8_stop_no_observation(
+    set_up: Paths, keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    odd = tmp_path / os.fsdecode(b"x\xffy")
+    odd.mkdir()
+    command = [keeper.binary, "-L", keeper.socket, "new-session", "-d", "-s", "mine", "-c"]
+    subprocess.run([*command, str(odd), "sleep 600"], check=True)  # by hand, there
+    assert observer.observe(set_up, keeper).changes is not None
+    assert stored(set_up)["mine"].directory == tmp_path / "x\ufffdy"

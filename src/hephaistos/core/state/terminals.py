@@ -23,7 +23,7 @@ from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import Timestamp
 from hephaistos.core.utils.names import Names
-from hephaistos.core.utils.text import escaped, number_text
+from hephaistos.core.utils.text import escaped, number_text, utf8
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ NAMES = Names(
     first="A-Za-z0-9_",
     first_described="a letter, digit or '_'",
 )
-_NUMBERS = re.compile(r"(\d+)")
+_NUMBERS = re.compile(r"([0-9]+)")
 DEFAULT_BASE = "terminal"  # a default name's start where the directory gives none
 
 #: The columns of `state_terminals`, decoded for raw listings.
@@ -120,7 +120,9 @@ def _ms(moment: datetime) -> int:
 
 def name_order(name: str) -> tuple[tuple[int, int | str], ...]:
     """What names sort by: numbers as numbers, so `proj-2` comes before `proj-10`."""
-    return tuple((0, int(part)) if part.isdigit() else (1, part) for part in _NUMBERS.split(name))
+    # Splitting by a group puts its matches at the odd places.
+    parts = enumerate(_NUMBERS.split(name))
+    return tuple((0, int(part)) if index % 2 else (1, part) for index, part in parts)
 
 
 def on_this_machine(session: ReadSession) -> list[TerminalState]:
@@ -176,18 +178,24 @@ def default_name(session: ReadSession, directory: Path, refused: Collection[str]
 
 
 def _write(session: WriteSession, state: TerminalState) -> None:
-    """Stores a Terminal's State, replacing the previous one."""
+    """Stores a Terminal's State, replacing the previous one.
+
+    Its names and paths as UTF-8 holds them: a session started by hand where they aren't, or a
+    `cd` there, must not stop observation.
+    """
     stored = {
         "id": state.id,
-        "name": state.name,
-        "directory": state.directory,
+        "name": utf8(state.name),
+        "directory": utf8(str(state.directory)),
         "command": None if state.command is None else json.dumps(list(state.command)),
         "status": state.status.value,
         "boot_id": state.boot_id,
         "started_at": _ms(state.started_at),
         "active_at": _ms(state.active_at),
-        "current_directory": state.current_directory,
-        "program": state.program,
+        "current_directory": None
+        if state.current_directory is None
+        else utf8(str(state.current_directory)),
+        "program": utf8(state.program),
         "clients": state.clients,
         "panes": state.panes,
         "observed_at": state.observed_at,

@@ -200,7 +200,7 @@ def _object_sizes(top: Path, objects: set[str]) -> dict[str, int]:
     sizes: dict[str, int] = {}
     for line in listed.splitlines():
         name, _, size = line.partition(" ")
-        if size.isdigit():
+        if size.isdecimal():
             sizes[name] = int(size)
     return sizes
 

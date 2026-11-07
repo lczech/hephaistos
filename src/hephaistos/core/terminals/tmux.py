@@ -152,6 +152,30 @@ def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
     return Installation(binary, result.stdout.strip())
 
 
+_ESCAPE = re.compile(rb"\\([0-3][0-7]{2}|[abfrv$])")
+_C_ESCAPES = {b"a": b"\a", b"b": b"\b", b"f": b"\f", b"r": b"\r", b"v": b"\v", b"$": b"$"}
+
+
+def _unescaped(match: re.Match[bytes]) -> bytes:
+    code = match[1]
+    return _C_ESCAPES.get(code) or bytes([int(code, 8)])
+
+
+def tmux_path(text: str) -> Path:
+    r"""A path as tmux prints it, its escapes read where that names an existing path.
+
+    Some builds, e.g. Ubuntu's 3.4, write control characters and bytes that aren't UTF-8 as
+    escapes, `\037` or C's `\b`, and `$` as `\$`, but a backslash as itself (conda-forge's print
+    them as they are): the escapes count where the path so read exists and the text as printed
+    doesn't.
+    """
+    printed = Path(text)
+    if "\\" not in text:
+        return printed
+    decoded = Path(os.fsdecode(_ESCAPE.sub(_unescaped, os.fsencode(text))))
+    return decoded if decoded != printed and decoded.exists() and not printed.exists() else printed
+
+
 def scope_of(pid: int | None) -> str | None:
     """The systemd scope a process runs in, from its cgroup (v2); None if none, or it's gone."""
     if pid is None:
@@ -216,14 +240,26 @@ def config_digest(text: str) -> str:
     return text.rstrip("\n").rsplit(" ", 1)[-1]
 
 
+def _literal(text: str) -> str:
+    """Text tmux expands as a format, e.g. a new session's name or directory, kept as it is."""
+    return _escaped(text.replace("#", "##"))
+
+
 def _escaped(argument: str) -> str:
-    """An argument as tmux reads it literally: one ending in `;` would end a command."""
+    """An argument as tmux reads it literally: one ending in `;` would end a command there.
+
+    Every argument holding a name, a path or a value goes through it.
+    """
     return f"{argument[:-1]}\\;" if argument.endswith(";") else argument
 
 
 def _login_shell(environment: Mapping[str, str]) -> str:
     """The user's shell: the creator's SHELL, else the account's."""
     return environment.get("SHELL") or pwd.getpwuid(os.getuid()).pw_shell or "/bin/sh"
+
+
+#: Sessions without a name already logged, by socket and ID: once is enough, not each pass.
+_UNNAMED: set[tuple[str, str]] = set()
 
 
 def _time(text: str) -> datetime:
@@ -274,21 +310,16 @@ class TmuxKeeper:
         self, *args: str, env: Mapping[str, str] | None = None, scoped: bool = False
     ) -> subprocess.CompletedProcess[str]:
         """Runs a tmux command on our socket; `scoped`, in a scope with systemd's environment."""
-        command = [self.binary, "-L", self.socket, "-f", str(self.config_file), *args]
+        # -u: UTF-8 whatever the locale, else tmux prints `_` for each other character.
+        command = [self.binary, "-u", "-L", self.socket, "-f", str(self.config_file), *args]
         if scoped and self.scopes:
             command = self.scopes.command(command, unit=None, description="hephaistos tmux server")
             # The socket's directory is the caller's, whatever the manager's environment says.
             keep = {name: os.environ[name] for name in ("TMUX_TMPDIR",) if name in os.environ}
             env = {**self.scopes.environment, **keep}
         try:
-            return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-                command,
-                capture_output=True,
-                text=True,
-                errors="surrogateescape",  # paths are bytes; they survive the round trip
-                check=False,
-                timeout=self.timeout,
-                env=env,
+            result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+                command, capture_output=True, check=False, timeout=self.timeout, env=env
             )
         except FileNotFoundError:
             raise KeeperError(missing_text(self.binary)) from None
@@ -296,6 +327,14 @@ class TmuxKeeper:
             raise KeeperError(f"tmux didn't answer within {self.timeout:g} s") from None
         except OSError as error:
             raise KeeperError(f"tmux failed: {error}") from None
+        # Decoded here, not in text mode, whose universal newlines would turn a path's `\r` into
+        # `\n`; bytes that aren't UTF-8 survive the round trip as surrogates.
+        return subprocess.CompletedProcess(
+            result.args,
+            result.returncode,
+            result.stdout.decode(errors="surrogateescape"),
+            result.stderr.decode(errors="surrogateescape"),
+        )
 
     def _failed(self, args: Sequence[str], result: subprocess.CompletedProcess[str]) -> KeeperError:
         """The error for a failed tmux command."""
@@ -355,6 +394,11 @@ class TmuxKeeper:
             active,
             marker,
         ) = fields
+        if not name:  # e.g. one made by hand as `#`, which tmux 3.8 expands to nothing
+            if (self.socket, key) not in _UNNAMED:
+                _UNNAMED.add((self.socket, key))
+                log.warning("left tmux session %s alone: it has no name; rename it to see it", key)
+            return None
         try:
             parsed_id = uuid.UUID(terminal_id) if terminal_id else None
         except ValueError:
@@ -366,8 +410,8 @@ class TmuxKeeper:
                 terminal_id=parsed_id,
                 id_text=terminal_id,
                 name=name,
-                directory=Path(directory),
-                current_directory=Path(current) if current else None,
+                directory=tmux_path(directory),
+                current_directory=tmux_path(current) if current else None,
                 program=program,
                 pid=int(pid),
                 clients=int(clients),
@@ -409,7 +453,7 @@ class TmuxKeeper:
     def _load_config(self) -> None:
         """Loads our config into a running server that lacks it, e.g. one started by hand."""
         log.info("loading our tmux config into the server on socket %s", self.socket)
-        result = self._client("source-file", str(self.config_file))
+        result = self._client("source-file", _escaped(str(self.config_file)))
         if result.returncode != 0 and not _NO_SERVER.search(result.stderr):
             raise self._failed(["source-file"], result)
 
@@ -453,7 +497,8 @@ class TmuxKeeper:
                 description=f"hephaistos terminal {name}",
             )
         args = [
-            "new-session", "-d", "-s", name, "-c", str(directory), *pairs,
+            "new-session", "-d", "-s", _literal(name), "-c", _literal(str(directory)),
+            *map(_escaped, pairs),
             *map(_escaped, program),
             ";", "set-option", ID_OPTION, str(terminal_id),  # without a target: the new session
         ]  # fmt: skip
@@ -495,9 +540,14 @@ class TmuxKeeper:
             return None
 
     def rename(self, name: str, new_name: str) -> None:
-        """Renames a session; see `Keeper.rename`."""
+        r"""Renames a session; see `Keeper.rename`.
+
+        Targeted by its ID, as tmux may print a name otherwise than it takes it, e.g. Ubuntu's
+        `a$b` as `a\$b`; so for `kill`.
+        """
         self.check()
-        result = self._client("rename-session", "-t", f"={name}", new_name)
+        key = self.session(name).key
+        result = self._client("rename-session", "-t", key, _literal(new_name))
         if result.returncode != 0:
             if _DUPLICATE.search(result.stderr):
                 raise NameTakenError(f"a terminal named {new_name} exists already")
@@ -509,10 +559,10 @@ class TmuxKeeper:
         With `force`, its scope and the processes in its pane's session get SIGKILL first.
         """
         self.check()
+        session = self.session(name)
         if force:
-            session = self.session(name)
             self._kill_hard(session)
-        result = self._client("kill-session", "-t", f"={name}")
+        result = self._client("kill-session", "-t", session.key)
         if result.returncode != 0:
             if force and self._not_found(name, result):
                 return  # gone with its processes, as it should
@@ -546,7 +596,7 @@ class TmuxKeeper:
         """The server's process; None if it doesn't say."""
         result = self._client("display-message", "-p", "#{pid}")
         text = result.stdout.strip()
-        return int(text) if result.returncode == 0 and text.isdigit() else None
+        return int(text) if result.returncode == 0 and text.isdecimal() else None
 
     def _not_found(
         self, name: str, result: subprocess.CompletedProcess[str]

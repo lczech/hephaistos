@@ -149,6 +149,7 @@ pytest tests the Core, with fake plugins standing in for real tools.
 `scripts/test_git_versions.sh` runs them with several git versions.
 Tests marked `tmux` run real tmux, each on a socket of its own, its server ended afterwards; `scripts/test_tmux_versions.sh` runs them with every tmux minor version since 3.2a, installed from conda-forge by micromamba.
 tmux needs its socket, which Claude Code's sandbox blocks: run them outside it.
+Hypothesis generates names, paths, arguments and values, and checks that they reach tmux and the program intact and come back so, with each tmux version.
 Tests marked `stress` race processes against each other, e.g. a soak test creating, renaming and killing Terminals at random while another process observes; races show under load, so `scripts/test_under_load.sh` runs them in a loop while the whole suite runs beside them, and CI does so on every push.
 Where systemd's user manager answers, a few of them also check the Terminals' scopes; elsewhere those skip.
 Vitest and Testing Library test the GUI, in jsdom.
