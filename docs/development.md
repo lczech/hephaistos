@@ -139,6 +139,7 @@ Vitest and Testing Library test the GUI, in jsdom.
 What only a browser lays out, e.g. what the diff renderer draws, is tested in real browsers: Playwright's Chromium, Firefox and WebKit.
 Those tests guard what we rely on that the renderer does not promise, and looks once wrong and seen only there, e.g. the Explorer's tree.
 GUI tests reach no Server: each test answers the requests it expects, and any other fails, also after the test ended.
+A View in a test's Panel (`test/view.tsx`) counts how often it draws, so that a test checks it stops once what it shows came (`expectSettled`): a value new on each draw and fed back into what it draws would draw on and on, which nothing else would notice.
 The Vite dev server proxies `/api` to the Server, but not for Vitest.
 
 While working, run the tests of the files changed and the linters; run the whole `npm run check` once, right before a commit, since it starts many workers and real browsers.

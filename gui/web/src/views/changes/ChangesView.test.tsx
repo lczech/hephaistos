@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
 import { cells, ownRow } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
 import type { Change } from "../comparison/rows";
 import { type Opening, OpenViewContext, ShownContext } from "../opening";
@@ -112,6 +112,7 @@ describe("the Changes View", () => {
     serveChanges();
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Staged");
+    await expectSettled();
     expect(rows()).toEqual([
       "Total: 4 files +28 −8",
       "Staged modified 1 +10 −2",

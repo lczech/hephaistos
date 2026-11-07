@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { cells } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
 import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { HistoryView } from "./HistoryView";
@@ -82,6 +82,7 @@ describe("the History View", () => {
     serveHistory(() => json(page([{ ...HEAD, refs: page([]).refs.slice(0, 1) }, merge])));
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Commit 3");
+    await expectSettled();
     expect(rows()).toEqual([
       "ccccccc HEADmainCommit 3 Lucas 2h ago",
       "ccccccc Commit 2 Lucas 2h ago",
@@ -127,7 +128,9 @@ describe("the History View", () => {
         <History initial={{ clone: "clone-proj" }} />
       </OpenViewContext.Provider>,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Changes in commit ccccccc" }));
+    await screen.findByRole("button", { name: "Changes in commit ccccccc" });
+    await expectSettled(); // all asked for came: no row drawn anew between finding and clicking
+    await userEvent.click(screen.getByRole("button", { name: "Changes in commit ccccccc" }));
     await userEvent.click(
       screen.getByRole("button", { name: "Diff of the changes in commit ccccccc" }),
     );
@@ -254,6 +257,7 @@ describe("the History View", () => {
     expect(
       await screen.findByText("Uncommitted: 2 staged, 1 changed, 3 untracked"),
     ).toBeInTheDocument();
+    await expectSettled(); // all asked for came: no row drawn anew between finding and clicking
     await userEvent.click(screen.getByRole("button", { name: "Uncommitted changes" }));
     await userEvent.click(screen.getByRole("button", { name: "Diff of the uncommitted changes" }));
     expect(opened).toEqual([

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { ownRow } from "../../test/list";
 import { fileEntry, info, json, renderWithQueries, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { ExplorerView } from "./ExplorerView";
 import type { FileEntry } from "./rows";
@@ -93,7 +93,7 @@ describe("finding in the Explorer", () => {
     await waitFor(() => expect(names()).toEqual(["proj", "main.py"]));
     expect(screen.getByText("ma").tagName).toBe("MARK");
     expect(status()).toHaveTextContent("1 of 1");
-    await waitFor(() => expect(document.querySelector("search[data-busy]")).toBeNull()); // settled
+    await expectSettled();
     await userEvent.keyboard("{Escape}");
     await waitFor(() =>
       expect(names()).toEqual(["deep", "proj", "main.py", "old", ".bashrc", "notes.md"]),

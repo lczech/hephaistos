@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOG_PAGE } from "../../api/queries";
 import { cells } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { LogView } from "./LogView";
 import type { LogEntry } from "./logText";
@@ -59,6 +59,7 @@ describe("the Log View", () => {
     serveLog([entry(3, { level: "WARNING", observed: 7 }), failed, entry(1, { level: "DEBUG" })]);
     renderWithQueries(<Log />);
     expect(await screen.findByText("pass 1")).toBeInTheDocument();
+    await expectSettled();
     const rows = screen.getAllByRole("listitem");
     expect(rows.map(cells).map(([, ...others]) => others)).toEqual([
       ["daemon[4242]", "pass 3 observed=7"],

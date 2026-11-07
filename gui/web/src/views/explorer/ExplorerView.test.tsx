@@ -14,7 +14,7 @@ import {
   repository,
   serve,
 } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { ShownContext } from "../opening";
 import { ExplorerView, pathParts } from "./ExplorerView";
@@ -61,6 +61,7 @@ describe("the Explorer View", () => {
     serveDisk();
     renderWithQueries(<Explorer />);
     await screen.findByText("notes.md");
+    await expectSettled();
     expect(names()).toEqual(["proj", ".bashrc", "notes.md"]);
     expect(screen.getByRole("heading")).toHaveTextContent("Explorer: me");
     expect(screen.getByText(".bashrc").closest("[data-hidden]")).not.toBeNull();

@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { json, renderWithQueries, serve, setting } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import type { Address, Params } from "../address";
 import { OpenViewContext } from "../opening";
 import { DiffView } from "./DiffView";
@@ -114,6 +114,7 @@ describe("the Diff View", () => {
       <Diff initial={{ clone: "clone-proj", commit: hash, path: "src/main.py" }} />,
     );
     expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
+    await expectSettled();
     const asked = requests.map((request) => new URL(request.url));
     expect(asked.find((url) => url.pathname === "/api/diff")?.search).toBe(
       `?clone=clone-proj&commit=${hash}&path=src%2Fmain.py&context=5`,

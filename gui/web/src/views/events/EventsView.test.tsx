@@ -6,7 +6,7 @@ import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/list/kept";
 import { cells } from "../../test/list";
 import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { EventsView } from "./EventsView";
 
@@ -65,6 +65,7 @@ describe("the Events View", () => {
     serveEvents([event(3, { priority: 30 }), added, committed]);
     renderWithQueries(<Events />);
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
+    await expectSettled();
     const rows = screen.getAllByRole("listitem");
     expect(rows.map(cells).map((row) => row.slice(1))).toEqual([
       ["committed", "project", "~/project", "Commit number 3 (abc3)"],

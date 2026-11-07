@@ -12,7 +12,7 @@ import {
   serve,
   worktree,
 } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import { addressText } from "../address";
 import { type OpenView, OpenViewContext } from "../opening";
 import { RepositoriesView } from "./RepositoriesView";
@@ -52,6 +52,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
     await screen.findByText("recent");
+    await expectSettled();
     expect(names()).toEqual([
       "recent",
       "~/recent",

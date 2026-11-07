@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { cells } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
-import { InPanel } from "../../test/view";
+import { expectSettled, InPanel } from "../../test/view";
 import { preciseTime } from "../../time";
 import type { Params } from "../address";
 import { DbView } from "./DbView";
@@ -47,6 +47,7 @@ describe("the Database View", () => {
     serveDb();
     renderWithQueries(<Db />);
     expect(await screen.findByText("1 table this version does not know: old_things")).toBeVisible();
+    await expectSettled();
     expect(screen.getByText("unknown")).toBeInTheDocument();
     expect(screen.getByText(`${preciseTime(AT)} #1`)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
