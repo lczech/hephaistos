@@ -44,6 +44,7 @@ class Done:
     updated: int  # Checkouts whose State changed
     skipped: int  # Clones moved, unregistered or observed by another process meanwhile
     terminals: int = 0  # open; 0 also where they couldn't be observed
+    problems: tuple[str, ...] = ()  # what this pass couldn't observe, e.g. Terminals
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,7 @@ def observed(paths: Paths) -> Done | PassFailed:
     for delay in (*BUSY_RETRY_DELAYS, None):
         try:
             result = observer.observe(paths)
-            changes = terminals.observe(paths).changes
+            found = terminals.observe(paths)
         except DatabaseBusyError as error:
             if delay is None:
                 return PassFailed(str(error))
@@ -96,7 +97,8 @@ def observed(paths: Paths) -> Done | PassFailed:
                 result.worktrees,
                 result.updated,
                 result.skipped,
-                0 if changes is None else changes.open,
+                0 if found.changes is None else found.changes.open,
+                () if found.error is None else (f"terminals not observed: {found.error}",),
             )
     raise AssertionError  # the last delay is None
 

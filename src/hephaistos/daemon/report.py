@@ -111,6 +111,7 @@ class PassJson(TypedDict):
     duration: float  # seconds
     error: str | None
     trigger: Trigger
+    problems: list[str]  # what it couldn't observe, e.g. Terminals; it didn't fail for them
 
 
 class WatcherJson(TypedDict):
@@ -162,6 +163,7 @@ def _watcher_json(current: Status, now: datetime) -> WatcherJson:
             duration=done.duration,
             error=done.error,
             trigger=done.trigger,
+            problems=list(done.problems),
         )
     )
     stalled = timer and done is not None and is_stalled(done, now)

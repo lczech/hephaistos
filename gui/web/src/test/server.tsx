@@ -88,7 +88,13 @@ export function daemon(): Schemas["DaemonJson"] {
     },
     watcher: {
       interval: 60,
-      last_pass: { finished_at: secondsAgo(20), duration: 0.8, error: null, trigger: "watcher" },
+      last_pass: {
+        finished_at: secondsAgo(20),
+        duration: 0.8,
+        error: null,
+        trigger: "watcher",
+        problems: [],
+      },
       next_pass_at: new Date(NOW + 40_000).toISOString(),
       stalled: false,
     },

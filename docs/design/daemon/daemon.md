@@ -28,7 +28,7 @@ A second signal exits at once.
 - its pid;
 - its version, from a checkout with its commit, e.g. `0.1.0 (bfc66f6-dirty)`;
 - its start and stop;
-- the Watcher's last pass: when, how long, any error, and what asked for it;
+- the Watcher's last pass: when, how long, any error, its problems, and what asked for it;
 - the Server's address and counts of requests;
 - the checks of the setup it ran last, and when ([Status](status.md#checks)).
 
@@ -69,7 +69,7 @@ Without systemd user services, `daemon run` in tmux takes their place.
 `daemon status` shows:
 - the unit;
 - the Daemon, from the lock and `daemon.json`, and whether systemd runs it: whether the unit's main process is this Daemon;
-- the last pass, and what asked for it;
+- the last pass, and what asked for it, with its error or problems;
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.
 

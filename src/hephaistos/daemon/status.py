@@ -36,6 +36,7 @@ class PassStatus:
     duration: float  # seconds
     error: str | None = None
     trigger: Trigger = "watcher"
+    problems: tuple[str, ...] = ()  # what it couldn't observe; the next pass without clears them
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,7 @@ def _status_json(status: Status) -> dict[str, object]:
             "duration": passed.duration,
             "error": passed.error,
             "trigger": passed.trigger,
+            "problems": list(passed.problems),
         },
         "server": None
         if server is None
@@ -218,6 +220,7 @@ def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked here
             _of(passed["duration"], float),
             _optional(passed["error"], str),
             _trigger(passed["trigger"]),
+            _texts(passed["problems"]),
         ),
         server=None
         if server is None

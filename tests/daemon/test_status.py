@@ -17,7 +17,7 @@ WRITTEN = Status(
     "0.1.0",
     STARTED,
     parts=("watcher", "server"),
-    watcher=PassStatus(STARTED, 0.4, "the worker died"),
+    watcher=PassStatus(STARTED, 0.4, None, "api", ("terminals not observed: tmux is gone",)),
     server=ServerStatus("127.0.0.1:8264", listening=True, requests=3, last_request_at=LATER),
     checks=Checked(
         STARTED,

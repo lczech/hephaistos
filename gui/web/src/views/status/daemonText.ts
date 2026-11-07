@@ -23,7 +23,8 @@ export function lastPassText(pass: Pass | null, now: number): string {
   if (pass === null) return "none yet";
   const by = pass.trigger === "watcher" ? "the watcher" : "API request";
   const text = `${ago(pass.finished_at, now)} (${seconds(pass.duration)}), by ${by}`;
-  return pass.error === null ? text : `${text}; failed: ${pass.error}`;
+  if (pass.error !== null) return `${text}; failed: ${pass.error}`;
+  return [text, ...pass.problems].join("; ");
 }
 
 export function watcherText(watcher: Watcher | null, now: number): string {

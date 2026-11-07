@@ -236,7 +236,9 @@ def _last_pass_text(done: PassStatus | None, when: Callable[[datetime], str]) ->
         return "none yet"
     by = "the watcher" if done.trigger == "watcher" else "API request"
     text = f"{when(done.finished_at)} ({done.duration:g} s), by {by}"
-    return text if done.error is None else f"{text}; failed: {done.error}"
+    if done.error is not None:
+        return f"{text}; failed: {done.error}"
+    return "; ".join((text, *done.problems))
 
 
 def _watcher_text(current: Status, now: datetime, when: Callable[[datetime], str]) -> str:

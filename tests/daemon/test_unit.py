@@ -381,6 +381,23 @@ def test_status_shows_a_daemon_that_ended_without_stopping(
     ]
 
 
+def test_status_of_a_pass_with_problems(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl at all
+    now = datetime.now(UTC)
+    problems = ("terminals not observed: tmux is gone",)
+    done = status.PassStatus(now - timedelta(seconds=5), 0.4, None, "watcher", problems)
+    paths.state_dir.mkdir(parents=True)
+    found = status.Status(os.getpid(), "0.1.0", now, parts=("watcher",), watcher=done)
+    status.write(paths.state_dir, found)
+    with status.held_lock(paths.state_dir):
+        assert run_cli(monkeypatch, "daemon", "status") == 0
+    assert capsys.readouterr().out.splitlines()[2] == (
+        "Last pass  now (0.4 s), by the watcher; terminals not observed: tmux is gone"
+    )
+
+
 @pytest.mark.parametrize(
     ("ago", "error", "trigger", "lines"),
     [

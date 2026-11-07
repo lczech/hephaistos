@@ -30,6 +30,7 @@ export function daemonHealth(
     const { watcher, server } = daemon;
     reasons.push(...setupProblems(daemon));
     if (watcher?.last_pass?.error) reasons.push(`last pass failed: ${watcher.last_pass.error}`);
+    for (const problem of watcher?.last_pass?.problems ?? []) reasons.push(`last pass: ${problem}`);
     if (watcher?.stalled) reasons.push("the watcher has stalled");
     if (server?.error) reasons.push(`the server failed: ${server.error}`);
   }

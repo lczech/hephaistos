@@ -2091,6 +2091,13 @@
             "title": "Finished At",
             "type": "string"
           },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
           "trigger": {
             "enum": [
               "watcher",
@@ -2104,7 +2111,8 @@
           "finished_at",
           "duration",
           "error",
-          "trigger"
+          "trigger",
+          "problems"
         ],
         "title": "PassJson",
         "type": "object"
@@ -3299,7 +3307,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.33"
+    "version": "0.34"
   },
   "openapi": "3.1.0",
   "paths": {

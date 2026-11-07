@@ -190,6 +190,35 @@ class Passes:
         return DONE
 
 
+def test_a_passes_problems_last_until_a_pass_without(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outcomes = [
+        dataclasses.replace(DONE, problems=("terminals not observed: tmux is gone",)),
+        PassFailed("disk full"),
+        DONE,
+    ]
+
+    async def next_outcome(_: Watcher) -> Done | PassFailed:
+        return outcomes.pop(0)
+
+    monkeypatch.setattr(Watcher, "_worker_pass", next_outcome)
+    reported: list[PassStatus] = []
+
+    async def requested() -> None:
+        watcher = Watcher(paths, reported.append)
+        for _ in range(3):
+            await watcher.observe("api")
+        await watcher.stop()
+
+    asyncio.run(asyncio.wait_for(requested(), WAIT))
+    assert [(done.error, done.problems) for done in reported] == [
+        (None, ("terminals not observed: tmux is gone",)),
+        ("disk full", ()),
+        (None, ()),
+    ]
+
+
 def test_requests_share_the_pass_after_the_running_one(
     paths: Paths, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:

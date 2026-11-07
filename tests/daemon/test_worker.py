@@ -143,6 +143,26 @@ def test_a_busy_database_is_retried(paths: Paths, monkeypatch: pytest.MonkeyPatc
     assert failed.message.startswith("the database stayed busy")
 
 
+def test_terminals_not_observed_are_a_problem_of_the_pass(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def clones(_: Paths) -> observer.Result:
+        return observer.Result([], 2, 0, 3, 1)
+
+    found = terminals.Result(None, "tmux didn't answer within 10 s")
+
+    def unanswered(_: Paths) -> terminals.Result:
+        return found
+
+    monkeypatch.setattr(observer, "observe", clones)
+    monkeypatch.setattr(terminals, "observe", unanswered)
+    assert worker.observed(paths) == Done(
+        0, 2, 3, 1, 0, 0, ("terminals not observed: tmux didn't answer within 10 s",)
+    )
+    found = terminals.Result(None)  # no Terminals here: no news
+    assert worker.observed(paths) == Done(0, 2, 3, 1, 0)
+
+
 def test_an_unexpected_error_comes_with_its_traceback(
     paths: Paths, monkeypatch: pytest.MonkeyPatch
 ) -> None:

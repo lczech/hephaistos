@@ -44,6 +44,22 @@ describe("the Daemon's health", () => {
     });
   });
 
+  it("warns of what the last pass couldn't observe, until a pass without", () => {
+    const status = daemon();
+    const pass = status.watcher?.last_pass;
+    if (!status.watcher || !pass) throw new Error("no last pass");
+    const problems = ["terminals not observed: tmux is gone"];
+    const troubled = {
+      ...status,
+      watcher: { ...status.watcher, last_pass: { ...pass, problems } },
+    };
+    expect(daemonHealth(live, troubled, NOW)).toEqual({
+      health: "warning",
+      reasons: ["last pass: terminals not observed: tmux is gone"],
+    });
+    expect(daemonHealth(live, status, NOW).health).toBe("good");
+  });
+
   it("warns of a GUI that doesn't fit the API, as a problem of the setup", () => {
     const hint = "This GUI is built for API 0.22; the daemon runs 0.21: restart it";
     expect(daemonHealth(live, daemon(), NOW, hint)).toEqual({ health: "warning", reasons: [hint] });

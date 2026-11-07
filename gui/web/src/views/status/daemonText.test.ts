@@ -17,8 +17,12 @@ describe("the Daemon card's lines", () => {
       duration: 0.8,
       error: null,
       trigger: "api" as const,
+      problems: [],
     };
     expect(lastPassText(pass, NOW)).toBe("now (0.8 s), by API request");
+    expect(lastPassText({ ...pass, problems: ["terminals not observed: tmux is gone"] }, NOW)).toBe(
+      "now (0.8 s), by API request; terminals not observed: tmux is gone",
+    );
     expect(lastPassText({ ...pass, error: "git is gone" }, NOW)).toBe(
       "now (0.8 s), by API request; failed: git is gone",
     );

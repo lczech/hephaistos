@@ -97,7 +97,7 @@ A Terminal renamed by hand to another's name takes it; the other moves to a free
 Names hephaistos gives have ASCII letters, digits, `-` and `_`, at most 64, not starting with `-`; adopted ones keep tmux's name, whatever it is.
 A new Terminal's default name is its directory's, numbered from 1: `hephaistos-1`, `hephaistos-2`.
 
-Without a working Keeper, e.g. without tmux, a Machine without Terminals is no news; with some, it is logged, and their rows stay as they were, their age showing it.
+Without a working Keeper, e.g. without tmux, a Machine without Terminals is no news; with some, it is logged and a problem of the pass ([Watcher](../daemon/watcher.md#failures)), and their rows stay as they were, their age showing it.
 
 ## Actions
 

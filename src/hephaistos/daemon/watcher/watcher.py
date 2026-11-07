@@ -90,8 +90,10 @@ class Watcher:
                 self._passed.set()
             duration = round(self._last_ended - started, 3)
             _log_pass(outcome, duration, trigger)
-            error = outcome.message if isinstance(outcome, PassFailed) else None
-            self._report(PassStatus(datetime.now(UTC), duration, error, trigger))
+            failed = isinstance(outcome, PassFailed)
+            error = outcome.message if failed else None
+            problems = () if failed else outcome.problems
+            self._report(PassStatus(datetime.now(UTC), duration, error, trigger, problems))
             return outcome
 
     async def _worker_pass(self) -> Done | PassFailed:
