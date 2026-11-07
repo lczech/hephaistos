@@ -44,6 +44,7 @@ Listing the sessions finds a server whose marker differs, e.g. one started by ha
 systemd stops a unit by killing its whole cgroup, and systemd-oomd kills whole cgroups under memory pressure.
 A process forked by another stays in that one's cgroup, however it detaches.
 So where systemd's user manager answers, the tmux server starts in a scope of its own (`systemd-run --user --scope`), and each Terminal's process in another, `hephaistos-terminal-<id>.scope`.
+A tmux built with systemd support, e.g. Ubuntu's, also moves each new pane into a scope of its own, `tmux-spawn-*.scope`, while the pane starts; whichever move comes last holds it.
 Stopping the Daemon, or an out-of-memory kill of one Terminal, ends no other.
 Elsewhere, e.g. on clusters, both start as plain processes.
 
@@ -65,7 +66,7 @@ Without a server, there are no sessions.
 
 Killing a Terminal ends its session, and its processes get SIGHUP.
 What ignores SIGHUP outlives it.
-`force` sends SIGKILL first, to the Terminal's scope and to every process in its pane's session.
+`force` sends SIGKILL first, to the scope the Terminal's process runs in, never the server's, and to every process in its pane's session.
 
 ### Versions
 

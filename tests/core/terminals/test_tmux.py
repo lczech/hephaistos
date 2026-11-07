@@ -20,6 +20,7 @@ from hephaistos.core.terminals.tmux import (
     config_digest,
     config_text,
     parse_version,
+    scope_of,
     socket_name,
 )
 from support import eventually
@@ -390,17 +391,21 @@ def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
         hanging.sessions()
 
 
-def cgroup(pid: int) -> str:
-    return Path(f"/proc/{pid}/cgroup").read_text().strip().rsplit("/", 1)[-1]
-
-
 def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
     created = new(systemd_keeper, "api", tmp_path, "sleep", "60")
-    unit = f"hephaistos-terminal-{created.terminal_id}.scope"
-    eventually(lambda: cgroup(created.pid) == unit)
-    server = int(tmux(systemd_keeper, "display-message", "-p", "#{pid}"))
-    assert cgroup(server) not in (unit, cgroup(os.getpid()))
-    assert cgroup(server).endswith(".scope")
+    server = scope_of(int(tmux(systemd_keeper, "display-message", "-p", "#{pid}")))
+    assert server is not None
+    assert server != scope_of(os.getpid())
+
+    def own() -> str:
+        unit = scope_of(created.pid)
+        return unit if unit is not None and unit not in (server, scope_of(os.getpid())) else ""
+
+    # Ours, or tmux's own where it is built with systemd support, e.g. Ubuntu's: see `create`.
+    unit = eventually(own)
+    assert unit == f"hephaistos-terminal-{created.terminal_id}.scope" or unit.startswith(
+        "tmux-spawn-"
+    )
     systemd_keeper.kill("api")
 
     def ended() -> bool:
@@ -409,6 +414,15 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
         return result.stdout.strip() != "active"
 
     eventually(ended)
+
+
+def test_kill_with_force_spares_the_server(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
+    other = new(systemd_keeper, "other", tmp_path, "sleep", "60")
+    # Started by hand: without our scope, and in the server's where tmux makes none (conda's).
+    tmux(systemd_keeper, "new-session", "-d", "-s", "mine", "sleep 60")
+    systemd_keeper.kill("mine", force=True)
+    assert [session.name for session in systemd_keeper.sessions()] == ["other"]
+    assert not gone(other.pid)
 
 
 def test_systemds_environment(

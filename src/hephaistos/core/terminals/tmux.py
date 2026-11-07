@@ -152,6 +152,21 @@ def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
     return Installation(binary, result.stdout.strip())
 
 
+def scope_of(pid: int | None) -> str | None:
+    """The systemd scope a process runs in, from its cgroup (v2); None if none, or it's gone."""
+    if pid is None:
+        return None
+    try:
+        text = Path(f"/proc/{pid}/cgroup").read_text()
+    except OSError:
+        return None
+    for line in text.splitlines():
+        if line.startswith("0::"):
+            unit = line.rsplit("/", 1)[-1]
+            return unit if unit.endswith(".scope") else None
+    return None
+
+
 def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
     """The socket's name for the setting `terminals.tmux.socket`.
 
@@ -420,7 +435,11 @@ class TmuxKeeper:
     ) -> Session:
         """Starts a session; see `Keeper.create`.
 
-        Its ID is set by the same command list, so nobody sees it without one.
+        Its ID is set by the same command list, so nobody sees it without one. With systemd, its
+        process runs in a scope of its own, `hephaistos-terminal-<id>.scope`. A tmux built with
+        systemd support, e.g. Ubuntu's, moves each new pane into its own `tmux-spawn-*.scope`
+        too, from the server, while the pane starts: whichever move comes last holds it, as
+        isolated either way.
         """
         self.check()
         variables = {name: environment[name] for name in UPDATED_VARIABLES if name in environment}
@@ -500,10 +519,14 @@ class TmuxKeeper:
             raise self._not_found(name, result) or self._failed(["kill-session"], result)
 
     def _kill_hard(self, session: Session) -> None:
-        """SIGKILL for a session's processes: its scope's, and those in its pane's session."""
-        if self.scopes and session.terminal_id:
+        """SIGKILL for a session's processes: its scope's, and those in its pane's session.
+
+        Its scope is the one its process runs in: ours, or tmux's own, see `create`. Never the
+        server's, which holds a session started by hand on a tmux that makes no scopes.
+        """
+        unit = scope_of(session.pid) if self.scopes else None
+        if unit is not None and unit != scope_of(self._server_pid()):
             systemctl = shutil.which("systemctl") or "systemctl"
-            unit = f"hephaistos-terminal-{session.terminal_id}.scope"
             subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
                 [systemctl, "--user", "kill", "--signal=SIGKILL", unit],
                 capture_output=True,
@@ -518,6 +541,12 @@ class TmuxKeeper:
             check=False,
             timeout=self.timeout,
         )
+
+    def _server_pid(self) -> int | None:
+        """The server's process; None if it doesn't say."""
+        result = self._client("display-message", "-p", "#{pid}")
+        text = result.stdout.strip()
+        return int(text) if result.returncode == 0 and text.isdigit() else None
 
     def _not_found(
         self, name: str, result: subprocess.CompletedProcess[str]
