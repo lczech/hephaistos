@@ -2,8 +2,8 @@
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
-`offset`. A Checkout's changes and a file's diff, only here: in a terminal, git shows them. A
-Directory's files, by its absolute path, anywhere this user may list.
+`offset`. A Checkout's changes and a file's diff, only here: on the command line, git shows them.
+A Directory's files, by its absolute path, anywhere this user may list.
 """
 
 import asyncio

@@ -79,7 +79,7 @@ Four endpoints have no command:
 - `/api/diff/files`: the file's two versions, to show where the file ends and more around the changes;
 - `/api/history`: the file's commits.
 
-They come from git each time they are asked, and are never stored, as `git status`, `git diff` and `git log` already show them in a terminal.
+They come from git each time they are asked, and are never stored, as `git status`, `git diff` and `git log` already show them on the command line.
 `commit=` asks for what a commit changed against its first parent.
 The answer says whether a branch, tag or HEAD still leads to the commit; if not, it says what amends of it led to, by the Events.
 Untracked files count as added to the working tree, and as deleted from it.

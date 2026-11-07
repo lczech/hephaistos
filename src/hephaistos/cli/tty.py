@@ -66,7 +66,7 @@ def choose(heading: str, options: Sequence[str], prompt: str) -> int:
 
 
 def page(text: str) -> None:
-    """Prints `text`; on a terminal through $PAGER (else less), as git does."""
+    """Prints `text`; on a tty through $PAGER (else less), as git does."""
     if not sys.stdout.isatty():
         typer.echo(text)
         return

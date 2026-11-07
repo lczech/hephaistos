@@ -66,8 +66,8 @@ Asking happens between a read and a write session, so no write transaction waits
 `clone register` registers a Clone in the Repository it matches, by root commits and remotes.
 Else it registers it in a Repository without Clones of the suggested name, as `scan` does, else in a new one of that name ([names](../core/data.md#names)).
 `--repo` names the Repository; a missing one is created.
-Each case asks in a terminal; without one, `--yes` takes it.
-Matching several Repositories, it asks which in a terminal, and requires `--repo` without one.
+Each case asks when run interactively; otherwise `--yes` takes it.
+Matching several Repositories, it asks which when run interactively, and requires `--repo` otherwise.
 A name taken by an unrelated Repository, or no name suggested, requires `--repo`.
 It refuses:
 - a Clone that shares no root commit with the Repository's other Clones; such Repositories do not count as matches either;

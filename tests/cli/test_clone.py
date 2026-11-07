@@ -27,7 +27,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def interactive(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Lets commands ask, as if run in a terminal."""
+    """Lets commands ask, as if run interactively."""
     monkeypatch.setattr(tty, "interactive", lambda: True)
 
 

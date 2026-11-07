@@ -18,7 +18,7 @@ Passes run in a worker process, so that git never competes with interactive work
 The worker lowers its own CPU and I/O priority once, before starting threads, so its threads and git inherit it: nice 19, and `ionice -c2 -n7`.
 It does not use the idle I/O class, which could starve a pass that a GUI waits for.
 The worker leads its own process group.
-So Ctrl+C in a terminal does not reach it, and the Daemon stops it with its git in one signal.
+So Ctrl+C in a Terminal emulator does not reach it, and the Daemon stops it with its git in one signal.
 A dead worker is replaced.
 
 ## Failures
