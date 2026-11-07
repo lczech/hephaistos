@@ -854,8 +854,9 @@ def test_status_is_what_status_prints_and_is_recorded(
     for shown in (printed, answered):
         del shown["log"]["since"]  # now, less a day
     assert answered == printed
-    assert [check["name"] for check in answered["checks"]] == ["git", "sqlite", "systemd", "ionice"]
-    assert recorded == [["git", "sqlite", "systemd", "ionice"]]
+    names = ["git", "tmux", "sqlite", "systemd", "ionice"]
+    assert [check["name"] for check in answered["checks"]] == names
+    assert recorded == [names]
 
 
 def test_no_docs_but_the_schema_with_the_token(client: TestClient) -> None:

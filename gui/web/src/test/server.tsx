@@ -120,6 +120,7 @@ export function status(checks: Schemas["CheckJson"][] = []): Schemas["StatusJson
       python: "3.12.3",
       sqlite: "3.45.1",
       git: "2.43.0",
+      tmux: "3.4",
       systemd: "systemd 255",
       os: "Ubuntu 24.04.5 LTS",
       kernel: "7.0.0-38-generic",

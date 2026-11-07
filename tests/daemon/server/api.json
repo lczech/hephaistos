@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 32
+    "minor": 33
   },
   "shapes": {
     "components": {
@@ -95,6 +95,17 @@
               ],
               "title": "Time Zone"
             },
+            "tmux": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tmux"
+            },
             "version": {
               "title": "Version",
               "type": "string"
@@ -107,6 +118,7 @@
             "python",
             "sqlite",
             "git",
+            "tmux",
             "systemd",
             "os",
             "kernel",

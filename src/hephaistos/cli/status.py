@@ -42,6 +42,7 @@ def _about_fields(found: AboutJson) -> list[tuple[str, str]]:
         ("Python", found["python"]),
         ("SQLite", found["sqlite"]),
         ("git", known(found["git"])),
+        ("tmux", known(found["tmux"])),
         ("systemd", known(found["systemd"])),
         ("OS", known(found["os"])),
         ("Kernel", found["kernel"]),

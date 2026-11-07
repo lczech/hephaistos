@@ -13,6 +13,8 @@ from typing import TypedDict
 from hephaistos import __version__
 from hephaistos.core import serialize
 from hephaistos.core.db.sessions import SCHEMA_VERSION
+from hephaistos.core.terminals import tmux
+from hephaistos.core.terminals.keeper import KeeperError
 from hephaistos.core.utils import git
 from hephaistos.core.utils.paths import SOURCE, own_checkout
 from hephaistos.daemon import unit
@@ -39,6 +41,7 @@ class AboutJson(TypedDict):
     python: str
     sqlite: str
     git: str | None
+    tmux: str | None
     systemd: str | None
     os: str | None  # e.g. `Ubuntu 26.04 LTS`
     kernel: str
@@ -58,6 +61,13 @@ def _git() -> str | None:
     try:
         return git.installation().version.removeprefix("git version ")
     except git.GitError:
+        return None
+
+
+def _tmux() -> str | None:
+    try:
+        return tmux.installation(tmux.binary()).text.removeprefix("tmux ")
+    except KeeperError:
         return None
 
 
@@ -99,6 +109,7 @@ def about(env: Mapping[str, str] = os.environ) -> AboutJson:
         python=platform.python_version(),
         sqlite=sqlite3.sqlite_version,
         git=_git(),
+        tmux=_tmux(),
         systemd=unit.version(),
         os=_os(),
         kernel=platform.release(),

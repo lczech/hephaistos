@@ -12,6 +12,8 @@ What goes wrong for a while, e.g. a failed pass or a lost connection, isn't a ch
 
 The checks, in `daemon/checks.py`, each part adding its own:
 - git: found on the PATH, at least 2.31: before, `worktree list` gives no lock reasons, and reflogs word rebases and new worktrees otherwise; `scripts/test_git_versions.sh` tests that one too.
+- tmux: at least 3.2a, as Terminals need it; a problem without it even on a Machine without Terminals, so that it shows before the first one is made ([Terminals](../core/terminals.md#versions)).
+  A version tmux doesn't name, e.g. `master`, counts as new enough.
 - SQLite: Python's, at least 3.37.
 - systemd: its version; a note without user services.
 - The unit, with systemd: a note if not installed or disabled; a problem if a unit of another installation is in the way, its program is gone, or, asked from a shell, it uses other directories than those of this shell.
@@ -30,7 +32,7 @@ It records them in `daemon.json`, with the time, and logs those that changed: pr
 What runs, and on what, for reporting an issue:
 - hephaistos's version, with its commit from a checkout, e.g. `0.1.0 (bfc66f6-dirty)`;
 - the API's version and the database's schema;
-- the versions of Python, SQLite, git and systemd;
+- the versions of Python, SQLite, git, tmux and systemd;
 - the OS, the kernel, the desktop, the locale and the time zone.
 
 A Daemon under systemd starts before any desktop, so it takes the desktop and locale from systemd's user environment where its own lacks them.

@@ -1,3 +1,4 @@
+import dataclasses
 import getpass
 import os
 import shutil
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from hephaistos import __version__
+from hephaistos.core import config
 from hephaistos.core.utils import git, logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import about, checks, report, unit
@@ -49,6 +51,58 @@ def test_git_and_its_version(monkeypatch: pytest.MonkeyPatch) -> None:
     (check,) = [check for check in checks.run(os.environ) if check.name == "git"]
     version = subprocess.run(["git", "--version"], capture_output=True, text=True, check=True)
     assert check == Check("git", "ok", f"{version.stdout.split()[2]}, {shutil.which('git')}")
+
+
+def _tmux_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, script: str | None) -> Check:
+    """The tmux check, with a fake tmux running `script` alone on the PATH; None: no tmux."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    if script is not None:
+        (bin_dir / "tmux").write_text(f"#!/bin/sh\n{script}\n")
+        (bin_dir / "tmux").chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))  # no systemctl either
+    (check,) = [check for check in checks.run() if check.name == "tmux"]
+    return check
+
+
+FIX = "install tmux 3.2a or later, or set terminals.tmux.path to one"
+
+
+@pytest.mark.parametrize(
+    ("script", "outcome", "text"),
+    [
+        (None, "problem", "tmux isn't installed (tmux not found)"),
+        ("echo 'tmux 3.1c'", "problem", "3.1c is too old; need 3.2a or later"),
+        ("echo 'no tmux here' >&2; exit 1", "problem", "tmux -V failed: no tmux here"),
+        ("echo 'tmux 3.2a'", "ok", "3.2a, {bin}/tmux"),
+        ("echo 'tmux next-3.7'", "ok", "next-3.7, {bin}/tmux"),
+        ("echo 'tmux openbsd-7.5'", "ok", "openbsd-7.5, {bin}/tmux"),  # no version: new enough
+    ],
+)
+def test_tmux(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, script: str | None, outcome: str, text: str
+) -> None:
+    check = _tmux_check(tmp_path, monkeypatch, script)
+    expected = text.format(bin=tmp_path / "bin")
+    assert (check.outcome, check.text, check.fix) == (
+        outcome,
+        expected,
+        FIX if outcome == "problem" else None,
+    )
+
+
+def test_tmux_where_the_setting_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mine = tmp_path / "mine" / "tmux"
+    mine.parent.mkdir()
+    mine.write_text("#!/bin/sh\necho 'tmux 3.5a'\n")
+    mine.chmod(0o755)
+    terminals = config.DEFAULTS.terminals
+    tmux = dataclasses.replace(terminals.tmux, path=str(mine))
+    config.activate(
+        dataclasses.replace(config.DEFAULTS, terminals=dataclasses.replace(terminals, tmux=tmux))
+    )
+    check = _tmux_check(tmp_path, monkeypatch, None)  # none on the PATH
+    assert (check.outcome, check.text) == ("ok", f"3.5a, {mine}")
 
 
 def test_an_old_sqlite(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -12,6 +12,8 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import TypedDict
 
 from hephaistos.core.db.sessions import MIN_SQLITE
+from hephaistos.core.terminals import tmux
+from hephaistos.core.terminals.keeper import KeeperError
 from hephaistos.core.utils import git
 from hephaistos.core.utils.installation import inline_text
 from hephaistos.daemon import unit
@@ -37,6 +39,21 @@ def _git(_: Shell) -> list[Check]:
         text = f"{version} is too old; need {need} or later"
         return [Check("git", "problem", text, f"upgrade git to {need} or later")]
     return [Check("git", "ok", f"{version}, {found.executable}")]
+
+
+def _tmux(_: Shell) -> list[Check]:
+    """tmux, which keeps Terminals: a problem without it, even on a Machine without any."""
+    fix = f"install tmux {tmux.MINIMUM_TEXT} or later, or set terminals.tmux.path to one"
+    try:
+        found = tmux.installation(tmux.binary())
+    except KeeperError as error:
+        return [Check("tmux", "problem", str(error).partition(";")[0], fix)]
+    version = found.text.removeprefix("tmux ")
+    if found.too_old:
+        text = f"{version} is too old; need {tmux.MINIMUM_TEXT} or later"
+        return [Check("tmux", "problem", text, fix)]
+    # A version tmux doesn't name, e.g. `master`, is taken as new enough, as the Keeper does.
+    return [Check("tmux", "ok", f"{version}, {found.executable}")]
 
 
 def _sqlite(_: Shell) -> list[Check]:
@@ -102,7 +119,7 @@ def _ionice(_: Shell) -> list[Check]:
 
 
 #: Each part's checks, given the shell's environment, if a shell asks.
-CHECKS: Sequence[Callable[[Shell], list[Check]]] = (_git, _sqlite, _systemd, _ionice)
+CHECKS: Sequence[Callable[[Shell], list[Check]]] = (_git, _tmux, _sqlite, _systemd, _ionice)
 
 
 def run(shell: Shell = None) -> list[Check]:

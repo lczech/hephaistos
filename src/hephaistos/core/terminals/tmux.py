@@ -103,6 +103,55 @@ def parse_version(text: str) -> tuple[int, int] | None:
     return (int(match[1]), int(match[2])) if match else None
 
 
+@dataclasses.dataclass(frozen=True)
+class Installation:
+    """The tmux that we run."""
+
+    executable: str
+    text: str  # as `tmux -V` says it, e.g. `tmux 3.4`
+
+    @property
+    def version(self) -> tuple[int, int] | None:
+        """Its version; None if it names none, e.g. `tmux master`."""
+        return parse_version(self.text)
+
+    @property
+    def too_old(self) -> bool:
+        """Whether it is older than we need; one that names no version isn't."""
+        version = self.version
+        return version is not None and version < MINIMUM
+
+
+def binary() -> str:
+    """The tmux to run: `terminals.tmux.path`, found on the PATH unless it is a path."""
+    path = config.settings().terminals.tmux.path
+    return shutil.which(path) or path
+
+
+def missing_text(binary: str) -> str:
+    """Why there are no Terminals without tmux, and what to do."""
+    return (
+        f"tmux isn't installed ({binary} not found); install tmux {MINIMUM_TEXT} or later,"
+        " or set terminals.tmux.path to one"
+    )
+
+
+def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
+    """The tmux that `binary` runs; raises KeeperError if it isn't there or fails."""
+    try:
+        result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+            [binary, "-V"], capture_output=True, text=True, check=False, timeout=timeout
+        )
+    except FileNotFoundError:
+        raise KeeperError(missing_text(binary)) from None
+    except (OSError, subprocess.SubprocessError) as error:
+        raise KeeperError(f"tmux failed: {error}") from None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or f"exit code {result.returncode}"
+        raise KeeperError(f"tmux -V failed: {detail}")
+    return Installation(binary, result.stdout.strip())
+
+
 def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
     """The socket's name for the setting `terminals.tmux.socket`.
 
@@ -193,7 +242,7 @@ class TmuxKeeper:
         """The Keeper as this Machine's settings describe it."""
         settings = config.settings().terminals
         return cls(
-            binary=shutil.which(settings.tmux.path) or settings.tmux.path,
+            binary=binary(),
             socket=socket_name(settings.tmux.socket, env),
             config_file=paths.state_dir / CONFIG_NAME,
             history=settings.history,
@@ -227,7 +276,7 @@ class TmuxKeeper:
                 env=env,
             )
         except FileNotFoundError:
-            raise KeeperError(self._missing_text()) from None
+            raise KeeperError(missing_text(self.binary)) from None
         except subprocess.TimeoutExpired:
             raise KeeperError(f"tmux didn't answer within {self.timeout:g} s") from None
         except OSError as error:
@@ -237,12 +286,6 @@ class TmuxKeeper:
         """The error for a failed tmux command."""
         detail = result.stderr.strip() or f"exit code {result.returncode}"
         return KeeperError(f"tmux {args[0]} failed: {detail}")
-
-    def _missing_text(self) -> str:
-        return (
-            f"tmux isn't installed ({self.binary} not found); install tmux {MINIMUM_TEXT} or"
-            " later, or set terminals.tmux.path to one"
-        )
 
     def _write_config(self) -> None:
         """Writes our config, unless the file holds it already.
@@ -265,24 +308,12 @@ class TmuxKeeper:
         """Raises KeeperError unless tmux is here and new enough; writes our config."""
         if self._checked:
             return
-        try:
-            result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-                [self.binary, "-V"],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=self.timeout,
-            )
-        except FileNotFoundError:
-            raise KeeperError(self._missing_text()) from None
-        except (OSError, subprocess.SubprocessError) as error:
-            raise KeeperError(f"tmux failed: {error}") from None
-        version = parse_version(result.stdout)
-        if version is None:
-            log.warning("unknown tmux version %r: taken as new enough", result.stdout.strip())
-        elif version < MINIMUM:
+        found = installation(self.binary, self.timeout)
+        if found.version is None:
+            log.warning("unknown tmux version %r: taken as new enough", found.text)
+        elif found.too_old:
             raise KeeperError(
-                f"{result.stdout.strip()} is too old: Terminals need tmux {MINIMUM_TEXT} or later;"
+                f"{found.text} is too old: Terminals need tmux {MINIMUM_TEXT} or later;"
                 " install a newer one, e.g. without root, and set terminals.tmux.path to it"
             )
         self._write_config()

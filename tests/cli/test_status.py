@@ -35,7 +35,8 @@ def test_status_without_a_daemon(paths: Paths) -> None:
     lines = result.output.splitlines()
     assert lines[0] == "Setup, checked in this shell:"
     assert lines[1].split()[:2] == ["git", "ok"]
-    assert lines[3].split(maxsplit=2) == [
+    assert lines[2].split()[0] == "tmux"
+    assert lines[4].split(maxsplit=2) == [
         "systemd",
         "note",
         "no user services here; run `hephaistos daemon run`, e.g. in tmux",

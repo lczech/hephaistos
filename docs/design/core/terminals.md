@@ -71,6 +71,7 @@ What ignores SIGHUP outlives it.
 
 Terminals need tmux 3.2a or later; an older one or none fails with a message naming `terminals.tmux.path`.
 A version we can't read, e.g. `master`, counts as new enough, and is logged.
+`hephaistos status` and the Status View check tmux too, before any Terminal is made ([status](../daemon/status.md#checks)).
 The tests run with every minor version since 3.2a ([development](../development.md#tests)).
 
 ## Observing

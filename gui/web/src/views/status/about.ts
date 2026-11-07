@@ -42,6 +42,7 @@ export function aboutRows(
     ["Python", about.python],
     ["SQLite", about.sqlite],
     ["git", known(about.git)],
+    ["tmux", known(about.tmux)],
     ["systemd", known(about.systemd)],
     ["OS", known(about.os)],
     ["Kernel", `Linux ${about.kernel}`],

@@ -90,6 +90,17 @@
             ],
             "title": "Time Zone"
           },
+          "tmux": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmux"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -102,6 +113,7 @@
           "python",
           "sqlite",
           "git",
+          "tmux",
           "systemd",
           "os",
           "kernel",
@@ -3287,7 +3299,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.32"
+    "version": "0.33"
   },
   "openapi": "3.1.0",
   "paths": {
