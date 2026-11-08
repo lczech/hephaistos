@@ -21,6 +21,9 @@ The body gives the details, wrapped at 100 characters at most.
 A fix to a commit of a branch not yet merged goes into that commit, as a `git commit --fixup=<commit>`, folded in by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --committer-date-is-author-date <base>`, so that each commit keeps its date.
 Commits whose conflicts were resolved by hand get the date of the rebase: a second `git rebase --force-rebase --committer-date-is-author-date <base>` sets them back, and `git log --format='%ad %cd' <base>..` then shows the same date twice on every line.
 
+A rebase keeps the time of each commit: `git rebase --committer-date-is-author-date master`.
+A plain rebase gives every rewritten commit the time of the rebase, so GitHub shows them all at that one time.
+
 ## Python
 
 One Python package, for Python ≥ 3.12, with `pyproject.toml` at the repository root and a src layout.
