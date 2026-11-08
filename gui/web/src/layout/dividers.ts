@@ -16,7 +16,7 @@ const UP_A_PART = 3; // from a part's view to the node of the split it is in
 
 /**
  * The location of the split whose node this is: the indexes of its parts down from the top, as
- * dockview's are; `undefined` where its elements aren't nested as dockview's grid nests them.
+ * dockview's are; `undefined` where its elements are not nested as dockview's grid nests them.
  */
 export function splitLocation(node: Element): number[] | undefined {
   const view = node.parentElement;

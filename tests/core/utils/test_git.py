@@ -516,5 +516,5 @@ def test_missing_revision_text(tmp_path: Path, name: str, said: str) -> None:
     repo = create(tmp_path / "repo")
     assert git_facts.commit(repo, name) is None
     assert git_facts.missing_revision_text(repo, name) == (
-        f"{said} doesn't exist in this clone (git: fatal: Needed a single revision)"
+        f"{said} does not exist in this clone (git: fatal: Needed a single revision)"
     )

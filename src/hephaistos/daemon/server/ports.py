@@ -14,7 +14,7 @@ _REACHED = frozenset({"127.0.0.1", "0.0.0.0"})  # noqa: S104 - matched, not boun
 
 
 def holder(port: int, table: Path = PROC_TCP) -> int | None:
-    """The ID of the user listening on 127.0.0.1 at `port`; None if nobody, or Linux won't say."""
+    """The ID of the user listening on 127.0.0.1 at `port`; None if nobody, or Linux cannot say."""
     try:
         lines = table.read_text().splitlines()[1:]
     except OSError:

@@ -18,7 +18,7 @@ function serveDb(): Request[] {
           { table: "registry_repositories", category: "registry", rows: 2, latest: `${AT} #1` },
           { table: "old_things", category: null, rows: 1, latest: null },
         ],
-        warnings: ["1 table this version doesn't know: old_things"],
+        warnings: ["1 table this version does not know: old_things"],
       }),
     "GET /api/db/tables/registry_repositories": () =>
       json({
@@ -46,7 +46,7 @@ describe("the Database View", () => {
   it("lists the tables, and shows one's rows in place when chosen", async () => {
     serveDb();
     renderWithQueries(<Db />);
-    expect(await screen.findByText("1 table this version doesn't know: old_things")).toBeVisible();
+    expect(await screen.findByText("1 table this version does not know: old_things")).toBeVisible();
     expect(screen.getByText("unknown")).toBeInTheDocument();
     expect(screen.getByText(`${preciseTime(AT)} #1`)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
@@ -73,7 +73,7 @@ describe("the Database View", () => {
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "old_things (1)" }));
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
-    expect(await screen.findByText(/Can't show this/)).toBeInTheDocument();
+    expect(await screen.findByText(/Cannot show this/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");

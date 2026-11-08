@@ -39,7 +39,7 @@ describe("addresses", () => {
     expect(viewKey(searched)).not.toBe(viewKey({ kind: "diff", params: { path: "b.py" } }));
   });
 
-  it("aren't anything else", () => {
+  it("are not anything else", () => {
     expect(parseAddress("")).toBeNull();
     expect(parseAddress("Events")).toBeNull();
     expect(parseAddress("?repository=01")).toBeNull();
@@ -84,7 +84,7 @@ describe("saved addresses", () => {
     expect(asAddress(JSON.parse(JSON.stringify(sorted)))).toEqual(sorted);
   });
 
-  it("aren't anything else", () => {
+  it("are not anything else", () => {
     for (const saved of [undefined, "events", { kind: "Events", params: {} }, { kind: "events" }]) {
       expect(asAddress(saved)).toBeNull();
     }

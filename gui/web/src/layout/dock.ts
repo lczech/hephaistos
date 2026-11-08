@@ -13,7 +13,7 @@ import type { Opening } from "../views/opening";
 import { besideOf } from "./beside";
 
 export const PANEL = "view"; // dockview's one component: every Panel shows the View its parameters name
-export const PREVIEW = "preview"; // a Panel parameter, beside its View's: true while a preview
+export const PREVIEW = "preview"; // a Panel parameter, beside View parameters: true while a preview
 
 /** dockview's light theme for sizes and behaviour; `dock.css` gives it our colours. */
 export const THEME: DockviewTheme = {
@@ -45,7 +45,7 @@ const FLASH: Keyframe[] = [
   { offset: 0.4, ...MARKED },
 ];
 
-// Each Panel's tab, ours within dockview's, by the Panel's ID; see `ViewTab`.
+// The tab of each Panel, ours within that of dockview, by Panel ID; see `ViewTab`.
 const tabs = new Map<string, HTMLElement>();
 
 /** Notes a Panel's tab, or that it is gone. */
@@ -117,7 +117,7 @@ export function showIn(panel: IDockviewPanel, { kind, params, fragment }: Addres
   panel.api.setTitle(viewTitle({ kind, params }));
 }
 
-/** The Group beside `from`, if it isn't alone; see `besideOf`. */
+/** The Group beside `from`, if it is not alone; see `besideOf`. */
 function besideGroup(api: DockviewApi, from: IDockviewGroupPanel): DockviewGroupPanel | undefined {
   const others = api.groups.filter(
     (group) => group.id !== from.id && group.api.location.type === "grid",
@@ -165,7 +165,7 @@ export function openView(
     return replaced;
   }
   return api.addPanel({
-    id: crypto.randomUUID(), // a Panel's View can change, so its ID doesn't name it
+    id: crypto.randomUUID(), // a Panel's View can change, so its ID does not name it
     component: PANEL,
     title,
     params: { kind, params, fragment, ...(opening.preview && { [PREVIEW]: true }) },

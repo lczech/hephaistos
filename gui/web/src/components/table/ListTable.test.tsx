@@ -70,7 +70,7 @@ describe("a list's rows", () => {
     expect(pear).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("show their own tooltips: the square's, and cells' whole text", () => {
+  it("show their own tooltips: that of the square, and the whole text of cells", () => {
     render(<Fruits act={vi.fn()} />);
     expect(screen.getByRole("button", { name: /pear$/ })).toHaveAttribute("title", "pear square");
     const cell = screen.getByText("pear");
@@ -78,7 +78,7 @@ describe("a list's rows", () => {
     expect(cell).toHaveAttribute("title", "pear");
   });
 
-  it("say what their columns show, if their labels don't", () => {
+  it("say what their columns show, if their labels do not", () => {
     render(<Fruits act={vi.fn()} />);
     expect(screen.getByText("name")).toHaveAttribute("title", "What it is called");
   });

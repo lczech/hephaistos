@@ -12,7 +12,7 @@ from hephaistos.core.events.kinds import EventKind
 from hephaistos.core.utils.paths import short_path
 from hephaistos.core.utils.text import number_text
 
-_MISSING = object()  # a payload field that isn't there
+_MISSING = object()  # a payload field that is not there
 
 
 def payload_fields(value: object) -> dict[str, object] | None:
@@ -21,7 +21,7 @@ def payload_fields(value: object) -> dict[str, object] | None:
 
 
 def _field(payload: object, *keys: str) -> object:
-    """A payload's field, through nested objects; `_MISSING` if it isn't there."""
+    """A payload's field, through nested objects; `_MISSING` if it is not there."""
     value = payload
     for key in keys:
         fields = payload_fields(value)
@@ -64,7 +64,7 @@ def _path_change_text(change: object) -> str:
 def summary(event: Event, width: int | None = None) -> str:
     """What an Event's payload says, in short, as `event list` and the API show it.
 
-    Empty for kinds this version doesn't know, and where the subject says it all. A `width`
+    Empty for kinds this version does not know, and where the subject says it all. A `width`
     shortens it to fit, keeping a commit's hash at the end.
     """
     try:
@@ -98,7 +98,7 @@ def details(event: Event) -> list[tuple[str, str]]:
 
 
 def _summary(kind: EventKind, payload: dict[str, object]) -> str:  # noqa: C901, PLR0911, PLR0912 - one case per kind
-    """`summary` for a kind this version knows; fields that don't fit show as stored."""
+    """`summary` for a kind this version knows; fields that do not fit show as stored."""
 
     def field(*keys: str) -> object:
         return _field(payload, *keys)

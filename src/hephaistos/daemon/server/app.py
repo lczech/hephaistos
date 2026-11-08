@@ -27,7 +27,7 @@ async def _http_error(_: Request, error: Exception) -> Response:
 
 
 async def _invalid_request(_: Request, error: Exception) -> Response:
-    """Parameters that don't fit, e.g. an ID that isn't one."""
+    """Parameters that do not fit, e.g. an ID that is not one."""
     if not isinstance(error, RequestValidationError):
         raise error
     problems = [

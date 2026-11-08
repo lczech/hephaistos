@@ -40,7 +40,7 @@ export interface DiffLook {
   whole: boolean;
 }
 
-/** A file's two versions; null where it doesn't exist. */
+/** A file's two versions; null where it does not exist. */
 export interface Versions {
   old: string | null;
   new: string | null;
@@ -65,7 +65,7 @@ export interface DiffFind {
 }
 
 interface Props {
-  patch: string; // git's, for one file
+  patch: string; // from git, for one file
   look: DiffLook;
   themes: CodeThemes;
   scheme: ColorScheme; // which of them, as the page is
@@ -73,7 +73,8 @@ interface Props {
   find?: DiffFind;
 }
 
-// A line of code's height: the renderer's, and ours to hold diffs' places (`height.ts`).
+// The height of a line of code: that of the renderer, and ours to hold places for diffs
+// (`height.ts`).
 const LINE_HEIGHT = "var(--code-line)";
 
 // The renderer's own scrollbars under long lines, which its layout counts on, in our shades
@@ -92,11 +93,11 @@ const SCROLLBAR_COLOURS = `:is([data-diff], [data-file]) [data-code]::-webkit-sc
   background-color: var(--fill-scrollbar-active);
 }`;
 
-// The page's background under the code, whatever the theme's: the renderer mixes the colours
+// The page background under the code, whatever the theme sets: the renderer mixes the colours
 // of lines added and removed from it; and the code's font and size. The lines left out between
 // changes as gaps between two lines, rather than bars: quieter than the files' headers. Matches
-// found marked as elsewhere, the marks' look within the renderer's shadow root. The renderer's
-// own variables and attributes, so check them on upgrades.
+// found marked as elsewhere, the look of marks within the shadow root of the renderer. These are
+// variables and attributes of the renderer itself, so check them on upgrades.
 const PAGE_LOOK = `:host {
   --diffs-light-bg: var(--background);
   --diffs-dark-bg: var(--background);
@@ -119,7 +120,7 @@ ${MARKS_LOOK}
 ${SCROLLBAR_COLOURS}`;
 
 /** The patch's lines filled in with both versions, so that all of the file can show; the patch
- * alone where one is missing or the renderer refuses them. It doesn't check that they fit the
+ * alone where one is missing or the renderer refuses them. It does not check that they fit the
  * patch: they must be asked for after it. */
 export function withVersions(partial: FileDiffMetadata, versions: Versions): FileDiffMetadata {
   if (versions.old === null || versions.new === null) return partial; // all in the patch
@@ -363,8 +364,8 @@ function useFound(find: DiffFind | undefined) {
   };
 }
 
-/** A match's line as the renderer selects lines, to mark the current one's: side by side, its
- * row, both sides. */
+/** The line of a match as the renderer selects lines, to mark that of the current match: side by
+ * side, its row, both sides. */
 function currentLine(mark: DiffMark | undefined): SelectedLineRange | null {
   const line = mark?.new ?? mark?.old;
   if (mark === undefined || line === undefined || line === null) return null;
@@ -374,7 +375,8 @@ function currentLine(mark: DiffMark | undefined): SelectedLineRange | null {
 /**
  * A file's diff from git's patch, highlighted, with words changed within lines marked; once its
  * versions are known, with where it ends and its collapsed lines to expand. Lines expanded stay so
- * until Whole file is turned on or off: the renderer can't collapse them again, so it starts anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
+ * until Whole file is turned on or off: the renderer cannot collapse them again, so it starts
+ * anew. Matches found in it are marked (`find`). Within a `DiffScroll`.
  */
 export default function Diff({ patch, look, themes, scheme, versions, find }: Props) {
   const lineHeight = useContext(LineHeight);
@@ -398,7 +400,7 @@ export default function Diff({ patch, look, themes, scheme, versions, find }: Pr
       metrics={lineHeight > 0 ? { ...DEFAULT_VIRTUAL_FILE_METRICS, lineHeight } : undefined}
       options={{
         theme: themes,
-        themeType: scheme, // as the page's
+        themeType: scheme, // as for the page
         diffStyle: look.split ? "split" : "unified",
         overflow: look.wrap ? "wrap" : "scroll",
         expandUnchanged: look.whole,

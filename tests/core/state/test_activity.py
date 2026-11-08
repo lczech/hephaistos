@@ -174,7 +174,7 @@ def test_quit_rebase_ends_with_its_last_step() -> None:
     ]
     assert found[0].payload == RebasedPayload(Change("base", "p1"), "onto", 1, None)
     assert found[2].payload == RebasedPayload(Change("x", "p2"), "onto", 1, "feature")
-    # A rebase in progress after a quit one waits; the quit one doesn't.
+    # A rebase in progress after a quit one waits; the quit one does not.
     found, count = activity.activities(entries[1:6], rebasing=True)
     assert (_kinds(found), count) == ([ActivityKind.REBASED, ActivityKind.COMMITTED], 3)
 

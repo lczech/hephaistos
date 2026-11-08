@@ -79,9 +79,9 @@ def _command(text: str) -> str | None:
 
 
 def installation_differences(files: Files, text: str) -> list[Difference]:
-    """Where the installed entry runs another command than `text`, as for the Daemon unit.
+    """Where the installed entry runs another command than `text`, as for the Daemon.
 
-    Its command names the hephaistos and the directories, so another command means another
+    Its command names the hephaistos instance and the directories, so another command means another
     installation: one to replace only when asked.
     """
     try:

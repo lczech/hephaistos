@@ -38,4 +38,4 @@ Failures are caught per unit of work, logged, and the rest goes on.
 A unit is a Checkout; later also a sync or a request.
 A run logs any other failure and ends; the CLI then prints `error: unexpected …` and where the details are.
 Exceptions that end a thread are logged too.
-Logging is best effort: if the file can't be written, the command warns and goes on.
+Logging is best effort: if the file cannot be written, the command warns and goes on.

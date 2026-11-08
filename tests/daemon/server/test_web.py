@@ -26,7 +26,7 @@ def _browser(paths: Paths, gui: Path | None) -> TestClient:
 
 @pytest.fixture
 def built(tmp_path: Path) -> Path:
-    """A built GUI, next to a file that isn't part of it."""
+    """A built GUI, next to a file that is not part of it."""
     (tmp_path / "secret.txt").write_text("not for browsers")
     gui = tmp_path / "dist"
     (gui / "assets").mkdir(parents=True)
@@ -96,7 +96,7 @@ def test_says_how_to_build_it(paths: Paths, tmp_path: Path) -> None:
     assert page.headers["content-security-policy"] == web.POLICY
     outside = _browser(paths, None).get("/")
     assert outside.status_code == 503
-    assert "doesn't run from a checkout" in outside.text
+    assert "does not run from a checkout" in outside.text
     assert _browser(paths, None).get("/assets/index-3f9a.js").status_code == 404
 
 

@@ -296,7 +296,7 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
         done = read.get(linked.name) if new.present and new.error is None else None
         if done is not None:
             new = dataclasses.replace(new, head_log=done.cursor)
-        _write(session, new)  # also clears `removed`, which it doesn't write
+        _write(session, new)  # also clears `removed`, which it does not write
         recorded += [
             events.record(
                 session,

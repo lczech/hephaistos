@@ -18,7 +18,7 @@ SESSION_VARIABLES = ("WAYLAND_DISPLAY", "DISPLAY")  # set in a graphical session
 
 
 def _started_link(paths: Paths) -> str:
-    """The GUI's link, starting the installed Daemon first if it doesn't run."""
+    """The GUI's link, starting the installed Daemon first if it does not run."""
     if not daemon_status.is_running(paths.state_dir):
         typer.echo("Starting the daemon…", err=True)
         unit.start(paths)

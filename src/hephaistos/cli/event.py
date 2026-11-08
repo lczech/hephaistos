@@ -76,7 +76,7 @@ WorktreeFilterOption = Annotated[
 
 
 def _priority_text(value: int) -> str:
-    """A priority by name, or as a number if this version doesn't know it."""
+    """A priority by name, or as a number if this version does not know it."""
     try:
         return Priority(value).name.lower()
     except ValueError:
@@ -212,7 +212,7 @@ def show(
             ("machine", _machine_text(event, context)),
             ("subject", _subject_text(event, context)),
             ("subject id", str(event.subject)),
-            # A payload that isn't an object, e.g. from another version, is shown whole.
+            # A payload that is not an object, e.g. from another version, is shown whole.
             *([("payload", summaries.value_text(event.payload))] if fields is None else []),
         ]
     )

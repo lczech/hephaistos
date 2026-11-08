@@ -184,7 +184,7 @@ describe("the Repositories View", () => {
     expect(details.getByRole("link", { name: "https://github.com/me/recent" })).toBeInTheDocument();
   });
 
-  it("shows a Clone's details without what's empty", async () => {
+  it("shows the details of a Clone without the empty ones", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
     await screen.findByText("recent");

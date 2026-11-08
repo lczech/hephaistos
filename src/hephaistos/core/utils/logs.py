@@ -1,9 +1,9 @@
 """Log files: diagnostics about hephaistos itself, local to this Machine, never synced.
 
 One JSON record per line, one file per UTC day. Several processes append to the same file:
-each record is one write on an O_APPEND descriptor, so records don't interleave on local
+each record is one write on an O_APPEND descriptor, so records do not interleave on local
 filesystems. Files are never rewritten; the first record of a day deletes the old ones.
-Readers skip lines that aren't records, e.g. cut short by a crash.
+Readers skip lines that are not records, e.g. cut short by a crash.
 """
 
 import json
@@ -137,7 +137,7 @@ class DayFileHandler(logging.Handler):
                 self._day = day
             descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
             try:
-                os.write(descriptor, line)  # one write per record, so records don't interleave
+                os.write(descriptor, line)  # one write per record, so records do not interleave
             finally:
                 os.close(descriptor)
             if new_day:
@@ -206,7 +206,7 @@ def start(setup: Setup) -> DayFileHandler:
 
 
 def active() -> Setup | None:
-    """How this process logs, as `start` set it up; None if it doesn't."""
+    """How this process logs, as `start` set it up; None if it does not."""
     return _active
 
 
@@ -274,7 +274,7 @@ def record_text(record: Record, *, dated: bool = False, brief: bool = False) -> 
             if brief:
                 below = [f"↳ {line}" for line in below[-1:]]
             lines += (f"    {line}" for line in below)
-    # Lone surrogates (from undecodable names) can't be printed; their escapes can.
+    # Lone surrogates (from undecodable names) cannot be printed; their escapes can.
     return "\n".join(lines).encode(errors="backslashreplace").decode()
 
 
@@ -339,7 +339,7 @@ class Position:
 
     @classmethod
     def parse(cls, text: str) -> Self:
-        """A position as `str` writes it; raises ValueError if it isn't one."""
+        """A position as `str` writes it; raises ValueError if it is not one."""
         if match := _POSITION.fullmatch(text):
             try:
                 return cls(date.fromisoformat(match[1]), int(match[2]))
@@ -360,7 +360,7 @@ class Reading:
     """The entries read, newest first, and where to follow on from."""
 
     entries: list[Entry]
-    skipped: int  # lines that aren't records
+    skipped: int  # lines that are not records
     today: date
     offset: int  # in today's file, after its last complete line
 
@@ -383,8 +383,8 @@ def read(
 ) -> Reading:
     """The newest `limit` selected records (0: all), newest first: as written, backwards.
 
-    `before` pages back: only records written before that position. The last line of today's
-    file is left out unless complete: it may still be written.
+    `before` pages back: only records written before that position. The last line of the file of
+    today is left out unless complete: it may still be written.
     """
     today = today or datetime.now(UTC).date()
     offset = 0

@@ -1,9 +1,9 @@
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 
-// What a browser shows that a simulated one can't, e.g. sizes, scrolling and what the diff
+// What a browser shows that a simulated one cannot, e.g. sizes, scrolling and what the diff
 // renderer draws: tested in real ones, by Playwright's own builds (`npm run fetch-browsers`,
-// which names the system libraries missing, e.g. WebKit's).
+// which names the system libraries missing, e.g. those for WebKit).
 const BROWSER_TESTS = "src/**/*.browser.test.tsx";
 const browsers = ["chromium", "firefox", "webkit"] as const;
 

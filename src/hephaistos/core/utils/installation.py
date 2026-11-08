@@ -1,6 +1,7 @@
-"""How an installed part, such as the Daemon unit or the launcher entry, differs from this command.
+"""How an installed part, such as the systemd unit for the Daemon, differs from this command.
 
-A part installed by another hephaistos, or for other directories, belongs to another installation,
+A part installed by another hephaistos instance, or for other directories, belongs to another
+installation,
 e.g. the real one when this shell has a scratch HEPHAISTOS_HOME.
 """
 

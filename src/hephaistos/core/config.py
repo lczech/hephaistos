@@ -202,7 +202,7 @@ class Settings:
 
 
 class ConfigError(HephaistosError):
-    """A config file can't be read, or a setting is unknown or invalid."""
+    """A config file cannot be read, or a setting is unknown or invalid."""
 
 
 @dataclass(frozen=True)
@@ -270,7 +270,7 @@ def variable(key: str) -> str:
 
 
 def unknown_text(key: str) -> str:
-    """Says that a setting doesn't exist, naming the closest one that does."""
+    """Says that a setting does not exist, naming the closest one that does."""
     close = difflib.get_close_matches(key, [*_LEAVES, *_SECTIONS], n=1)
     return f"unknown setting {key}" + (f" (did you mean {close[0]}?)" if close else "")
 
@@ -410,7 +410,7 @@ class Layer:
     values: dict[str, object]
     error: ConfigError | None = None
     exists: bool = True
-    path: Path | None = None  # the file's; None for a variable
+    path: Path | None = None  # that of the file; None for a variable
 
     @property
     def state(self) -> str:
@@ -495,7 +495,7 @@ def load(
 ) -> Loaded:
     """The settings for this Machine (or `hostname`) from the files in `directory` and `env`.
 
-    Raises the first ConfigError of a file that can't be read or of an unknown or invalid setting.
+    Raises the first ConfigError of a file that cannot be read or of an unknown or invalid setting.
     """
     found = layers(directory, hostname, env)
     for layer in found:
@@ -505,7 +505,7 @@ def load(
 
 
 def unknown_variables(env: Mapping[str, str] = os.environ) -> dict[str, str | None]:
-    """Our environment variables that aren't settings, each with the setting's closest to it."""
+    """Our environment variables that are not settings, each with the setting's closest to it."""
     settings_variables = [variable(key) for key in KEYS]
     known = {*settings_variables, *OTHER_VARIABLES}
     # Compared without the prefix, which all share.

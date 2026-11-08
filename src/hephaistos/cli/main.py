@@ -41,7 +41,10 @@ OUTCOMES = {0: "ok", 1: "aborted", 2: "usage", EX_CONFIG: "not started", 130: "i
 # stop the Daemon. Not `daemon run`: a Daemon on other settings than intended would mislead.
 ON_DEFAULTS = frozenset({"log", "config", "daemon"})
 SHOWS_CONFIG = "config"  # reports a broken config itself
-RUNS_DAEMON = ["daemon", "run"]  # its records are the Daemon's; a broken config doesn't start it
+RUNS_DAEMON = [
+    "daemon",
+    "run",
+]  # its records are those of the Daemon; a broken config does not start it
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +111,7 @@ def _invoke(
         logger.exception("unexpected %s", type(error).__name__)
         typer.echo(f"error: unexpected {type(error).__name__}: {error}", err=True)
         if logged.failure is not None:
-            raise  # the traceback can't go to the log
+            raise  # the traceback cannot go to the log
         typer.echo(f"details: hephaistos log show --pid {os.getpid()}", err=True)
         return 1, "unexpected"
     return 0, "ok"
@@ -120,7 +123,7 @@ def run() -> None:
     Settings are loaded first; a broken config stops all commands but `--help`, `--version` and
     those in ON_DEFAULTS. With `--debug`, this run logs at debug level and also shows its records
     on stderr.
-    `log` commands log only what goes wrong, so that showing the log doesn't add to it.
+    `log` commands log only what goes wrong, so that showing the log does not add to it.
     """
     args, debug = without_debug(sys.argv[1:])
     paths = Paths.from_environment()

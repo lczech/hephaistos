@@ -43,7 +43,7 @@ _PATCH = (
 
 
 class ChangesError(HephaistosError):
-    """A revision or path that can't be compared here."""
+    """A revision or path that cannot be compared here."""
 
 
 @dataclass(frozen=True)
@@ -59,8 +59,8 @@ class Change:
     added: int | None = None  # None for binary files, those too large, and folders
     removed: int | None = None
     binary: bool = False
-    size: int | None = None  # the new version's; None if deleted, or not needed
-    old_size: int | None = None  # the old version's; None if added, or not needed
+    size: int | None = None  # of the new version; None if deleted, or not needed
+    old_size: int | None = None  # of the old version; None if added, or not needed
     files: int | None = None  # in a new folder, at most FOLDER_FILES
     more_files: bool = False  # a new folder with more than FOLDER_FILES
 
@@ -121,7 +121,7 @@ def commit_revisions(top: Path, commit: str) -> tuple[str, str]:
     """The revisions a commit's changes are between: its first parent, and itself.
 
     A commit without parents is compared with the empty tree. Raises ChangesError if `commit`
-    isn't one here.
+    is not one here.
     """
     resolved = git.commit(top, commit) if commit else None
     if resolved is None:
@@ -222,7 +222,7 @@ def _tracked(
     def size(name: str, path: str, *, exists: bool) -> int | None:
         if not exists:
             return None
-        if name == _NO_OBJECT:  # the working tree's, which git didn't hash
+        if name == _NO_OBJECT:  # in the working tree, which git did not hash
             return _file_size(top / path)
         return sizes.get(name)
 
@@ -359,7 +359,7 @@ def changes(  # noqa: PLR0913 - the optional ones are keyword-only
     Between two revisions; without them, as `git status` groups them: staged (HEAD to index), not
     staged and untracked (index to working tree), and unmerged (HEAD to working tree, with git's
     conflict markers). A file staged and changed again is in two groups. Groups without changes
-    are left out. Up to `max_files` per group; untracked files larger than `max_bytes` aren't
+    are left out. Up to `max_files` per group; untracked files larger than `max_bytes` are not
     counted.
     """
     if (base is None) != (target is None):
@@ -411,20 +411,20 @@ def _status_groups(top: Path, pathspec: list[str], max_files: int, max_bytes: in
 class Diff:
     """A file's change from one revision to another, and git's patch for it."""
 
-    change: Change | None  # None if the file doesn't differ
+    change: Change | None  # None if the file does not differ
     patch: str | None  # None without a change, for binary files, and those too large
 
 
 @dataclass(frozen=True)
 class Versions:
-    """A file's contents in two revisions; None where it doesn't exist."""
+    """A file's contents in two revisions; None where it does not exist."""
 
     old: str | None
     new: str | None
 
 
 def utf8_text(output: str) -> str:
-    """Output of git as text that JSON can carry: bytes that aren't UTF-8 replaced."""
+    """Output of git as text that JSON can carry: bytes that are not UTF-8 replaced."""
     return output.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
 
 
@@ -520,7 +520,7 @@ def diff(  # noqa: PLR0913 - the comparison, then how
 
 
 def _contents(top: Path, revision: str, path: str, max_bytes: int) -> str | None:
-    """A file's contents in a resolved revision; None if it isn't there; raises if too large."""
+    """A file's contents in a resolved revision; None if it is not there; raises if too large."""
     if revision == WORKING_TREE:
         file = top / path
         if file.is_symlink():

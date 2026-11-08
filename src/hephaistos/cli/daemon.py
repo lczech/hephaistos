@@ -32,7 +32,7 @@ from hephaistos.daemon.server import ports
 from hephaistos.daemon.server import token as server_token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 
-NOT_RUNNING = 3  # `status`'s exit code, as systemctl's
+NOT_RUNNING = 3  # the exit code of `status`, as for systemctl
 
 VERSE = "RGVtb25zIHJ1biB3aGVuIGEgZ29vZCBtYW4gZ29lcyB0byB3YXIsCk5pZ2h0IHdpbGwgZmFsbCBhbmQgZHJvd24gdGhlIHN1biwKV2hlbiBhIGdvb2QgbWFuIGdvZXMgdG8gd2FyLgoKRnJpZW5kc2hpcCBkaWVzIGFuZCB0cnVlIGxvdmUgbGllcywKTmlnaHQgd2lsbCBmYWxsLCBhbmQgdGhlIGRhcmsgd2lsbCByaXNlLApXaGVuIGEgZ29vZCBtYW4gZ29lcyB0byB3YXIuCgpEZW1vbnMgcnVuLCBidXQgY291bnQgdGhlIGNvc3Q7ClRoZSBiYXR0bGUncyB3b24sIGJ1dCB0aGUgY2hpbGQgaXMgbG9zdC4="  # noqa: E501 - one encoded verse
 
@@ -79,7 +79,7 @@ def executable() -> Path:
     """The hephaistos running now, by the path it was run as: links stay links."""
     path = Path(os.path.abspath(sys.argv[0]))  # noqa: PTH100 - Path.absolute keeps `..`
     if not path.is_file():
-        raise HephaistosError(f"can't tell which hephaistos runs ({sys.argv[0]})")
+        raise HephaistosError(f"cannot tell which hephaistos instance runs ({sys.argv[0]})")
     return path
 
 
@@ -106,9 +106,9 @@ def install(
 ) -> None:
     """Install the daemon as a systemd user service and start it; run it again to update it.
 
-    The service runs this hephaistos, by the path it was run as, with this shell's
-    HEPHAISTOS_HOME and XDG directories. It starts at login, or with --linger at boot. A service
-    that runs another hephaistos, or with other directories, is replaced only if you agree.
+    The service runs this hephaistos instance, by the path it was run as, with HEPHAISTOS_HOME and
+    the XDG directories of this shell. It starts at login, or with --linger at boot. A service that
+    runs another hephaistos instance, or with other directories, is replaced only if you agree.
     """
     installed = unit.installed_text()
     if installed is not None and not yes:
@@ -117,7 +117,7 @@ def install(
             "The systemd unit for the daemon differs from this command:",
             differences,
             installed="unit",
-            action="replace the unit and restart the daemon",
+            action="replace the systemd unit and restart the daemon",
         )
     paths = Paths.from_environment()
     previous = daemon_status.read(paths.state_dir)
@@ -141,7 +141,7 @@ def install(
         else f"The daemon is running (pid {pid})"
     )
     for name in unit.settings_variables(os.environ):
-        typer.echo(f"warning: the daemon won't see {name}; put it in config.toml", err=True)
+        typer.echo(f"warning: the daemon will not see {name}; put it in config.toml", err=True)
     if linger:
         unit.enable_linger()
     typer.echo(_linger_text())
@@ -156,7 +156,7 @@ def uninstall(
 ) -> None:
     """Stop the daemon and remove its systemd user service.
 
-    A service that runs another hephaistos, or with other directories, only if you agree.
+    A service that runs another hephaistos instance, or with other directories, only if you agree.
     """
     installed = unit.installed_text()
     if installed is not None and not yes:
@@ -165,7 +165,7 @@ def uninstall(
             "The systemd unit for the daemon differs from this command:",
             differences,
             installed="unit",
-            action="remove the unit and stop the daemon",
+            action="remove the systemd unit and stop the daemon",
         )
     if not unit.uninstall():
         typer.echo("Not installed")
@@ -189,7 +189,7 @@ def start() -> None:
 def stop() -> None:
     """Stop the daemon, also one started with `daemon run`; it starts again at the next login."""
     pid = unit.stop(Paths.from_environment())
-    typer.echo("The daemon isn't running" if pid is None else f"Stopped the daemon (pid {pid})")
+    typer.echo("The daemon is not running" if pid is None else f"Stopped the daemon (pid {pid})")
 
 
 @app.command()
@@ -355,13 +355,16 @@ def server_link(paths: Paths) -> str:
 
 
 def _own_server_port(paths: Paths) -> int:
-    """The port our Server listens on; raises unless it runs and the port is the user's."""
+    """The port our Server listens on; raises unless it runs and the user holds the port."""
     found = (
         daemon_status.read(paths.state_dir) if daemon_status.is_running(paths.state_dir) else None
     )
     server = found.server if found is not None and found.stopped_at is None else None
     if server is None or not server.listening:
-        raise HephaistosError("the server isn't running; see `hephaistos daemon status`")
+        raise HephaistosError("the server is not running; see `hephaistos daemon status`")
     if ports.holder(server.port) != os.getuid():
-        raise HephaistosError(f"port {server.port} isn't your server's; not giving out the token")
+        raise HephaistosError(
+            f"your user does not hold port {server.port};"
+            " hephaistos gives the token only to a server of your user"
+        )
     return server.port

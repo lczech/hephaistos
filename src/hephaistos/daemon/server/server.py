@@ -1,10 +1,11 @@
 """The Server: serves the app on 127.0.0.1 at `server.port`, in the Daemon's own process.
 
 With port 0 it takes a free port, which `daemon.json` tells; the Server reports where it listens
-only once it does, so nobody is sent to a port that isn't ours.
+only once it does, so nobody is sent to a port that is not ours.
 
-Its endpoints only read the database, briefly, in uvicorn's threads; git runs in the Watcher's
-worker, so the Server answers at normal priority. Asked to observe, it awaits the Watcher's pass.
+Its endpoints only read the database, briefly, in the threads of uvicorn; git runs in the worker
+of the Watcher, so the Server answers at normal priority. Asked to observe, it awaits a pass of the
+Watcher.
 """
 
 import asyncio
@@ -63,7 +64,7 @@ def address(port: int) -> str:
 
 
 def bind(port: int) -> socket.socket:
-    """A socket listening on our address; raises PartError if it can't.
+    """A socket listening on our address; raises PartError if it cannot.
 
     Listening already, connections wait for uvicorn to start, instead of being refused.
     """
@@ -75,7 +76,7 @@ def bind(port: int) -> socket.socket:
     except OSError as error:
         sock.close()
         if error.errno != errno.EADDRINUSE:
-            raise PartError(f"can't listen on {address(port)}: {error.strerror}") from None
+            raise PartError(f"cannot listen on {address(port)}: {error.strerror}") from None
         held_by = ports.holder(port)
         if held_by is not None and held_by != os.getuid():
             raise PartError(
@@ -133,7 +134,7 @@ class Server:
             await asyncio.sleep(REPORT_INTERVAL)
 
     async def run(self) -> None:
-        """Serves until cancelled; raises PartError if it can't listen."""
+        """Serves until cancelled; raises PartError if it cannot listen."""
         port = config.settings().server.port
         where = address(port)
         token.token(self._paths)

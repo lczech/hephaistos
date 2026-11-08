@@ -15,9 +15,9 @@ Requests arriving during a pass share the next one.
 
 Passes run in a worker process, so that git never competes with interactive work and the Daemon's other parts keep their priority.
 The worker lowers its own CPU and I/O priority once, before starting threads, so its threads and git inherit it: nice 19, and `ionice -c2 -n7`.
-It doesn't use the idle I/O class, which could starve a pass that a GUI waits for.
+It does not use the idle I/O class, which could starve a pass that a GUI waits for.
 The worker leads its own process group.
-So Ctrl+C in a terminal doesn't reach it, and the Daemon stops it with its git in one signal.
+So Ctrl+C in a terminal does not reach it, and the Daemon stops it with its git in one signal.
 A dead worker is replaced.
 
 ## Failures

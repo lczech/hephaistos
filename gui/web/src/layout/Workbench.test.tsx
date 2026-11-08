@@ -39,7 +39,7 @@ function Probe({ params, setParams, fragment, setFragment, setTitle }: ViewProps
   );
 }
 
-/** A View with a field whose text is a parameter, changed at each key, as a search's. */
+/** A View with a field whose text is a parameter, changed at each key, as in a search. */
 function Typer({ params, setParams, endTyping }: ViewProps) {
   return (
     <input
@@ -249,7 +249,7 @@ describe("the Workbench", () => {
       // Hidden, but still in the page as it was.
       expect(field()).toBeInTheDocument();
       expect(field()).toHaveValue("kept");
-      // Restored, Panels are built once shown again: how they were drawn isn't saved.
+      // Restored, Panels are built once shown again: how they were drawn is not saved.
       await waitFor(() =>
         expect(savedViews()).toContainEqual({ kind: "typer", params: { text: "kept" } }),
       );
@@ -263,7 +263,7 @@ describe("the Workbench", () => {
     }
   });
 
-  it("starts anew from a Layout it can't restore", async () => {
+  it("starts anew from a Layout it cannot restore", async () => {
     localStorage.setItem("hephaistos.layout", '{"format": 2, "dock": {"grid": 5}}');
     await renderWorkbench();
     expect(tabs()).toEqual(["Repositories", "Events"]);
@@ -522,7 +522,7 @@ describe("the Workbench", () => {
   });
 
   it("goes to the active Panel's search field on Ctrl+F, if its View has one", async () => {
-    // Its search field says so; another, e.g. a picker's, doesn't take Ctrl+F.
+    // Its search field says so; another, e.g. that of a picker, does not take Ctrl+F.
     VIEWS.searcher = () => (
       <>
         <SearchField label="Pick" value="" onChange={() => {}} />
@@ -540,7 +540,7 @@ describe("the Workbench", () => {
       expect(field).toHaveFocus();
       expect([field.selectionStart, field.selectionEnd]).toEqual([0, 3]);
       unmount();
-      // The search field's View behind another: Ctrl+F is the browser's.
+      // The View of the search field behind another: Ctrl+F goes to the browser.
       save("probe", "searcher");
       await renderWorkbench();
       await userEvent.click(await screen.findByRole("tab", { name: "probe" }));

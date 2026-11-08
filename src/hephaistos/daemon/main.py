@@ -1,7 +1,7 @@
 """The Daemon: runs this Machine's enabled parts until stopped, restarting any that crash.
 
 The first SIGINT or SIGTERM stops it at once: a pass cut short loses nothing, as git only reads
-and SQLite rolls back what wasn't committed; then the parts end, the Server answering what is
+and SQLite rolls back what was not committed; then the parts end, the Server answering what is
 open. A second signal, while it stops, exits immediately.
 """
 
@@ -66,7 +66,7 @@ def _enabled(settings: config.Settings) -> list[str]:
 
 
 def _checked(paths: Paths) -> tuple[list[str], git.Installation]:
-    """The parts to run and the git to run; raises NotStartedError if the Daemon can't start."""
+    """The parts to run and the git to run; raises NotStartedError if the Daemon cannot start."""
     names = _enabled(config.settings())
     if not names:
         raise NotStartedError("nothing to do: watcher.interval is 0 and server.enabled is false")
@@ -101,7 +101,7 @@ async def keep_running(part: Part) -> None:
 class Daemon:
     """The running Daemon: its parts, and the status file they report to.
 
-    The Watcher observes on request even while its timer, the part, doesn't run.
+    The Watcher observes on request even while its timer, the part, does not run.
     """
 
     def __init__(self, paths: Paths, names: list[str], version: str) -> None:
@@ -180,7 +180,7 @@ class Daemon:
 def run(paths: Paths, announce: Callable[[str], None]) -> None:
     """Runs the Daemon with the active settings until stopped; `announce` tells what runs.
 
-    Raises NotStartedError if it can't start, e.g. as another Daemon runs.
+    Raises NotStartedError if it cannot start, e.g. as another Daemon runs.
     """
     names, found = _checked(paths)
     with status.held_lock(paths.state_dir):

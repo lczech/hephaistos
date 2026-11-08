@@ -14,7 +14,7 @@ export function readingOrder(node: GridNode): string[] {
   return Array.isArray(node.data) ? node.data.flatMap(readingOrder) : [node.data.id];
 }
 
-/** How many columns side by side the grid has at its top: rows within them don't count. */
+/** How many columns side by side the grid has at its top: rows within them do not count. */
 export function columnCount({ root, orientation }: Grid): number {
   if (!Array.isArray(root.data)) return 1;
   return orientation === "HORIZONTAL" ? root.data.length : Math.min(root.data.length, 1);

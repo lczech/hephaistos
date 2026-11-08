@@ -6,7 +6,7 @@ const LINK = "http://127.0.0.1:8264/#token=abc";
 const ok = (output: string): Outcome => ({ ok: true, output });
 const failed = (reason: string) => ({ ok: false, reason }) as const;
 const down = ({ reason }: { reason: string }): Waiting => ({ state: "down", reason });
-const DOWN = failed("the server isn't running; see `hephaistos daemon status`");
+const DOWN = failed("the server is not running; see `hephaistos daemon status`");
 
 /** A Connector whose hephaistos answers from lists, one answer per call of each command. */
 function connector(answers: { link: Outcome[]; start?: Outcome[] }) {
@@ -37,7 +37,7 @@ describe("connecting", () => {
     expect(shown).toEqual([]);
   });
 
-  it("starts a Daemon that doesn't run, and loads the GUI once its Server listens", async () => {
+  it("starts a Daemon that does not run, and loads the GUI once its Server listens", async () => {
     const { connecting, loaded, shown, calls } = connector({
       link: [DOWN, DOWN, ok(LINK)],
       start: [ok("The daemon runs (pid 7)")],
@@ -55,8 +55,8 @@ describe("connecting", () => {
     expect(loaded).toEqual([LINK]);
   });
 
-  it("says why it can't start the Daemon, and keeps looking without starting it", async () => {
-    const notInstalled = failed("the daemon isn't installed; run `hephaistos daemon install`");
+  it("says why it cannot start the Daemon, and keeps looking without starting it", async () => {
+    const notInstalled = failed("the daemon is not installed; run `hephaistos daemon install`");
     const { connecting, loaded, shown, calls } = connector({
       link: [DOWN, DOWN, ok(LINK)],
       start: [notInstalled],

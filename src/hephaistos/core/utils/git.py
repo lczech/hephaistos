@@ -84,7 +84,7 @@ def installation() -> Installation:
             timeout=config.settings().git.timeout,
         )
     except (OSError, subprocess.SubprocessError) as error:
-        raise GitError(f"{executable} doesn't run: {error}") from None
+        raise GitError(f"{executable} does not run: {error}") from None
     return Installation(Path(executable), result.stdout.strip())
 
 
@@ -239,7 +239,7 @@ def missing_revision_text(top: Path, name: str) -> str:
         f"commit {name[:7]}" if _HASH.fullmatch(name) else f"revision {name!r}",
     )
     said = _verify_commit(top, name).stderr.strip()
-    return f"{what} doesn't exist in this clone" + (f" (git: {said})" if said else "")
+    return f"{what} does not exist in this clone" + (f" (git: {said})" if said else "")
 
 
 @dataclass(frozen=True)
@@ -629,7 +629,7 @@ def _shallow_commits(common_dir: Path) -> set[str]:
 def describe(top: Path) -> str | None:
     """The commit checked out, as `git describe --always --dirty` names it, e.g. `bfc66f6-dirty`.
 
-    None if git can't say, e.g. as there is no commit yet.
+    None if git cannot say, e.g. as there is no commit yet.
     """
     try:
         result = run(top, "describe", "--always", "--dirty")

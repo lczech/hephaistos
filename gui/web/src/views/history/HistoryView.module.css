@@ -34,7 +34,7 @@
   font-style: italic;
 }
 
-/* A commit searched for by its hash that isn't listed: where it is, and buttons to show it. */
+/* A commit searched for by its hash that is not listed: where it is, and buttons to show it. */
 .found {
   display: inline-flex;
   flex-wrap: wrap;

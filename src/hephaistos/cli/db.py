@@ -32,7 +32,7 @@ type ValueText = Callable[[object], str]
 
 
 def _warn(warnings: Sequence[str]) -> None:
-    """Prints what's unusual about the database on stderr."""
+    """Prints what is unusual about the database on stderr."""
     for warning in warnings:
         typer.echo(f"warning: {warning}", err=True)
 

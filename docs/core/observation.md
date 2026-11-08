@@ -31,7 +31,7 @@ File names are not stored: Views of files ask the Machine's Server live.
 ## Git activity
 
 Git activity comes from git's reflogs (`git log --walk-reflogs`).
-Each Checkout has a cursor per reflog: the last entry read, by its time and a digest, so that expiry doesn't move it.
+Each Checkout has a cursor per reflog: the last entry read, by its time and a digest, so that expiry does not move it.
 If its entry is gone, reading continues after its time.
 The first read starts at the end, as `clone register` observes right away.
 With `clone register --import-history`, it starts at the beginning.
@@ -40,11 +40,11 @@ A Worktree found later starts at the beginning, as all of its reflog is new.
 HEAD's reflog gives:
 - `committed`, also for amends (with the commit they replace), cherry-picks, reverts and `am`;
 - `merged`, `pulled`, `rebased`, `reset` and `branch_switched`;
-- `head_moved`, with git's message, for what we can't name.
+- `head_moved`, with git's message, for what we cannot name.
 
 A `committed` Event carries the message's body from the commit, which the reflog lacks, so the Event outlasts the commit.
 A rebase folds into one Event; while one is in progress, it waits.
-Resets that don't move, e.g. by `git stash`, are skipped.
+Resets that do not move, e.g. by `git stash`, are skipped.
 
 Remote-tracking reflogs give `clone.pushed`; fetches are skipped.
 A new branch's reflog gives its creation time and start, or shows that it was renamed (`clone.branch_renamed`, instead of deleted and created).

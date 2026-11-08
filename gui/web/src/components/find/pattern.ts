@@ -42,12 +42,12 @@ const OUTSIDE: Record<string, string> = {
   B: NOT_BOUNDARY,
 };
 
-// Inside one: `\W` can't join a class's other items, so `rewriteClass` takes it apart; `[\b]` is
+// Inside one: `\W` cannot join a class's other items, so `rewriteClass` takes it apart; `[\b]` is
 // a backspace, as in JS.
 const INSIDE: Record<string, string> = { w: WORD, d: "\\p{Nd}", D: "\\P{Nd}" };
 
 /**
- * A regular expression's source with `\w`, `\W`, `\b`, `\B`, `\d` and `\D` meaning Unicode's
+ * A regular expression's source with `\w`, `\W`, `\b`, `\B`, `\d` and `\D` meaning Unicode
  * words and digits, also inside classes; everything else as written.
  */
 export function unicodeSource(source: string): string {
@@ -107,7 +107,7 @@ function escaped(text: string): string {
   return text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 }
 
-/** The pattern a query looks for, or why it can't: an invalid regular expression. */
+/** The pattern a query looks for, or why it cannot: an invalid regular expression. */
 export function findPattern(query: FindQuery): Pattern | { error: string } {
   const body = query.regex ? unicodeSource(query.text) : escaped(query.text);
   const source = query.wholeWord ? `${NOT_AFTER_WORD}(?:${body})${NOT_BEFORE_WORD}` : body;

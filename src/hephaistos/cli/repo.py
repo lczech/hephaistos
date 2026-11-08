@@ -96,7 +96,7 @@ def show(
 @app.command()
 def register(name: NameArgument) -> None:
     """Register a repository without clones; `clone register` and `scan` register them in one."""
-    # A name can't have `/`; one that is a directory's path was meant as its clone.
+    # A name cannot have `/`; one that is a directory's path was meant as its clone.
     if ("/" in name or name in {".", ".."}) and Path(name).is_dir():
         raise HephaistosError(
             f"{name} is a directory, not a repository name; to register the git clone there,"

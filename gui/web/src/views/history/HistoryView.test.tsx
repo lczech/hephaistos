@@ -180,10 +180,10 @@ describe("the History View", () => {
 
   it("offers HEAD when the branch is gone", async () => {
     const error =
-      "the branch gone doesn't exist in this clone (git: fatal: Needed a single revision)";
+      "the branch gone does not exist in this clone (git: fatal: Needed a single revision)";
     serveHistory(() => json({ error }, 400));
     renderWithQueries(<History initial={{ clone: "clone-proj", ref: "refs/heads/gone" }} />);
-    expect(await screen.findByText(`Can't show this: ${error}`)).toBeInTheDocument();
+    expect(await screen.findByText(`Cannot show this: ${error}`)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "From HEAD" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });
@@ -335,7 +335,7 @@ describe("the History View", () => {
     expect(rows()).toEqual(["ccccccc Aside Lucas 2h ago"]);
   });
 
-  it("offers all files for a commit found by its hash that doesn't change the path", async () => {
+  it("offers all files for a commit found by its hash that does not change the path", async () => {
     const aside = commit(7, { subject: "Aside" });
     serveHistory((url) =>
       json(
@@ -347,7 +347,7 @@ describe("the History View", () => {
     renderWithQueries(
       <History initial={{ clone: "clone-proj", path: "a.txt", search: "ccccccc7" }} />,
     );
-    expect(await screen.findByText("doesn't change a.txt")).toBeInTheDocument();
+    expect(await screen.findByText("does not change a.txt")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "All files" }));
     expect(screen.getByRole("status")).toHaveTextContent(
       /^history\?clone=clone-proj&search=ccccccc7$/,

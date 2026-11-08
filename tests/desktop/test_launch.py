@@ -11,16 +11,16 @@ NPM = "uv run npm --prefix gui"
 
 
 def test_found_in_a_checkout_or_says_how_to_make_it(tmp_path: Path) -> None:
-    with pytest.raises(launch.DesktopError, match="doesn't run from a checkout"):
+    with pytest.raises(launch.DesktopError, match="does not run from a checkout"):
         launch.find(None)
     bare = desktop_checkout(tmp_path, None)
     with pytest.raises(launch.DesktopError) as missing:
         launch.find(bare)
     assert str(missing.value) == (
-        f"Electron isn't installed: `cd {bare} && {NPM} ci && {NPM} run fetch-electron`"
+        f"Electron is not installed: `cd {bare} && {NPM} ci && {NPM} run fetch-electron`"
     )
     unbuilt = desktop_checkout(tmp_path / "other", "true", built=False)
-    with pytest.raises(launch.DesktopError, match=f"isn't built: `cd .* && {NPM} run build`"):
+    with pytest.raises(launch.DesktopError, match=f"is not built: `cd .* && {NPM} run build`"):
         launch.find(unbuilt)
     assert launch.find(desktop_checkout(tmp_path / "ready", "true")).checkout.name == "checkout"
 

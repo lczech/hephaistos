@@ -29,12 +29,12 @@ function lint(source: string): string {
 // Panel or Group, so nothing reads dockview's elements (`lint/dock-elements.grit`).
 it("has lint reject reading dockview's elements, but where said why", () => {
   const read = "export const f = (group: { element: HTMLElement }) => group.element;\n";
-  expect(lint(read)).toContain("Don't read dockview's elements");
+  expect(lint(read)).toContain("Do not read dockview's elements");
   const excused = `export const f = (group: { element: HTMLElement }) =>
   // biome-ignore lint/plugin: why
   group.element;
 `;
-  expect(lint(excused)).not.toContain("Don't read dockview's elements");
+  expect(lint(excused)).not.toContain("Do not read dockview's elements");
 });
 
 // React's compiler memoizes (`lint/no-manual-memo.grit`).
@@ -46,5 +46,5 @@ export function useTwice(n: number) {
 }
 export const Shown = memo(() => null);
 `;
-  expect(lint(memoized).match(/Don't memoize by hand/g)).toHaveLength(3);
+  expect(lint(memoized).match(/Do not memoize by hand/g)).toHaveLength(3);
 });

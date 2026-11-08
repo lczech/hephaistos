@@ -76,9 +76,9 @@ def _connect(client: TestClient, **headers: str) -> WebSocketTestSession:
 
 
 def _admitted(socket: WebSocketTestSession, paths: Paths, looked: threading.Event) -> None:
-    """Sends the token, then waits for the live loop's first look: writes before it don't count."""
+    """Sends the token, then waits for the live loop's first look: writes before it do not count."""
     socket.send_json({"token": token.token(paths)})
-    assert looked.wait(10), "the live loop didn't look"
+    assert looked.wait(10), "the live loop did not look"
 
 
 def _write(paths: Paths) -> None:

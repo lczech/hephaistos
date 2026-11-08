@@ -60,7 +60,7 @@ class Planned:
 def _found(root: Path, depth: int) -> tuple[list[Path], list[tuple[Path, str]]]:
     """The directories with a `.git` entry at most `depth` levels below `root`, and the unreadable.
 
-    Unreadable directories come with why. Doesn't descend into what it finds, nor into hidden
+    Unreadable directories come with why. Does not descend into what it finds, nor into hidden
     directories. Follows symlinks after all else, so that a directory reached both ways is found
     by its real path; visits each directory once.
     """
@@ -180,7 +180,7 @@ class _Planner:
         key = matches[0] if matches else new_id()
         stored = key in self.names and key not in self.new
         if stored and (missing := self._missing(key, candidate)):
-            # Joining would make it a Clone of its own, so that the move can't be recorded.
+            # Joining would make it a Clone of its own, so that the move cannot be recorded.
             moves = (
                 f"hephaistos clone move {shell_path(gone)} {shell_path(typed)}" for gone in missing
             )
@@ -248,7 +248,7 @@ class _Planner:
     def _name(self, indexes: list[int]) -> str | None:
         """The name for a new Repository of these rows, sorted by path; None if they give none.
 
-        From the first remote that isn't a path on this machine, else as the first clone suggests.
+        From the first remote that is not a path on this machine, else as the first clone suggests.
         """
         candidates = [self.candidates[index] for index in indexes]
         named = (candidate.remote_name for candidate in candidates if candidate.remote_name)

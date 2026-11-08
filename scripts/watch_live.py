@@ -60,7 +60,7 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     except (OSError, websockets.InvalidHandshake) as error:
-        sys.exit(f"can't connect: {error}")
+        sys.exit(f"cannot connect: {error}")
 
 
 if __name__ == "__main__":

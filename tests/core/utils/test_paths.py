@@ -101,7 +101,7 @@ def test_displayed_keeps_symlinks(tmp_path: Path) -> None:
 
 
 def test_displayed_falls_back_to_target(tmp_path: Path) -> None:
-    # A symlink below the target: its levels can't be removed from the typed path.
+    # A symlink below the target: its levels cannot be removed from the typed path.
     (tmp_path / "real" / "deep" / "er").mkdir(parents=True)
     (tmp_path / "real" / "short").symlink_to(tmp_path / "real" / "deep" / "er")
     target = (tmp_path / "real").resolve()
@@ -113,14 +113,14 @@ def test_shell_path(monkeypatch: pytest.MonkeyPatch) -> None:
     assert shell_path(Path("/home/me")) == "~"
     assert shell_path(Path("/home/me/Repos/x")) == "~/Repos/x"
     assert shell_path(Path("/home/me/my repo")) == "~/'my repo'"
-    assert shell_path(Path("/srv/it's")) == """'/srv/it'"'"'s'"""
+    assert shell_path(Path("/srv/o'clock")) == """'/srv/o'"'"'clock'"""
     assert shell_path(Path("/home/meet")) == "/home/meet"
 
 
 def test_our_directories_are_private(paths: Paths, tmp_path: Path) -> None:
     created = private_directory(paths.data_dir)
     assert stat.S_IMODE(created.stat().st_mode) == PRIVATE_MODE
-    assert paths.make_private() == []  # the state directory doesn't exist yet
+    assert paths.make_private() == []  # the state directory does not exist yet
     paths.state_dir.mkdir(parents=True)
     paths.state_dir.chmod(0o755)
     assert paths.make_private() == [paths.state_dir]
@@ -136,6 +136,6 @@ def test_our_directories_are_private(paths: Paths, tmp_path: Path) -> None:
 
 def test_another_users_directory_is_refused(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
     private_directory(paths.data_dir)
-    monkeypatch.setattr(os, "getuid", lambda: 4321)  # as if the directory were another's
+    monkeypatch.setattr(os, "getuid", lambda: 4321)  # as if another user held the directory
     with pytest.raises(ForeignDirectoryError, match="belongs to another user"):
         paths.make_private()

@@ -117,7 +117,7 @@ describe("the Log View", () => {
     expect(asked(requests).get("limit")).toBe(String(LOG_PAGE));
   });
 
-  it("says when there are none, and when lines weren't records", async () => {
+  it("says when there are none, and when lines were not records", async () => {
     serveLog([]);
     const { unmount } = renderWithQueries(<Log at={{ since: "1h" }} />);
     expect(await screen.findByText("No records match.")).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("the Log View", () => {
     serveLog([entry(1)], 2);
     renderWithQueries(<Log />);
     expect(
-      await screen.findByText("Some lines in the log files aren't records."),
+      await screen.findByText("Some lines in the log files are not records."),
     ).toBeInTheDocument();
   });
 });

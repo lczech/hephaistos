@@ -1,8 +1,8 @@
 """The Daemon's systemd user unit: written by `daemon install`, run and stopped through systemd.
 
-The unit runs the hephaistos that installed it, by the path it was run as: a link such as
+The unit runs the hephaistos instance that installed it, by the path it was run as: a link such as
 `~/.local/bin/hephaistos` stays valid when the tool is reinstalled behind it. It carries the
-variables that choose our directories, as systemd doesn't see the shell's.
+variables that choose our directories, as systemd does not see those of the shell.
 """
 
 import getpass
@@ -29,16 +29,16 @@ START_WAIT = 10.0  # seconds a started Daemon gets to take its lock
 STOP_WAIT = 10.0  # seconds a Daemon not under systemd gets to stop
 POLL = 0.05  # seconds between looking again
 NOT_AVAILABLE = (
-    "systemd user services aren't available here; run `hephaistos daemon run`, e.g. in tmux"
+    "systemd user services are not available here; run `hephaistos daemon run`, e.g. in tmux"
 )
 
 
 class SystemdError(HephaistosError):
-    """systemd isn't available, or refused what we asked."""
+    """systemd is not available, or refused what we asked."""
 
 
 class ForeignUnitError(HephaistosError):
-    """A unit with our name exists that we didn't write."""
+    """A unit with our name exists that we did not write."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +93,7 @@ def unit_text(executable: Path, env: Mapping[str, str]) -> str:
             *variables,
             "Restart=on-failure",
             "RestartSec=5",
-            "RestartPreventExitStatus=78",  # EX_CONFIG: it can't start, and retrying won't help
+            "RestartPreventExitStatus=78",  # EX_CONFIG: it cannot start, and retrying will not help
             "",
             "[Install]",
             "WantedBy=default.target",
@@ -103,13 +103,13 @@ def unit_text(executable: Path, env: Mapping[str, str]) -> str:
 
 
 def installed_text() -> str | None:
-    """Our unit as installed; None if there is none. Raises ForeignUnitError for another's."""
+    """Our unit as installed; None if there is none. Raises ForeignUnitError for a unit not ours."""
     try:
         text = unit_file().read_text()
     except FileNotFoundError:
         return None
     if not text.startswith(MARKER):
-        raise ForeignUnitError(f"{unit_file()} wasn't written by hephaistos; leaving it alone")
+        raise ForeignUnitError(f"{unit_file()} was not written by hephaistos; leaving it alone")
     return text
 
 
@@ -150,7 +150,7 @@ def other_directories_text(differences: Sequence[Difference]) -> str:
 def installation_differences(
     text: str, executable: Path, env: Mapping[str, str]
 ) -> list[Difference]:
-    """Where an installed unit runs another hephaistos, or uses other directories, than `env`.
+    """Where an installed unit runs another hephaistos instance, or other directories, than `env`.
 
     Such a unit belongs to another installation, e.g. the real one for a worktree with a scratch
     home: one to replace only when asked, unlike a unit that only an update of hephaistos changed.
@@ -165,12 +165,12 @@ def installation_differences(
 
 
 def settings_variables(env: Mapping[str, str]) -> list[str]:
-    """The settings variables set in `env`, which the Daemon under systemd doesn't see."""
+    """The settings variables set in `env`, which the Daemon under systemd does not see."""
     return [name for key in config.KEYS if env.get(name := config.variable(key))]
 
 
 def _run(*command: str) -> subprocess.CompletedProcess[str]:
-    """Runs systemctl or loginctl; raises SystemdError if it can't run."""
+    """Runs systemctl or loginctl; raises SystemdError if it cannot run."""
     try:
         return subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             command, capture_output=True, text=True, check=False, timeout=TIMEOUT
@@ -197,13 +197,13 @@ def is_available() -> bool:
 
 
 def _require_systemd() -> None:
-    """Raises SystemdError if systemd user services aren't available."""
+    """Raises SystemdError if systemd user services are not available."""
     if not is_available():
         raise SystemdError(NOT_AVAILABLE)
 
 
 def unit_state() -> UnitState | None:
-    """What systemd says about our unit; None if systemd isn't available."""
+    """What systemd says about our unit; None if systemd is not available."""
     if not is_available():
         return None
     properties = "LoadState,UnitFileState,ActiveState,ExecMainStatus"
@@ -283,7 +283,7 @@ def _running_pid(directory: Path) -> int | None:
 
 
 def _refuse_daemon_without_systemd(paths: Paths) -> None:
-    """Raises if a Daemon runs that systemd didn't start, which systemd couldn't stop."""
+    """Raises if a Daemon runs that systemd did not start, which systemd could not stop."""
     state = unit_state()
     if state is None:
         raise SystemdError(NOT_AVAILABLE)
@@ -306,10 +306,10 @@ def wait_started(paths: Paths, previous: int | None = None) -> int:
         if state is not None and state.active in {"failed", "inactive"}:
             code = f" (exit code {state.exit_code})" if state.exit_code else ""
             raise SystemdError(
-                f"the daemon didn't start{code}; see `hephaistos log show --process daemon`"
+                f"the daemon did not start{code}; see `hephaistos log show --process daemon`"
             )
         time.sleep(POLL)
-    raise SystemdError(f"the daemon didn't start within {START_WAIT:g} s")
+    raise SystemdError(f"the daemon did not start within {START_WAIT:g} s")
 
 
 def _require_installed(env: Mapping[str, str]) -> None:
@@ -320,7 +320,7 @@ def _require_installed(env: Mapping[str, str]) -> None:
     text = installed_text()
     if text is None:
         raise SystemdError(
-            "the daemon isn't installed; run `hephaistos daemon install`,"
+            "the daemon is not installed; run `hephaistos daemon install`,"
             " or `hephaistos daemon run` for this session"
         )
     if differences := path_differences(text, env):
@@ -359,7 +359,7 @@ def stop(paths: Paths) -> int | None:
     if not status.is_running(paths.state_dir):
         return None
     if pid is None:
-        raise HephaistosError("a daemon is running, but its status file doesn't say which")
+        raise HephaistosError("a daemon is running, but its status file does not say which")
     os.kill(pid, signal.SIGTERM)
     deadline = time.monotonic() + STOP_WAIT
     while status.is_running(paths.state_dir):

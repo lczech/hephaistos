@@ -39,7 +39,7 @@ export function searchedEntries(found: Found | null | undefined, commits: Commit
 
 /** Where a commit searched for by its hash is, if not listed: `not on main, but on:`. */
 export function whereText(found: Found, walked: string, path: string | undefined): string {
-  if (found.where === "path") return `doesn't change ${path}`;
+  if (found.where === "path") return `does not change ${path}`;
   if (found.where === "refs") return `not on ${walked}, but on:`;
   return "no branch or tag leads to it any more";
 }

@@ -147,7 +147,7 @@ class MountInfo:
 
     @property
     def is_network(self) -> bool:
-        """Whether this is a network filesystem, where SQLite's WAL mode doesn't work."""
+        """Whether this is a network filesystem, where SQLite's WAL mode does not work."""
         return self.fstype in NETWORK_FILESYSTEMS
 
 
@@ -202,7 +202,7 @@ def displayed(typed: Path, target: Path) -> Path:
     """`target` as the user sees it, given `typed`, an absolute path at or below it.
 
     `target` is a resolved ancestor of what `typed` resolves to. The levels below it are removed
-    from `typed`, keeping its symlinks; if that doesn't lead to `target`, `target` is returned.
+    from `typed`, keeping its symlinks; if that does not lead to `target`, `target` is returned.
     """
     resolved = typed.resolve()
     if not resolved.is_relative_to(target):

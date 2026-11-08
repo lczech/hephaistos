@@ -197,7 +197,7 @@ def test_database_busy_too_long_is_reported(set_up: Paths, monkeypatch: pytest.M
         holder.execute("BEGIN IMMEDIATE")  # another process, writing for long
         with pytest.raises(DatabaseBusyError, match=r"busy for 0\.05 s"), write_session(set_up):
             pass
-        with read_session(set_up) as session:  # reading doesn't wait
+        with read_session(set_up) as session:  # reading does not wait
             assert session.clock_value > 0
     finally:
         holder.execute("ROLLBACK")
@@ -226,8 +226,8 @@ def test_write_session_rolls_back_on_error(set_up: Paths) -> None:
             SCHEMA_VERSION - 1,
             "old",
             (
-                rf"has schema {SCHEMA_VERSION - 1}; this hephaistos needs {SCHEMA_VERSION}:"
-                r" .*setup --reset"
+                rf"has schema {SCHEMA_VERSION - 1};"
+                rf" this version of hephaistos needs {SCHEMA_VERSION}: .*setup --reset"
             ),
         ),
         (
@@ -238,7 +238,10 @@ def test_write_session_rolls_back_on_error(set_up: Paths) -> None:
         (
             SCHEMA_VERSION,
             "changed",
-            rf"schema {SCHEMA_VERSION} differs from this hephaistos's: .*setup --reset",
+            (
+                rf"schema {SCHEMA_VERSION},"
+                r" which differs from that of this version of hephaistos: .*--reset"
+            ),
         ),
     ],
 )

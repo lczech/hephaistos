@@ -1,4 +1,4 @@
-// Why a View of a Checkout can't show it: a note above what it showed before, or, once the
+// Why a View of a Checkout cannot show it: a note above what it showed before, or, once the
 // Checkout is gone, in place of all of it. Both link to the Events that say what happened.
 // Any View words a failed load as they do.
 
@@ -53,11 +53,11 @@ function EventsLink({ error }: { error: Error }) {
   return <ViewLink address={address} label={`The ${whose}'s events`} named />;
 }
 
-/** That loading failed: `Can't show this: …` where the Server refused and says why, e.g. that a
- * branch doesn't exist; else `Couldn't load: …`, as the request failed. */
+/** That loading failed: `Cannot show this: …` where the Server refused and says why, e.g. that a
+ * branch does not exist; else `Could not load: …`, as the request failed. */
 export function loadErrorText(error: Error): string {
   const refused = error instanceof ApiError && error.status < 500;
-  return `${refused ? "Can't show this" : "Couldn't load"}: ${error.message}`;
+  return `${refused ? "Cannot show this" : "Could not load"}: ${error.message}`;
 }
 
 /** That loading failed, above what showed before; `children` offer a way on. */

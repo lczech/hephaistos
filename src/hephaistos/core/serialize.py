@@ -49,7 +49,7 @@ API_VERSION = ApiVersion(0, 21)
 
 
 class Ref(TypedDict):
-    """Another entity: its ID, and its name if known (a Machine not yet synced isn't)."""
+    """Another entity: its ID, and its name if known (a Machine not yet synced is not)."""
 
     id: str
     name: str | None
@@ -179,7 +179,7 @@ class EventJson(TypedDict):
     priority: int
     kind: str
     subject: SubjectRef
-    repository: Ref | None  # the subject's: itself, or its Clone's or Worktree's
+    repository: Ref | None  # of the subject: itself, or that of its Clone or Worktree
     summary: str  # what the payload says, in short; empty where the subject says it all
     details: list[DetailJson]  # what the payload says, field by field
     payload: dict[str, Any]
@@ -455,7 +455,7 @@ class SourceJson(TypedDict):
 
 
 class UnknownVariableJson(TypedDict):
-    """A `HEPHAISTOS_*` variable that isn't a setting's, with the closest one that is."""
+    """A `HEPHAISTOS_*` variable that names no setting, with the closest one that does."""
 
     name: str
     closest: str | None
@@ -533,13 +533,13 @@ class TableJson(TypedDict):
     """A table of the database: its category, rows and latest change."""
 
     table: str
-    category: str | None  # None for a table this version doesn't know
+    category: str | None  # None for a table this version does not know
     rows: int | None  # None if this version's table is missing
     latest: str | None  # a clock value, as in rows: `2026-10-14T20:27:20.096+00:00 #3`
 
 
 class TablesJson(TypedDict):
-    """The database's tables, and what's unusual about them."""
+    """The tables of the database, and what is unusual about them."""
 
     tables: list[TableJson]
     warnings: list[str]
@@ -561,13 +561,13 @@ class RowsJson(TypedDict):
 
 
 def db_warnings(session: ReadSession, found: Sequence[raw.TableSummary] = ()) -> list[str]:
-    """What's unusual about the database: another schema, unknown tables among `found`."""
+    """What is unusual about the database: another schema, unknown tables among `found`."""
     warnings: list[str] = []
     if (mismatch := session.schema_mismatch) is not None:
         warnings.append(f"{mismatch}; showing it as stored")
     if unknown := [table.name for table in found if table.category is None]:
         tables = "1 table" if len(unknown) == 1 else f"{len(unknown)} tables"
-        warnings.append(f"{tables} not in this version's schema: {', '.join(unknown)}")
+        warnings.append(f"{tables} not in the schema of this version: {', '.join(unknown)}")
     return warnings
 
 
@@ -618,7 +618,7 @@ class LogEntryJson(TypedDict):
 
 
 class LogJson(TypedDict):
-    """Log entries, newest first, and how many lines weren't records."""
+    """Log entries, newest first, and how many lines were not records."""
 
     entries: list[LogEntryJson]
     skipped: int
@@ -657,8 +657,8 @@ class ChangeJson(TypedDict):
     added: int | None  # None for binary files, those too large, and folders
     removed: int | None
     binary: bool
-    size: int | None  # the new version's; None if deleted, or not needed
-    old_size: int | None  # the old version's; None if added, or not needed
+    size: int | None  # of the new version; None if deleted, or not needed
+    old_size: int | None  # of the old version; None if added, or not needed
     files: int | None  # in a new folder; at most 10,000 are counted
     more_files: bool  # a new folder with more files than counted
 
@@ -870,7 +870,7 @@ def changes_json(found: changes.Changes, commit: ShownCommitJson | None = None) 
 class DiffJson(TypedDict):
     """A file's change, with git's patch for it, if it has one up to `gui.diff.max_bytes`."""
 
-    change: ChangeJson | None  # None if the file doesn't differ
+    change: ChangeJson | None  # None if the file does not differ
     patch: str | None  # None without a change, for binary files, and those too large
 
 
@@ -898,7 +898,7 @@ def diffs_json(found: changes.Diffs) -> DiffsJson:
 
 
 class DiffFilesJson(TypedDict):
-    """A file's contents in the two states compared; None where it doesn't exist."""
+    """A file's contents in the two states compared; None where it does not exist."""
 
     old: str | None
     new: str | None

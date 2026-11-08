@@ -29,7 +29,7 @@ A missing key leaves the setting to the layer below.
 Settings are checked against typed sections (`Settings` in `config.py`), with limits.
 Unknown keys, wrong types and wrong values fail, naming the file or variable and the key.
 A broken config stops every command except `--help`, `--version`, `log`, `config` and `daemon`.
-Those run on the defaults, with a warning; `daemon run` doesn't start.
+Those run on the defaults, with a warning; `daemon run` does not start.
 
 ## Loading
 

@@ -182,6 +182,6 @@ describe("a part that fails", () => {
     } finally {
       console.error = quiet;
     }
-    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't show this: no such field");
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not show this: no such field");
   });
 });

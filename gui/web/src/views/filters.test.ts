@@ -16,7 +16,7 @@ describe("a list's column filters", () => {
     expect(columnFilters(columns, {})).toEqual([]);
   });
 
-  it("become parameters again, beside those that aren't filters", () => {
+  it("become parameters again, beside those that are not filters", () => {
     const params = { kind: "clone", since: "1d", worktree: "01" };
     const filters = [{ id: "kind", value: ["clone", "worktree"] }];
     expect(filteredParams(columns, params, filters)).toEqual({

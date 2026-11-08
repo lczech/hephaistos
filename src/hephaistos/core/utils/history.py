@@ -30,7 +30,7 @@ _HASH = re.compile(r"[0-9a-fA-F]{4,40}")
 
 
 class HistoryError(HephaistosError):
-    """A history that can't be walked here: an unknown ref, or a path outside the Checkout."""
+    """A history that cannot be walked here: an unknown ref, or a path outside the Checkout."""
 
 
 @dataclass(frozen=True)
@@ -214,7 +214,7 @@ def _renamed_from(top: Path, commit: tuple[str, ...], path: str) -> str | None:
 
 
 def _start(top: Path, ref: str | None) -> str | None:
-    """The commit a ref names, or HEAD's; None before the first; raises for an unknown ref."""
+    """The commit a ref names, or that of HEAD; None before the first; raises for an unknown ref."""
     if found := git.commit(top, ref or "HEAD"):
         return found
     if ref is None:

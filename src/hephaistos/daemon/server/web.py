@@ -64,12 +64,12 @@ def _file(request: Request, name: str, cache: str) -> FileResponse:
 def _not_built(built: Path | None) -> HTMLResponse:
     """The page shown without a build: how to make one."""
     if built is None:
-        text = "This hephaistos doesn't run from a checkout, so it has no GUI yet."
+        text = "This hephaistos does not run from a checkout, so it has no GUI yet."
     else:
         checkout = html.escape(shell_path(built.parents[len(BUILD.parts) - 1]))
         npm = f"uv run npm --prefix {PACKAGE}"  # uv finds our Node only in the checkout
         text = (
-            f"The GUI isn't built yet: <code>cd {checkout} &amp;&amp; {npm} ci &amp;&amp;"
+            f"The GUI is not built yet: <code>cd {checkout} &amp;&amp; {npm} ci &amp;&amp;"
             f" {npm} run build</code>, then reload."
         )
     page = f"<!doctype html><title>hephaistos</title><p>{text}</p>\n"

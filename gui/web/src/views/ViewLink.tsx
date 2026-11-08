@@ -8,8 +8,8 @@ import styles from "./ViewLink.module.css";
 interface Props {
   address: Address;
   label: string; // what it shows: `The Daemon's log`
-  named?: boolean; // the kind's name after its icon, where there's room: `Log`
-  icon?: LucideIcon; // instead of the kind's
+  named?: boolean; // the name of the kind after its icon, where there is room: `Log`
+  icon?: LucideIcon; // instead of the icon of the kind
   quiet?: boolean; // greyed out, when what it shows needs no look, e.g. no changes
   note?: string; // after the label in its tooltip: `no changes`
 }

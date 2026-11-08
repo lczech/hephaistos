@@ -48,9 +48,9 @@ describe("the Config View", () => {
     expect(await screen.findByText("~/.config/hephaistos/config.toml")).toBeInTheDocument();
   });
 
-  it("says when the Daemon doesn't answer", async () => {
+  it("says when the Daemon does not answer", async () => {
     serve({ "GET /api/config": () => json({ error: "gone" }, 500) });
     renderWithQueries(<ConfigView />);
-    expect(await screen.findByText("Couldn't load: gone")).toBeInTheDocument();
+    expect(await screen.findByText("Could not load: gone")).toBeInTheDocument();
   });
 });

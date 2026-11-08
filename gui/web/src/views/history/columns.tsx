@@ -23,8 +23,8 @@ export interface FoundActions {
 
 /**
  * The History list's columns: a commit's hash, with its Changes and Diff; its subject after its
- * branches and tags; who wrote it, and when. A rename's
- * row says only where the file was before.
+ * branches and tags; who wrote it, and when. The row of a rename
+ * says only where the file was before.
  */
 export function historyColumns(
   checkout: Checkout | undefined,
@@ -118,7 +118,7 @@ export function historyColumns(
   ]);
 }
 
-/** A commit searched for by its hash that isn't listed: where it is, and ways to show it. */
+/** A commit searched for by its hash that is not listed: where it is, and ways to show it. */
 function FoundWhere({ found, actions }: { found: Found; actions: FoundActions }) {
   const shown = found.refs.slice(0, SHOWN_REFS);
   const more = found.refs.slice(SHOWN_REFS);

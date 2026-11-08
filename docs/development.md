@@ -38,6 +38,7 @@ src/hephaistos/
 ```
 
 `tests/test_structure.py` checks what each part imports ([ADR 002](decisions/002-technology-stack.md#components)).
+`tests/test_style.py` checks the [style](style.md) that a program can check.
 
 ## Naming
 
@@ -64,7 +65,7 @@ Vite builds into `gui/web/dist/` (not in git), which the Server serves.
 `gui/package.json` is one npm package for the GUI and the Desktop, and Electron's app.
 
 React's compiler memoizes components and hooks, strictly.
-A component or hook it can't compile, e.g. one against the Rules of React, fails the build and the tests; a test checks that the compiler runs.
+A component or hook it cannot compile, e.g. one against the Rules of React, fails the build and the tests; a test checks that the compiler runs.
 So there is no memoization by hand, which lint rejects.
 What must stay as it was, e.g. a diff given to the renderer, is held in state, not memoized.
 
@@ -89,6 +90,6 @@ pytest tests the Core, with fake plugins standing in for real tools.
 `scripts/test_git_versions.sh` runs them with several git versions.
 Vitest and Testing Library test the GUI, in jsdom.
 What only a browser lays out, e.g. what the diff renderer draws, is tested in real browsers: Playwright's Chromium, Firefox and WebKit.
-Those tests guard what we rely on that the renderer doesn't promise.
+Those tests guard what we rely on that the renderer does not promise.
 GUI tests reach no Server: each test answers the requests it expects, and any other fails, also after the test ended.
-Vite's dev server proxies `/api` to the Daemon's, but not for Vitest.
+The Vite dev server proxies `/api` to the Server, but not for Vitest.

@@ -6,7 +6,7 @@ import styles from "./table.module.css";
 export interface ColumnLook {
   width?: string; // a CSS grid track instead of the column's size, for one not resized: a square
   filter?: ColumnFilterLook; // if the list can be filtered by it
-  description?: string; // what it shows, if its label doesn't say: in the header's tooltip
+  description?: string; // what it shows, if its label does not say: in the header's tooltip
   end?: boolean; // its header at its end, over what its cells align there, e.g. numbers
   identifies?: boolean; // says what a row is: never hidden
   second?: boolean; // in two lines, on the second line, quieter

@@ -16,7 +16,7 @@ NPM = f"uv run npm --prefix {PACKAGE}"
 SETSID = "setsid"  # util-linux  # uv finds our Node only in the checkout
 
 # What the Desktop's main process is told (`gui/desktop/src/main.ts`).
-EXECUTABLE_VARIABLE = "HEPHAISTOS_EXECUTABLE"  # the hephaistos to ask for links and starts
+EXECUTABLE_VARIABLE = "HEPHAISTOS_EXECUTABLE"  # the hephaistos instance to ask for links and starts
 PROFILE_VARIABLE = "HEPHAISTOS_DESKTOP_PROFILE"  # Chromium's profile: storage, the saved Layout
 TOKEN_VARIABLE = "HEPHAISTOS_TOKEN_FILE"  # noqa: S105 - a name; watched, to follow a renewed token
 AS_NODE_VARIABLE = "ELECTRON_RUN_AS_NODE"  # set by editors built on Electron, e.g. VS Code
@@ -28,7 +28,7 @@ POLL = 0.1
 
 
 class DesktopError(HephaistosError):
-    """The Desktop can't start."""
+    """The Desktop cannot start."""
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,9 @@ class Desktop:
 def located(checkout: Path | None) -> Desktop:
     """The Desktop in the checkout hephaistos runs from, built or not; raises without one."""
     if checkout is None:
-        raise DesktopError("this hephaistos doesn't run from a checkout, so it has no desktop yet")
+        raise DesktopError(
+            "this hephaistos instance does not run from a checkout, so it has no desktop app yet"
+        )
     return Desktop(checkout)
 
 
@@ -56,10 +58,10 @@ def find(checkout: Path | None) -> Desktop:
     where = f"cd {shell_path(desktop.checkout)} && "
     if not desktop.electron.is_file():
         raise DesktopError(
-            f"Electron isn't installed: `{where}{NPM} ci && {NPM} run fetch-electron`"
+            f"Electron is not installed: `{where}{NPM} ci && {NPM} run fetch-electron`"
         )
     if not (desktop.checkout / MAIN).is_file():
-        raise DesktopError(f"the desktop app isn't built: `{where}{NPM} run build`")
+        raise DesktopError(f"the desktop app is not built: `{where}{NPM} run build`")
     return desktop
 
 

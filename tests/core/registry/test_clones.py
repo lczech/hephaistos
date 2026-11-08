@@ -319,7 +319,7 @@ def test_move_onto_another_filesystem(set_up: Paths, tmp_path: Path) -> None:
 
 
 def test_move_leaves_a_locked_worktree_behind(set_up: Paths, tmp_path: Path) -> None:
-    """A locked Worktree that is away (e.g. on an unplugged disk) doesn't block a move."""
+    """A locked Worktree that is away (e.g. on an unplugged disk) does not block a move."""
     repo = create(tmp_path / "repo")
     git(repo, "worktree", "add", "--quiet", str(tmp_path / "usb"))
     git(repo, "worktree", "lock", str(tmp_path / "usb"))

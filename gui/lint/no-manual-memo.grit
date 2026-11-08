@@ -1,5 +1,5 @@
 // React's compiler memoizes every component and hook (gui/web/vite.config.ts): memoizing by hand
-// only adds code, and says the compiler isn't trusted.
+// only adds code, and says the compiler is not trusted.
 language js
 
 or {
@@ -8,5 +8,5 @@ or {
   `memo($args)`,
   `React.memo($args)`
 } as $call where {
-  register_diagnostic(span=$call, message="Don't memoize by hand: React's compiler memoizes every component and hook.")
+  register_diagnostic(span=$call, message="Do not memoize by hand: React's compiler memoizes every component and hook.")
 }

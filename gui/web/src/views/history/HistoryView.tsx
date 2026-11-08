@@ -70,7 +70,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const now = useNow(10_000);
 
   const first = history.data?.pages[0];
-  // What isn't committed shows above HEAD's commits, but has no message to search.
+  // What is not committed shows above HEAD's commits, but has no message to search.
   const uncommitted = useUncommitted(
     checkout,
     path,

@@ -701,7 +701,7 @@
         "type": "object"
       },
       "DiffFilesJson": {
-        "description": "A file's contents in the two states compared; None where it doesn't exist.",
+        "description": "A file's contents in the two states compared; None where it does not exist.",
         "properties": {
           "new": {
             "anyOf": [
@@ -1138,7 +1138,7 @@
         "type": "object"
       },
       "InfoJson": {
-        "description": "What a client checks first: which hephaistos and API answer, on which Machine.",
+        "description": "What a client checks first: the versions of hephaistos and its API, and the Machine.",
         "properties": {
           "api": {
             "$ref": "#/components/schemas/ApiVersionJson"
@@ -1235,7 +1235,7 @@
         "type": "object"
       },
       "LogJson": {
-        "description": "Log entries, newest first, and how many lines weren't records.",
+        "description": "Log entries, newest first, and how many lines were not records.",
         "properties": {
           "entries": {
             "items": {
@@ -1500,7 +1500,7 @@
         "type": "object"
       },
       "Ref": {
-        "description": "Another entity: its ID, and its name if known (a Machine not yet synced isn't).",
+        "description": "Another entity: its ID, and its name if known (a Machine not yet synced is not).",
         "properties": {
           "id": {
             "title": "Id",
@@ -2003,7 +2003,7 @@
         "type": "object"
       },
       "TablesJson": {
-        "description": "The database's tables, and what's unusual about them.",
+        "description": "The tables of the database, and what is unusual about them.",
         "properties": {
           "tables": {
             "items": {
@@ -2069,7 +2069,7 @@
         "type": "object"
       },
       "UnknownVariableJson": {
-        "description": "A `HEPHAISTOS_*` variable that isn't a setting's, with the closest one that is.",
+        "description": "A `HEPHAISTOS_*` variable that names no setting, with the closest one that does.",
         "properties": {
           "closest": {
             "anyOf": [
@@ -3415,7 +3415,7 @@
     },
     "/api/history": {
       "get": {
-        "description": "A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. `path` keeps those that changed a file or folder, following a\nfile's renames; `search`, those whose message has all of its words. A search for one hash\n(4 to 40 hex digits) also finds its commit, wherever it is, on the first page. A page's\n`next` gives `start`, `path` and `skip` to go on where it ended, with the same `search`\nand `everywhere`.",
+        "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. `path` keeps those that changed a file or folder, following a\nfile's renames; `search`, those whose message has all of its words. A search for one hash\n(4 to 40 hex digits) also finds its commit, wherever it is, on the first page. The `next`\nof a page gives `start`, `path` and `skip` to go on where it ended, with the same `search`\nand `everywhere`.",
         "operationId": "history_show_api_history_get",
         "parameters": [
           {

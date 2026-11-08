@@ -22,7 +22,7 @@ interface Props {
 
 /**
  * A field opening a menu to choose one from, the one picked checked: our own, so that it looks
- * as the GUI does, dark too, which the browser's `select` can't.
+ * as the GUI does, dark too, which the browser's `select` cannot.
  */
 export function Picker({ label, title, picks, picked, onPick, placement, children }: Props) {
   return (

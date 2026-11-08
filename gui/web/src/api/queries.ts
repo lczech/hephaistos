@@ -85,7 +85,7 @@ function changesQuery(query: ChangesQuery) {
 /**
  * A Checkout's changes, which git reads anew each time: asked again on a hint, as files
  * changed by hand change no State, on focus too. Others keep showing until theirs arrive, but
- * not when none are asked for: a disabled query never replaces them, so they'd stay stale.
+ * not when none are asked for: a disabled query never replaces them, so they would stay stale.
  */
 export function useChanges(query: ChangesQuery) {
   const enabled = query.clone !== undefined || query.worktree !== undefined;
@@ -105,7 +105,7 @@ export function useChangesWithin(query: ChangesQuery, folders: string[]) {
 /** Which file's change, compared how; the lines around each change come from the settings. */
 export type DiffQuery = NonNullable<paths["/api/diff/files"]["get"]["parameters"]["query"]>;
 
-/** The lines around each hunk, from the settings once known; undefined while they aren't. */
+/** The lines around each hunk, from the settings once known; undefined while they are not. */
 function useDiffContext(): { context?: number } | undefined {
   const config = useConfig();
   if (config.isPending) return undefined;
@@ -113,7 +113,7 @@ function useDiffContext(): { context?: number } | undefined {
   return typeof context === "number" ? { context } : {};
 }
 
-// Undefined while it can't be asked yet, for a disabled query.
+// Undefined while it cannot be asked yet, for a disabled query.
 function diffQuery(asked: DiffQuery | undefined) {
   return {
     queryKey: [...KEYS.diff, "patch", asked],
@@ -124,7 +124,7 @@ function diffQuery(asked: DiffQuery | undefined) {
 
 /**
  * A file's change and git's patch, with `gui.diff.context` lines around each hunk, asked once
- * the settings are known (or can't be); again as the Checkout's changes are.
+ * the settings are known (or cannot be); again as the Checkout's changes are.
  */
 export function useDiff(query: DiffQuery | undefined) {
   const context = useDiffContext();
@@ -147,7 +147,7 @@ export function useDiffsOf(base: Omit<DiffQuery, "path">, paths: readonly string
   });
 }
 
-/** Which comparison's diffs: `/api/diffs`'s parameters, but the page's. */
+/** Which comparison to show the diffs of: the parameters of `/api/diffs`, without the page. */
 export type DiffsQuery = Omit<DiffQuery, "path">;
 
 /**

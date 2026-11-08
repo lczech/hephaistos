@@ -21,7 +21,7 @@ export class Boundary extends Component<Props, State> {
     if (this.state.error === null) return this.props.children;
     return (
       <section className={styles.failed} role="alert">
-        <p>Couldn't show this: {this.state.error.message}</p>
+        <p>Could not show this: {this.state.error.message}</p>
       </section>
     );
   }

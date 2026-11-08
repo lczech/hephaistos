@@ -13,7 +13,7 @@ export interface Steps {
 
 export const LISTEN_WAIT = 10_000; // ms a started Daemon gets for its Server to listen
 export const POLL = 500; // ms between asking for the link meanwhile
-export const RETRY = 5_000; // ms between tries while the Daemon doesn't run
+export const RETRY = 5_000; // ms between tries while the Daemon does not run
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,7 +24,7 @@ export class Connector {
 
   constructor(private readonly steps: Steps) {}
 
-  /** Tries at once, starting the Daemon if it doesn't run; then every RETRY, without. */
+  /** Tries at once, starting the Daemon if it does not run; then every RETRY, without. */
   now(): Promise<void> {
     return this.connect(true);
   }

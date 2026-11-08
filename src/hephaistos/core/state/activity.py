@@ -1,7 +1,7 @@
 """Git activity: what was done in a Checkout, read from its reflogs since a cursor.
 
 Reflog messages are git's own text, stable in practice but not specified; what this module
-can't name becomes `head_moved` with the message.
+cannot name becomes `head_moved` with the message.
 """
 
 import hashlib
@@ -60,9 +60,9 @@ def end(entries: Sequence[ReflogEntry]) -> Cursor:
 
 
 def unread(entries: Sequence[ReflogEntry], cursor: Cursor) -> list[ReflogEntry] | None:
-    """The entries (newest first) after `cursor`, oldest first; None if it isn't among them.
+    """The entries (newest first) after `cursor`, oldest first; None if it is not among them.
 
-    Identical entries within one second look alike: the newest is taken as the cursor's, so
+    Identical entries within one second look alike: the newest is taken as the cursor, so
     the entries between them are skipped. Rare enough to accept.
     """
     for index, entry in enumerate(entries):
@@ -149,14 +149,14 @@ class SwitchedPayload(ActivityPayload):
 
 @dataclass(frozen=True)
 class HeadMovedPayload(ActivityPayload):
-    """The payload of `head_moved`: git's message, where we don't know its kind."""
+    """The payload of `head_moved`: git's message, where we do not know its kind."""
 
     message: str
 
 
 @dataclass(frozen=True)
 class Activity:
-    """One thing done in a Checkout, as an Event's kind, time (git's) and payload."""
+    """One thing done in a Checkout, as the kind, time (from git) and payload of an Event."""
 
     kind: ActivityKind
     occurred_at: datetime

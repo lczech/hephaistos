@@ -12,7 +12,7 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 heph="$repo/.venv/bin/hephaistos"
 export HEPHAISTOS_HOME="$home"
 
-# The scratch Daemon's processes, found by their HEPHAISTOS_HOME: never the real Daemon's.
+# The processes of the scratch Daemon, found by their HEPHAISTOS_HOME: never those of the real one.
 pids() {
     for pid in $(pgrep -f "hephaistos daemon run"); do
         if tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | grep -qx "HEPHAISTOS_HOME=$home"; then
@@ -39,7 +39,7 @@ start)
 stop)
     found=$(pids)
     if [ -z "$found" ]; then
-        echo "the scratch Daemon doesn't run" >&2
+        echo "the scratch Daemon does not run" >&2
         exit 1
     fi
     kill -TERM $found && echo "stopped"

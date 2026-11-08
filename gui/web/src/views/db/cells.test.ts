@@ -15,7 +15,7 @@ describe("a cell", () => {
     expect(cellText(null, "clock")).toBeNull();
   });
 
-  it("shows what doesn't fit its type as it is", () => {
+  it("shows what does not fit its type as it is", () => {
     expect(cellText("not a time #3", "clock")).toBe("not a time #3");
     expect(cellText("soon", "time")).toBe("soon");
     expect(cellText(`${AT} #3`, "plain")).toBe(`${AT} #3`);

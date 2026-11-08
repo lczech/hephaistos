@@ -55,7 +55,7 @@ With fewer tabs than columns, the last columns are empty Groups, whatever `gui.k
 Each run reuses its first tab's Group, unless an earlier run did, so that the Group keeps its steps back and forward; other Groups close.
 Each Group shows the first of its tabs that was shown, else its first; the focus stays on its tab.
 No tab stays a preview.
-The buttons make no rows; rows made by hand within the columns stay while the button pressed is the current count's.
+The buttons make no rows; rows made by hand within the columns stay while the button pressed is the one for the current count.
 That button is pressed while the top has that many columns, rows within them or not; pressing it again only evens out their widths.
 
 ## Dividers
@@ -73,15 +73,15 @@ A link opens its View as a preview.
 A Group has one preview at a time, which the next preview replaces, also when that preview opened it: the Panel stays and its View changes.
 A preview's title is in italics.
 It becomes an ordinary Panel once its tab is double-clicked, once it is changed (filtered, sorted, …), or once it is dragged to another Group.
-A double click on a link doesn't keep it, as its second click would land in the View opened.
-Whether a Panel is a preview is a Panel parameter beside its View's, so the Layout keeps it.
+A double click on a link does not keep it, as its second click would land in the View opened.
+Whether a Panel is a preview is a Panel parameter beside the parameters of its View, so the Layout keeps it.
 
 ## Going back and forward
 
 Each Group goes back and forward through the Views it showed, as a browser tab does (`layout/visits.ts`).
 The mouse's side buttons do so over a Group's tabs, its View or its placeholder.
 Alt+← and Alt+→ do so in the active Group; the page takes them from the browser.
-Each address a Group shows is a step: another Panel's, or another in the same Panel (a link replacing a preview, a filter, another Revision compared).
+Each address a Group shows is a step: one in another Panel, or another in the same Panel (a link replacing a preview, a filter, another Revision compared).
 Keys typed in a row, e.g. a search, make one step, until typing is done: Enter, or leaving the field (a run's number in `layout/dock.ts`).
 Going back shows a View again in its Panel, or as a preview where the Panel is gone.
 The steps are kept until the page is left.
@@ -113,7 +113,7 @@ A lint rule (`gui/lint/dock-elements.grit`) rejects reading dockview's elements.
 The Layout is kept per browser, in localStorage, with a format number.
 A Panel whose kind no longer exists says so.
 A View that fails, e.g. on parameters it no longer understands, shows its error in its Panel only.
-A Layout that can't be restored gives the default one.
+A Layout that cannot be restored gives the default one.
 There are no migrations.
 
 ## Later, Workspaces

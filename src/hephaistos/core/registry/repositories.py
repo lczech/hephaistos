@@ -58,14 +58,14 @@ def check_name(name: str) -> None:
     if not _NAME.fullmatch(name) or name in _NOT_NAMES:
         raise HephaistosError(
             f"{name!r} is not a repository name: those have only ASCII letters, digits,"
-            " '.', '-' and '_', at most 100, and aren't '.' or '..'"
+            " '.', '-' and '_', at most 100, and are not '.' or '..'"
         )
 
 
 def derived_name(text: str) -> str | None:
-    """A Repository name from `text`, e.g. a directory's: `My Thesis` → `My-Thesis`.
+    """A Repository name from `text`, e.g. the name of a directory: `My Thesis` → `My-Thesis`.
 
-    Each run of characters a name can't have becomes a `-`, as GitHub does, without one at either
+    Each run of characters a name cannot have becomes a `-`, as GitHub does, without one at either
     end; None if no name is left.
     """
     name = re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")[:100]

@@ -30,9 +30,9 @@ def never_real_files(
 def no_systemd_or_desktop(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """systemctl and loginctl fail, there's no graphical session, and AppArmor's files are
-    temporary ones: `setup` and others never reach the user's services, desktop or system. The
-    `systemd` fixture stands in for systemd."""
+    """systemctl and loginctl fail, there is no graphical session, and the AppArmor files are
+    temporary ones: `setup` and others never reach the services, desktop or system of the user.
+    The `systemd` fixture stands in for systemd."""
     for name in ("DISPLAY", "WAYLAND_DISPLAY", *PATH_VARIABLES[1:]):  # all but our HOME
         monkeypatch.delenv(name, raising=False)
     bin_dir = tmp_path_factory.mktemp("bin")

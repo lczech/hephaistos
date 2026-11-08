@@ -54,7 +54,7 @@ Later, another Machine's log comes from its Server: `log?machine=…` ([ADR 005]
 ## Config and Daemon
 
 The Config View lists the settings, with their values and where each comes from.
-The Daemon View shows the Daemon's process, Watcher and Server, and what to check when it can't be reached.
+The Daemon View shows the Daemon's process, Watcher and Server, and what to check when it cannot be reached.
 It observes on request.
 
 ## Database
@@ -77,13 +77,13 @@ Changes links to it at its bar's end.
 
 ### Words
 
-- *A diff's lines*: the patch's, with `gui.diff.context` lines around each change.
+- *The lines of a diff*: those of the patch, with `gui.diff.context` lines around each change.
 - *Collapsed* lines: the unchanged ones left out between changes or up to the file's end, once *expanded* by their *separator*, a bar standing in for them ([interaction](interaction.md#fold-collapse-expand)).
 - A single collapsed line shows instead, once the file's versions are known (`UNCOLLAPSED`).
 - With *Whole file* on, all lines show, expanded.
 - *Drawn*: lines the renderer has made elements for, those near the view (its `Virtualizer`); only what is shown on them, e.g. find's marks, depends on it.
-- *Fold*: a file or directory in a stack reduced to its header; its lines are still its diff's. Folding lets go of its diff: unfolded, its expanded lines are collapsed again.
-- *Large diff*: one with more lines changed than `gui.diff.large_lines`, which waits to be shown by its button, so that drawing it can't slow down the page unasked; Whole file doesn't show it.
+- *Fold*: a file or directory in a stack reduced to its header; its lines still belong to its diff. Folding lets go of its diff: unfolded, its expanded lines are collapsed again.
+- *Large diff*: one with more lines changed than `gui.diff.large_lines`, which waits to be shown by its button, so that drawing it cannot slow down the page unasked; Whole file does not show it.
 
 ### Rendering
 
@@ -116,11 +116,11 @@ Untracked files and new folders come last, listed as Changes lists them, each fi
 Diffs show side by side or inline, wrapped or scrolled, Whole file or not: chosen for all Diffs, kept per browser (`hephaistos.diff`).
 Narrow Panels show diffs inline.
 A new or deleted file's lines go on their own side, as other files' are.
-Turned off, Whole file starts the diff anew, as the renderer can't collapse lines again.
+Turned off, Whole file starts the diff anew, as the renderer cannot collapse lines again.
 
 ### Finding
 
-A Diff finds in its diffs' lines ([interaction](interaction.md#find)): one file's or a stack's, wherever the diff is scrolled and whether its file is folded.
+A Diff finds in the lines of its diffs ([interaction](interaction.md#find)): those of one file or of a stack, wherever the diff is scrolled and whether its file is folded.
 A drawn diff's renderer says which lines it has.
 A stack's files are asked for all at once as the find row opens, with their new versions, page by page (`/api/diffs`).
 They are searched in the stack's order, untracked files only while their rows are open, after the others.
@@ -137,7 +137,7 @@ For a hash, its commit comes first; else it says where it is: on other branches,
 A commit's refs show as small badges framed in orange before its subject, each with its icon: HEAD, branches, remote branches, tags.
 On a row, at most two show, HEAD and then main or master first, so the subject still shows; the rest are counted, named on hovering, and all show in the commit box.
 A row opens all about its commit: the commit box, also under a commit's Changes and in a commit Event's details.
-While HEAD's commits show, a row above them says what isn't committed, with its Changes and Diff.
+While HEAD's commits show, a row above them says what is not committed, with its Changes and Diff.
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.
 They say if no branch or tag leads to the commit any more, and what amends of it led to.
 History opens from a Checkout's row in Repositories, and from the bars of its Changes and of a file's Diff.

@@ -31,7 +31,7 @@ def test_passes_run_at_low_priority_in_its_own_group(paths: Paths, repo: Path) -
         pid = started.pid
         assert pid is not None
         try:
-            assert os.getpgid(pid) == pid  # Ctrl+C in a terminal doesn't reach it
+            assert os.getpgid(pid) == pid  # Ctrl+C in a terminal does not reach it
             assert os.getpriority(os.PRIO_PROCESS, pid) == worker.NICENESS
             if shutil.which("ionice"):
                 shown = subprocess.run(  # noqa: ASYNC221 - a test may wait

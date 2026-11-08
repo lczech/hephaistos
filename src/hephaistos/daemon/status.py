@@ -42,7 +42,7 @@ class ServerStatus:
 
     address: str  # e.g. `127.0.0.1:8264`
     listening: bool
-    error: str | None = None  # why it doesn't listen
+    error: str | None = None  # why it does not listen
     requests: int = 0  # answered, with the token
     last_request_at: datetime | None = None
     refused: int = 0  # for a wrong or missing token, or a foreign host
@@ -83,7 +83,7 @@ def _at(value: datetime | None) -> str | None:
 
 
 def _of[T](value: object, kind: type[T]) -> T:
-    """A JSON value that must be of this type; `True` isn't an int here, nor `"false"` a bool."""
+    """A JSON value that must be of this type; `True` is not an int here, nor `"false"` a bool."""
     if type(value) is not kind:
         raise TypeError(f"not a {kind.__name__}: {value!r}")
     return cast("T", value)
@@ -145,7 +145,7 @@ def _status_json(status: Status) -> dict[str, object]:
 
 
 def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked here
-    """A status from its JSON values; raises if any don't fit."""
+    """A status from its JSON values; raises if any do not fit."""
     passed, server = data["watcher"], data["server"]
     return Status(
         pid=_of(data["pid"], int),
@@ -184,7 +184,7 @@ def write(directory: Path, status: Status) -> None:
 
 
 def read(directory: Path) -> Status | None:
-    """The status file in `directory`; None if there is none, or it can't be read."""
+    """The status file in `directory`; None if there is none, or it cannot be read."""
     try:
         return _status_from(json.loads((directory / STATUS_NAME).read_text()))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):

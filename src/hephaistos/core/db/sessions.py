@@ -73,7 +73,7 @@ class ReadSession:
 
     @property
     def schema_mismatch(self) -> SchemaMismatchError | None:
-        """How the database's schema differs from this version's; only in unchecked sessions."""
+        """How the database schema differs from that of this version; only in unchecked sessions."""
         return _schema_mismatch(self.conn)
 
     @property
@@ -124,7 +124,7 @@ def _connect(database: Path, *, read_only: bool) -> sqlite3.Connection:
 
 
 def _schema_mismatch(conn: sqlite3.Connection) -> SchemaMismatchError | None:
-    """How the database's schema differs from this version's; None if it doesn't."""
+    """How the database schema differs from that of this version; None if it does not."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     row = conn.execute("SELECT value FROM meta WHERE key = 'schema_hash'").fetchone()
     if version == SCHEMA_VERSION and row is not None and row[0] == SCHEMA_HASH:
@@ -241,7 +241,7 @@ def create_database(
     for leftover in (building, *_sidecars(building)):
         leftover.unlink(missing_ok=True)
 
-    # SQLite's WAL mode needs shared memory, which network filesystems don't provide.
+    # SQLite's WAL mode needs shared memory, which network filesystems do not provide.
     journal_mode = "DELETE" if data_dir_is_network(paths) else "WAL"
     conn = _connect(building, read_only=False)
     try:

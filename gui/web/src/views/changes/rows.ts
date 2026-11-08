@@ -241,8 +241,8 @@ function withinRows(group: Group, folder: Change, making: Making): Entry[] {
   const id = `${group.name}:${folder.path}:`;
   const within = making.within(group, folder);
   if (within === undefined) return [note(`${id}loading`, "Loading files…")];
-  if ("error" in within) return [note(`${id}error`, `Couldn't load: ${within.error}`, true)];
-  // Their own folders aren't asked for: git lists their files.
+  if ("error" in within) return [note(`${id}error`, `Could not load: ${within.error}`, true)];
+  // Their own folders are not asked for: git lists their files.
   const inner = { ...making, within: () => undefined };
   const rows = making.nested
     ? directoryRows(group, within.changes, folder.path, inner)

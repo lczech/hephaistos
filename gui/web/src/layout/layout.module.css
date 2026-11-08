@@ -13,7 +13,7 @@
   gap: var(--space-1);
   max-width: var(--tab-width);
   height: 100%;
-  padding: var(--space-1) var(--space-2); /* dockview's tab's, which has none (`dock.css`) */
+  padding: var(--space-1) var(--space-2); /* as for a dockview tab, which has none (`dock.css`) */
 }
 
 .tab > :global(.dv-default-tab) {
@@ -80,7 +80,7 @@
   margin-top: var(--space-3);
 }
 
-/* The title bar's buttons making columns of Groups, at its right end; they don't drag the
+/* The title bar's buttons making columns of Groups, at its right end; they do not drag the
    Desktop's window. */
 .columns {
   display: flex;

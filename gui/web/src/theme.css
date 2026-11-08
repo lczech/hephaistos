@@ -13,7 +13,7 @@
   --text-small: calc(var(--text-size) * 0.87);
   --text-normal: var(--text-size);
   --text-large: calc(var(--text-size) * 1.2);
-  /* Tabs, View bars and the status bar keep their size, whatever the text's. */
+  /* Tabs, View bars and the status bar keep their size, whatever the text size. */
   --chrome-size: 0.8125rem;
   --chrome-large: 1.125rem;
 
@@ -29,8 +29,8 @@
   --space-4: 1rem;
   --radius: 6px;
   --mark-line: 2px; /* a line marking what has the focus: the focused Group's tab */
-  --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* a popover's, over what it covers */
-  /* The title bar's, without its line: the Desktop's window buttons' (a test keeps it so with
+  --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* for a popover, over what it covers */
+  /* Of the title bar, without its line: that of the Desktop window buttons (a test keeps it so with
      gui/desktop/src/titleBar.ts), which say it there; the same in a browser. */
   --title-bar-height: 31px;
 
@@ -52,7 +52,7 @@
   --icon-small: 0.9em;
   --icon-letters: 1.4em;
 
-  /* Less there: what may be out of date, or can't be used (dimmed); what needs no look until
+  /* Less there: what may be out of date, or cannot be used (dimmed); what needs no look until
      hovered (faint). */
   --dimmed: 0.6;
   --faint: 0.4;
@@ -78,7 +78,7 @@
   --warning: #a16207;
   --danger: #b91c1c;
   /* Icons of Views by family, in tabs and links to them (`views/families.module.css`), full in
-     both themes: git's own orange; violet for overviews; teal for this Machine's. */
+     both themes: git's own orange; violet for overviews; teal for this Machine. */
   --view-git: #f05032;
   --view-overview: #8b5cf6;
   --view-machine: #14b8a6;
@@ -109,7 +109,7 @@
   --tint-warning: color-mix(in srgb, var(--warning) 25%, transparent);
   --tint-danger: color-mix(in srgb, var(--danger) 25%, transparent);
   --fill-dropping: color-mix(in srgb, var(--accent) 25%, transparent); /* a Panel dragged over */
-  /* Scrollbars' thumbs, as VS Code's: quiet, lighter over their list, over the thumb, dragged. */
+  /* Scrollbar thumbs, as in VS Code: quiet, lighter over their list, over the thumb, dragged. */
   --scrollbar-size: 10px;
   --fill-scrollbar: color-mix(in srgb, var(--text) 15%, transparent);
   --fill-scrollbar-over: color-mix(in srgb, var(--text) 25%, transparent);

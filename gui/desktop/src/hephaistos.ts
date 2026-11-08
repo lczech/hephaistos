@@ -19,7 +19,8 @@ export function reason(stderr: string, fallback: string): string {
   return (error?.slice("error: ".length) ?? lines.at(-1)?.trim()) || fallback;
 }
 
-/** Runs `executable` (the hephaistos that started the Desktop), with this process's settings. */
+/** Runs `executable` (the hephaistos instance that started the Desktop), with the settings of this
+ * process. */
 export function runner(executable: string): Run {
   return (args) =>
     new Promise((resolve) => {

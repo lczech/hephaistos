@@ -180,6 +180,6 @@ describe("a header dragged", () => {
   it("not by its edge, which resizes it", () => {
     render(<Coloured />);
     const edge = header("name").querySelector("hr") as Element;
-    expect(fireEvent.mouseDown(edge)).toBe(false); // a drag can't start
+    expect(fireEvent.mouseDown(edge)).toBe(false); // a drag cannot start
   });
 });

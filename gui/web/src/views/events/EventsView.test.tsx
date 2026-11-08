@@ -335,7 +335,7 @@ describe("the Events View's filters", () => {
     serve({ "GET /api/events": () => json({ error: "since: 'soon' is no time" }, 400) });
     renderWithQueries(<Events at={{ since: "soon", other: "kept" }} />);
     expect(
-      await screen.findByText("Can't show this: since: 'soon' is no time"),
+      await screen.findByText("Cannot show this: since: 'soon' is no time"),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
     expect(address()).toBe("events?other=kept");

@@ -9,7 +9,7 @@ export type ColorScheme = "light" | "dark";
 
 const DARK = "(prefers-color-scheme: dark)";
 
-/** The system's scheme now: light where it can't say, e.g. in tests. */
+/** The system's scheme now: light where it cannot say, e.g. in tests. */
 export function systemScheme(): ColorScheme {
   return globalThis.matchMedia?.(DARK).matches ? "dark" : "light";
 }
@@ -37,8 +37,8 @@ export function showScheme(scheme: ColorScheme = systemScheme()): void {
   showThemeColour();
 }
 
-/** Says the title bar's colour as the page's theme colour: the Desktop colours its window's
- * buttons with it, and browsers their own bars. */
+/** Says the colour of the title bar as the theme colour of the page: the Desktop colours its
+ * window buttons with it, and browsers their own bars. */
 function showThemeColour(): void {
   const colour = getComputedStyle(document.documentElement).getPropertyValue("--bar").trim();
   let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');

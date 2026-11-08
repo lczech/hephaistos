@@ -74,7 +74,7 @@ def test_install_start_stop_uninstall(
         ),
     ]
     assert err == (
-        "warning: the daemon won't see HEPHAISTOS_WATCHER_INTERVAL; put it in config.toml\n"
+        "warning: the daemon will not see HEPHAISTOS_WATCHER_INTERVAL; put it in config.toml\n"
     )
     text = unit.unit_file().read_text()
     assert f'ExecStart="{systemd}" daemon run' in text
@@ -109,7 +109,7 @@ def test_install_start_stop_uninstall(
     assert run("status") == 3
     assert "Daemon  not running; stopped now" in capsys.readouterr().out
     assert run("stop") == 0
-    assert capsys.readouterr().out == "The daemon isn't running\n"
+    assert capsys.readouterr().out == "The daemon is not running\n"
 
     assert run("start") == 0
     third = _pid(paths)
@@ -134,7 +134,7 @@ def test_install_start_stop_uninstall(
     assert run("uninstall") == 0
     assert capsys.readouterr().out == "Not installed\n"
     assert run("start") == 1
-    assert "the daemon isn't installed" in capsys.readouterr().err
+    assert "the daemon is not installed" in capsys.readouterr().err
     assert _calls()[:3] == [
         "systemctl --user daemon-reload",
         "systemctl --user enable --now hephaistos.service",
@@ -158,8 +158,8 @@ def test_a_unit_of_another_installation_is_replaced_or_removed_only_when_asked(
     other.chmod(0o755)
     capsys.readouterr()
     for command, action in (
-        ("install", "replace the unit and restart the daemon"),
-        ("uninstall", "remove the unit and stop the daemon"),
+        ("install", "replace the systemd unit and restart the daemon"),
+        ("uninstall", "remove the systemd unit and stop the daemon"),
     ):
         assert run_cli(monkeypatch, "daemon", command, program=str(other)) == 1
         out, err = capsys.readouterr()
@@ -184,7 +184,7 @@ def test_a_unit_of_another_installation_is_replaced_or_removed_only_when_asked(
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     monkeypatch.setattr(sys, "stdin", io.StringIO("y\n"))
     assert run_cli(monkeypatch, "daemon", "install", program=str(other)) == 0
-    assert "Replace the unit and restart the daemon? [y/N]: " in capsys.readouterr().out
+    assert "Replace the systemd unit and restart the daemon? [y/N]: " in capsys.readouterr().out
     assert f'ExecStart="{other}" daemon run' in unit.unit_file().read_text()
     assert _pid(paths) != first
     assert run_cli(monkeypatch, "daemon", "uninstall", "--yes", program=str(systemd)) == 0
@@ -214,7 +214,7 @@ def test_a_foreign_unit_is_left_alone(
     unit.unit_file().parent.mkdir(parents=True)
     unit.unit_file().write_text("[Service]\nExecStart=/bin/true\n")
     assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 1
-    assert "wasn't written by hephaistos; leaving it alone" in capsys.readouterr().err
+    assert "was not written by hephaistos; leaving it alone" in capsys.readouterr().err
     assert unit.unit_file().read_text() == "[Service]\nExecStart=/bin/true\n"
 
 
@@ -281,7 +281,7 @@ def test_status_warns_about_its_unit(
     capsys.readouterr()
     assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 3
     assert capsys.readouterr().err.splitlines() == [
-        "warning: the unit runs /gone/hephaistos, which no longer exists",
+        "warning: the systemd unit for the daemon runs /gone/hephaistos, which no longer exists",
         (
             "warning: the systemd unit for the daemon uses other directories than this shell"
             " (XDG_STATE_HOME: not set in the unit, /s in this shell)"

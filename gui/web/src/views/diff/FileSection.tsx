@@ -144,7 +144,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
       </p>
     );
   }
-  // This patch with its versions, once they came (or can't), else the patch shown before; kept
+  // This patch with its versions, once they came (or cannot), else the patch shown before; kept
   // as React keeps what a render showed, set while rendering.
   const ready =
     !due || versions.data !== undefined || versions.isError
@@ -343,7 +343,7 @@ export function DirectorySection({
   );
 }
 
-/** A query's parameters that are set, as a View's. */
+/** The parameters of a query that are set, as for a View. */
 function defined(query: DiffQuery): Params {
   return Object.fromEntries(
     Object.entries(query).filter(
@@ -396,7 +396,7 @@ function FileHeader({ change, path, query, folded, onToggle }: HeaderProps) {
 
 interface FoldHeaderProps {
   className: string | undefined;
-  label: string; // its chevron's: `Diff of src/a.py`
+  label: string; // of its chevron: `Diff of src/a.py`
   what: string; // what it folds: `this file's diff`
   folded: boolean;
   onToggle?: () => void; // folds or unfolds, by the chevron or a click on the header

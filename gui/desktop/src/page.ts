@@ -1,4 +1,4 @@
-// The page the Desktop shows while it can't show the GUI: built in, as no Server serves it.
+// The page the Desktop shows while it cannot show the GUI: built in, as no Server serves it.
 
 import { RETRY, type Waiting } from "./connecting.js";
 
@@ -37,7 +37,7 @@ export function waitingPage(waiting: Waiting): string {
   const body =
     waiting.state === "starting"
       ? "<h1>Starting the daemon…</h1>"
-      : `<h1>Can't reach the daemon</h1><p>${withCode(sentence(waiting.reason))}</p>` +
+      : `<h1>Cannot reach the daemon</h1><p>${withCode(sentence(waiting.reason))}</p>` +
         `<p>Trying again every ${RETRY / 1000} s; Press Ctrl+R to try now; that also starts the daemon if needed.</p>`;
   const html =
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +

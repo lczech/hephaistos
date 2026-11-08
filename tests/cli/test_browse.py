@@ -70,7 +70,7 @@ def test_starts_the_daemon_and_waits_for_its_server(monkeypatch: pytest.MonkeyPa
     def link(_paths: Paths) -> str:
         asked.append(1)
         if len(asked) < 3:  # listening at the third look
-            raise HephaistosError("the server isn't running")
+            raise HephaistosError("the server is not running")
         return LINK
 
     monkeypatch.setattr(browse.daemon_status, "is_running", running(answer=False))
@@ -82,4 +82,4 @@ def test_starts_the_daemon_and_waits_for_its_server(monkeypatch: pytest.MonkeyPa
     assert len(started) == 1
     monkeypatch.setattr(browse, "LISTEN_WAIT", 0.0)
     asked.clear()
-    assert str(runner.invoke(app, ["browse"]).exception) == "the server isn't running"
+    assert str(runner.invoke(app, ["browse"]).exception) == "the server is not running"

@@ -40,7 +40,7 @@ gui/desktop ─> gui/web ──HTTP──> server
 
 - **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. One command for CLI and Daemon keeps a single thing on the PATH. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
 - **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the terminals plugin (e.g. tmux). Electron only does desktop integration; logic stays in the Core.
-- **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL doesn't work, a rollback journal takes its place ([setup](../core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
+- **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL does not work, a rollback journal takes its place ([setup](../core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
 
 ## Plugins
 

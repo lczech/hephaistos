@@ -111,9 +111,9 @@ class Looker:
         """Looks at the database, Daemon status and log in `paths`."""
         self._paths = paths
         self._session: ReadSession | None = None
-        self._inode: int | None = None  # the database file's, while open
+        self._inode: int | None = None  # of the database file, while open
         self._sessions = contextlib.ExitStack()
-        self._failure: str | None = None  # why the database can't be read, once logged
+        self._failure: str | None = None  # why the database cannot be read, once logged
         self._seen: dict[Hint, object] | None = None
         self._hinted_clock: Timestamp | None = None  # the clock when data was last hinted
 
@@ -124,7 +124,7 @@ class Looker:
     def changes(self, *, check: bool = False) -> list[Hint]:
         """The hints due since last time; none the first time.
 
-        With `check`, also checks that the clock didn't move without a `data` hint, which
+        With `check`, also checks that the clock did not move without a `data` hint, which
         would mean that a change went unnoticed: it is logged, and hinted.
         """
         clock = self._clock() if check else None
@@ -146,7 +146,7 @@ class Looker:
         return changed
 
     def _data(self) -> object:
-        """The database: which file, and its data version; None if it can't be read.
+        """The database: which file, and its data version; None if it cannot be read.
 
         A database replaced, e.g. by `setup --reset`, is opened again.
         """
@@ -161,14 +161,14 @@ class Looker:
         except (OSError, HephaistosError, sqlite3.Error) as error:
             self.close()
             if str(error) != self._failure:
-                log.warning("live hints can't read the database: %s", error)
+                log.warning("live hints cannot read the database: %s", error)
                 self._failure = str(error)
             return None
         self._failure = None
         return found
 
     def _clock(self) -> Timestamp | None:
-        """The clock any write session last saved; None if the database can't be read."""
+        """The clock any write session last saved; None if the database cannot be read."""
         if self._session is None:
             return None
         try:
@@ -253,7 +253,7 @@ class Live:
             log.debug("live connection from %s closed", where, extra={"duration": duration})
 
     def _join(self, where: str, token: str) -> Client:
-        """Adds a client, starting the loop if it isn't running."""
+        """Adds a client, starting the loop if it is not running."""
         client = Client(where, token)
         self._clients.add(client)
         self._counts.live = len(self._clients)

@@ -32,7 +32,7 @@ describe.skipIf(typeof Worker === "undefined")("finding in a worker", () => {
     // Stopped at the limit, or by the engine first: Firefox's gives up on its own under load.
     expect(await found([`${"a".repeat(40)}b`], runaway)).toEqual({
       error: expect.stringMatching(
-        /^(Stopped after 5 s: the expression takes too long|Couldn't search: too much recursion)$/,
+        /^(Stopped after 5 s: the expression takes too long|Could not search: too much recursion)$/,
       ),
     });
     expect(performance.now() - started).toBeLessThan(6_000);

@@ -17,7 +17,7 @@ import popover from "./popover.module.css";
 import { TextIcon } from "./TextIcon";
 import styles from "./TitleBar.module.css";
 
-/** What TypeScript's DOM types don't have yet: Chromium's `navigator.windowControlsOverlay`. */
+/** What TypeScript's DOM types do not have yet: Chromium's `navigator.windowControlsOverlay`. */
 interface WindowControlsOverlay extends EventTarget {
   readonly visible: boolean;
 }

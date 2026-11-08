@@ -19,7 +19,7 @@ So our clients send the token only to a port that Linux lists as the user's (`/p
 `daemon token --url` refuses otherwise.
 A Server that finds its port taken says by whom, and to renew the token.
 Our links name `127.0.0.1`, as `localhost` may first try IPv6, where someone else could listen.
-curl by hand, forwards set up by hand and the phone don't check.
+curl by hand, forwards set up by hand and the phone do not check.
 `browse` checks, but hands the link to the browser on its command line, which other users can read.
 On personal Machines only the user has an account.
 On a shared one, `server.port = 0` takes a free port at each start, reported once listening, so nobody can take it first.
@@ -37,7 +37,7 @@ A browser gets it once from a link's fragment, `http://127.0.0.1:8264/#token=<to
 The GUI keeps it in the browser's local storage for that origin, and takes it out of the address bar.
 It does so also for a link opened in the page later, e.g. the Desktop's after a renewal.
 It forgets the token on a 401, unless a newer one came meanwhile.
-A live connection is a WebSocket, to which a browser can't add headers, so it sends the token as its first message.
+A live connection is a WebSocket, to which a browser cannot add headers, so it sends the token as its first message.
 Tokens are compared in constant time.
 Refusals are logged as warnings, never with the token.
 
@@ -53,7 +53,7 @@ A test requires an endpoint for every command with `--json`.
 Entities are addressed by full ID; other entities are referred to as `{id, name}`.
 The settings are those the Daemon finds, each with the value it applies.
 JSON with something unusual to say, e.g. an outdated schema, says it in `warnings` next to the data.
-The OpenAPI schema at `/openapi.json` describes the endpoints; this document doesn't list them.
+The OpenAPI schema at `/openapi.json` describes the endpoints; this document does not list them.
 FastAPI's `/docs` page is off: it runs scripts from a CDN, which would see the token.
 
 ## Paging
@@ -79,7 +79,7 @@ Four endpoints have no command:
 - `/api/diff/files`: the file's two versions, to show where the file ends and more around the changes;
 - `/api/history`: the file's commits.
 
-They come from git each time they're asked, and are never stored, as `git status`, `git diff` and `git log` already show them in a terminal.
+They come from git each time they are asked, and are never stored, as `git status`, `git diff` and `git log` already show them in a terminal.
 `commit=` asks for what a commit changed against its first parent.
 The answer says whether a branch, tag or HEAD still leads to the commit; if not, it says what amends of it led to, by the Events.
 Untracked files count as added to the working tree, and as deleted from it.
@@ -111,7 +111,7 @@ Hints never carry the data; GUIs ask the endpoints again.
 While any connection is open, one loop looks every second, and at once after `POST /api/observe`.
 It looks at the database's `data_version`, at the Daemon's status except its counts (which asking again changes), and at the log's size.
 A heartbeat every 10 s lets GUIs notice a Server that hangs.
-With each heartbeat, the loop checks that the clock didn't move without a `data` hint; it logs a change it missed, and hints it.
+With each heartbeat, the loop checks that the clock did not move without a `data` hint; it logs a change it missed, and hints it.
 A client that falls behind is closed, rather than sent fewer hints.
 Renewing the token closes all connections.
 Browsers let any page open WebSockets to localhost, so a connection with an `Origin` must come from the Server's own page.
@@ -126,7 +126,7 @@ The TypedDicts become the API's OpenAPI schema, from which the GUI generates its
 ## The GUI's files
 
 The Server serves the GUI's build from `gui/web/dist/` in the checkout it runs from: `/` and `/assets/…`.
-These need no token, as they hold no data, and a browser can't send a header when opening a link.
+These need no token, as they hold no data, and a browser cannot send a header when opening a link.
 Everything else needs the token, the API above all.
 Every response sets a Content-Security-Policy, as the page keeps the token:
 - only our own files and connections to this Server;

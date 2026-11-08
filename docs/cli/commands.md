@@ -63,7 +63,7 @@ Each case asks in a terminal; without one, `--yes` takes it.
 Matching several Repositories, it asks which in a terminal, and requires `--repo` without one.
 A name taken by an unrelated Repository, or no name suggested, requires `--repo`.
 It refuses:
-- a Clone that shares no root commit with the Repository's other Clones; such Repositories don't count as matches either;
+- a Clone that shares no root commit with the Repository's other Clones; such Repositories do not count as matches either;
 - a path inside a Worktree; the message names its Clone;
 - a submodule; its superproject is the Clone.
 
@@ -86,7 +86,7 @@ Files stay untouched.
 It shows the plan first and asks once.
 Each clone joins the Repository it matches, else a Repository without Clones by name, else a new one.
 Clones found together match each other too.
-A new Repository is named after the first of its clones' remotes that isn't a local path, else as `clone register` suggests.
+A new Repository is named after the first of its clones' remotes that is not a local path, else as `clone register` suggests.
 A Worktree brings its Clone, wherever that is; a Worktree not observed yet has its Clone observed.
 `scan` stops at clones without searching inside them, and skips hidden directories.
 It follows symlinks, preferring real paths.
@@ -114,19 +114,19 @@ Extra fields show as `key=value`.
 `--json` prints each record as stored, with its position: where its line starts, e.g. `2026-10-14:18734` for day file and byte.
 A position stays the same while its file is only appended to.
 `--follow` then waits for new records.
-`log show` skips lines that aren't records, and says how many.
+`log show` skips lines that are not records, and says how many.
 It pages like git: `$PAGER`, else `less` with `LESS=FRX`.
-The log isn't an entity, so `show` shows all of it.
+The log is not an entity, so `show` shows all of it.
 
 `log prune` deletes whole days, older than `--keep` (default `log.retention_days`), after asking.
-`log` commands log only what goes wrong, so that showing the log doesn't add to it.
+`log` commands log only what goes wrong, so that showing the log does not add to it.
 An unexpected error's message names `log show --pid`.
 
 ## config
 
 `config show` shows each setting, its value, and where that comes from: `default`, a file, or a variable.
 Then it shows each source in the order it applies: files by full path, as read, broken or not found.
-It also shows other hosts' files, as unused here, and unknown `HEPHAISTOS_*` variables, naming the closest setting's.
+It also shows files for other hosts, as unused here, and unknown `HEPHAISTOS_*` variables, each with the variable of the closest setting.
 Given a section, it shows that section's settings; given one setting, just its value.
 A broken file or variable is left out and its error shown, and the command fails.
 `config defaults` prints the shipped `defaults.toml`.
@@ -142,7 +142,7 @@ Scripts take one value.
 
 `db` shows tables as stored, the newest rows, oldest first like `log show`.
 `--reverse` shows newest first; `--offset` counts from the newest.
-It also shows an outdated database, with a warning, and tables this version doesn't know.
+It also shows an outdated database, with a warning, and tables this version does not know.
 Columns are decoded as their table's module declares ([data](../core/data.md#tables)).
 Columns of unknown or outdated tables are decoded by name where all tables agree, else shown as stored.
 All columns show one line per value; chosen columns (`-c`) show one line per row.

@@ -1,8 +1,8 @@
 """The Watcher's worker: a process at low priority that runs the passes, and so git.
 
 It lowers its own CPU and I/O priority once, before starting any thread, so that its threads and
-every git they run inherit it at no further cost. It leads its own process group: a terminal's
-Ctrl+C doesn't reach it, and the Daemon stops it together with any git it runs.
+every git they run inherit it at no further cost. It leads its own process group: Ctrl+C in a
+terminal does not reach it, and the Daemon stops it together with any git it runs.
 """
 
 import asyncio
@@ -126,7 +126,7 @@ class Worker:
     @classmethod
     async def started(cls, paths: Paths) -> "Worker":
         """A new worker, with the active settings, logging as the Daemon does, ready for passes."""
-        context = multiprocessing.get_context("spawn")  # forking a process with threads isn't safe
+        context = multiprocessing.get_context("spawn")  # forking a process with threads is not safe
         ours, theirs = context.Pipe()
         process = context.Process(
             target=_serve,
@@ -196,7 +196,7 @@ class Worker:
                 os.kill(self._process.pid, number)
 
     def stop(self) -> None:
-        """Ends the worker and any git it runs, killing them if they don't end in time."""
+        """Ends the worker and any git it runs, killing them if they do not end in time."""
         self._signal_group(signal.SIGTERM)
         self._process.join(STOP_WAIT)
         if self._process.exitcode is None:

@@ -211,7 +211,7 @@ def test_setup_sets_up_everything_again_keeping_the_database(
 
 @pytest.mark.usefixtures("paths")
 def test_setup_skips_a_part_that_fails_saying_how_to_do_it_later() -> None:
-    result = runner.invoke(app, ["setup", "--name", "laptop"])  # systemd isn't available
+    result = runner.invoke(app, ["setup", "--name", "laptop"])  # systemd is not available
     assert result.exit_code == 0
     assert "warning: skipped the daemon: " in result.output
     assert "; to do it later: `hephaistos daemon install`\n" in result.output

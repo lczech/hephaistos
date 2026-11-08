@@ -3,8 +3,8 @@ import styles from "./TextIcon.module.css";
 
 interface Props {
   icon: LucideIcon;
-  className?: string; // room and colour of its own; its size and place are this one's
-  label?: string; // what it says, where the text beside it doesn't
+  className?: string; // room and colour of its own; this component sets its size and place
+  label?: string; // what it says, where the text beside it does not
 }
 
 /** An icon beside text, lined up with its capitals, in a line of text or a row alike. */

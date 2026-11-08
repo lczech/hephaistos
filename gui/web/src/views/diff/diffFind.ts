@@ -37,7 +37,7 @@ export interface FileFind extends DiffFind {
 
 /** What a diff's find found, and which match is current. */
 export interface DiffFinding {
-  finding: Finding | undefined; // for the bar: busy while the files aren't there yet
+  finding: Finding | undefined; // for the bar: busy while the files are not there yet
   count: number; // matches on the diffs' lines
   current: number;
   step: (by: 1 | -1) => void;
@@ -57,11 +57,11 @@ const sameFiles = (one: readonly FileText[], other: readonly FileText[]) =>
   );
 
 /**
- * A query's matches in files' lines, in their order: all lines once a file's new version is
- * known, its patch's until then. They count where they are on the diffs' lines
- * (docs/gui/views.md): the patch's, or all with Whole file (`whole`), until a file's diff,
- * drawn, tells (e.g. once collapsed lines are expanded). Stepping to a match `reveal`s its
- * file, e.g. unfolds it, and says so (`revealed`).
+ * The matches of a query in the lines of files, in their order: all lines once the new version
+ * of a file is known, those of its patch until then. They count where they are on the lines of
+ * the diffs (docs/gui/views.md): those of the patch, or all with Whole file (`whole`), until the
+ * diff of a file, drawn, tells (e.g. once collapsed lines are expanded). Stepping to a match
+ * `reveal`s its file, e.g. unfolds it, and says so (`revealed`).
  * Lines and marks are held while what they come from stays, as React keeps what a render
  * showed, rather than memoized: a search starts again only once the lines or the query change,
  * and a current match stays one while the marks do.

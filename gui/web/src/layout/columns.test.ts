@@ -42,7 +42,7 @@ describe("the grid's columns", () => {
     expect(readingOrder(branch(branch(leaf("A"), leaf("B")), leaf("C")))).toEqual(["A", "B", "C"]);
   });
 
-  it("counts only those at the top, side by side; rows within them don't count", () => {
+  it("counts only those at the top, side by side; rows within them do not count", () => {
     expect(columnCount({ root: wideTop, orientation: "VERTICAL" })).toBe(1);
     const rows = branch(branch(leaf("A"), leaf("B")), leaf("C"));
     expect(columnCount({ root: rows, orientation: "HORIZONTAL" })).toBe(2);

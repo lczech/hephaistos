@@ -1,6 +1,6 @@
 // A View's find bar in its address's fragment, as it says how the View is looked at: `find=`
 // while it is open, even with nothing typed, and `case`, `word`, `regex` while those are on.
-// Which match is the current one isn't in it.
+// Which match is the current one is not in it.
 import type { FindQuery } from "../components/find/pattern";
 import { type Params, paramValues, withParam } from "./address";
 

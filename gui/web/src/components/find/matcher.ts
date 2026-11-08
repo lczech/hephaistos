@@ -1,5 +1,5 @@
 // Finding runs in a worker, so that the page stays responsive and a regular expression that takes
-// too long (e.g. `(a+)+$` on many a's) can be stopped: JS can't interrupt one, but a worker can
+// too long (e.g. `(a+)+$` on many a's) can be stopped: JS cannot interrupt one, but a worker can
 // be ended. Where there are no workers, as in WebKit's tests (`test/browser.ts`), on the page.
 import FindWorker from "./find.worker.ts?worker";
 import { findMatches, type Match, type Pattern } from "./pattern";
@@ -45,7 +45,7 @@ export function find(lines: readonly string[], pattern: Pattern, done: (found: F
   worker.onerror = (event) => {
     event.preventDefault();
     end();
-    done({ error: `Couldn't search: ${event.message || "its worker failed"}` });
+    done({ error: `Could not search: ${event.message || "its worker failed"}` });
   };
   worker.postMessage({ lines, pattern, limit: LIMIT });
   return () => {

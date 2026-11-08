@@ -32,7 +32,7 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.paths import Paths
 
-PAGE = 64  # reflog entries read at first; more only if the cursor isn't among them
+PAGE = 64  # reflog entries read at first; more only if the cursor is not among them
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class Known:
 def _unread(top: Path, cursor: Cursor) -> tuple[list[git.ReflogEntry], bool]:
     """The HEAD reflog's entries after `cursor`, oldest first, and whether its entry is there.
 
-    If it isn't, e.g. expired, the entries after its time.
+    If it is not, e.g. expired, the entries after its time.
     """
     entries = git.reflog(top, limit=PAGE)
     found = activity.unread(entries, cursor)
@@ -173,7 +173,7 @@ def push_activity(
     return pushes, {ref: activity.end(entries) for ref, entries in by_ref.items()}
 
 
-# Reflog times are git's, maybe on another host sharing the Filesystem, and in seconds.
+# Reflog times come from git, maybe on another host sharing the Filesystem, and in seconds.
 _CLOCK_SLACK = timedelta(minutes=1)
 
 
@@ -215,7 +215,7 @@ class CloneObservation:
 
 
 def _failed(path: Path, error: Exception) -> Failed:
-    """Why a Checkout failed, logged; errors git didn't report (likely bugs) with traceback."""
+    """Why a Checkout failed, logged; errors git did not report (likely bugs) with traceback."""
     if isinstance(error, git.GitError):
         log.warning("observing %s failed: %s", path, error)
         return Failed(str(error))

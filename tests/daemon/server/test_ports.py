@@ -21,7 +21,7 @@ def test_holder_from_the_table(tmp_path: Path) -> None:
     table.write_text(TABLE)
     assert ports.holder(8264, table) == 1234  # 127.0.0.1, listening
     assert ports.holder(8265, table) == 1235  # 0.0.0.0 also takes 127.0.0.1's connections
-    assert ports.holder(8266, table) is None  # 192.168.1.1 doesn't
+    assert ports.holder(8266, table) is None  # 192.168.1.1 does not
     assert ports.holder(8267, table) is None
     assert ports.holder(8264, tmp_path / "missing") is None
 

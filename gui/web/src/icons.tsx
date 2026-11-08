@@ -1,7 +1,7 @@
-// Monochrome icons (Lucide) for what Events do and what they're about. Each entity has its own,
-// a Machine by its chassis; the Registry's actions show the entity's with + and −, where it has
-// them, else a square's; git's adding and removing, a diamond's, as git's logo; what an
-// observation finds, a circle's (docs/gui/looks.md).
+// Monochrome icons (Lucide) for what Events do and what they are about. Each entity has its own,
+// a Machine by its chassis; the Registry actions show the icon of the entity with + and −, where
+// it has them, else a square with them; git adding and removing, a diamond, after the git logo;
+// what an observation finds, a circle (docs/gui/looks.md).
 
 import {
   ArchiveRestore,
@@ -125,7 +125,7 @@ export const REF_ICONS: Record<"branch" | "remote" | "tag", LucideIcon> = {
   tag: Tag,
 };
 
-/** The icon of an Event's kind: its own, else its action's, else a dot. */
+/** The icon for the kind of an Event: its own, else that of its action, else a dot. */
 export function kindIcon(kind: string): LucideIcon {
   return KINDS[kind] ?? ACTIONS[actionOf(kind)] ?? Dot;
 }

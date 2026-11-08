@@ -7,7 +7,7 @@
 #        | remove [<name>] | list | prune
 #   start   builds, starts the Daemon if needed, opens the window; quitting it stops the Daemon.
 #           --fresh copies the real data again; --empty starts without data.
-#   stop    closes the window and stops the Daemon: this worktree's, a named one's, or all.
+#   stop    closes the window and stops the Daemon: of this worktree, of a named one, or all.
 #   remove  stops, then deletes the instance: before removing its worktree.
 #   list    the instances: running or not, and whether their worktree is gone.
 #   prune   removes the instances whose worktree is gone.
@@ -29,7 +29,7 @@ main_checkout() {
     dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 }
 
-# An instance's directory, by name; without one, this worktree's.
+# The directory of an instance, by name; without one, that of this worktree.
 instance() {
     if [ -n "${1:-}" ]; then
         [ -e "$root/$1/worktree" ] || die "no instance $1; see \`$0 list\`"
@@ -45,7 +45,7 @@ scratch() { # <instance> <command>: scratch_daemon.sh on the instance's home and
         "$repo/scripts/scratch_daemon.sh" "$2"
 }
 
-# The instance's Desktop, found by the app it runs, its worktree's: never the real Desktop.
+# The Desktop of the instance, found by the app of its worktree that it runs: never the real one.
 # Not by its environment, which Chromium overwrites when it sets its processes' titles; it
 # also joins their arguments with spaces.
 desktop_pids() {
@@ -86,7 +86,7 @@ build() {
     theirs="$main/gui/node_modules/electron"
     [ -x "$theirs/dist/electron" ] || die "the main checkout has no Electron: \`hephaistos desktop install\` there"
     [ "$(version "$gui/node_modules/electron/package.json")" = "$(version "$theirs/package.json")" ] ||
-        die "this worktree's Electron isn't the main checkout's version; try it once main has it"
+        die "this worktree's Electron is not the main checkout's version; try it once main has it"
     dist="$gui/node_modules/electron/dist"
     [ -L "$dist" ] || rm -rf "$dist"
     ln -sfn "$theirs/dist" "$dist"
@@ -121,9 +121,9 @@ await_server() {
         sleep 0.2
         tries=$((tries - 1))
     done
-    echo "error: the daemon didn't start; the end of $1/home/daemon.out:" >&2
+    echo "error: the daemon did not start; the end of $1/home/daemon.out:" >&2
     tail -n 5 "$1/home/daemon.out" >&2
-    echo "if the copied data or settings don't fit this worktree's code: \`$0 start --fresh\`" \
+    echo "if the copied data or settings do not fit this worktree's code: \`$0 start --fresh\`" \
         "copies them again, \`--empty\` starts without data" >&2
     return 1
 }

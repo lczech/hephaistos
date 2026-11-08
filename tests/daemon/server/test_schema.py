@@ -25,7 +25,7 @@ RECORD = "HEPHAISTOS_RECORD_API"
 
 
 def _shape(value: object) -> object:
-    """A schema without its descriptions, which don't change what clients get."""
+    """A schema without its descriptions, which do not change what clients get."""
     if isinstance(value, dict):
         return {
             key: _shape(item)

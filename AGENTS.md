@@ -1,6 +1,7 @@
 Help me design and start building a personal application for managing repositories, checkouts, machines, terminals and agents.
 
-Use the terms defined in [docs/glossary.md](docs/glossary.md) consistently in code, GUI and docs; in docs and code comments, defined terms are capitalised; in what users read (GUI, CLI output, messages), they are lowercase, except a View's name where it names that View.
+Use the terms defined in [docs/glossary.md](docs/glossary.md) consistently in code, GUI and docs; in docs and code comments, defined terms are capitalised; in what users read (GUI, CLI output, messages), they are lowercase, except the name of a View where it names that View.
+Write all text as [docs/style.md](docs/style.md) says, and fix text that breaks it where you work.
 
 **Context and problem**
 

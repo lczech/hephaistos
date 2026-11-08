@@ -10,7 +10,7 @@ The Watcher's timer runs unless `watcher.interval` is 0; the Server runs if `ser
 systemd runs the Daemon this way.
 One Daemon runs per Machine: it holds an exclusive `flock` on `daemon.lock` in the state directory, which the kernel releases however it ends.
 A crashed part restarts after 1 s, doubling up to 60 s, and back to 1 s once it ran for 10 minutes.
-A Daemon that can't start exits with 78 (`EX_CONFIG`), which its systemd unit doesn't restart.
+A Daemon that cannot start exits with 78 (`EX_CONFIG`), which its systemd unit does not restart.
 That is the case with a broken config, nothing to do, no setup, no git, or a Daemon already running.
 
 ## Stopping
@@ -43,12 +43,12 @@ Passes say what asked for them: `trigger` is `watcher` or `api`.
 ## Installing
 
 `daemon install` writes a systemd user unit, `~/.config/systemd/user/hephaistos.service`, then enables and starts it.
-The unit runs the hephaistos that installed it, by the path it was run as.
+The unit runs the hephaistos instance that installed it, by the path it was run as.
 A link such as `~/.local/bin/hephaistos` survives reinstalling the tool.
 The unit gets `HEPHAISTOS_HOME` and the XDG directories from the shell.
-Settings variables don't reach it, and `install` says so.
-Run again, `install` rewrites a changed unit and restarts the Daemon; it leaves alone a unit it didn't write.
-A unit that runs another hephaistos, or names other directories, belongs to another installation, e.g. the real one for a shell with a scratch home.
+Settings variables do not reach it, and `install` says so.
+Run again, `install` rewrites a changed unit and restarts the Daemon; it leaves alone a unit it did not write.
+A unit that runs another hephaistos instance, or names other directories, belongs to another installation, e.g. the real one for a shell with a scratch home.
 `install` and `uninstall` show how it differs, and replace or remove it only if the user agrees, or with `--yes`; when not run interactively, they refuse.
 `--linger` runs `loginctl enable-linger`, so the Daemon starts at boot and survives logout.
 `uninstall` leaves linger as it is.

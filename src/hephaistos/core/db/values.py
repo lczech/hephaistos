@@ -1,6 +1,6 @@
 """Decoders from stored values to Python values, declared per column by the module owning a table.
 
-Each passes NULL through as None, and falls back to `fallback` for a value that doesn't fit, so
+Each passes NULL through as None, and falls back to `fallback` for a value that does not fit, so
 an unexpected value is shown raw instead of failing.
 """
 

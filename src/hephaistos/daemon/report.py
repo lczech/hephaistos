@@ -18,7 +18,7 @@ STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
 class Report:
     """The Daemon's unit, lock and status file, as found now."""
 
-    unit: UnitState | None  # None if systemd isn't available
+    unit: UnitState | None  # None if systemd is not available
     installed: str | None  # our unit's text, if installed
     linger: bool
     running: bool
@@ -38,7 +38,7 @@ class Report:
 
 
 def report(paths: Paths, env: Mapping[str, str]) -> Report:
-    """How the Daemon is doing; `env` is the shell's, compared with the unit's."""
+    """How the Daemon is doing; `env` is that of the shell, compared with that of the unit."""
     state = unit.unit_state()
     warnings: list[str] = []
     try:
@@ -49,7 +49,9 @@ def report(paths: Paths, env: Mapping[str, str]) -> Report:
     if installed is not None:
         executable = unit.installed_executable(installed)
         if executable is not None and not executable.exists():
-            warnings.append(f"the unit runs {executable}, which no longer exists")
+            warnings.append(
+                f"the systemd unit for the daemon runs {executable}, which no longer exists"
+            )
         if differences := unit.path_differences(installed, env):
             warnings.append(unit.other_directories_text(differences))
     return Report(
@@ -133,7 +135,7 @@ class ServerJson(TypedDict):
 class DaemonJson(TypedDict):
     """How the Daemon is doing; its parts only while it runs, the Server only if enabled."""
 
-    unit: UnitJson | None  # None if systemd isn't available
+    unit: UnitJson | None  # None if systemd is not available
     daemon: ProcessJson
     watcher: WatcherJson | None
     server: ServerJson | None

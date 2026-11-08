@@ -203,7 +203,7 @@ class Histories:
     def include(
         self, repository_id: uuid.UUID, roots: Collection[str], remotes: Mapping[str, str]
     ) -> None:
-        """Adds a Clone's root commits and remotes to its Repository's."""
+        """Adds the root commits and remotes of a Clone to those of its Repository."""
         self._roots[repository_id].update(roots)
         self._remotes[repository_id].update(_normalised(remotes))
 
@@ -317,7 +317,7 @@ def _recorded_checkout(session: ReadSession, path: Path) -> CheckoutDetails | No
 
 
 def _git_location(path: Path) -> git.Location | None:
-    """Where git places `path`; None if it doesn't exist, or git can't tell."""
+    """Where git places `path`; None if it does not exist, or git cannot tell."""
     if not path.exists():
         return None
     try:
@@ -354,7 +354,7 @@ def _foreign_text(path: Path, location: git.Location, around: CheckoutDetails) -
 def _outdated(
     session: ReadSession, path: Path, checkout: CheckoutDetails | None, location: git.Location
 ) -> CloneDetails | None:
-    """The Clone whose Checkout git places `path` in, if `checkout`, the record's, differs.
+    """The Clone whose Checkout git places `path` in, if it differs from `checkout` of the record.
 
     Raises HephaistosError if git places it in a repository of its own inside `checkout`, e.g.
     a nested one or a submodule: git tells which repository a path is in.
@@ -504,7 +504,7 @@ def _repair_text(moving: CloneDetails, to: Candidate, broken: Sequence[git.Linke
 
 
 def _checked(session: ReadSession, moving: CloneDetails, path: Path) -> Move:
-    """The move of `moving` to `path`, checked; raises HephaistosError if it can't be recorded."""
+    """The move of `moving` to `path`, checked; raises HephaistosError if it cannot be recorded."""
     old = moving.clone.resolved_path
     if old.is_dir():
         try:

@@ -58,7 +58,7 @@ DEFAULT_ROWS = 20  # as `db dump` shows
 DEFAULT_RECORDS = 50  # as `log show` shows
 DEFAULT_COMMITS = 50  # a page of a history
 
-# Every answer other than success has one shape; declaring it also replaces FastAPI's 422,
+# Every answer other than success has one shape; declaring it also replaces the 422 of FastAPI,
 # which this Server never sends (`app.py` answers invalid parameters with 400).
 router = APIRouter(
     prefix="/api",
@@ -106,7 +106,7 @@ class ApiVersionJson(TypedDict):
 
 
 class InfoJson(TypedDict):
-    """What a client checks first: which hephaistos and API answer, on which Machine."""
+    """What a client checks first: the versions of hephaistos and its API, and the Machine."""
 
     version: str
     api: ApiVersionJson
@@ -120,7 +120,7 @@ def _not_found(what: str, entity_id: uuid.UUID) -> HTTPException:
 
 
 def _absent_clone(session: ReadSession, clone_id: uuid.UUID) -> HTTPException:
-    """Why a Clone isn't among the current ones: 410 if it was unregistered, else 404."""
+    """Why a Clone is not among the current ones: 410 if it was unregistered, else 404."""
     if not clones.was_unregistered(session, clone_id):
         return _not_found("clone", clone_id)
     where = short_path(clones.paths(session, [clone_id])[clone_id])
@@ -132,7 +132,7 @@ def _absent_clone(session: ReadSession, clone_id: uuid.UUID) -> HTTPException:
 
 
 def _absent_worktree(session: ReadSession, worktree_id: uuid.UUID) -> HTTPException:
-    """Why a Worktree isn't among the current ones: 410 if it or its Clone is gone, else 404."""
+    """Why a Worktree is not among the current ones: 410 if it or its Clone is gone, else 404."""
     clone_id = worktrees.clone_ids(session, [worktree_id]).get(worktree_id)
     if clone_id is None:
         return _not_found("worktree", worktree_id)
@@ -432,13 +432,13 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = DEFAULT_COMMITS,
 ) -> HistoryJson:
-    """A Clone's or Worktree's commits, newest first, as `git log` walks back from HEAD.
+    """The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.
 
     Or from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there
     are to walk from instead. `path` keeps those that changed a file or folder, following a
     file's renames; `search`, those whose message has all of its words. A search for one hash
-    (4 to 40 hex digits) also finds its commit, wherever it is, on the first page. A page's
-    `next` gives `start`, `path` and `skip` to go on where it ended, with the same `search`
+    (4 to 40 hex digits) also finds its commit, wherever it is, on the first page. The `next`
+    of a page gives `start`, `path` and `skip` to go on where it ended, with the same `search`
     and `everywhere`.
     """
     top = _working_tree(paths, clone, worktree, bare=True)
@@ -586,7 +586,7 @@ def log_show(  # noqa: PLR0913 - one parameter per filter
 
 
 def _time(name: str, value: str | None, now: datetime) -> datetime | None:
-    """A time parameter, as `--since` takes it; raises HTTPException if it isn't one."""
+    """A time parameter, as `--since` takes it; raises HTTPException if it is not one."""
     if value is None:
         return None
     try:

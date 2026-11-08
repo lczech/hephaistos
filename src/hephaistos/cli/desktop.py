@@ -62,10 +62,11 @@ def install(
 ) -> None:
     """Install the desktop app on this machine: its launcher entry and icon, and what it needs.
 
-    The entry runs this hephaistos, by the path it was run as, with this shell's HEPHAISTOS_HOME
-    and XDG directories; one that runs another, or with other directories, is replaced only if
-    you agree. On Ubuntu, Chromium's sandbox also needs an AppArmor profile, which takes root:
-    the commands are shown, and run with sudo if you agree. Again after moving the checkout.
+    The entry runs this hephaistos instance, by the path it was run as, with HEPHAISTOS_HOME and
+    the XDG directories of this shell; one that runs another instance, or with other directories,
+    is replaced only if you agree. On Ubuntu, the sandbox of Chromium also needs an AppArmor
+    profile, which takes root: the commands are shown, and run with sudo if you agree. Again after
+    moving the checkout.
     """
     desktop = launch.located(own_checkout())
     files = entry.Files.from_environment(os.environ)
@@ -104,7 +105,7 @@ def uninstall(
 ) -> None:
     """Remove the desktop app's launcher entry and icon, and its AppArmor profile if you agree.
 
-    An entry that runs another hephaistos, or with other directories, only if you agree.
+    An entry that runs another hephaistos instance, or with other directories, only if you agree.
     """
     files = entry.Files.from_environment(os.environ)
     if not yes:

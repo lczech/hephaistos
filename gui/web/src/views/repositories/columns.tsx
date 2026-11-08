@@ -29,7 +29,7 @@ function activeTime(entry: Entry): number | undefined {
   return at === null ? undefined : Date.parse(at);
 }
 
-/** Where the row's Events are: the Repository's, or the Checkout's own. */
+/** Where the Events of the row are: those of the Repository, or those of the Checkout. */
 function eventsAt(entry: Entry): Address {
   if (entry.type === "clone") return { kind: "events", params: { clone: entry.clone.id } };
   if (entry.type === "worktree") return { kind: "events", params: { worktree: entry.worktree.id } };
@@ -45,7 +45,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   const state = checkout(entry);
   const params: Checkout | undefined =
     state && (entry.type === "worktree" ? { worktree: state.id } : { clone: state.id });
-  // Untracked files alone are often left there for good, so they don't call for a look.
+  // Untracked files alone are often left there for good, so they do not call for a look.
   const quiet = state && !(state.staged || state.changed || state.conflicted);
   const untracked = state?.untracked ? `; ${state.untracked} untracked` : "";
   return (

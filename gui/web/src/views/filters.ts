@@ -19,7 +19,7 @@ export function columnFilters(columns: Column[], params: Params): ColumnFiltersS
   });
 }
 
-/** The parameters with only these filters set; those that aren't filters stay. */
+/** The parameters with only these filters set; those that are not filters stay. */
 export function filteredParams(
   columns: Column[],
   params: Params,

@@ -230,7 +230,7 @@ def test_unborn_head_is_empty(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("revision", ["nope", "--output=x", "", "HEAD~5"])
 def test_unknown_revisions(repo: Path, revision: str) -> None:
-    with pytest.raises(ChangesError, match="doesn't exist in this clone"):
+    with pytest.raises(ChangesError, match="does not exist in this clone"):
         _changes(repo, revision, "working-tree")
     assert not (repo / "x").exists()
 
@@ -312,7 +312,7 @@ def test_diff_of_a_file(repo: Path) -> None:
 
 
 def test_diff_with_more_or_fewer_lines_around(repo: Path) -> None:
-    git(repo, "config", "diff.context", "8")  # the user's, which ours replaces
+    git(repo, "config", "diff.context", "8")  # set by the user, which ours replaces
     lines = [f"{n}\n" for n in range(1, 11)]
     _write(repo, "a.txt", "".join(lines))
     git(repo, "add", "a.txt")

@@ -12,7 +12,7 @@ describe("ticking a choice", () => {
     expect(toggled(["clone.registered", "machine"], machine)).toEqual(["clone.registered"]);
   });
 
-  it("covers the choices within it, so they needn't be chosen too", () => {
+  it("covers the choices within it, so they need not be chosen too", () => {
     expect(toggled(["clone.registered", "machine"], clone)).toEqual(["machine", "clone"]);
   });
 

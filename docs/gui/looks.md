@@ -54,7 +54,7 @@ Nothing else is orange.
 
 Text saying that something is wrong or gone is yellow (`problem` in `text.module.css`).
 That covers a failed load, a removed Worktree, an unregistered Clone, a missing branch, a commit nothing leads to, and the Server's warnings.
-A refusal by the Server reads "Can't show this:" and its message; a request that failed reads "Couldn't load:" (`loadErrorText`, in every View).
+A refusal by the Server reads "Cannot show this:" and its message; a request that failed reads "Could not load:" (`loadErrorText`, in every View).
 Where a way on exists, a button follows, e.g. "Since HEAD" when a compared branch is gone.
 Notes that only say why nothing shows, e.g. loading or no changes, stay grey (`note`).
 
@@ -74,13 +74,13 @@ The diffs keep their renderer's own, whose layout counts on their size, in the s
 ## The title bar
 
 The title bar (`components/TitleBar.tsx`) holds the icon and the View menu ([layout](layout.md#opening)), and at its end the buttons making columns ([layout](layout.md#columns)): Lucide's `square` and `columns-2` to `-4`.
-In the Desktop, it is the window's title bar; the window's buttons are Chromium's, over its right end ([Desktop](../desktop/desktop.md#the-window)).
+In the Desktop, it is the title bar of the window; the window buttons come from Chromium, over its right end ([Desktop](../desktop/desktop.md#the-window)).
 There it is as high as the buttons, with a line below it, and ends where they start (`env(titlebar-area-*)`).
-A line parts its own buttons from the window's, as in a View's bar ([toggles](#toggles)); the page learns of those from the Window Controls Overlay.
+A line parts its own buttons from the window buttons, as in the bar of a View ([toggles](#toggles)); the page learns of those from the Window Controls Overlay.
 In a browser, it is as high (`--title-bar-height`; a test keeps the Desktop's alike).
 Of it, all but its buttons drags the window, and a double-click maximises it.
-The icon is larger than a tab's, centred where the first tab's icon is.
-A menu's name is quiet, as VS Code's, until hovered or opened.
+The icon is larger than a tab icon, centred where the icon of the first tab is.
+The name of a menu is quiet, as in VS Code, until hovered or opened.
 The page says the bars' colour (`--bar`) as its theme colour, which the buttons take.
 
 ## Icons
@@ -89,7 +89,7 @@ Icons are monochrome, from Lucide (`lucide-react`).
 One thing has one icon, defined once in `icons.tsx`: Event kinds, actions and entity types, a dot for anything else.
 A test requires one for every Event kind and chassis.
 Where Lucide has none, `drawnIcons.ts` draws one from Lucide's own shapes, in its style.
-A toggle or button never shows an entity's icon, so that each stays the entity's.
+A toggle or button never shows the icon of an entity, so that each icon keeps standing for its entity.
 
 ### Entities
 
@@ -103,10 +103,10 @@ A toggle or button never shows an entity's icon, so that each stays the entity's
 
 ### Actions
 
-Registering and unregistering show the entity's icon with + and − where Lucide has one (book, folder), else a square's.
-git adding and removing show a diamond's, after git's logo.
+Registering and unregistering show the icon of the entity with + and − where Lucide has one (book, folder), else a square with them.
+git adding and removing show a diamond with + and −, after the git logo.
 What observing finds shows a circle's (missing, found).
-Entity icons show where a row's type isn't otherwise clear, e.g. an Event's subject, not in the Repositories tree.
+Entity icons show where a row's type is not otherwise clear, e.g. an Event's subject, not in the Repositories tree.
 
 ### Placing
 
@@ -124,7 +124,7 @@ Each kind of View has an icon, shown before its tab's title (`layout/ViewTab.tsx
 ## Text
 
 What Views show takes its size and font from `[gui.text]`, code from `[gui.code]` (`look.ts`).
-Tabs, View bars and the status bar keep theirs, so zooming isn't needed to read.
+Tabs, View bars and the status bar keep theirs, so zooming is not needed to read.
 Monospace among text is a little smaller (`--mono-size`), as its letters look larger.
 Tabs are at most `--tab-width` wide, a longer title cut off.
 Numbers show their thousands apart (`1,234`), a count with its noun singular for one alone, a + where a list was cut (`12+ files`); words listed read `a, b and c` (`text.ts`).

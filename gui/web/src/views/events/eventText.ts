@@ -8,7 +8,7 @@ type Event = Schemas["EventJson"];
 
 const PRIORITIES: Record<number, string> = { 10: "low", 20: "normal", 30: "high", 40: "urgent" };
 
-/** A priority by name, or as a number if this version doesn't know it. */
+/** A priority by name, or as a number if this version does not know it. */
 export function priorityName(value: number): string {
   return PRIORITIES[value] ?? String(value);
 }

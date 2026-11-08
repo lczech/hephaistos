@@ -111,7 +111,7 @@ def previous(paths: Paths) -> Machine | None:
 
 
 def hostnamectl(*args: str) -> str | None:
-    """What `hostnamectl` prints with these arguments; None if it fails or isn't there."""
+    """What `hostnamectl` prints with these arguments; None if it fails or is not there."""
     try:
         done = subprocess.run(  # noqa: S603 - a fixed command
             ["hostnamectl", *args],  # noqa: S607 - found on PATH, as systemd installs it
@@ -127,7 +127,7 @@ def hostnamectl(*args: str) -> str | None:
 
 
 def detected_chassis() -> str | None:
-    """This Machine's chassis as systemd knows it; None if it doesn't.
+    """This Machine's chassis as systemd knows it; None if it does not.
 
     `hostnamectl chassis` needs systemd 249; older ones show it in `hostnamectl status`.
     """
@@ -181,7 +181,7 @@ def set_up(paths: Paths, name: str | None = None, *, reset: bool = False) -> Mac
 
 @dataclass(frozen=True)
 class LocalSetup:
-    """How this Machine keeps its files and database; other Machines' setups aren't known."""
+    """How this Machine keeps its files and database; other Machines' setups are not known."""
 
     paths: Paths
     journal_mode: str

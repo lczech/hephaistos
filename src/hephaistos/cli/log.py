@@ -66,7 +66,7 @@ def show(  # noqa: PLR0913 - one option per filter
     brief: Annotated[
         bool, typer.Option("--brief", help="Only the last line of each traceback.")
     ] = False,
-    no_pager: Annotated[bool, typer.Option("--no-pager", help="Don't page the output.")] = False,
+    no_pager: Annotated[bool, typer.Option("--no-pager", help="Do not page the output.")] = False,
     as_json: JsonOption = False,
 ) -> None:
     """Show the newest records of the log, oldest first.

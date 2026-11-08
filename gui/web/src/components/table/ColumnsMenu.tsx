@@ -128,7 +128,7 @@ export function ColumnsMenu<TData extends RowData>({
   );
 }
 
-/** Why a column can't be hidden now, if so. */
+/** Why a column cannot be hidden now, if so. */
 function mustShow<TData extends RowData>(
   column: Column<ListFeatures, TData>,
   shown: Set<string>,

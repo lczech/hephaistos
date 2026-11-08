@@ -29,7 +29,7 @@ This is a guide, not a strict rule.
 ### Pickers
 
 A picker is a framed field that opens a list to choose from: a Revision picker, a filter's button in two lines, the sort in two lines, the Database View's table.
-The last two are `Picker` (`components/Picker.tsx`), our own, as the browser's `select` doesn't follow the GUI's look; one-choice filters share its menu (`PickMenu`).
+The last two are `Picker` (`components/Picker.tsx`), our own, as the browser's `select` does not follow the GUI's look; one-choice filters share its menu (`PickMenu`).
 
 ### Rows
 
@@ -84,7 +84,7 @@ A View's name keeps its capital where it names that View: "the Daemon view", tab
 Tooltips are native (`title`).
 An icon alone has its label as its tooltip.
 A cell has its own where it adds something (a full time, a status spelled out), else its whole text, as it may be cut off.
-A list's header says what the column shows, if its label doesn't.
+A list's header says what the column shows, if its label does not.
 A tab's tooltip is its whole title.
 
 ## Keys
@@ -99,7 +99,7 @@ Keyboard navigation in lists comes later.
 
 React Aria Components (`react-aria-components`, unstyled), styled with our tokens, provide controls beyond the browser's own.
 Menus and popovers open by our own buttons (`Pressable`), for their tooltips: the "+" menu, filters (a menu for one choice, a dialog for many), the header menu.
-The View menu's button says its name, so it is React Aria's, without a tooltip.
+The button of the View menu says its name, so it is a React Aria button, without a tooltip.
 
 ### Search field
 
@@ -124,11 +124,11 @@ Refs are named by their full names (`refs/heads/main`), never mistaken for anoth
 Find searches a View's content from a row below its bar (`components/find/`), opened by a button at the bar's end or Ctrl+F.
 The Diff is its first user ([views](views.md#diff)); Terminals and files are to follow.
 It matches as typed, or matching case, whole words, or a regular expression.
-Regular expressions are JavaScript's, with `\w`, `\b` and `\d` meaning words and digits in any script, as whole words do.
+Regular expressions are those of JavaScript, with `\w`, `\b` and `\d` meaning words and digits in any script, as whole words do.
 It says which match of how many, from the first.
 Enter and Shift+Enter go to the next match and the one before; Escape closes the row.
 Matches are marked on what is drawn, the current one stronger, its line too, by the CSS Custom Highlight API.
 The current match is brought into view, also from lines not drawn yet.
-What is looked for is in the address's fragment while the row is open (`find=`, and `case`, `word`, `regex` while on); the current match isn't.
-Matching runs in a Web Worker, ended after 5 s, so that a regular expression running away can't hang the page.
+What is looked for is in the address's fragment while the row is open (`find=`, and `case`, `word`, `regex` while on); the current match is not.
+Matching runs in a Web Worker, ended after 5 s, so that a regular expression running away cannot hang the page.
 It runs on the page only where there are no workers (WebKit's tests).

@@ -10,7 +10,7 @@ import { DiffView } from "./DiffView";
 import styles from "./DiffView.module.css";
 
 // What the renderer draws, as a browser lays it out: guards against its upgrades, of what the
-// GUI counts on but the renderer doesn't promise.
+// GUI counts on but the renderer does not promise.
 
 /** A text of `count` lines, those `changed` in capitals. */
 function text(count: number, changed: number[] = []): string {
@@ -268,8 +268,8 @@ describe("finding in all files' diffs", () => {
 
 describe("finding in all files' diffs, counted", () => {
   it("the same wherever it is scrolled to", async () => {
-    // Changes every 20 lines, longer than the Panel: each with `line` in 7 of its patch's
-    // lines a change, 14 changes, and its other lines.
+    // Changes every 20 lines, longer than the Panel: each with `line` in 7 of the lines of
+    // its patch a change, 14 changes, and its other lines.
     const names = ["a", "b", "c", "d", "e", "f"].map((name) => `${name}.txt`);
     const lines = Array.from({ length: 14 }, (_, at) => 10 + at * 20);
     serveFiles(Object.fromEntries(names.map((name) => [name, changed(name, 300, lines)])));

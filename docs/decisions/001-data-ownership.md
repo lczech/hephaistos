@@ -17,7 +17,7 @@ Every Machine keeps a full local copy of all data in its own database. The GUI o
 | Registry: Repositories, their Clones, Clusters, Links, inbox read position, settings | any Machine | last write wins, per record |
 
 - Peers exchange everything they hold, so data spreads through whichever Machines are connected (e.g. laptop ↔ always-on Machine ↔ Cluster). Which Machines sync with each other is declared as [Links](../glossary.md) in the Registry.
-- Each Machine's Sync exchanges with its Peers in both directions: on a timer (pull), and shortly after local changes (push). High-priority Events (e.g. Agent waiting for input) are pushed and forwarded right away; others wait for the next exchange. Machines that can't be reached from outside (laptops) open the connection themselves and keep it open while online, so they also receive pushes. Typical Peer layout, a star:
+- Each Machine's Sync exchanges with its Peers in both directions: on a timer (pull), and shortly after local changes (push). High-priority Events (e.g. Agent waiting for input) are pushed and forwarded right away; others wait for the next exchange. Machines that cannot be reached from outside (laptops) open the connection themselves and keep it open while online, so they also receive pushes. Typical Peer layout, a star:
   ```
   laptops ── always-on Machine ── cluster login node
   ```
@@ -46,7 +46,7 @@ Deferred: sync transport details.
 
 Trust (later): Registry changes that make a Machine execute something (Links, Automations) could otherwise travel through Sync against the direction of SSH access. They should be signed with per-Machine keys and accepted only from trusted Machines.
 
-Validation (with Sync): what Peers send is decoded strictly where it arrives; records and Events that don't fit are refused and logged, never stored. Sync's schema change also adds the constraints SQLite can check: the top-level type of JSON columns, counts that can't be negative, `ahead` and `behind` only with an `upstream`, no status for a bare Clone. Events stay unchanged once recorded, which has to allow local marks such as `duplicate`, and pruning. Merge rules get property-based tests, as orders and repeats are hard to cover by hand.
+Validation (with Sync): what Peers send is decoded strictly where it arrives; records and Events that do not fit are refused and logged, never stored. Sync's schema change also adds the constraints SQLite can check: the top-level type of JSON columns, counts that cannot be negative, `ahead` and `behind` only with an `upstream`, no status for a bare Clone. Events stay unchanged once recorded, which has to allow local marks such as `duplicate`, and pruning. Merge rules get property-based tests, as orders and repeats are hard to cover by hand.
 
 Size: only metadata is copied, never transcripts or Repositories. If needed later: prune or compact old Events, and partial copies per Peer connection (e.g. a cluster node sends its own data but receives only the Registry).
 

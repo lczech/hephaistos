@@ -9,5 +9,5 @@ or {
   not $filename <: r".*\.test\.tsx",
   $attrs <: contains `style={$value}` as $style,
   not $value <: `cssVars($_)`,
-  register_diagnostic(span=$style, message="Don't style inline: give the element a class, and values known only at runtime as custom properties, by `cssVars()`.")
+  register_diagnostic(span=$style, message="Do not style inline: give the element a class, and values known only at runtime as custom properties, by `cssVars()`.")
 }

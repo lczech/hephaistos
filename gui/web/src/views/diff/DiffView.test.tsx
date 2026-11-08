@@ -11,7 +11,7 @@ import type { Address, Params } from "../address";
 import { OpenViewContext } from "../opening";
 import { DiffView } from "./DiffView";
 
-// The renderer draws in a way jsdom can't show; this stand-in shows what it was given.
+// The renderer draws in a way jsdom cannot show; this stand-in shows what it was given.
 vi.mock("../../components/diff/LazyDiff", () => ({
   LazyDiff: ({
     patch,
@@ -202,7 +202,7 @@ describe("the Diff View", () => {
     expect(split).not.toHaveAttribute("data-waiting");
   });
 
-  it("shows a diff first with its versions, so that it doesn't grow once they come", async () => {
+  it("shows a diff first with its versions, so that it does not grow once they come", async () => {
     let answer: ((response: Response) => void) | undefined;
     serve({
       "GET /api/diff": () => json({ change: change(), patch: PATCH }),
@@ -293,7 +293,7 @@ describe("the Diff View", () => {
     expect(opened).toEqual([{ kind: "events", params: { clone: "clone-proj" } }]);
   });
 
-  it("names a code theme it doesn't know", async () => {
+  it("names a code theme it does not know", async () => {
     serveDiff({ change: change(), patch: PATCH }, { theme: "no-such-theme" });
     renderWithQueries(<Diff initial={STAGED} />);
     expect(await screen.findByText(/Unknown code theme no-such-theme/)).toBeInTheDocument();
@@ -367,8 +367,8 @@ describe("the Diff View", () => {
       });
     }
 
-    const address = () => screen.getAllByRole("status")[0]; // the Panel's, before the bar's
-    // Its landmark by name: jsdom's ARIA roles don't know `<search>`.
+    const address = () => screen.getAllByRole("status")[0]; // of the Panel, before that of the bar
+    // Its landmark by name: jsdom's ARIA roles do not know `<search>`.
     const bar = () => screen.getByLabelText("Find", { selector: "search" });
     const status = () => within(bar()).getByRole("status");
 
@@ -549,7 +549,7 @@ describe("the Diff View", () => {
       expect(screen.getByRole("button", { name: "Uncommitted changes" })).toBeInTheDocument();
     });
 
-    it("isn't dimmed once one file shows in its place", async () => {
+    it("is not dimmed once one file shows in its place", async () => {
       serveAll();
       const view = (params: Params) => (
         <DiffView
@@ -573,7 +573,7 @@ describe("the Diff View", () => {
       expect(container.querySelector("[data-stale]")).toBeNull();
     });
 
-    it("says that more aren't listed, past a setting, not at their end", async () => {
+    it("says that more are not listed, past a setting, not at their end", async () => {
       serveAll(1_004);
       renderWithQueries(<Diff initial={SINCE_HEAD} />);
       expect(await screen.findByText("Total: 3 files (1,000 more not listed)")).toBeInTheDocument();
@@ -682,7 +682,7 @@ describe("the Diff View", () => {
       expect(chevron("Files in src/")).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByRole("region", { name: "src/app/main.py" })).toBeInTheDocument();
       await userEvent.click(chevron("Files in src/"));
-      // Every file folded, by its own or its directory's: all folded, until all are unfolded.
+      // Every file folded, by itself or by its directory: all folded, until all are unfolded.
       const all = screen.getByRole("button", { name: "All files unfolded" });
       expect(all).toHaveAttribute("aria-pressed", "false");
       await userEvent.click(all);
@@ -832,7 +832,7 @@ describe("the Diff View", () => {
         expect(readme).toHaveAttribute("data-folded");
         await userEvent.click(screen.getByRole("button", { name: "Find in this diff" }));
         await userEvent.type(within(bar()).getByRole("textbox"), "found");
-        // Nested, src/ first: its file's match, then README's; typed, nothing shows yet.
+        // Nested, src/ first: the match in its file, then in README; typed, nothing shows yet.
         await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
         const file = screen.getByRole("region", { name: "src/b.py" });
         expect(within(file).getByText(/more than the setting/)).toBeInTheDocument(); // large

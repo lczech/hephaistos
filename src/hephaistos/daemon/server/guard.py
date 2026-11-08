@@ -1,7 +1,7 @@
 """The Server's guard: lets requests and live connections through only with the token.
 
 A client sends the token as `Authorization: Bearer <token>`, and only so: a cookie would also
-go to every other port on localhost, and a URL ends up in logs. A live connection, which can't
+go to every other port on localhost, and a URL ends up in logs. A live connection, which cannot
 carry headers from a browser, sends it as its first message. Both must name this Machine as
 `localhost` or `127.0.0.1`, so that no other site's name can be pointed at it (DNS rebinding).
 The guard counts and logs what the app answers.
@@ -58,7 +58,7 @@ def _hostname(connection: HTTPConnection) -> str:
 
 
 def _foreign_host(connection: HTTPConnection) -> str | None:
-    """Why a request or live connection is refused for the host it names; None if it isn't."""
+    """Why a request or live connection is refused for the host it names; None if it is not."""
     if (host := _hostname(connection)) not in HOSTS:
         return f"this server answers only to localhost, not to {host}"
     return None
@@ -83,7 +83,7 @@ def _given_token(request: Request) -> str | None:
 
 def _refused(reason: str, status: int) -> Response:
     """The answer to a refused request."""
-    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None  # noqa: PLR2004 - HTTP's
+    headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None  # noqa: PLR2004 - from HTTP
     return error_response(reason, status, headers)
 
 
@@ -108,7 +108,7 @@ class Guard:
         return self._tokens.current()
 
     def _refusal(self, request: Request, token: str) -> tuple[str, int] | None:
-        """Why a request is refused, and with which status; None if it isn't."""
+        """Why a request is refused, and with which status; None if it is not."""
         if (foreign := _foreign_host(request)) is not None:
             return foreign, 400
         if web.is_open(request.url.path):
@@ -118,7 +118,7 @@ class Guard:
         return None
 
     def socket_refusal(self, websocket: WebSocket) -> str | None:
-        """Why a live connection is refused before its token; None if it isn't.
+        """Why a live connection is refused before its token; None if it is not.
 
         Browsers let any page open WebSockets to any host, so a browser's (with an `Origin`)
         must come from this Server's own page; other clients send none.
@@ -131,7 +131,7 @@ class Guard:
         return None
 
     def token_refusal(self, given: str) -> str | None:
-        """Why a live connection is refused for the token it gave; None if it isn't."""
+        """Why a live connection is refused for the token it gave; None if it is not."""
         return _wrong_token(given, self.token())
 
     def refused(self, shown: str, client: str, reason: str) -> None:
