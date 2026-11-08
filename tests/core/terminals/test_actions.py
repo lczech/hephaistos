@@ -139,7 +139,7 @@ def test_directories_refused(set_up: Paths, tmp_path: Path) -> None:
     (tmp_path / "closed").mkdir(mode=0o600)
     if os.access(tmp_path / "closed", os.X_OK):
         pytest.skip("running as root: every directory can be entered")
-    with pytest.raises(HephaistosError, match=r"^can't enter "):
+    with pytest.raises(HephaistosError, match=r"^cannot enter "):
         actions.create(set_up, tmp_path / "closed")
 
 

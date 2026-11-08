@@ -1,6 +1,6 @@
 """Terminals' State: what each Machine's Keeper last showed of its Terminals.
 
-A Terminal is open while its session runs, lost once it can't run any more, after a reboot or
+A Terminal is open while its session runs, lost once it cannot run any more, after a reboot or
 when its Keeper's server died; lost ones keep their row and name until restored or killed. One
 that ended, e.g. its shell exited, loses its row. Terminals record no Events.
 """
@@ -180,7 +180,7 @@ def default_name(session: ReadSession, directory: Path, refused: Collection[str]
 def _write(session: WriteSession, state: TerminalState) -> None:
     """Stores a Terminal's State, replacing the previous one.
 
-    Its names and paths as UTF-8 holds them: a session started by hand where they aren't, or a
+    Its names and paths as UTF-8 holds them: a session started by hand where they are not, or a
     `cd` there, must not stop observation.
     """
     stored = {
@@ -279,7 +279,7 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     same boot; else it is lost. A found one takes its name from the Keeper; another holding
     that name moves to a free one. `command` holds what Terminals just created run, also for
     rows another process stored first; others found anew run a shell, or whatever was started
-    by hand, which the Keeper doesn't say.
+    by hand, which the Keeper does not say.
 
     `started` is the clock before the Keeper was asked. A row observed later, e.g. of a
     Terminal another process created meanwhile, is a newer reading than `found`, so it stays
@@ -290,7 +290,7 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     for terminal_id, run in (command or {}).items():
         old = known.get(terminal_id)
         if old is not None and old.command is None:
-            # Stored first by another process, which can't know what it runs: its creator does.
+            # Stored first by another process, which cannot know what it runs: its creator does.
             known[terminal_id] = replace(old, command=run, observed_at=observed_at)
             _write(session, known[terminal_id])
     newer = {state.id for state in known.values() if state.observed_at > started}

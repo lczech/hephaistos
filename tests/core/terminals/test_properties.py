@@ -20,7 +20,7 @@ from hephaistos.core.utils.paths import Paths
 from hephaistos.core.utils.text import escaped, utf8
 from support import eventually
 
-#: What a file name may hold: any bytes but `/` and NUL, also bytes that aren't UTF-8.
+#: What a file name may hold: any bytes but `/` and NUL, also bytes that are not UTF-8.
 FILE_NAMES = (
     st.one_of(
         st.text(st.characters(exclude_categories=("Cs",), exclude_characters="/\x00"), min_size=1),
@@ -90,7 +90,7 @@ def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then 
 ) -> None:
     """A Terminal in a directory of any name, running any arguments, with any value passed on:
     its program gets them as they were, tmux and State give them back so, and its default name
-    is a valid one. A path that isn't UTF-8 is refused."""
+    is a valid one. A path that is not UTF-8 is refused."""
     directory = tmp_path / uuid.uuid4().hex / name
     directory.mkdir(parents=True)
     got = directory.parent / "got"
@@ -98,7 +98,7 @@ def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then 
     command = ["sh", "-c", script, "sh", *arguments]
     environment = {"SSH_AUTH_SOCK": value, "PATH": os.environ["PATH"]}
     if utf8(name) != name:
-        with pytest.raises(HephaistosError, match="isn't UTF-8"):
+        with pytest.raises(HephaistosError, match="is not UTF-8"):
             actions.create(set_up, directory, command=command, environment=environment)
         return
     created = actions.create(set_up, directory, command=command, environment=environment)

@@ -52,7 +52,7 @@ def _tmux(_: Shell) -> list[Check]:
     if found.too_old:
         text = f"{version} is too old; need {tmux.MINIMUM_TEXT} or later"
         return [Check("tmux", "problem", text, fix)]
-    # A version tmux doesn't name, e.g. `master`, is taken as new enough, as the Keeper does.
+    # A version tmux does not name, e.g. `master`, is taken as new enough, as the Keeper does.
     return [Check("tmux", "ok", f"{version}, {found.executable}")]
 
 
@@ -90,7 +90,7 @@ def _unit(shell: Shell) -> list[Check]:
         found.append(Check("unit", "problem", text, INSTALL))
     state = unit.unit_state()
     if state is not None and not state.enabled:
-        text = "installed, but disabled: the daemon doesn't start at login"
+        text = "installed, but disabled: the daemon does not start at login"
         return [*found, Check("unit", "note", text, INSTALL)]
     if not found:
         found.append(Check("unit", "ok", "installed and enabled"))
@@ -135,7 +135,7 @@ def unit_problems(shell: Mapping[str, str]) -> list[Check]:
 
 
 def changed(before: Sequence[Check], after: Sequence[Check]) -> list[Check]:
-    """The checks in `after` that weren't in `before`: new problems, and fixed ones as ok."""
+    """The checks in `after` that were not in `before`: new problems, and fixed ones as ok."""
     return [check for check in after if check not in before]
 
 

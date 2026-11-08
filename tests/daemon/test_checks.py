@@ -71,7 +71,7 @@ FIX = "install tmux 3.2a or later, or set terminals.tmux.path to one"
 @pytest.mark.parametrize(
     ("script", "outcome", "text"),
     [
-        (None, "problem", "tmux isn't installed (tmux not found)"),
+        (None, "problem", "tmux is not installed (tmux not found)"),
         ("echo 'tmux 3.1c'", "problem", "3.1c is too old; need 3.2a or later"),
         ("echo 'no tmux here' >&2; exit 1", "problem", "tmux -V failed: no tmux here"),
         ("echo 'tmux 3.2a'", "ok", "3.2a, {bin}/tmux"),

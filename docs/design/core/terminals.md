@@ -1,6 +1,6 @@
 # Terminals
 
-How the Core keeps Terminals alive and observes them ([ADR 002](../decisions/002-technology-stack.md)).
+How the Core keeps Terminals alive and observes them ([ADR 002](../../decisions/002-technology-stack.md)).
 
 ## The Keeper
 
@@ -32,7 +32,7 @@ It makes tmux a plain terminal:
 - no status bar;
 - `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`);
 - extended keys (e.g. Shift+Enter) and focus events;
-- a short escape time, so Esc doesn't lag;
+- a short escape time, so Esc does not lag;
 - the server staying after its last session, so that no server means it crashed or was killed;
 - `history-limit` from `terminals.history`;
 - none of tmux's keys but Ctrl+B d (detach), Ctrl+B [ and PageUp (copy mode), and Ctrl+B Ctrl+B (a Ctrl+B for the program).
@@ -48,7 +48,7 @@ So where systemd's user manager answers, the tmux server starts in a scope of it
 A tmux built with systemd support, e.g. Ubuntu's, also moves each new pane into a scope of its own, `tmux-spawn-*.scope`, while the pane starts; whichever move comes last holds it.
 Stopping the Daemon, or an out-of-memory kill of one Terminal, ends no other.
 Elsewhere, e.g. on clusters, both start as plain processes.
-A user manager that doesn't answer within 5 s, e.g. under heavy load, is logged as a warning, and the Terminal starts without a scope of its own.
+A user manager that does not answer within 5 s, e.g. under heavy load, is logged as a warning, and the Terminal starts without a scope of its own.
 
 ### Environment
 
@@ -59,11 +59,11 @@ A new Terminal also gets its creator's variables that a terminal emulator passes
 ### Listing
 
 One `list-panes -a` lists all sessions, each as its first pane, counting the others.
-tmux prints paths as they are, tabs and newlines included; some builds, e.g. Ubuntu's 3.4, write other control characters, bytes that aren't UTF-8 and `$` as escapes (`\037`, `\b`, `\$`), but a backslash as itself.
+tmux prints paths as they are, tabs and newlines included; some builds, e.g. Ubuntu's 3.4, write other control characters, bytes that are not UTF-8 and `$` as escapes (`\037`, `\b`, `\$`), but a backslash as itself.
 So fields are separated by a tab, a Unit Separator and a tab, escaped or not, and each pane ends with a Record Separator.
-A path's escapes count where the path so read exists and the text as printed doesn't.
+A path's escapes count where the path so read exists and the text as printed does not.
 tmux runs with `-u`, else without a UTF-8 locale, e.g. in a Daemon, it prints `_` for each character beyond ASCII; its output is decoded as bytes, as text mode would turn a `\r` into a `\n`.
-A pane whose fields don't add up is skipped and logged, never misread; so is a session without a name, which tmux 3.8 makes of `new -s '#'`.
+A pane whose fields do not add up is skipped and logged, never misread; so is a session without a name, which tmux 3.8 makes of `new -s '#'`.
 Without a server, there are no sessions.
 
 ### Killing
@@ -75,9 +75,9 @@ What ignores SIGHUP outlives it.
 ### Versions
 
 Terminals need tmux 3.2a or later; an older one or none fails with a message naming `terminals.tmux.path`.
-A version we can't read, e.g. `master`, counts as new enough, and is logged.
+A version we cannot read, e.g. `master`, counts as new enough, and is logged.
 `hephaistos status` and the Status View check tmux too, before any Terminal is made ([status](../daemon/status.md#checks)).
-The tests run with every minor version since 3.2a ([development](../development.md#tests)).
+The tests run with every minor version since 3.2a ([development](../../development.md#tests)).
 
 ## Observing
 
@@ -85,16 +85,16 @@ Each Machine stores its Terminals in `state_terminals` ([data](data.md)), as the
 The Keeper runs outside any transaction, then one write session compares its sessions with the rows.
 A row observed after the Keeper was asked, e.g. of a Terminal another process created meanwhile, is a newer reading: it stays as it is, as Clones' do ([observation](observation.md)).
 
-A Terminal is **open** while its session runs, and **lost** once it can't run any more:
+A Terminal is **open** while its session runs, and **lost** once it cannot run any more:
 - its session gone, the server running in the same boot: it ended, e.g. its shell exited, and its row goes;
 - the server gone in the same boot: it crashed or was killed, so its Terminals are lost;
 - another boot (Linux's boot ID): they are lost too.
 
 Lost ones keep their row and name, to be restored with both, or killed.
-Terminals record no Events ([ADR 001](../decisions/001-data-ownership.md)).
+Terminals record no Events ([ADR 001](../../decisions/001-data-ownership.md)).
 
 A session without an ID, e.g. one started by hand on our socket, is adopted: it gets one and a row.
-So does one whose ID isn't valid, or is another session's.
+So does one whose ID is not valid, or is another session's.
 One named like a lost Terminal takes that one's ID, so that `tmux -L hephaistos new -s api` after a reboot brings `api` back.
 tmux compares and sets the ID in one command, so two processes adopting at once agree on it.
 
@@ -112,7 +112,7 @@ Each observes first, so that it acts on what the Keeper holds now, then acts on 
 A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it.
 
 A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as the database's text is.
-Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that aren't UTF-8, so that they never stop an observation.
+Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.
 A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
 A command that ends before the Terminal is observed is reported as having ended at once; a server that ends meanwhile, as lost at once.

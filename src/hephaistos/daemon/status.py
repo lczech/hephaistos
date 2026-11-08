@@ -36,7 +36,7 @@ class PassStatus:
     duration: float  # seconds
     error: str | None = None
     trigger: Trigger = "watcher"
-    problems: tuple[str, ...] = ()  # what it couldn't observe; the next pass without clears them
+    problems: tuple[str, ...] = ()  # what it could not observe; the next pass without clears them
 
 
 @dataclass(frozen=True)
@@ -156,7 +156,7 @@ def _checked_json(checked: Checked) -> dict[str, object]:
 
 
 def _checked_from(data: Any) -> Checked:  # noqa: ANN401 - JSON, checked here
-    """The Daemon's checks from their JSON values; raises if any don't fit."""
+    """The Daemon's checks from their JSON values; raises if any do not fit."""
     return Checked(
         datetime.fromisoformat(_of(data["at"], str)),
         tuple(

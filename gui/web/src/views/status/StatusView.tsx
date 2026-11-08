@@ -86,7 +86,7 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-/** Copies `text`, saying so for a moment beside it, or why it couldn't, moving nothing. */
+/** Copies `text`, saying so for a moment beside it, or why it could not, moving nothing. */
 function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
   const [said, setSaid] = useState<string | null>(null);
   const copy = async () => {

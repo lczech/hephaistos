@@ -43,8 +43,8 @@ class Done:
     worktrees: int
     updated: int  # Checkouts whose State changed
     skipped: int  # Clones moved, unregistered or observed by another process meanwhile
-    terminals: int = 0  # open; 0 also where they couldn't be observed
-    problems: tuple[str, ...] = ()  # what this pass couldn't observe, e.g. Terminals
+    terminals: int = 0  # open; 0 also where they could not be observed
+    problems: tuple[str, ...] = ()  # what this pass could not observe, e.g. Terminals
 
 
 @dataclass(frozen=True)

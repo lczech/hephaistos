@@ -41,13 +41,13 @@ class Names:
                 f"{name!r} is not a {self.kind} name: those have only {self.described},"
                 f" at most {self.max_length}"
                 + (f", start with {self.first_described}" if self.first else "")
-                + (f", and aren't {reserved}" if reserved else "")
+                + (f", and are not {reserved}" if reserved else "")
             )
 
     def derived(self, text: str) -> str | None:
         """A name from `text`, e.g. a directory's: `My Thesis` → `My-Thesis`.
 
-        Each run of characters a name can't have becomes a `-`, as GitHub does, without one at
+        Each run of characters a name cannot have becomes a `-`, as GitHub does, without one at
         either end; None if no name is left.
         """
         name = self._others.sub("-", text).strip("-")

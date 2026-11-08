@@ -44,7 +44,7 @@ describe("the Daemon's health", () => {
     });
   });
 
-  it("warns of what the last pass couldn't observe, until a pass without", () => {
+  it("warns of what the last pass could not observe, until a pass without", () => {
     const status = daemon();
     const pass = status.watcher?.last_pass;
     if (!status.watcher || !pass) throw new Error("no last pass");
@@ -60,7 +60,7 @@ describe("the Daemon's health", () => {
     expect(daemonHealth(live, status, NOW).health).toBe("good");
   });
 
-  it("warns of a GUI that doesn't fit the API, as a problem of the setup", () => {
+  it("warns of a GUI that does not fit the API, as a problem of the setup", () => {
     const hint = "This GUI is built for API 0.22; the daemon runs 0.21: restart it";
     expect(daemonHealth(live, daemon(), NOW, hint)).toEqual({ health: "warning", reasons: [hint] });
     expect(daemonHealth(live, undefined, NOW, hint).health).toBe("warning");

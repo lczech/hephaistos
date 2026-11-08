@@ -3,13 +3,13 @@
 import unicodedata
 
 _NAMED = {"\t": "\\t", "\n": "\\n", "\r": "\\r"}
-_SURROGATES = range(0xDC80, 0xDD00)  # bytes that aren't UTF-8, as `surrogateescape` keeps them
+_SURROGATES = range(0xDC80, 0xDD00)  # bytes that are not UTF-8, as `surrogateescape` keeps them
 
 
 def escaped(text: str) -> str:
     r"""`text` safe to print on one line: control characters as `\t`, `\n` or `\x01`.
 
-    Also bytes that aren't UTF-8 as `\xff`, and Unicode's line separators as `\u2028`. Names
+    Also bytes that are not UTF-8 as `\xff`, and Unicode's line separators as `\u2028`. Names
     and paths may hold any of them; nothing else changes.
     """
     if text.isprintable():
@@ -29,7 +29,7 @@ def escaped(text: str) -> str:
 
 
 def utf8(text: str) -> str:
-    """`text` as UTF-8 can hold it, e.g. in the database: bytes that aren't UTF-8 as `�`."""
+    """`text` as UTF-8 can hold it, e.g. in the database: bytes that are not UTF-8 as `�`."""
     return text.encode(errors="surrogateescape").decode(errors="replace")
 
 

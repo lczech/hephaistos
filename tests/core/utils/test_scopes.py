@@ -11,7 +11,7 @@ def test_environment_plain_and_escaped() -> None:
     text = r"""HOME=/home/u
 EMPTY=
 URLS=$'https://a.example https://b.example '
-QUOTED=$'it\'s\tone\nline'
+QUOTED=$'a \'quote\'\tone\nline'
 UNICODE=$'café'
 no equals sign
 =no name
@@ -20,7 +20,7 @@ no equals sign
         "HOME": "/home/u",
         "EMPTY": "",
         "URLS": "https://a.example https://b.example ",
-        "QUOTED": "it's\tone\nline",
+        "QUOTED": "a 'quote'\tone\nline",
         "UNICODE": "café",
     }
 

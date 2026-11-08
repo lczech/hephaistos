@@ -34,10 +34,10 @@ def _taken_text(name: str, lost: bool) -> str:  # noqa: FBT001 - a flag, as the 
 def _observed(
     paths: Paths, keeper: Keeper, command: Mapping[uuid.UUID, tuple[str, ...]] | None = None
 ) -> None:
-    """Observes; raises HephaistosError if the Keeper can't be asked."""
+    """Observes; raises HephaistosError if the Keeper cannot be asked."""
     result = observer.observe(paths, keeper, command=command)
     if result.error is not None:
-        raise HephaistosError(f"terminals can't be observed: {result.error}")
+        raise HephaistosError(f"terminals cannot be observed: {result.error}")
 
 
 def _directory(directory: Path) -> Path:
@@ -48,9 +48,10 @@ def _directory(directory: Path) -> Path:
     if not resolved.is_dir():
         raise HephaistosError(f"{short_path(resolved)} is not a directory")
     if not os.access(resolved, os.X_OK):
-        raise HephaistosError(f"can't enter {short_path(resolved)}")
+        raise HephaistosError(f"cannot enter {short_path(resolved)}")
     if utf8(str(resolved)) != str(resolved):
-        raise HephaistosError(f"{short_path(resolved)} isn't UTF-8, which terminals' paths must be")
+        path = short_path(resolved)
+        raise HephaistosError(f"{path} is not UTF-8, as terminals need; choose another directory")
     return resolved
 
 

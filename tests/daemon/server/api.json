@@ -7,7 +7,7 @@
     "components": {
       "schemas": {
         "AboutJson": {
-          "description": "What runs, and on what; None for what isn't known.",
+          "description": "What runs, and on what; None for what is not known.",
           "properties": {
             "api": {
               "title": "Api",

@@ -42,7 +42,7 @@ class Scopes:
 
 
 def parse_environment(text: str) -> dict[str, str]:
-    """Variables from `systemctl show-environment`; lines it can't read are skipped.
+    """Variables from `systemctl show-environment`; lines it cannot read are skipped.
 
     It writes `NAME=value`, or `NAME=$'…'` with C escapes where a value has special characters.
     """
@@ -56,7 +56,7 @@ def parse_environment(text: str) -> dict[str, str]:
                 raw = codecs.escape_decode(value[2:-1].encode())[0]
             except ValueError:
                 log.warning(
-                    "skipped systemd's variable %s, which has an escape we can't read", name
+                    "skipped systemd's variable %s, which has an escape we cannot read", name
                 )
                 continue
             value = raw.decode(errors="surrogateescape")
@@ -83,7 +83,7 @@ def detect() -> Scopes | None:
         )
     except subprocess.TimeoutExpired:
         # Its manager is there but stuck, e.g. under heavy load: worth knowing, unlike its absence.
-        log.warning("no systemd scopes: systemctl didn't answer within %g s", TIMEOUT)
+        log.warning("no systemd scopes: systemctl did not answer within %g s", TIMEOUT)
         return None
     except (OSError, subprocess.SubprocessError) as error:
         log.info("no systemd scopes: systemctl failed: %s", error)

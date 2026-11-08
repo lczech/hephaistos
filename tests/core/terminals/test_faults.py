@@ -77,7 +77,7 @@ def test_tmux_hung_during_a_pass(set_up: Paths, keeper: TmuxKeeper, tmp_path: Pa
     before = stored(set_up)["api"]
     with paused(keeper):
         result = observer.observe(set_up, like(keeper, timeout=0.5))
-    assert result == observer.Result(None, "tmux didn't answer within 0.5 s")
+    assert result == observer.Result(None, "tmux did not answer within 0.5 s")
     assert stored(set_up)["api"] == before  # as last known, its age showing it
     assert observer.observe(set_up, keeper).changes is not None
     assert stored(set_up)["api"].status is TerminalStatus.OPEN
@@ -137,7 +137,7 @@ def test_systemd_stuck_when_creating(
     assert created.status is TerminalStatus.OPEN  # without a scope of its own
     assert keeper.scopes is None
     assert [record.getMessage() for record in caplog.records] == [
-        "no systemd scopes: systemctl didn't answer within 0.3 s"
+        "no systemd scopes: systemctl did not answer within 0.3 s"
     ]
 
 

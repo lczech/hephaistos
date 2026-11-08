@@ -183,7 +183,7 @@ def test_without_tmux(set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: P
     result = observe(set_up, missing, boot)
     assert result.changes is None
     assert result.error is not None
-    assert "tmux isn't installed" in result.error
+    assert "tmux is not installed" in result.error
     assert stored(set_up) == before
 
 

@@ -8,12 +8,12 @@ The GUI shows the same in its Status View ([views](../gui/views.md#status)).
 A check finds one thing ok, a problem, or a note.
 A problem stops or degrades a feature until the user changes something: installs, upgrades, reinstalls or changes a setting; it says what to do.
 A note is a choice that is fine, e.g. no systemd on a cluster, or the Daemon run by `hephaistos daemon run` rather than systemd.
-What goes wrong for a while, e.g. a failed pass or a lost connection, isn't a check: the Daemon's status shows it ([Daemon](daemon.md#status)).
+What goes wrong for a while, e.g. a failed pass or a lost connection, is not a check: the Daemon's status shows it ([Daemon](daemon.md#status)).
 
 The checks, in `daemon/checks.py`, each part adding its own:
 - git: found on the PATH, at least 2.31: before, `worktree list` gives no lock reasons, and reflogs word rebases and new worktrees otherwise; `scripts/test_git_versions.sh` tests that one too.
 - tmux: at least 3.2a, as Terminals need it; a problem without it even on a Machine without Terminals, so that it shows before the first one is made ([Terminals](../core/terminals.md#versions)).
-  A version tmux doesn't name, e.g. `master`, counts as new enough.
+  A version tmux does not name, e.g. `master`, counts as new enough.
 - SQLite: Python's, at least 3.37.
 - systemd: its version; a note without user services.
 - The unit, with systemd: a note if not installed or disabled; a problem if a unit of another installation is in the way, its program is gone, or, asked from a shell, it uses other directories than those of this shell.
@@ -25,7 +25,7 @@ The checks run in the process that asks, as the PATH may differ: in the Daemon f
 They cost a few `--version` calls and systemd queries, so nothing runs them on a timer.
 The Daemon runs them at its start, and each time a client asks `/api/status`.
 It records them in `daemon.json`, with the time, and logs those that changed: problems as warnings, the others as info.
-`/api/daemon` gives the recorded ones, for the status bar, so that it doesn't run them.
+`/api/daemon` gives the recorded ones, for the status bar, so that it does not run them.
 
 ## About
 

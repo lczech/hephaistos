@@ -24,7 +24,7 @@ UNKNOWN_BOOT = "unknown"  # elsewhere: then only a dead server makes Terminals l
 class Result:
     """What one observation did."""
 
-    changes: Changes | None  # None if the Keeper couldn't be asked
+    changes: Changes | None  # None if the Keeper could not be asked
     error: str | None = None  # why not, if this Machine has Terminals; else that is no news
 
 
@@ -83,7 +83,7 @@ def observe(
 ) -> Result:
     """Observes this Machine's Terminals with `keeper`, else the one its settings describe.
 
-    `command` holds what Terminals just created run, which the Keeper doesn't say.
+    `command` holds what Terminals just created run, which the Keeper does not say.
 
     The Keeper runs outside any transaction. A Machine without a working Keeper, e.g. without
     tmux, and without Terminals is no news; with Terminals, it is logged and their rows stay as

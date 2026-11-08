@@ -79,7 +79,7 @@ class Installation:
 
     @property
     def numbers(self) -> tuple[int, int] | None:
-        """Its major and minor version, e.g. `(2, 43)`; None if `version` doesn't say."""
+        """Its major and minor version, e.g. `(2, 43)`; None if `version` does not say."""
         found = re.search(r"(\d+)\.(\d+)", self.version)
         return None if found is None else (int(found[1]), int(found[2]))
 

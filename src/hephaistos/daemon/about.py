@@ -33,7 +33,7 @@ def running_version(source: Path = SOURCE) -> str:
 
 
 class AboutJson(TypedDict):
-    """What runs, and on what; None for what isn't known."""
+    """What runs, and on what; None for what is not known."""
 
     version: str  # e.g. `0.1.0 (bfc66f6-dirty)`
     api: str  # e.g. `0.22`

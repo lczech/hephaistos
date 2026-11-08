@@ -90,7 +90,8 @@ _NO_SERVER = re.compile(
 )
 #: How tmux says that a server has no sessions left, e.g. to `list-panes -a`.
 _NO_SESSIONS = re.compile(r"^no current target", re.MULTILINE)
-_NO_SESSION = re.compile(r"^(can't find session|no such session)", re.MULTILINE)
+#: tmux's own words, its apostrophe written as `\x27` (docs/style.md: none in our text).
+_NO_SESSION = re.compile(r"^(can\x27t find session|no such session)", re.MULTILINE)
 _DUPLICATE = re.compile(r"^duplicate session", re.MULTILINE)
 
 
@@ -117,7 +118,7 @@ class Installation:
 
     @property
     def too_old(self) -> bool:
-        """Whether it is older than we need; one that names no version isn't."""
+        """Whether it is older than we need; one that names no version is not."""
         version = self.version
         return version is not None and version < MINIMUM
 
@@ -131,13 +132,13 @@ def binary() -> str:
 def missing_text(binary: str) -> str:
     """Why there are no Terminals without tmux, and what to do."""
     return (
-        f"tmux isn't installed ({binary} not found); install tmux {MINIMUM_TEXT} or later,"
+        f"tmux is not installed ({binary} not found); install tmux {MINIMUM_TEXT} or later,"
         " or set terminals.tmux.path to one"
     )
 
 
 def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
-    """The tmux that `binary` runs; raises KeeperError if it isn't there or fails."""
+    """The tmux that `binary` runs; raises KeeperError if it is not there or fails."""
     try:
         result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             [binary, "-V"], capture_output=True, text=True, check=False, timeout=timeout
@@ -164,10 +165,10 @@ def _unescaped(match: re.Match[bytes]) -> bytes:
 def tmux_path(text: str) -> Path:
     r"""A path as tmux prints it, its escapes read where that names an existing path.
 
-    Some builds, e.g. Ubuntu's 3.4, write control characters and bytes that aren't UTF-8 as
+    Some builds, e.g. Ubuntu's 3.4, write control characters and bytes that are not UTF-8 as
     escapes, `\037` or C's `\b`, and `$` as `\$`, but a backslash as itself (conda-forge's print
     them as they are): the escapes count where the path so read exists and the text as printed
-    doesn't.
+    does not.
     """
     printed = Path(text)
     if "\\" not in text:
@@ -177,7 +178,7 @@ def tmux_path(text: str) -> Path:
 
 
 def scope_of(pid: int | None) -> str | None:
-    """The systemd scope a process runs in, from its cgroup (v2); None if none, or it's gone."""
+    """The systemd scope a process runs in, from its cgroup (v2); None if in none, or ended."""
     if pid is None:
         return None
     try:
@@ -324,11 +325,11 @@ class TmuxKeeper:
         except FileNotFoundError:
             raise KeeperError(missing_text(self.binary)) from None
         except subprocess.TimeoutExpired:
-            raise KeeperError(f"tmux didn't answer within {self.timeout:g} s") from None
+            raise KeeperError(f"tmux did not answer within {self.timeout:g} s") from None
         except OSError as error:
             raise KeeperError(f"tmux failed: {error}") from None
         # Decoded here, not in text mode, whose universal newlines would turn a path's `\r` into
-        # `\n`; bytes that aren't UTF-8 survive the round trip as surrogates.
+        # `\n`; bytes that are not UTF-8 survive the round trip as surrogates.
         return subprocess.CompletedProcess(
             result.args,
             result.returncode,
@@ -379,7 +380,7 @@ class TmuxKeeper:
         """A pane's session and the config marker its server has; None, logged, if malformed."""
         fields = record.split(_SEPARATOR)
         if len(fields) != len(_FIELDS):
-            log.warning("skipped a tmux session we can't read: %r", record[:200])
+            log.warning("skipped a tmux session we cannot read: %r", record[:200])
             return None
         (
             key,
@@ -402,7 +403,7 @@ class TmuxKeeper:
         try:
             parsed_id = uuid.UUID(terminal_id) if terminal_id else None
         except ValueError:
-            log.warning("tmux session %s has an ID that isn't one: %r", name, terminal_id)
+            log.warning("tmux session %s has an ID that is not one: %r", name, terminal_id)
             parsed_id = None
         try:
             session = Session(
@@ -420,7 +421,7 @@ class TmuxKeeper:
                 panes=1,
             )
         except ValueError:
-            log.warning("skipped a tmux session we can't read: %r", record[:200])
+            log.warning("skipped a tmux session we cannot read: %r", record[:200])
             return None
         return session, marker
 
@@ -514,11 +515,11 @@ class TmuxKeeper:
 
         tmux compares and sets in one command, so two processes adopting at once agree. The
         session is named by its key, `$3`, single-quoted against tmux expanding `$`. An ID
-        set by hand to text that can't go into the comparison is replaced without one.
+        set by hand to text that cannot go into the comparison is replaced without one.
         """
         self.check()
         if not re.fullmatch(r"\$\d+", session.key):
-            raise KeeperError(f"tmux session key {session.key!r} isn't one")
+            raise KeeperError(f"tmux session key {session.key!r} is not one")
         command = f"set-option -t '{session.key}' {ID_OPTION} {terminal_id}"
         if re.fullmatch(r"[\w-]*", session.id_text):
             condition = f"#{{==:#{{{ID_OPTION}}},{session.id_text}}}"
@@ -593,7 +594,7 @@ class TmuxKeeper:
         )
 
     def _server_pid(self) -> int | None:
-        """The server's process; None if it doesn't say."""
+        """The server's process; None if it does not say."""
         result = self._client("display-message", "-p", "#{pid}")
         text = result.stdout.strip()
         return int(text) if result.returncode == 0 and text.isdecimal() else None

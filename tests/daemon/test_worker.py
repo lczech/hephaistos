@@ -149,7 +149,7 @@ def test_terminals_not_observed_are_a_problem_of_the_pass(
     def clones(_: Paths) -> observer.Result:
         return observer.Result([], 2, 0, 3, 1)
 
-    found = terminals.Result(None, "tmux didn't answer within 10 s")
+    found = terminals.Result(None, "tmux did not answer within 10 s")
 
     def unanswered(_: Paths) -> terminals.Result:
         return found
@@ -157,7 +157,7 @@ def test_terminals_not_observed_are_a_problem_of_the_pass(
     monkeypatch.setattr(observer, "observe", clones)
     monkeypatch.setattr(terminals, "observe", unanswered)
     assert worker.observed(paths) == Done(
-        0, 2, 3, 1, 0, 0, ("terminals not observed: tmux didn't answer within 10 s",)
+        0, 2, 3, 1, 0, 0, ("terminals not observed: tmux did not answer within 10 s",)
     )
     found = terminals.Result(None)  # no Terminals here: no news
     assert worker.observed(paths) == Done(0, 2, 3, 1, 0)

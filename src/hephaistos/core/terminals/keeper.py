@@ -18,7 +18,7 @@ TERMINAL_VARIABLE = "HEPHAISTOS_TERMINAL"
 
 
 class KeeperError(HephaistosError):
-    """The Keeper failed, or can't run here."""
+    """The Keeper failed, or cannot run here."""
 
 
 class NameTakenError(KeeperError):
@@ -34,7 +34,7 @@ class Session:
     """A Terminal as its Keeper sees it at one moment."""
 
     key: str  # the Keeper's own ID for it, e.g. tmux's `$3`
-    terminal_id: uuid.UUID | None  # ours; None until adopted, or if `id_text` isn't one
+    terminal_id: uuid.UUID | None  # ours; None until adopted, or if `id_text` is not one
     id_text: str  # as the Keeper holds it: empty until adopted
     name: str
     directory: Path  # where it started
@@ -81,7 +81,7 @@ class Keeper(Protocol):
     def adopt(self, session: Session, terminal_id: uuid.UUID) -> uuid.UUID | None:
         """Gives a session `terminal_id`, unless its ID changed since `session` was listed.
 
-        For a session found without an ID, e.g. one started by hand, or with one that isn't
+        For a session found without an ID, e.g. one started by hand, or with one that is not
         valid or is another's. Returns the ID it has then, which another process may have given
         it meanwhile; None if it is gone.
         """

@@ -56,7 +56,7 @@ Extension points are named after what their plugins supply: `agents/` support ki
 
 - The Core defines one small interface per extension point and discovers plugins through Python entry points; it never imports them. Built-in plugins register the same way an external one would.
 - Plugins depend only on the Core.
-- The Keeper is a backend instead: the Core uses it through a small interface and creates it itself, tmux being the only one. Another, e.g. for Windows, would be a second backend; a setting would choose between them once there are two ([terminals](../core/terminals.md)).
+- The Keeper is a backend instead: the Core uses it through a small interface and creates it itself, tmux being the only one. Another, e.g. for Windows, would be a second backend; a setting would choose between them once there are two ([terminals](../design/core/terminals.md)).
 
 ## Interacting with Agents
 
@@ -81,5 +81,5 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **Go or Rust:** easier single-binary deployment, but less familiar. Python with uv covers cluster deployment well enough.
 - **Plain browser or installed web app:** the browser keeps shortcuts like Ctrl+W for itself.
 - **CLI as a client of a running Daemon:** the CLI would stop working whenever the Daemon is down.
-- **The Keeper as a plugin:** plugins are optional, but Terminals can't do without it; entry points would only add indirection for one backend.
+- **The Keeper as a plugin:** plugins are optional, but Terminals cannot do without it; entry points would only add indirection for one backend.
 - **A Keeper of our own (a PTY server, as some apps write):** tmux runs on clusters without compiling, keeps output and screen state for reattaching, gives plain SSH access, and its control mode streams programs' own output.

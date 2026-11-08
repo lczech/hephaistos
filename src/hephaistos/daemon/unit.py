@@ -198,7 +198,7 @@ def is_available() -> bool:
 
 
 def version() -> str | None:
-    """The version of systemd, e.g. `systemd 255 (255.4-1ubuntu8)`; None if it doesn't run."""
+    """The version of systemd, e.g. `systemd 255 (255.4-1ubuntu8)`; None if it does not run."""
     try:
         result = _run("systemctl", "--version")
     except SystemdError:

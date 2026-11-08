@@ -111,7 +111,7 @@ class PassJson(TypedDict):
     duration: float  # seconds
     error: str | None
     trigger: Trigger
-    problems: list[str]  # what it couldn't observe, e.g. Terminals; it didn't fail for them
+    problems: list[str]  # what it could not observe, e.g. Terminals; it did not fail for them
 
 
 class WatcherJson(TypedDict):

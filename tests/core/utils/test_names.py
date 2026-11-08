@@ -63,6 +63,6 @@ def test_repository_names_outside_the_rules_are_refused(name: str) -> None:
     with pytest.raises(
         HephaistosError,
         match=r"those have only ASCII letters, digits, '\.', '-' and '_', at most 100,"
-        r" and aren't '\.' or '\.\.'$",
+        r" and are not '\.' or '\.\.'$",
     ):
         NAMES.check(name)

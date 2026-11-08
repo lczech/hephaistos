@@ -3,7 +3,7 @@
 }
 
 /* What the Daemon reported last: dimmed while that may be out of date. One grid of a label's
-   column and a value's, across all sections, so that they line up; what isn't a row spans both.
+   column and a value's, across all sections, so that they line up; what is not a row spans both.
    The sections' lists take part in it (`display: contents`). */
 .status {
   composes: dims from "../../components/text.module.css";

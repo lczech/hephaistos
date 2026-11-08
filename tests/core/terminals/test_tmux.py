@@ -367,7 +367,7 @@ def with_binary(keeper: TmuxKeeper, binary: str, timeout: float = 5.0) -> TmuxKe
 
 def test_tmux_missing(keeper: TmuxKeeper, tmp_path: Path) -> None:
     missing = with_binary(keeper, str(tmp_path / "no-tmux"))
-    with pytest.raises(KeeperError, match=r"tmux isn't installed .*terminals\.tmux\.path"):
+    with pytest.raises(KeeperError, match=r"tmux is not installed .*terminals\.tmux\.path"):
         missing.sessions()
 
 
@@ -387,7 +387,7 @@ def test_an_unknown_version_counts_as_new(keeper: TmuxKeeper, tmp_path: Path) ->
 def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
     script = '[ "$1" = -V ] && echo tmux 3.4 && exit; exec sleep 10'
     hanging = with_binary(keeper, fake_tmux(tmp_path, script), timeout=0.3)
-    with pytest.raises(KeeperError, match=r"tmux didn't answer within 0\.3 s"):
+    with pytest.raises(KeeperError, match=r"tmux did not answer within 0\.3 s"):
         hanging.sessions()
 
 
