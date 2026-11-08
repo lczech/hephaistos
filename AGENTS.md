@@ -38,6 +38,8 @@ Decided in [docs/decisions/](docs/decisions/):
 
 How things work on these is described in [docs/design/](docs/design/), in a folder per part, as in the source: [core/](docs/design/core/), [daemon/](docs/design/daemon/), [cli/](docs/design/cli/), [desktop/](docs/design/desktop/) and [gui/](docs/design/gui/); tools, layout and tests in [docs/development.md](docs/development.md). A decision that changes goes in its ADR; how something works or looks, in the matching design doc, one sentence per line, in the same commit as the code. A plan for later goes in an ADR only where it shapes a decision.
 
+Plans and ideas are tracked too. [docs/plans/roadmap.md](docs/plans/roadmap.md) lists the steps; it is edited on master only, also when a branch merges. The plan of a step being worked on is `docs/plans/<step>.md`, on its branch; once the step merges, its decisions are in the ADRs and design docs, and the plan is deleted. [docs/ideas/](docs/ideas/) holds what is wanted but not planned, one file per area; raise an idea when its step is planned, and move it into the plan then. Ideas may be added on any branch; a session on a branch reads those of master in `/home/lucas/Repos/hephaistos/docs/ideas/`. `.agents/scratch/` (not tracked) is only for prototypes, scripts and output that can be made again. Claude memory holds only pointers to these.
+
 Keep interfaces and process ownership separate: closing or crashing the GUI must not terminate managed work. Each Machine should remain usable when other Machines are unreachable. Disconnected Machines should show timestamped last-known information.
 
 Desktop actions must execute on the intended Machine and, where necessary, in its graphical user session. A web interface can request these through the authenticated Server on that Machine; it cannot directly launch arbitrary desktop applications by itself.
@@ -80,3 +82,15 @@ Implement one step at a time, with tests, and stop after each step with a short 
 
 Never start, stop or restart the user's Daemon; give them the commands.
 Run `hephaistos setup` only with `--no-daemon --no-desktop`, and never `daemon install|uninstall` or `desktop install|uninstall`: whatever `HEPHAISTOS_HOME` says, they replace the user's systemd unit and launcher entry, and restart the Daemon. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).
+
+**Working with me**
+
+- I am not a frontend expert: leave build tooling to yourself, but show the plan first, and ask about decisions that are costly to change (e.g. a component library).
+- Tell me when I use a term of the glossary, or another word (Java for JavaScript), wrongly: say what it means and which fits, then go on with what I meant.
+- "heph" means hephaistos in chat only; code, messages and docs say `hephaistos`.
+- On master, commit only when I ask; never amend unasked. Add files by name: never my untracked files (`TODO.md`, `extern/`, `tmp/`) or the placeholder dotfiles in the root (`.bashrc`, `.claude/`, `.mcp.json`, `.vscode` and the like). Commit messages follow [docs/development.md](docs/development.md#commits).
+- I run hephaistos as `uv tool install --editable .` from the main checkout, so my Daemon runs its working tree: when a commit adds a dependency, tell me to run `uv tool install --reinstall --editable .` before `hephaistos daemon restart`.
+- Leave the tools installed on my laptop alone: the system Node stays; the GUI takes Node from the project (`uv run npm --prefix gui …`).
+- Keep the shell at the root of the checkout, never in `gui/`: a session there gets empty sandbox placeholders (`.mcp.json`, `.claude/…`) that break Biome and the commit hook; if the lint fails on them, remove them.
+- For a scratch Daemon: `SCRATCH_HOME=~/.cache/agents/hephaistos/scratch-home scripts/scratch_daemon.sh start|stop` (port 8299; it finds its own processes by their `HEPHAISTOS_HOME`). Never `pkill -f`, nor kill by a bare `pgrep -f` pattern: it matches my processes, and the command line of your own shell too.
+- Spare the laptop: tests of the files changed while working, the full GUI check once before a commit, never several full runs in a row, and no more GUI builds than needed.

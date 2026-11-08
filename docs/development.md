@@ -3,6 +3,22 @@
 How the code is laid out, which tools check it, and how it is tested ([ADR 002](decisions/002-technology-stack.md), [ADR 003](decisions/003-core.md)).
 The commands to run are in the [README](../README.md#development).
 
+## Principles
+
+- Use what a framework or tool offers (e.g. the options of dockview, the conventions of Vite), as simply as possible.
+  A workaround is for where there is no other way; it is named as one, next to the native ways, asking upstream included, and replaced when a native way appears.
+- A rule or tool that matters fails loudly when broken or switched off: its strictest mode, a test that it runs at all, the hooks (`.githooks/pre-commit` lints; `.githooks/pre-push` runs pyright, pytest and `npm run check`), and CI (`.github/workflows/ci.yml`).
+- No backwards compatibility while formats are in flux: a changed file format just changes, with a plain error for the old form, and no migration code or hints.
+  Data in the database is worth keeping, so a schema change bumps `SCHEMA_VERSION` and comes with a one-off script that carries the data over ([ADR 003](decisions/003-core.md)); `.agents/scratch/gui-verification/carry-over.py` (not tracked) rebuilds changed tables in place, safe with a running Daemon.
+- The package version stays 0.1.0 until things are reasonably stable; only the API version moves ([ADR 004](decisions/004-server.md)).
+
+## Commits
+
+The subject names an area, then an imperative summary, lowercase after the colon, under about 60 characters (72 at most): `gui: add a header menu for hiding and moving columns`.
+Areas: `gui`, `core`, `daemon` (the Daemon, the Server and the API), `cli`, `desktop`, `tests`, `docs`, `build`, `ci`, `assets`, `scripts`; the area is where the change mainly lives.
+A change of the API version ends the subject with `(API 0.x)`, or goes in the body.
+The body gives the details, wrapped at 100 characters at most.
+
 ## Python
 
 One Python package, for Python ≥ 3.12, with `pyproject.toml` at the repository root and a src layout.
@@ -70,6 +86,35 @@ A component or hook it cannot compile, e.g. one against the Rules of React, fail
 So there is no memoization by hand, which lint rejects.
 What must stay as it was, e.g. a diff given to the renderer, is held in state, not memoized.
 
+### Workarounds kept
+
+The GUI cleanup (2026-10-22) replaced workarounds by mechanisms of the frameworks.
+These stayed after a look, each for its reason; they are not to be proposed again without something new:
+
+- List rows stay our own (`ListTable`): a probe of `Tree` in React Aria 1.21.1 kept cell buttons, middle clicks, details and keys, but a row with `onAction` cannot have its text selected, and restoring that would bend React Aria.
+- `GitRevisionPicker` reads `aria-activedescendant`: React Aria exposes no signal for the focused row.
+- `useFolding` sets `scrollTop` itself: `scrollIntoView` scrolls other containers, and `scrollTo` in Pierre needs its private position.
+- The jump of Find (`useFound` in `Diff.tsx`): our own offset by bounding rects (`getOffsetInScrollContainer` in Pierre is off in WebKit once scrolled), `scrollTo` of the element itself (that of Pierre clamps by stale heights), tried again until in view (Pierre sizes the diff after drawing, and draws again).
+- The count of Find (`useFound` in `Diff.tsx`): `isLineRenderable` in Pierre is asked only once the diff has drawn `[data-line]` elements, since before its first render, and as a placeholder far out of view, it says that every line shows; Pierre has no public "rendered" status nor a callback on expanding.
+  `UNCOLLAPSED` is passed as `collapsedContextThreshold`, so that our counting and heights follow the rule of Pierre.
+- Line heights in px, holding the height of a diff until drawn, the narrow check by `ResizeObserver`, `unsafeCSS`, and paging by `IntersectionObserver`: the API of Pierre offers no other way.
+- The `--icon-lift` translation of icons: the native `text-box: trim-both cap alphabetic` lacks Firefox.
+- Reconnecting live updates, and the main process of the Desktop: ours by nature.
+- Black patches when dragging the scrollbar of the stacked Diff fast (Electron, dark): content that Chromium has not painted; a background on the scroller, also with `background-attachment: local`, did not help (2026-10-23). Accepted.
+
+Real-browser tests (`*.browser.test.tsx`) guard what these rely on.
+Reports for upstream are in [ideas](ideas/gui.md#upstream).
+
+### Dependencies to watch
+
+- `@pierre/diffs` is pinned exactly (1.5.2): young, with frequent releases and sizeable changes.
+  Rather than Dependabot: whenever a step touches the Diff View or `components/diff/`, read its changelog since the pin, tell the user what is new and worth having, and upgrade only once they agree.
+  On upgrading, check again what `Diff.tsx` relies on: the variables and attributes of `unsafeCSS`, and `metrics.lineHeight` measured in `DiffScroll`, read only when an instance is made, hence the `key`; with wrapping off, Pierre never measures rows, and a wrong height made rows flicker near chunk boundaries with `gui.code.size = 10`.
+  `.agents/scratch/gui-verification/steps-flicker.mjs` checks it: one `scrollHeight` across positions.
+- The browser tests in WebKit run without Web Workers (`gui/web/src/test/browser.ts`, `provide: { workers }` in `gui/vitest.config.ts`), since 2026-10-22: the WebKit of Playwright (webkit-2370, WPE) crashes when several module workers load a large module (Shiki) at once, round after round, under the Vite dev server.
+  Reported as microsoft/playwright#43582 (maybe the same as #42330); a reproduction is in `.agents/scratch/webkit-crash/report/`.
+  When Playwright updates WebKit, run it again, and once it no longer crashes, drop the workaround.
+
 ## A worktree's GUI
 
 `scripts/worktree_gui.sh` shows a worktree's GUI before it reaches main, in a Desktop window of its own.
@@ -94,3 +139,7 @@ What only a browser lays out, e.g. what the diff renderer draws, is tested in re
 Those tests guard what we rely on that the renderer does not promise.
 GUI tests reach no Server: each test answers the requests it expects, and any other fails, also after the test ended.
 The Vite dev server proxies `/api` to the Server, but not for Vitest.
+
+While working, run the tests of the files changed and the linters; run the whole `npm run check` once, right before a commit, since it starts many workers and real browsers.
+A change to the GUI is checked where it shows: browser tests for what only a browser lays out, headless Chrome against a scratch Daemon for how a View looks and behaves, the Desktop for its window and keys, and a tour before and after for changes to styles.
+The scripts for this, and how to run them, are in `.agents/scratch/gui-verification/README.md`.
