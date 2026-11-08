@@ -39,6 +39,7 @@ src/hephaistos/
 
 `tests/test_structure.py` checks what each part imports ([ADR 002](decisions/002-technology-stack.md#components)).
 `tests/test_style.py` checks the [style](style.md) that a program can check.
+`tests/test_links.py` checks that each link in a Markdown file, and each path under `docs/` named in any file, leads to a file and heading that exist.
 
 ## Naming
 

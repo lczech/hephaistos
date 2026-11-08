@@ -1,6 +1,6 @@
 # Events
 
-How Events are named, stored and listed ([ADR 003](../decisions/003-core.md)).
+How Events are named, stored and listed ([ADR 003](../../decisions/003-core.md)).
 `hephaistos event` lists them ([commands](../cli/commands.md#event)).
 
 ## Kinds

@@ -1,6 +1,6 @@
 # Server
 
-How the Server listens, checks its clients, answers and serves the GUI ([ADR 004](../decisions/004-server.md)).
+How the Server listens, checks its clients, answers and serves the GUI ([ADR 004](../../decisions/004-server.md)).
 
 ## Address
 

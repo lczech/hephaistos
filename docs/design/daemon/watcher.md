@@ -1,6 +1,6 @@
 # Watcher
 
-How the Watcher runs the Core's observation in passes ([ADR 002](../decisions/002-technology-stack.md)).
+How the Watcher runs the Core's observation in passes ([ADR 002](../../decisions/002-technology-stack.md)).
 What a pass does: [observation](../core/observation.md).
 
 ## Passes

@@ -1,7 +1,7 @@
 # Layout
 
 How Views are placed in Panels and Groups, addressed, opened and kept.
-Decided in [ADR 005](../decisions/005-gui.md); the terms are the [glossary](../glossary.md)'s.
+Decided in [ADR 005](../../decisions/005-gui.md); the terms are the [glossary](../../glossary.md)'s.
 
 ## Views and dockview
 

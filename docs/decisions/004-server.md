@@ -8,7 +8,7 @@ GUIs reach a Machine only through its Server ([002](002-technology-stack.md)): t
 The Server's address, its authentication and the shape of its API are what they all build on, so they are costly to change.
 
 This ADR records those decisions.
-How the Server works on them is described in [docs/daemon/server.md](../daemon/server.md).
+How the Server works on them is described in [docs/design/daemon/server.md](../design/daemon/server.md).
 
 ## Decision
 

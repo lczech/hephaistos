@@ -1,6 +1,6 @@
 # Setup
 
-How a Machine is set up, and where hephaistos keeps its files ([ADR 003](../decisions/003-core.md)).
+How a Machine is set up, and where hephaistos keeps its files ([ADR 003](../../decisions/003-core.md)).
 
 ## Setting up
 

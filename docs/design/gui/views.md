@@ -49,7 +49,7 @@ A row opens the Event's details.
 
 The Log View lists this Machine's log records, filtered by level, time and process.
 A row opens the record's details.
-Later, another Machine's log comes from its Server: `log?machine=…` ([ADR 005](../decisions/005-gui.md)).
+Later, another Machine's log comes from its Server: `log?machine=…` ([ADR 005](../../decisions/005-gui.md)).
 
 ## Config and Daemon
 

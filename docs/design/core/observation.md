@@ -1,6 +1,6 @@
 # Observation
 
-How the Core observes Checkouts and turns what changed into State and Events ([ADR 003](../decisions/003-core.md)).
+How the Core observes Checkouts and turns what changed into State and Events ([ADR 003](../../decisions/003-core.md)).
 The Watcher runs it ([Watcher](../daemon/watcher.md)).
 
 ## Observers

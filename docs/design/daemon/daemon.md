@@ -1,6 +1,6 @@
 # Daemon
 
-How the Daemon runs its parts, and how it is installed and checked ([ADR 002](../decisions/002-technology-stack.md), [ADR 003](../decisions/003-core.md)).
+How the Daemon runs its parts, and how it is installed and checked ([ADR 002](../../decisions/002-technology-stack.md), [ADR 003](../../decisions/003-core.md)).
 Its parts: the [Watcher](watcher.md) and the [Server](server.md); later Sync.
 
 ## Running

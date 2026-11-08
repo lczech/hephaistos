@@ -1,5 +1,6 @@
 """Helpers for tests: git repositories, running the CLI as its entry point does, free ports, a
-stand-in for the Watcher, the API's schema, systemd's answers, a checkout with a Desktop."""
+stand-in for the Watcher, the API's schema, systemd's answers, a checkout with a Desktop, and the
+texts of tracked files."""
 
 import functools
 import json
@@ -20,6 +21,26 @@ from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.status import Trigger
 from hephaistos.daemon.watcher.worker import Done, PassFailed
 from hephaistos.desktop import launch
+
+ROOT = Path(__file__).parents[1]  # of the repository
+NOT_OURS = {"LICENSE", "uv.lock", "gui/package-lock.json"}  # text that we do not write
+
+
+@functools.cache
+def tracked_texts() -> tuple[tuple[str, str], ...]:
+    """Each tracked file that is text and ours, by name relative to ROOT, with its text."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout
+    texts: list[tuple[str, str]] = []
+    for name in filter(None, listed.split("\0")):
+        if name in NOT_OURS or not (ROOT / name).is_file():  # deleted, not yet staged
+            continue
+        try:
+            texts.append((name, (ROOT / name).read_text(encoding="utf-8")))
+        except UnicodeDecodeError:  # an image
+            continue
+    return tuple(texts)
 
 
 def hostnamectl(answers: Mapping[tuple[str, ...], str]) -> Callable[..., str | None]:

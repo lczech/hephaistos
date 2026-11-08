@@ -1,6 +1,6 @@
 # Commands
 
-The CLI's commands, how they address entities, and what they print ([ADR 003](../decisions/003-core.md)).
+The CLI's commands, how they address entities, and what they print ([ADR 003](../../decisions/003-core.md)).
 
 ## Commands
 

@@ -7,7 +7,7 @@ Status: accepted (2026-10-04)
 Ubuntu comes first; a phone interface is secondary and comes later. The GUI should get embedded Terminals, a small editor and VS Code-like dockable panels. Our code must also run on cluster login nodes, without root.
 
 This ADR records the decisions that are costly to change.
-How the parts work is described per part: [docs/core/](../core/), [docs/daemon/](../daemon/), [docs/cli/](../cli/commands.md), [docs/desktop/](../desktop/desktop.md) and [docs/gui/](../gui/); tools and tests in [development](../development.md).
+How the parts work is described in [docs/design/](../design/), per part: [core/](../design/core/), [daemon/](../design/daemon/), [cli/](../design/cli/commands.md), [desktop/](../design/desktop/desktop.md) and [gui/](../design/gui/); tools and tests in [development](../development.md).
 
 ## Components
 
@@ -40,7 +40,7 @@ gui/desktop ─> gui/web ──HTTP──> server
 
 - **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. One command for CLI and Daemon keeps a single thing on the PATH. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
 - **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the terminals plugin (e.g. tmux). Electron only does desktop integration; logic stays in the Core.
-- **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL does not work, a rollback journal takes its place ([setup](../core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
+- **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL does not work, a rollback journal takes its place ([setup](../design/core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
 
 ## Plugins
 
@@ -67,12 +67,12 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **Python** for everything except `gui/`, packaged with a standard `pyproject.toml` (installs with pip, pipx, conda or uv; uv is recommended). FastAPI for HTTP and WebSocket; SQLite via the standard library, with plain SQL.
 - **GUI:** TypeScript, Vite and React; dockview for panels, xterm.js as embedded Terminal emulator, Monaco for quick edits. VS Code is launched as a separate app, not embedded.
 - **GUI tooling:** Node as a development dependency of the Python project (`nodejs-wheel`), so nothing is installed outside it. npm, TypeScript (strict), Biome, Vitest. TanStack Query and openapi-fetch, with types generated from the API's schema. CSS modules and one theme file, no component library so far. React's compiler, strictly, instead of memoizing by hand. Details: [development](../development.md#gui).
-- **Desktop shell:** Electron, so the app receives all keyboard shortcuts (e.g. Ctrl+W in a Terminal) instead of the browser taking them. It loads the GUI from this Machine's Server, as a browser would, never a copy of its own, so the Server's checks apply unchanged ([004](004-server.md)). How it works: [Desktop](../desktop/desktop.md).
+- **Desktop shell:** Electron, so the app receives all keyboard shortcuts (e.g. Ctrl+W in a Terminal) instead of the browser taking them. It loads the GUI from this Machine's Server, as a browser would, never a copy of its own, so the Server's checks apply unchanged ([004](004-server.md)). How it works: [Desktop](../design/desktop/desktop.md).
 - **Transport:** HTTP/JSON and WebSocket, always authenticated. Machines reach each other through SSH. Connectivity (Tailscale, VPN, jump hosts) is set up in SSH and the network, not in our code; Peers only need SSH in one direction.
 - **Terminals:** tmux on its own socket (`tmux -L hephaistos`) with our own config (e.g. no status bar), kept separate from the user's tmux. The backend stays swappable (e.g. for shpool).
 - **Polling:** in the background at a configurable interval (default 60 s), plus immediately when the GUI gains focus, through each connected Machine's Server. A GUI reads what it shows from the API's listings, never from the answer to its request, so that it also sees what other passes, the CLI and Sync changed; it asks again when the Server hints at a change ([004](004-server.md)). Agent Events are pushed by Provider hooks instead of being polled.
 - **Testing:** pytest for the Core, with fake plugins standing in for real tools; Vitest and Testing Library for the GUI, in jsdom; real browsers (Playwright) for what only a browser lays out. GUI tests reach no Server. Details: [development](../development.md#tests).
-- **Settings:** Machine-specific settings live in local TOML files, with a file per host where a home directory is shared ([settings](../core/settings.md)). Cross-Machine settings will live in the Registry. Edited in files first, in the GUI later.
+- **Settings:** Machine-specific settings live in local TOML files, with a file per host where a home directory is shared ([settings](../design/core/settings.md)). Cross-Machine settings will live in the Registry. Edited in files first, in the GUI later.
 
 ## Rejected
 

@@ -1,6 +1,6 @@
 # Data
 
-The database's tables, and how the Core reads and writes them ([ADR 003](../decisions/003-core.md)).
+The database's tables, and how the Core reads and writes them ([ADR 003](../../decisions/003-core.md)).
 `hephaistos db` shows them as stored ([commands](../cli/commands.md#db)).
 
 ## Tables

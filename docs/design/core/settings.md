@@ -1,6 +1,6 @@
 # Settings
 
-How settings are layered, checked and loaded ([ADR 003](../decisions/003-core.md)).
+How settings are layered, checked and loaded ([ADR 003](../../decisions/003-core.md)).
 `hephaistos config show` shows them and where each comes from ([commands](../cli/commands.md#config)).
 
 ## Layers

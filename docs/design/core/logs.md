@@ -1,6 +1,6 @@
 # Logs
 
-What hephaistos logs about itself, and how ([ADR 003](../decisions/003-core.md)).
+What hephaistos logs about itself, and how ([ADR 003](../../decisions/003-core.md)).
 `hephaistos log show` reads the log ([commands](../cli/commands.md#log)).
 
 ## Records

@@ -1,7 +1,7 @@
 // Monochrome icons (Lucide) for what Events do and what they are about. Each entity has its own,
 // a Machine by its chassis; the Registry actions show the icon of the entity with + and −, where
 // it has them, else a square with them; git adding and removing, a diamond, after the git logo;
-// what an observation finds, a circle (docs/gui/looks.md).
+// what an observation finds, a circle (docs/design/gui/looks.md).
 
 import {
   ArchiveRestore,

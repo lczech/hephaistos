@@ -1,6 +1,6 @@
 # Desktop
 
-How the Desktop loads the GUI, what its window allows, and what it installs ([ADR 002](../decisions/002-technology-stack.md)).
+How the Desktop loads the GUI, what its window allows, and what it installs ([ADR 002](../../decisions/002-technology-stack.md)).
 Its code is in two places: `src/hephaistos/desktop/` starts it and installs what it needs; `gui/desktop/` is Electron's main process around `gui/web/`.
 
 ## Loading the GUI
