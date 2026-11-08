@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hephaistos import __description__
+from hephaistos.core.utils.installation import Difference
 from hephaistos.core.utils.paths import PATH_VARIABLES
 
 APP_ID = "hephaistos"
@@ -70,6 +71,25 @@ def entry_text(executable: Path, env: Mapping[str, str]) -> str:
             "",
         ]
     )
+
+
+def _command(text: str) -> str | None:
+    """An entry's Exec line, without its key."""
+    return next((line[5:] for line in text.splitlines() if line.startswith("Exec=")), None)
+
+
+def installation_differences(files: Files, text: str) -> list[Difference]:
+    """Where the installed entry runs another command than `text`, as for the Daemon unit.
+
+    Its command names the hephaistos and the directories, so another command means another
+    installation: one to replace only when asked.
+    """
+    try:
+        installed = _command(files.entry.read_text())
+    except FileNotFoundError:
+        return []
+    wanted = _command(text)
+    return [] if installed == wanted else [Difference("command", installed, wanted)]
 
 
 def install(files: Files, text: str, icon: Path) -> bool:

@@ -202,11 +202,13 @@ def _confirm_reset(paths: Paths) -> None:
 
 
 def _install(part: str, install: Callable[[], None], later: str) -> None:
-    """Runs one of `setup`'s parts; if it fails, says so, and how to do it later."""
+    """Runs one of `setup`'s parts; if it fails or is declined, says so, and how to do it later."""
     try:
         install()
     except HephaistosError as error:
         typer.echo(f"warning: skipped {part}: {error}; to do it later: `{later}`", err=True)
+    except typer.Abort:
+        typer.echo(f"Skipped {part}; to do it later: `{later}`")
 
 
 @app.command()

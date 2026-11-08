@@ -11,12 +11,13 @@ import shlex
 import signal
 import subprocess
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from hephaistos.core import config
 from hephaistos.core.utils.errors import HephaistosError
+from hephaistos.core.utils.installation import Difference, inline_text
 from hephaistos.core.utils.paths import PATH_VARIABLES, Paths
 from hephaistos.daemon import status
 
@@ -130,14 +131,37 @@ def installed_variables(text: str) -> dict[str, str]:
     return {name: value for name, _, value in pairs}
 
 
-def path_differences(text: str, env: Mapping[str, str]) -> list[str]:
-    """Where an installed unit's path variables differ from `env`'s, e.g. this shell's."""
+def path_differences(text: str, env: Mapping[str, str]) -> list[Difference]:
+    """The path variables that an installed unit sets otherwise than `env`, e.g. this shell."""
     unit = installed_variables(text)
     return [
-        f"{name}: the daemon has {unit.get(name) or 'none'}, this shell {env.get(name) or 'none'}"
+        Difference(name, unit.get(name) or None, env.get(name) or None)
         for name in PATH_VARIABLES
         if (unit.get(name) or "") != (env.get(name) or "")
     ]
+
+
+def other_directories_text(differences: Sequence[Difference]) -> str:
+    """That the unit uses other directories than this shell, and which."""
+    found = inline_text(differences, "the unit", "this shell")
+    return f"the systemd unit for the daemon uses other directories than this shell ({found})"
+
+
+def installation_differences(
+    text: str, executable: Path, env: Mapping[str, str]
+) -> list[Difference]:
+    """Where an installed unit runs another hephaistos, or uses other directories, than `env`.
+
+    Such a unit belongs to another installation, e.g. the real one for a worktree with a scratch
+    home: one to replace only when asked, unlike a unit that only an update of hephaistos changed.
+    """
+    installed = installed_executable(text)
+    program = (
+        [Difference("program", None if installed is None else str(installed), str(executable))]
+        if installed != executable
+        else []
+    )
+    return program + path_differences(text, env)
 
 
 def settings_variables(env: Mapping[str, str]) -> list[str]:
@@ -289,9 +313,9 @@ def wait_started(paths: Paths, previous: int | None = None) -> int:
 
 
 def _require_installed(env: Mapping[str, str]) -> None:
-    """Raises if our unit isn't installed, or for other directories than `env` names.
+    """Raises if our unit is not installed, or uses other directories than `env` names.
 
-    Such a Daemon would keep other data, e.g. the real one for a shell with a scratch home.
+    Such a Daemon would use other data, e.g. the real data for a shell with a scratch home.
     """
     text = installed_text()
     if text is None:
@@ -301,8 +325,7 @@ def _require_installed(env: Mapping[str, str]) -> None:
         )
     if differences := path_differences(text, env):
         raise SystemdError(
-            f"the installed daemon keeps its data elsewhere ({'; '.join(differences)});"
-            " `hephaistos daemon install` installs this shell's instead"
+            f"{other_directories_text(differences)}; `hephaistos daemon install` replaces the unit"
         )
 
 

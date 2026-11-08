@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from hephaistos.cli import desktop
+from hephaistos.cli import desktop, terminal
 from hephaistos.cli.main import app
 from hephaistos.core.utils.paths import Paths
 from hephaistos.desktop import apparmor, launch
@@ -59,6 +59,36 @@ def test_install_writes_the_launcher_entry_and_icon(monkeypatch: pytest.MonkeyPa
     assert not _entry().exists()
     assert not icon.exists()
     assert runner.invoke(app, ["desktop", "uninstall"]).output == "No launcher entry installed\n"
+
+
+@pytest.mark.usefixtures("checkout")
+def test_an_entry_of_another_installation_is_replaced_or_removed_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(apparmor, "needed", lambda: False)
+    assert runner.invoke(app, ["desktop", "install"]).exit_code == 0
+    installed = _entry().read_text()
+    command = installed.splitlines()[5].removeprefix("Exec=")  # env HEPHAISTOS_HOME=… program …
+    program = command.split()[2]
+    monkeypatch.setenv("HEPHAISTOS_HOME", str(tmp_path / "scratch"))
+    for name in ("install", "uninstall"):
+        refused = runner.invoke(app, ["desktop", name])
+        assert refused.output.splitlines() == [
+            "The launcher entry differs from this command:",
+            "  command",
+            f"    entry:         {command}",
+            f"    this command:  env HEPHAISTOS_HOME={tmp_path / 'scratch'} {program} desktop open",
+        ]
+        verb = "replace" if name == "install" else "remove"
+        assert str(refused.exception).endswith(f"add --yes to {verb} the entry without asking")
+    assert _entry().read_text() == installed
+
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    declined = runner.invoke(app, ["desktop", "install"], input="\n")
+    assert declined.exit_code == 1
+    assert _entry().read_text() == installed
+    assert runner.invoke(app, ["desktop", "install"], input="y\n").exit_code == 0
+    assert f"HEPHAISTOS_HOME={tmp_path / 'scratch'}" in _entry().read_text()
 
 
 @pytest.mark.usefixtures("checkout")

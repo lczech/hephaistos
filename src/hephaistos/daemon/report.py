@@ -50,7 +50,8 @@ def report(paths: Paths, env: Mapping[str, str]) -> Report:
         executable = unit.installed_executable(installed)
         if executable is not None and not executable.exists():
             warnings.append(f"the unit runs {executable}, which no longer exists")
-        warnings += unit.path_differences(installed, env)
+        if differences := unit.path_differences(installed, env):
+            warnings.append(unit.other_directories_text(differences))
     return Report(
         unit=state,
         installed=installed if state is None or state.installed else None,

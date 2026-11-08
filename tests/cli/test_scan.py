@@ -36,7 +36,7 @@ def _lines(*args: str, input: str | None = None) -> list[str]:  # noqa: A002 - a
 def test_plan_needs_a_terminal_or_yes(root: Path) -> None:
     result = runner.invoke(app, ["scan", str(root)])
     assert isinstance(result.exception, HephaistosError)
-    assert str(result.exception).startswith("not asking without a terminal")
+    assert str(result.exception).startswith("this command asks for confirmation only")
     lines = result.output.splitlines()
     assert [line.split()[:3] for line in lines[:5]] == [
         ["path", "action", "repository"],

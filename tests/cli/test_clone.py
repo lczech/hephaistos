@@ -38,7 +38,8 @@ def repository_names() -> list[str]:
 def test_no_match_offers_a_new_repository(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     result = runner.invoke(app, ["clone", "register"])
     assert str(result.exception) == (
-        "not asking without a terminal; add --yes to register it with a new repository hephaistos"
+        "this command asks for confirmation only when run interactively;"
+        " add --yes to register it with a new repository hephaistos without asking"
     )
     interactive(monkeypatch)
     result = runner.invoke(app, ["clone", "register"], input="n\n")
@@ -73,7 +74,9 @@ def test_no_match_and_a_taken_name(repo: Path, tmp_path: Path) -> None:
 
 def test_repo_given_is_created_if_missing(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     result = runner.invoke(app, ["clone", "register", "--repo", "tool"])
-    assert str(result.exception).endswith("add --yes to register it with a new repository tool")
+    assert str(result.exception).endswith(
+        "add --yes to register it with a new repository tool without asking"
+    )
     result = runner.invoke(app, ["clone", "register", "--repo", "a/b", "--yes"])
     assert "'a/b' is not a repository name" in str(result.exception)
     interactive(monkeypatch)
@@ -121,7 +124,9 @@ def test_matching_clone_needs_confirmation(
 
     result = runner.invoke(app, ["clone", "register", str(copy)])
     assert isinstance(result.exception, HephaistosError)
-    assert str(result.exception).endswith("add --yes to register it as a clone of proj")
+    assert str(result.exception).endswith(
+        "add --yes to register it as a clone of proj without asking"
+    )
 
     interactive(monkeypatch)
     result = runner.invoke(app, ["clone", "register", str(copy)], input="n\n")

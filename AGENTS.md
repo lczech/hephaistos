@@ -77,4 +77,5 @@ Then begin the smallest useful implementation. Ask only about missing informatio
 
 Implement one step at a time, with tests, and stop after each step with a short summary and how to try it. The user reviews and commits.
 
-Never start, stop or restart the user's Daemon; give them the commands. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).
+Never start, stop or restart the user's Daemon; give them the commands.
+Run `hephaistos setup` only with `--no-daemon --no-desktop`, and never `daemon install|uninstall` or `desktop install|uninstall`: whatever `HEPHAISTOS_HOME` says, they replace the user's systemd unit and launcher entry, and restart the Daemon. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).

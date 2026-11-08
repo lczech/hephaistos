@@ -3,6 +3,7 @@
 import os
 import shlex
 import subprocess
+from typing import Annotated
 
 import typer
 
@@ -53,17 +54,30 @@ def _as_root(commands: list[list[str]], declined: str) -> bool:
 
 
 @app.command()
-def install() -> None:
+def install(
+    *,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Replace an entry of another installation without asking.")
+    ] = False,
+) -> None:
     """Install the desktop app on this machine: its launcher entry and icon, and what it needs.
 
     The entry runs this hephaistos, by the path it was run as, with this shell's HEPHAISTOS_HOME
-    and XDG directories. On Ubuntu, Chromium's sandbox also needs an AppArmor profile, which
-    takes root: the commands are shown, and run with sudo if you agree. Again after moving the
-    checkout.
+    and XDG directories; one that runs another, or with other directories, is replaced only if
+    you agree. On Ubuntu, Chromium's sandbox also needs an AppArmor profile, which takes root:
+    the commands are shown, and run with sudo if you agree. Again after moving the checkout.
     """
     desktop = launch.located(own_checkout())
     files = entry.Files.from_environment(os.environ)
     text = entry.entry_text(executable(), os.environ)
+    if not yes:
+        differences = entry.installation_differences(files, text)
+        terminal.confirm_other_installation(
+            "The launcher entry differs from this command:",
+            differences,
+            installed="entry",
+            action="replace the entry",
+        )
     changed = entry.install(files, text, desktop.checkout / entry.ICON)
     typer.echo(f"{'Installed' if changed else 'Already installed'}: {short_path(files.entry)}")
     if not apparmor.needed():
@@ -82,9 +96,26 @@ def install() -> None:
 
 
 @app.command()
-def uninstall() -> None:
-    """Remove the desktop app's launcher entry and icon, and its AppArmor profile if you agree."""
+def uninstall(
+    *,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Remove an entry of another installation without asking.")
+    ] = False,
+) -> None:
+    """Remove the desktop app's launcher entry and icon, and its AppArmor profile if you agree.
+
+    An entry that runs another hephaistos, or with other directories, only if you agree.
+    """
     files = entry.Files.from_environment(os.environ)
+    if not yes:
+        text = entry.entry_text(executable(), os.environ)
+        differences = entry.installation_differences(files, text)
+        terminal.confirm_other_installation(
+            "The launcher entry differs from this command:",
+            differences,
+            installed="entry",
+            action="remove the entry",
+        )
     removed = entry.uninstall(files)
     typer.echo(f"Deleted {short_path(files.entry)}" if removed else "No launcher entry installed")
     if not apparmor.INSTALLED.exists():

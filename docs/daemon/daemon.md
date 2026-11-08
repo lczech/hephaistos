@@ -45,9 +45,11 @@ Passes say what asked for them: `trigger` is `watcher` or `api`.
 `daemon install` writes a systemd user unit, `~/.config/systemd/user/hephaistos.service`, then enables and starts it.
 The unit runs the hephaistos that installed it, by the path it was run as.
 A link such as `~/.local/bin/hephaistos` survives reinstalling the tool.
-The unit gets the shell's `HEPHAISTOS_HOME` and XDG directories.
+The unit gets `HEPHAISTOS_HOME` and the XDG directories from the shell.
 Settings variables don't reach it, and `install` says so.
 Run again, `install` rewrites a changed unit and restarts the Daemon; it leaves alone a unit it didn't write.
+A unit that runs another hephaistos, or names other directories, belongs to another installation, e.g. the real one for a shell with a scratch home.
+`install` and `uninstall` show how it differs, and replace or remove it only if the user agrees, or with `--yes`; when not run interactively, they refuse.
 `--linger` runs `loginctl enable-linger`, so the Daemon starts at boot and survives logout.
 `uninstall` leaves linger as it is.
 
@@ -67,6 +69,6 @@ Without systemd user services, `daemon run` in tmux takes their place.
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.
 
-It warns if the unit's program is gone, or its paths differ from the shell's.
+It warns if the program of the unit is gone, or if the unit uses other directories than the shell.
 It exits with 0 if the Daemon runs, 3 if not.
 `--json` gives what the Server's `/api/daemon` gives.

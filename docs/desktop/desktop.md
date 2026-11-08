@@ -23,6 +23,7 @@ One Desktop runs per `HEPHAISTOS_HOME`, with its profile in the state directory.
 ## Installing
 
 `desktop install` writes its launcher entry and icon, named as Electron's app ID, so that the dock shows them for its window.
+As for the Daemon unit ([Installing](../daemon/daemon.md#installing)), an entry with another command belongs to another installation: `install` and `uninstall` replace or remove it only if the user agrees, or with `--yes`.
 Ubuntu lets only programs with an AppArmor profile use Chromium's sandbox.
 So `desktop install` also writes a profile for Electron's binary and, if the user agrees, installs it with `sudo -k`.
 It names Electron's binary with symlinks resolved, as AppArmor matches programs: a link to it, e.g. from a worktree, is covered too.

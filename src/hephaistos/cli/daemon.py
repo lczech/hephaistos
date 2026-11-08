@@ -100,12 +100,25 @@ def install(
         bool,
         typer.Option("--linger", help="Also start it at boot and keep it after logout (loginctl)."),
     ] = False,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Replace a unit of another installation without asking.")
+    ] = False,
 ) -> None:
     """Install the daemon as a systemd user service and start it; run it again to update it.
 
     The service runs this hephaistos, by the path it was run as, with this shell's
-    HEPHAISTOS_HOME and XDG directories. It starts at login, or with --linger at boot.
+    HEPHAISTOS_HOME and XDG directories. It starts at login, or with --linger at boot. A service
+    that runs another hephaistos, or with other directories, is replaced only if you agree.
     """
+    installed = unit.installed_text()
+    if installed is not None and not yes:
+        differences = unit.installation_differences(installed, executable(), os.environ)
+        terminal.confirm_other_installation(
+            "The systemd unit for the daemon differs from this command:",
+            differences,
+            installed="unit",
+            action="replace the unit and restart the daemon",
+        )
     paths = Paths.from_environment()
     previous = daemon_status.read(paths.state_dir)
     running = previous.pid if previous and daemon_status.is_running(paths.state_dir) else None
@@ -135,8 +148,25 @@ def install(
 
 
 @app.command()
-def uninstall() -> None:
-    """Stop the daemon and remove its systemd user service."""
+def uninstall(
+    *,
+    yes: Annotated[
+        bool, typer.Option("--yes", help="Remove a unit of another installation without asking.")
+    ] = False,
+) -> None:
+    """Stop the daemon and remove its systemd user service.
+
+    A service that runs another hephaistos, or with other directories, only if you agree.
+    """
+    installed = unit.installed_text()
+    if installed is not None and not yes:
+        differences = unit.installation_differences(installed, executable(), os.environ)
+        terminal.confirm_other_installation(
+            "The systemd unit for the daemon differs from this command:",
+            differences,
+            installed="unit",
+            action="remove the unit and stop the daemon",
+        )
     if not unit.uninstall():
         typer.echo("Not installed")
         return

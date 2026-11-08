@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from hephaistos import __version__
@@ -215,6 +216,21 @@ def test_setup_skips_a_part_that_fails_saying_how_to_do_it_later() -> None:
     assert "warning: skipped the daemon: " in result.output
     assert "; to do it later: `hephaistos daemon install`\n" in result.output
     assert _this_id()
+
+
+@pytest.mark.usefixtures("paths")
+def test_setup_skips_a_part_the_user_declines(monkeypatch: pytest.MonkeyPatch) -> None:
+    def declined() -> None:
+        raise typer.Abort
+
+    installed: list[str] = []
+    monkeypatch.setattr(daemon, "install", declined)
+    monkeypatch.setattr(desktop, "install", lambda: installed.append("desktop"))
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    result = runner.invoke(app, ["setup", "--name", "laptop"])
+    assert result.exit_code == 0
+    assert "Skipped the daemon; to do it later: `hephaistos daemon install`\n" in result.output
+    assert installed == ["desktop"]
 
 
 def test_setup_reset_asks_first(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:

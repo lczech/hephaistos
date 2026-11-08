@@ -83,7 +83,7 @@ def test_unregister_with_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert str(result.exception).splitlines()[-1] == "unregister them first, or give --clones"
 
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"])
-    assert str(result.exception).startswith("not asking without a terminal")
+    assert str(result.exception).startswith("this command asks for confirmation only")
     monkeypatch.setattr(terminal, "interactive", lambda: True)
     result = runner.invoke(app, ["repo", "unregister", "repo", "--clones"], input="\n")
     assert result.exit_code == 1

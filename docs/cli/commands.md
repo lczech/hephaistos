@@ -25,7 +25,7 @@ hephaistos log show [--since <when>] [--until <when>] [--level <min>] [--process
                | prune [--keep <days>d] [--yes]
 hephaistos config show [<key>|<section>|--json] | defaults
 hephaistos daemon run | status [--json] | token [--url] [--renew] [--yes]
-                  | install [--linger] | uninstall | start | stop | restart
+                  | install [--linger] [--yes] | uninstall [--yes] | start | stop | restart
 hephaistos [--debug] …
 ```
 

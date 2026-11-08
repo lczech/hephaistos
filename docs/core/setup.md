@@ -10,7 +10,7 @@ Run again, `setup` keeps the database and updates the other parts.
 Its core part is one transaction: directories, database, the Machine's record (named after the hostname), and its default Filesystem mounted at `/`.
 Its other parts are commands of their own, which it runs after the core part: `daemon install` and, in a graphical session, `desktop install`.
 `--no-daemon` and `--no-desktop` skip them.
-A part that fails is skipped with a warning naming its command.
+A part that fails, or that the user declines, is skipped, naming its command.
 A Machine set up twice, e.g. after deleting its data, gets a new ID; the same `os_machine_id` suggests merging the two.
 
 ## Chassis

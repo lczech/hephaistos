@@ -1,17 +1,22 @@
+import io
 import os
 import signal
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from hephaistos.cli import terminal
+from hephaistos.core.utils.installation import Difference
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
 from hephaistos.daemon.main import running_version
 from support import run_cli
 
 UNIT = "~/.config/systemd/user/hephaistos.service"
+ASK = "this command asks for confirmation only when run interactively"
 
 
 def _calls() -> list[str]:
@@ -34,10 +39,16 @@ def test_unit_text_round_trip() -> None:
     assert unit.installed_executable(text) == Path('/opt/my "tools"/hephaistos')
     assert unit.installed_variables(text) == {"HEPHAISTOS_HOME": "/data/100% mine"}
     assert unit.path_differences(text, env) == []
-    assert unit.path_differences(text, {"XDG_DATA_HOME": "/d"}) == [
-        "HEPHAISTOS_HOME: the daemon has /data/100% mine, this shell none",
-        "XDG_DATA_HOME: the daemon has none, this shell /d",
+    differences = unit.path_differences(text, {"XDG_DATA_HOME": "/d"})
+    assert differences == [
+        Difference("HEPHAISTOS_HOME", "/data/100% mine", None),
+        Difference("XDG_DATA_HOME", None, "/d"),
     ]
+    assert unit.other_directories_text(differences) == (
+        "the systemd unit for the daemon uses other directories than this shell"
+        " (HEPHAISTOS_HOME: /data/100% mine in the unit, not set in this shell;"
+        " XDG_DATA_HOME: not set in the unit, /d in this shell)"
+    )
 
 
 @pytest.mark.usefixtures("repo")
@@ -84,7 +95,7 @@ def test_install_start_stop_uninstall(
     ]
 
     monkeypatch.setenv("XDG_DATA_HOME", "/elsewhere")
-    assert run("install") == 0
+    assert run("install", "--yes") == 0  # another installation, as the next test shows
     second = _pid(paths)
     assert second != first
     assert capsys.readouterr().out.splitlines()[:3] == [
@@ -105,12 +116,16 @@ def test_install_start_stop_uninstall(
     assert capsys.readouterr().out == f"The daemon is running (pid {third})\n"
     assert run("restart") == 0
     assert capsys.readouterr().out == f"Restarted the daemon (pid {_pid(paths)})\n"
+    home = os.environ["HEPHAISTOS_HOME"]
     with monkeypatch.context() as scratch:
         scratch.setenv("HEPHAISTOS_HOME", str(tmp_path / "scratch"))
         assert run("restart") == 1
-        assert "the installed daemon keeps its data elsewhere (HEPHAISTOS_HOME:" in (
-            capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert err.startswith(
+            "error: the systemd unit for the daemon uses other directories than this shell"
+            f" (HEPHAISTOS_HOME: {home} in the unit, {tmp_path / 'scratch'} in this shell)"
         )
+        assert err.endswith("; `hephaistos daemon install` replaces the unit\n")
 
     assert run("uninstall") == 0
     assert capsys.readouterr().out == f"Stopped the daemon and deleted {UNIT}\n"
@@ -125,6 +140,55 @@ def test_install_start_stop_uninstall(
         "systemctl --user enable --now hephaistos.service",
         "systemctl --user enable --now hephaistos.service",
     ]
+
+
+@pytest.mark.usefixtures("repo")
+def test_a_unit_of_another_installation_is_replaced_or_removed_only_when_asked(
+    paths: Paths,
+    systemd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
+    first = _pid(paths)
+    other = tmp_path / "worktree" / "hephaistos"
+    other.parent.mkdir()
+    other.write_bytes(systemd.read_bytes())
+    other.chmod(0o755)
+    capsys.readouterr()
+    for command, action in (
+        ("install", "replace the unit and restart the daemon"),
+        ("uninstall", "remove the unit and stop the daemon"),
+    ):
+        assert run_cli(monkeypatch, "daemon", command, program=str(other)) == 1
+        out, err = capsys.readouterr()
+        assert out.splitlines() == [
+            "The systemd unit for the daemon differs from this command:",
+            "  program",
+            f"    unit:          {systemd}",
+            f"    this command:  {other}",
+        ]
+        assert err == f"error: {ASK}; add --yes to {action} without asking\n"
+    with monkeypatch.context() as scratch:
+        scratch.setenv("XDG_DATA_HOME", "/elsewhere")
+        assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 1
+        assert capsys.readouterr().out.splitlines()[1:] == [
+            "  XDG_DATA_HOME",
+            "    unit:          not set",
+            "    this command:  /elsewhere",
+        ]
+    assert f'ExecStart="{systemd}" daemon run' in unit.unit_file().read_text()
+    assert _pid(paths) == first
+
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("y\n"))
+    assert run_cli(monkeypatch, "daemon", "install", program=str(other)) == 0
+    assert "Replace the unit and restart the daemon? [y/N]: " in capsys.readouterr().out
+    assert f'ExecStart="{other}" daemon run' in unit.unit_file().read_text()
+    assert _pid(paths) != first
+    assert run_cli(monkeypatch, "daemon", "uninstall", "--yes", program=str(systemd)) == 0
+    assert not unit.unit_file().exists()
 
 
 @pytest.mark.usefixtures("repo")
@@ -218,7 +282,10 @@ def test_status_warns_about_its_unit(
     assert run_cli(monkeypatch, "daemon", "status", program=str(systemd)) == 3
     assert capsys.readouterr().err.splitlines() == [
         "warning: the unit runs /gone/hephaistos, which no longer exists",
-        "warning: XDG_STATE_HOME: the daemon has none, this shell /s",
+        (
+            "warning: the systemd unit for the daemon uses other directories than this shell"
+            " (XDG_STATE_HOME: not set in the unit, /s in this shell)"
+        ),
     ]
 
 

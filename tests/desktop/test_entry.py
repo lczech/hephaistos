@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from hephaistos.core.utils.installation import Difference
 from hephaistos.desktop import entry
 
 
@@ -31,3 +32,21 @@ def test_installs_and_removes_its_files(tmp_path: Path) -> None:
     assert files.icon.read_text() == "<svg/>"
     assert entry.uninstall(files)
     assert not entry.uninstall(files)
+
+
+def test_another_command_means_another_installation(tmp_path: Path) -> None:
+    files = entry.Files.from_environment({"XDG_DATA_HOME": str(tmp_path)})
+    mine = entry.entry_text(Path("/bin/hephaistos"), {})
+    assert entry.installation_differences(files, mine) == []
+    files.entry.parent.mkdir(parents=True)
+    # Changed only by an update of hephaistos: the same installation.
+    files.entry.write_text(mine.replace("Comment=", "Comment=old "))
+    assert entry.installation_differences(files, mine) == []
+    scratch = entry.entry_text(Path("/bin/hephaistos"), {"HEPHAISTOS_HOME": "/scratch"})
+    assert entry.installation_differences(files, scratch) == [
+        Difference(
+            "command",
+            "/bin/hephaistos desktop open",
+            "env HEPHAISTOS_HOME=/scratch /bin/hephaistos desktop open",
+        )
+    ]
