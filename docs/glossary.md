@@ -100,6 +100,7 @@ Adding a Clone to a Repository:
 | remote / local as types | Machine. Use remote/local only as relative adjectives |
 | project (for now) | Repository |
 | bare "state" for attributes | qualified, e.g. attention state (bare State is the data category) |
+| state machine | transition function; what it moves between is a status or attention state |
 | bare "session" | Terminal or Agent ("session" stays free for later, e.g. GUI sessions) |
 | terminal session | Terminal |
 | terminal (for the app showing it), emulator | Terminal emulator |
