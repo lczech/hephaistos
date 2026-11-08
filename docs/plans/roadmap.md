@@ -20,6 +20,7 @@ Git history, the ADRs and the design docs hold the details.
 - **The Explorer View**, in the worktree `~/orca/workspaces/hephaistos/file-exporer`, branch `lczech/file-explorer`.
   Plan: in `docs/plans/` on that branch, until it moves there `.agents/scratch/explorer/PLAN.md`.
   Done up to search by name, with tests and fixes; the user tries it before the merge, after which the View menu offers it (`offered: "menu"`).
+- **A review**, in the worktree `~/orca/workspaces/hephaistos/test-review`, branch `lczech/test-review`: a reminder of something the user wants to review there; no work yet, and rebased onto master before it starts.
 
 ## Owed
 

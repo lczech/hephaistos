@@ -2,7 +2,7 @@
 
 How we write: messages, `--help`, the GUI, docs, comments, docstrings and commit messages.
 `tests/test_style.py` checks what a program can check: contractions.
-Text that breaks a rule is fixed where we work on it, without sweeps.
+Text that breaks a rule is fixed where we work on it.
 
 ## Terms
 
