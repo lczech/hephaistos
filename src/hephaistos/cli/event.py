@@ -148,7 +148,7 @@ def print_events(
         print_json(serialize.events_json(session, listed))
         return
     context = EventContext.of(session, listed)
-    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    formatted = time_formatter(time_format, TimeFormat.RECENT)
     print_table(
         ["id", "recorded", "priority", "kind", "repository", "machine", "subject", "summary"],
         [

@@ -1,5 +1,8 @@
 import dataclasses
 import json
+import os
+import re
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -59,6 +62,21 @@ def test_refuses_unknown_fields(tmp_path: Path) -> None:
     result = runner.invoke(app, ["files", "list", str(tmp_path), "--fields", "size,colour"])
     assert result.exit_code == 2
     assert "unknown field 'colour'" in result.output
+
+
+@pytest.mark.usefixtures("paths")
+def test_shows_when_modified_by_the_day_once_a_month_old(tmp_path: Path) -> None:
+    directory = _directory(tmp_path)
+    old = datetime(2019, 3, 3, 9, 0).astimezone().timestamp()
+    os.utime(directory / "README", (old, old))
+    result = runner.invoke(app, ["files", "list", str(directory), "--fields", "modified"])
+    assert result.exit_code == 0, result.output
+    readme = next(line for line in result.output.split("\n") if line.startswith("README"))
+    assert readme.split() == ["README", "2019-03-03"]
+    relative = runner.invoke(
+        app, ["files", "list", str(directory), "--fields", "modified", "--time-format", "relative"]
+    )
+    assert re.search(r"^README\s+\d+y$", relative.output, re.MULTILINE)
 
 
 @pytest.mark.usefixtures("paths")

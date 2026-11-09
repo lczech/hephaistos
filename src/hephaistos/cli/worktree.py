@@ -74,7 +74,7 @@ def list_(
             for details in clones.details(session, repository_id=repository_id)
             for worktree in details.worktrees
         ]
-    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    formatted = time_formatter(time_format, TimeFormat.RECENT)
     print_table(
         ["repository", "clone", "branch", "status", "active", "observed", "path"],
         [

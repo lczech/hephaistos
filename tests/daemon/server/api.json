@@ -3730,7 +3730,7 @@
       },
       "/api/files/paths": {
         "get": {
-          "description": "The paths below a Directory, read now, as `files paths --json`: to find files by name.\n\n`path` is absolute. Hidden ones too unless `hidden` is false; those git ignores only with\n`ignored`. At most `files.max_paths`, found within `files.search_seconds`; `stopped` says\nwhich ended it, if either.",
+          "description": "The paths below a Directory, read now, as `files paths --json`: to find files by name.\n\n`path` is absolute. Hidden ones too unless `hidden` is false, as in the CLI; those git\nignores only with `ignored`. At most `files.max_paths`, found within `files.search_seconds`;\n`stopped` says which ended it, if either.",
           "operationId": "files_paths_api_files_paths_get",
           "parameters": [
             {

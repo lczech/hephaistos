@@ -39,10 +39,13 @@ def full_time(value: datetime) -> str:
 _MINUTE = 60
 _HOUR = 60 * _MINUTE
 _DAY = 24 * _HOUR
+_MONTH = 30 * _DAY  # as far as `recent` stays relative
+_YEAR = 365 * _DAY
+_MONTHS = 12  # a year's
 
 
 def relative_time(value: datetime, now: datetime) -> str:
-    """How long ago, e.g. `now`, `3m`, `2h`, `5d`; times ahead of `now` (clock skew) are `now`."""
+    """How long ago: `now`, `3m`, `2h`, `5d`, `4mo`, `6y`; times ahead (clock skew) are `now`."""
     seconds = (now - value).total_seconds()
     if seconds < _MINUTE:
         return "now"
@@ -50,7 +53,19 @@ def relative_time(value: datetime, now: datetime) -> str:
         return f"{int(seconds // _MINUTE)}m"
     if seconds < _DAY:
         return f"{int(seconds // _HOUR)}h"
-    return f"{int(seconds // _DAY)}d"
+    if seconds < _MONTH:
+        return f"{int(seconds // _DAY)}d"
+    months = int(seconds // _MONTH)
+    if months < _MONTHS:
+        return f"{months}mo"
+    return f"{max(1, int(seconds // _YEAR))}y"  # from 360 days, 12 months of 30
+
+
+def recent_time(value: datetime, now: datetime) -> str:
+    """Relative for the last 30 days, `29d`; then the day, which says more: `2026-09-05`."""
+    if (now - value).total_seconds() < _MONTH:
+        return relative_time(value, now)
+    return f"{value.astimezone():%Y-%m-%d}"
 
 
 def short_time(value: datetime, now: datetime) -> str:
@@ -78,6 +93,8 @@ def time_formatter(
     match chosen:
         case TimeFormat.RELATIVE:
             return lambda value: relative_time(value, reference)
+        case TimeFormat.RECENT:
+            return lambda value: recent_time(value, reference)
         case TimeFormat.SHORT:
             return lambda value: short_time(value, reference)
         case TimeFormat.FULL | TimeFormat.AUTO:  # `auto` only if `default` is

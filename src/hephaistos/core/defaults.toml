@@ -4,7 +4,8 @@
 # HEPHAISTOS_<SECTION>_<KEY>. Later layers win.
 # `hephaistos config show` shows what applies and why.
 
-# How times are shown: auto (relative in lists, full in `show`), relative (3m),
+# How times are shown, in the CLI and the GUI: auto (recent in lists, full in `show`),
+# relative (3m, 2h, 5d, 4mo, 6y), recent (relative for the last 30 days, then 2026-09-05),
 # short (14:03 today, 10-05 14:03 this year, else 2025-10-05),
 # or full (2026-10-05 14:03:21).
 time_format = "auto"

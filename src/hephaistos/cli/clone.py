@@ -246,7 +246,7 @@ def list_(
             print_json(serialize.clones_json(session, repository_id=repository_id))
             return
         found = clones.details(session, repository_id=repository_id)
-    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    formatted = time_formatter(time_format, TimeFormat.RECENT)
     print_table(
         ["repository", "branch", "status", "active", "observed", "filesystem", "path"],
         [

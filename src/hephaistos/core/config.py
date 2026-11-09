@@ -27,10 +27,14 @@ from hephaistos.core.utils.paths import HOME_VARIABLE
 
 
 class TimeFormat(StrEnum):
-    """How times are shown: `3m`, `14:03`, `2026-10-05 14:03:21`, or as suits the view."""
+    """How times are shown: `3m`, `14:03`, `2026-10-05 14:03:21`, or as suits the view.
+
+    `recent` is relative for the last 30 days, then the day.
+    """
 
     AUTO = "auto"
     RELATIVE = "relative"
+    RECENT = "recent"
     SHORT = "short"
     FULL = "full"
 

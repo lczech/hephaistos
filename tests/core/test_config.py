@@ -123,7 +123,7 @@ def test_files_for() -> None:
         ('[machine]\nchassis = "pc"\n', "machine.chassis must be one of auto, desktop, laptop"),
         (
             'time_format = "long"\n',
-            'time_format must be one of auto, relative, short, full, not "long"',
+            'time_format must be one of auto, relative, recent, short, full, not "long"',
         ),
         ('[git]\ntimeout = "1m"\n', 'git.timeout must be a number, not "1m"'),
         ("[git]\ntimeout = 0\n", "git.timeout must be more than 0, not 0.0"),

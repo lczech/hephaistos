@@ -49,9 +49,9 @@ Worktrees can also be addressed by name, asking which one if several Clones have
 
 Output is plain aligned text.
 `--json` on `list` and `show` prints the same JSON as the Server's API.
-Times are relative in lists (`now`, `3m`, `2h`, `5d`), full in `show` (`2026-10-05 14:03:21`), and ISO 8601 in JSON.
-`--time-format auto|relative|short|full` and the setting `time_format` override this.
-`short` is `14:03` today, `10-05 14:03` this year, and `2025-10-05` before.
+Times in lists are recent (`time_format = "auto"`): relative for the last 30 days (`now`, `3m`, `2h`, `5d`), then the day, which says more then (`2026-09-05`); full in `show` (`2026-10-05 14:03:21`); ISO 8601 in JSON.
+`--time-format auto|relative|recent|short|full` and the setting `time_format` override this, in the GUI too.
+`relative` goes on in months and years (`4mo`, `6y`); `short` is `14:03` today, `10-05 14:03` this year, and `2025-10-05` before.
 
 ## Asking
 

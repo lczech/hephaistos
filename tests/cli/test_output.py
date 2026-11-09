@@ -4,7 +4,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import typer
 
-from hephaistos.cli.output import parse_time, relative_time, short_time, time_formatter
+from hephaistos.cli.output import (
+    parse_time,
+    recent_time,
+    relative_time,
+    short_time,
+    time_formatter,
+)
 from hephaistos.core import config
 from hephaistos.core.config import TimeFormat
 
@@ -21,7 +27,12 @@ NOW = datetime(2026, 10, 5, 14, 3, 21).astimezone()
         (timedelta(hours=1), "1h"),
         (timedelta(hours=23, minutes=59), "23h"),
         (timedelta(days=1), "1d"),
-        (timedelta(days=400), "400d"),
+        (timedelta(days=29, hours=23), "29d"),
+        (timedelta(days=30), "1mo"),
+        (timedelta(days=359), "11mo"),
+        (timedelta(days=364), "1y"),
+        (timedelta(days=365), "1y"),
+        (timedelta(days=2345), "6y"),
     ],
 )
 def test_relative_time(ago: timedelta, shown: str) -> None:
@@ -38,6 +49,12 @@ def test_relative_time(ago: timedelta, shown: str) -> None:
 )
 def test_short_time(value: datetime, shown: str) -> None:
     assert short_time(value, NOW) == shown
+
+
+def test_recent_time_is_relative_for_a_month_then_the_day() -> None:
+    assert recent_time(NOW - timedelta(days=29, hours=23), NOW) == "29d"
+    assert recent_time(NOW - timedelta(days=30), NOW) == "2026-09-05"  # the day, this year too
+    assert recent_time(datetime(2019, 3, 3, 9, 0).astimezone(), NOW) == "2019-03-03"
 
 
 def test_time_format_from_option_then_setting_then_default() -> None:

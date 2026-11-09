@@ -99,7 +99,7 @@ def list_(
         print_json(serialize.files_json(found))
         return
     shown: list[Field] = [field for field in FIELDS if field in chosen]
-    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    formatted = time_formatter(time_format, TimeFormat.RECENT)
 
     def cell(entry: Entry, field: Field) -> str:
         if field == "size":

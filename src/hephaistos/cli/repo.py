@@ -36,7 +36,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
             print_json(serialize.repositories_json(session))
             return
         summaries = repositories.summaries(session)
-    formatted = time_formatter(time_format, TimeFormat.RELATIVE)
+    formatted = time_formatter(time_format, TimeFormat.RECENT)
     print_table(
         ["name", "clones", "active", "remote"],
         [
