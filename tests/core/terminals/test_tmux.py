@@ -390,6 +390,51 @@ def with_binary(keeper: TmuxKeeper, binary: str, timeout: float = 5.0) -> TmuxKe
     )
 
 
+def test_no_decision_rests_on_the_messages_of_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """With every message of tmux replaced by nonsense, each failure means the same."""
+    real = keeper.binary
+    script = (
+        f'"{real}" "$@" 2>/dev/null; status=$?; [ $status = 0 ] || echo "x y z" >&2; exit $status'
+    )
+    garbled = with_binary(keeper, fake_tmux(tmp_path, script))
+    assert garbled.sessions() == []  # no server
+    assert not garbled.running()
+    new(garbled, "api", tmp_path)
+    new(garbled, "web", tmp_path)
+    with pytest.raises(NameTakenError):
+        new(garbled, "api", tmp_path)
+    with pytest.raises(NameTakenError):
+        garbled.rename("api", "web")
+    garbled.kill("web")
+    assert [session.name for session in garbled.sessions()] == ["api"]
+    garbled.kill("api")
+    assert garbled.sessions() == []  # a server without sessions
+    assert garbled.running()
+    tmux(keeper, "kill-server")
+    eventually(lambda: not garbled.running())  # its socket left behind, refusing connections
+    assert keeper.socket_path.exists()
+    assert garbled.sessions() == []
+
+
+def test_a_session_gone_between_listing_and_acting(
+    keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    new(keeper, "api", tmp_path)
+    listed = keeper.session("api")
+    tmux(keeper, "kill-session", "-t", listed.key)  # by another process, meanwhile
+
+    def as_listed_before(_: str) -> Session:
+        return listed
+
+    monkeypatch.setattr(keeper, "session", as_listed_before)
+    with pytest.raises(NoSuchSessionError):
+        keeper.kill("api")
+    keeper.kill("api", force=True)  # gone: as forced
+    with pytest.raises(NoSuchSessionError):
+        keeper.rename("api", "web")
+    assert keeper.adopt(listed, uuid.uuid4()) is None
+
+
 def test_tmux_missing(keeper: TmuxKeeper, tmp_path: Path) -> None:
     missing = with_binary(keeper, str(tmp_path / "no-tmux"))
     with pytest.raises(KeeperError, match=r"tmux is not installed .*terminals\.tmux\.path"):

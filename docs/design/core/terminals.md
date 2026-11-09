@@ -19,6 +19,7 @@ The programs in each Terminal find its ID in `HEPHAISTOS_TERMINAL`.
 Renaming and killing target a session by the ID tmux gives it (`$3`), found by its name, as tmux may print a name otherwise than it takes it.
 tmux reads some arguments specially, so each holding a name, a path or a value is written to be taken literally: one ending in `;` would end the command (`\;`), and a `#` in a name or directory starts a format (`##`).
 tmux refuses a name that is taken, which settles races between creators.
+A failed command is told apart by state, never by the message of tmux: whether the server answers on its socket, whether the session is still listed, whether the name is taken ([development](../../development.md#principles)).
 
 ### Socket and config
 
@@ -66,7 +67,7 @@ So fields are separated by a tab, a Unit Separator and a tab, escaped or not, an
 The escapes in a path count where the path so read exists and the text as printed does not.
 tmux runs with `-u`, else without a UTF-8 locale, e.g. in a Daemon, it prints `_` for each character beyond ASCII; its output is decoded as bytes, as text mode would turn a `\r` into a `\n`.
 A pane whose fields do not add up is skipped and logged, never misread; so is a session without a name, which tmux 3.8 makes of `new -s '#'`.
-Without a server, there are no sessions.
+Without a server, or with one whose socket refuses connections, e.g. left by a crash, there are no sessions.
 
 ### Killing
 

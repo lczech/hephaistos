@@ -13,6 +13,7 @@ import os
 import pwd
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import uuid
@@ -86,16 +87,9 @@ _END = "\x1e\n"
 _FORMAT = _SEPARATOR.join(_FIELDS) + _END.rstrip("\n")
 _ESCAPED = {"\t\\037\t": _SEPARATOR, "\\036\n": _END}  # as newer tmux prints them
 
-#: How tmux says that no server runs on the socket, that its socket is stale, or that it quit
-#: while answering, e.g. as its last session ended.
-_NO_SERVER = re.compile(
-    r"^(no server running on |error connecting to |server exited unexpectedly)", re.MULTILINE
-)
-#: How tmux says that a server has no sessions left, e.g. to `list-panes -a`.
-_NO_SESSIONS = re.compile(r"^no current target", re.MULTILINE)
-#: What tmux itself prints, its apostrophe written as `\x27` (docs/style.md: none in our text).
-_NO_SESSION = re.compile(r"^(can\x27t find session|no such session)", re.MULTILINE)
-_DUPLICATE = re.compile(r"^duplicate session", re.MULTILINE)
+# A failed command is told apart by state, never by the message of tmux, which only goes into
+# ours (docs/development.md): whether the server answers on its socket, whether a session is
+# still listed, whether a name is taken.
 
 
 def parse_version(text: str) -> tuple[int, int] | None:
@@ -437,7 +431,7 @@ class TmuxKeeper:
         self.check()
         result = self._client("list-panes", "-a", "-F", _FORMAT)
         if result.returncode != 0:
-            if _NO_SERVER.search(result.stderr) or _NO_SESSIONS.search(result.stderr):
+            if not self.running() or not self._keys():  # no server, or one without sessions
                 return []
             raise self._failed(["list-panes"], result)
         found: dict[str, Session] = {}
@@ -462,13 +456,40 @@ class TmuxKeeper:
         """Loads our config into a running server that lacks it, e.g. one started by hand."""
         log.info("loading our tmux config into the server on socket %s", self.socket)
         result = self._client("source-file", _escaped(str(self.config_file)))
-        if result.returncode != 0 and not _NO_SERVER.search(result.stderr):
+        if result.returncode != 0 and self.running():
             raise self._failed(["source-file"], result)
 
+    @property
+    def socket_path(self) -> Path:
+        """Where tmux puts the socket that `-L` names: `$TMUX_TMPDIR/tmux-<uid>/`, else in /tmp."""
+        directory = Path(os.environ.get("TMUX_TMPDIR") or "/tmp")  # noqa: S108 - as tmux does
+        return directory / f"tmux-{os.getuid()}" / self.socket
+
     def running(self) -> bool:
-        """Whether a server runs on our socket."""
+        """Whether a server answers on our socket; a socket left by one that crashed does not."""
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(self.timeout)
+            try:
+                probe.connect(str(self.socket_path))
+            except (FileNotFoundError, ConnectionRefusedError):
+                return False
+            except OSError as error:
+                where = self.socket_path
+                raise KeeperError(f"cannot reach the tmux server at {where}: {error}") from None
+        return True
+
+    def _keys(self) -> set[str]:
+        """The IDs that tmux gives the sessions, e.g. `$3`; none without a server."""
         result = self._client("list-sessions", "-F", "#{session_id}")
-        return result.returncode == 0
+        if result.returncode != 0:
+            if not self.running():
+                return set()
+            raise self._failed(["list-sessions"], result)
+        return set(result.stdout.split())
+
+    def _taken(self, name: str, *, by_other_than: str | None = None) -> bool:
+        """Whether a session is named `name`, other than the one with the ID `by_other_than`."""
+        return any(s.name == name and s.key != by_other_than for s in self.sessions())
 
     def session(self, name: str) -> Session:
         """The session named `name`; raises NoSuchSessionError."""
@@ -515,7 +536,7 @@ class TmuxKeeper:
         ]  # fmt: skip
         result = self._client(*args, scoped=not self.running())
         if result.returncode != 0:
-            if _DUPLICATE.search(result.stderr):
+            if self._taken(name):
                 raise NameTakenError(f"a terminal named {name} exists already")
             raise self._failed(args, result)
         return self.session(name)
@@ -539,7 +560,7 @@ class TmuxKeeper:
         shown = f"#{{session_id}} #{{{ID_OPTION}}}"
         result = self._client(*setting, ";", "display-message", "-p", "-t", session.key, shown)
         if result.returncode != 0:
-            if self._not_found(session.name, result):
+            if session.key not in self._keys():  # gone meanwhile
                 return None
             raise self._failed(["if-shell"], result)
         key, _, found = result.stdout.strip().partition(" ")
@@ -560,9 +581,11 @@ class TmuxKeeper:
         key = self.session(name).key
         result = self._client("rename-session", "-t", key, _literal(new_name))
         if result.returncode != 0:
-            if _DUPLICATE.search(result.stderr):
+            if key not in self._keys():
+                raise NoSuchSessionError(f"no terminal named {name}")
+            if self._taken(new_name, by_other_than=key):
                 raise NameTakenError(f"a terminal named {new_name} exists already")
-            raise self._not_found(name, result) or self._failed(["rename-session"], result)
+            raise self._failed(["rename-session"], result)
 
     def kill(self, name: str, *, force: bool = False) -> None:
         """Ends a session; see `Keeper.kill`.
@@ -575,9 +598,11 @@ class TmuxKeeper:
             self._kill_hard(session)
         result = self._client("kill-session", "-t", session.key)
         if result.returncode != 0:
-            if force and self._not_found(name, result):
-                return  # gone with its processes, as it should
-            raise self._not_found(name, result) or self._failed(["kill-session"], result)
+            if session.key in self._keys():
+                raise self._failed(["kill-session"], result)
+            if not force:  # ended meanwhile
+                raise NoSuchSessionError(f"no terminal named {name}")
+            # With `force`: gone with its processes, as it should.
 
     def _kill_hard(self, session: Session) -> None:
         """SIGKILL for the processes of a session: in its scope, and in the session of its pane.
@@ -609,13 +634,3 @@ class TmuxKeeper:
         result = self._client("display-message", "-p", "#{pid}")
         text = result.stdout.strip()
         return int(text) if result.returncode == 0 and text.isdecimal() else None
-
-    def _not_found(
-        self, name: str, result: subprocess.CompletedProcess[str]
-    ) -> NoSuchSessionError | None:
-        """NoSuchSessionError if tmux found no such session, or no server at all."""
-        if any(
-            pattern.search(result.stderr) for pattern in (_NO_SESSION, _NO_SESSIONS, _NO_SERVER)
-        ):
-            return NoSuchSessionError(f"no terminal named {name}")
-        return None

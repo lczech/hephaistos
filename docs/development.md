@@ -10,6 +10,9 @@ The commands to run are in the [README](../README.md#development).
 - A rule or tool that matters fails loudly when broken or switched off: its strictest mode, a test that it runs at all, the hooks (`.githooks/pre-commit` lints, and checks the GUI's types when GUI files are staged; `.githooks/pre-push` runs pyright, pytest and `npm run check`), and CI (`.github/workflows/ci.yml`).
 - No backwards compatibility while formats are in flux: a changed file format just changes, with a plain error for the old form, and no migration code or hints.
   Data in the database is worth keeping, so a schema change bumps `SCHEMA_VERSION` and comes with a one-off script that carries the data over ([ADR 003](decisions/003-core.md)); `.agents/scratch/gui-verification/carry-over.py` (not tracked) rebuilds changed tables in place, safe with a running Daemon.
+- Decide from what a program gives as data, never from its messages: exit codes, formats we choose (`git --porcelain -z`, the `-F` of tmux), and state we check (a socket that answers, a session still listed).
+  Messages are for people and change between versions and languages, so they only go into ours.
+  Where there is no other way, matching a message is a workaround, as above: named as one, tested with each version, and failing loudly on a message it does not know.
 - The package version stays 0.1.0 until things are reasonably stable; only the API version moves ([ADR 004](decisions/004-server.md)).
 
 ## Commits

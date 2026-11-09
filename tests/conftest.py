@@ -94,8 +94,7 @@ def kill_server(keeper: TmuxKeeper) -> None:
     subprocess.run(
         [keeper.binary, "-L", keeper.socket, "kill-server"], capture_output=True, check=False
     )
-    directory = Path(os.environ.get("TMUX_TMPDIR") or "/tmp") / f"tmux-{os.getuid()}"  # noqa: S108 - the default of tmux itself
-    (directory / keeper.socket).unlink(missing_ok=True)
+    keeper.socket_path.unlink(missing_ok=True)
 
 
 @pytest.fixture
