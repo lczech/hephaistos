@@ -74,6 +74,7 @@ interface Props<TData extends RowData> {
   actions?: (row: TData) => ReactNode; // after what names it (`identifies`), while pointed at
   menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
   ahead?: (row: TData) => void; // pointed at or focused: to ask for what opening it shows
+  seen?: (row: TData) => void; // come into view, or near it: to ask for what it shows
 }
 
 /**
@@ -95,7 +96,8 @@ interface Props<TData extends RowData> {
  * holding rows stays in view below the header and those holding it while they scroll past,
  * unless it is part of a page. A row may have actions after what names it, shown while it is
  * pointed at or focused, and a menu (the right button, or the menu key: its first item focused
- * then); `ahead` is called as a row is pointed at or focused, to ask for what opening it shows.
+ * then); `ahead` is called as a row is pointed at or focused, to ask for what opening it shows,
+ * `seen` as it comes into view or near it, to ask for what it shows.
  * `compact` rows stand closer together.
  */
 export function List<TData extends RowData>({
@@ -127,6 +129,7 @@ export function List<TData extends RowData>({
   actions,
   menu: rowMenu,
   ahead,
+  seen,
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
   const open = opened ?? kept;
@@ -235,6 +238,31 @@ export function List<TData extends RowData>({
     table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
   };
   const rows = table.getRowModel().rows;
+  // Rows that come into view, or near it, said once each time they are drawn; all of them where
+  // nothing tells, as in jsdom.
+  useEffect(() => {
+    if (seen === undefined) return;
+    const drawn = rows.flatMap((row, index) => {
+      const element = document.getElementById(`${list}-${index}`);
+      return element ? [[element, row.original] as const] : [];
+    });
+    if (typeof IntersectionObserver === "undefined") {
+      for (const [, row] of drawn) seen(row);
+      return;
+    }
+    const byElement = new Map<Element, TData>(drawn);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const row = byElement.get(entry.target);
+          if (entry.isIntersecting && row !== undefined) seen(row);
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    for (const [element] of drawn) observer.observe(element);
+    return () => observer.disconnect();
+  });
   const filtered = table.state.columnFilters.length > 0;
   const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) };
   // A tree's rows by the row they are within, in order: those of rows open.

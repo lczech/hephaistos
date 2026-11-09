@@ -18,6 +18,7 @@ What a row opens, and how it shows that, is in [interaction](interaction.md#rows
 - nothing, where it shows all it has, e.g. a note.
 
 A row may have actions: icons after what names it, shown while it is pointed at or holds the focus of the keyboard, its name then making room, cut off, so that its other cells stay as they are (`actions`).
+A View may ask for what a row opens as it is pointed at or focused (`ahead`), and for what it shows as it comes into view, or near it (`seen`).
 It may have a menu, by the right button, a long press, or the menu key or Shift+F10 on the row (`menu`, `RowMenu`): what can be done with it, in groups, each by its icon, a View's in its family's colour.
 A row that opens a View is marked while that View is shown in any Group, focused or not, as VS Code marks the file of the editor shown (`useIsShown`, from `layout/`).
 A commit in History is marked so while its Changes are shown.

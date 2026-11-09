@@ -215,3 +215,48 @@ describe("the Explorer's tree, as drawn", () => {
     );
   });
 });
+
+describe("the Explorer's find, as drawn", () => {
+  it("asks what a folder holding matches holds once its row comes into view", async () => {
+    const folders = Array.from({ length: 60 }, (_, at) => `d${String(at).padStart(2, "0")}`);
+    const asked: string[] = [];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": (request) => {
+        const path = new URL(request.url).searchParams.get("path") ?? "";
+        asked.push(path);
+        const name = path.split("/").at(-1) ?? "";
+        const entries =
+          path === "/s"
+            ? folders.map((folder) => fileEntry(folder, { kind: "directory" }))
+            : [fileEntry(`x${name}.txt`)];
+        return json({ path, top: null, entries, count: entries.length });
+      },
+      "GET /api/files/paths": () =>
+        json({
+          path: "/s",
+          paths: folders.flatMap((folder) => [`${folder}/`, `${folder}/x${folder}.txt`]),
+          stopped: null,
+          limit: null,
+        }),
+    });
+    renderWithQueries(
+      <div style={{ width: 700, height: 320, display: "flex", flexDirection: "column" }}>
+        <InPanel view={ExplorerView} kind="explorer" params={{ path: "/s" }} />
+      </div>,
+    );
+    await screen.findByText("d00");
+    await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
+    await userEvent.keyboard("x");
+    await waitFor(() => expect(rowOf("xd00.txt")).toBeDefined()); // its "x" marked
+    await new Promise((done) => setTimeout(done, 500)); // what the rows in view ask for, answered
+    const inside = () => new Set(asked.filter((path) => path !== "/s"));
+    expect(inside().size).toBeGreaterThan(0);
+    expect(inside().size).toBeLessThan(30); // of 60: those in view, or near it
+    expect(inside().has("/s/d59")).toBe(false);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    frame.scrollTop = frame.scrollHeight;
+    await waitFor(() => expect(inside().has("/s/d59")).toBe(true));
+  });
+});

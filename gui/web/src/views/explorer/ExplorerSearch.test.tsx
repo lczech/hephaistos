@@ -281,6 +281,16 @@ describe("finding in the Explorer", () => {
     expect(seen.filter((rows) => rows.join() !== "proj,main.py")).toEqual([]);
   });
 
+  it("says it is finding, rather than show the whole tree, until it found something", async () => {
+    const answer = held();
+    serveDisk({ wait: () => answer.promise });
+    await finding("ma");
+    expect(await screen.findByText("Finding…")).toBeInTheDocument();
+    expect(screen.queryByText("notes.md")).toBeNull();
+    answer.release();
+    await waitFor(() => expect(names()).toEqual(["proj", "main.py"]));
+  });
+
   it("keeps what it found while it lists the paths again, hidden ones or not", async () => {
     const answer = held();
     const requests = serveDisk({

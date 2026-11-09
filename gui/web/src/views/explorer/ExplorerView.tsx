@@ -38,6 +38,7 @@ import { COSTLY, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
 import {
   asked,
+  below,
   DEFAULT_SORT,
   type Entry,
   type FileEntry,
@@ -204,7 +205,6 @@ export function ExplorerView({
   const lines = useSearchLines(root, listing.data?.paths, byPath);
   // Its limit counts paths, as the tree shows paths, not matches.
   const searched = useFind(lines, finding?.text ? finding : undefined, "line");
-  const matches = searched && "matches" in searched ? searched.matches : undefined;
   // While it finds again, what it found before, in the paths it found it in, if below the root.
   const searchedIn = searched && "in" in searched ? linesOf(searched.in) : undefined;
   const found =
@@ -214,7 +214,9 @@ export function ExplorerView({
           byPath: searchedIn.byPath,
         })
       : undefined;
-  const search = found && searchOf(found.paths);
+  // Something typed, nothing found yet: no rows, rather than the whole tree for a moment.
+  const waiting = !!finding?.text && !found && !(searched && "error" in searched) && !listing.error;
+  const search = found ? searchOf(found.paths) : waiting ? searchOf([]) : undefined;
   // What is looked for, as matched: typing anew is another search.
   const pattern =
     finding && [finding.text, finding.matchCase, finding.wholeWord, finding.regex].join("\0");
@@ -229,7 +231,8 @@ export function ExplorerView({
     const folded = [...search.folders].filter((id) => !next.has(id));
     setFolds({ ...fresh, folded: new Set(folded), opened: new Set(next) });
   };
-  const listedFound = search && root !== undefined && listedOf(root, found.paths, search.folders);
+  const listedFound =
+    found && search && root !== undefined && listedOf(root, found.paths, search.folders);
 
   // Registered Checkouts: their tops show on their own rows, never joined through.
   const repositories = useRepositories();
@@ -268,7 +271,19 @@ export function ExplorerView({
     search,
     apart: (path) => checkouts.has(path),
   };
-  const needed = root === undefined ? [] : asked(root, making, making.loaded);
+  // While it searches, the folders holding matches show them at once from the paths listed;
+  // what each holds is asked for once its row comes into view, not all at once.
+  const [inView, setInView] = useState<{ root: string | undefined; paths: ReadonlySet<string> }>({
+    root,
+    paths: NONE,
+  });
+  const seenPaths = inView.root === root ? inView.paths : NONE;
+  const holdingFound = new Set(
+    search && root !== undefined ? [...search.folders].map((id) => below(root, id)) : [],
+  );
+  const unseen = (path: string) => holdingFound.has(path) && !seenPaths.has(path);
+  const needed =
+    root === undefined ? [] : asked(root, making, making.loaded).filter((path) => !unseen(path));
   if (needed.join("\0") !== wanted.join("\0")) setWanted(needed);
 
   const listed: Entry[] = root === undefined ? [] : rows(root, making);
@@ -284,7 +299,8 @@ export function ExplorerView({
           new Set(found.paths.map(bare)),
         )
       : [];
-  const [current, step] = useCurrentMatch(matches, order.length);
+  // The match stepped to stays current where the order moves it, e.g. once sizes sort it.
+  const [current, step] = useCurrentMatch(`${root}\0${pattern}`, order.length, order);
   const currentPath = search ? order[current] : undefined;
   // The match revealed, below the root it was found in: another's paths are others.
   const [revealed, setRevealed] = useState<{ root: string | undefined; path: string }>();
@@ -381,8 +397,9 @@ export function ExplorerView({
   } else if (finding && listing.error) {
     message = `Could not find: ${listing.error.message}`;
     problem = true;
-  } else if (search && listed.length === 0) message = "No files or folders found.";
-  else if (rootLoaded !== undefined && !("error" in rootLoaded) && listed.length === 0) {
+  } else if (search && listed.length === 0) {
+    message = waiting ? "Finding…" : "No files or folders found.";
+  } else if (rootLoaded !== undefined && !("error" in rootLoaded) && listed.length === 0) {
     message = "Empty.";
   }
   return (
@@ -489,6 +506,16 @@ export function ExplorerView({
         }
         menu={(entry) =>
           entry.type === "entry" ? rowMenu(entry, placeOfRow(entry), openView, showIn) : undefined
+        }
+        seen={
+          search &&
+          ((entry) => {
+            if (entry.type !== "entry" || !entry.folder || !unseen(entry.path)) return;
+            setInView((was) => ({
+              root,
+              paths: new Set([...(was.root === root ? was.paths : []), entry.path]),
+            }));
+          })
         }
         ahead={(entry) => {
           // A closed folder pointed at or focused: what it holds shows at once once opened.
