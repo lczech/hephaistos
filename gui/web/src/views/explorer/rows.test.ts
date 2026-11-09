@@ -104,6 +104,37 @@ describe("the Explorer's rows", () => {
     ]);
   });
 
+  it("tell a folder known to show nothing, open or not, without asking for any", () => {
+    const disk: Record<string, FileEntry[]> = {
+      "/e": [folder("none"), folder("dots"), folder("sized"), folder("unknown")],
+      "/e/none": [],
+      "/e/dots": [entry(".env")],
+    };
+    const known = (path: string): Loaded<FileEntry> => {
+      const items = disk[path];
+      return items && { items, count: items.length };
+    };
+    const loaded = (path: string) => (path === "/e" ? known(path) : undefined); // asked for
+    const sized = { ...folder("sized"), items: 0 }; // as the size column says
+    const shown = rows("/e", {
+      ...making(["none/"]),
+      loaded: (path) =>
+        path === "/e"
+          ? { items: [...(disk["/e"] ?? []).slice(0, 2), sized, folder("unknown")], count: 4 }
+          : loaded(path),
+      known,
+      hidden: false,
+    });
+    const empty = Object.fromEntries(
+      shown.flatMap((row) => (row.type === "entry" ? [[row.shown, row.empty]] : [])),
+    );
+    expect(empty).toEqual({ dots: true, none: true, sized: true, unknown: false });
+    expect(shown.find((row) => row.type === "entry" && row.shown === "none")?.subRows).toEqual([]);
+    const { loaded: _, ...rest } = making(["none/"]);
+    // None asked for to tell; the one open still, so that it tells once it holds something.
+    expect(asked("/e", { ...rest, known }, loaded)).toEqual(["/e", "/e/none"]);
+  });
+
   it("ask for the folders shown open, through those joined", () => {
     const { loaded, ...rest } = making(["src/", "src/app/lib/", "gone/"]);
     expect(asked("/r", rest, loaded)).toEqual(["/r", "/r/src", "/r/src/app", "/r/src/app/lib"]);

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
@@ -66,6 +66,50 @@ describe("the Explorer View", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("Explorer: me");
     expect(screen.getByText(".bashrc").closest("[data-hidden]")).not.toBeNull();
     expect(screen.getByText(".bashrc").closest("[data-ignored]")).toBeNull(); // not quieter
+  });
+
+  it("drops the chevron of a folder once it is known to show nothing, as VS Code does", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": (request) => {
+        const path = new URL(request.url).searchParams.get("path") ?? "";
+        const entries = path === "/e" ? [entry("void", { kind: "directory" })] : [];
+        return json({ path, top: null, entries, count: entries.length });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/e" }} />);
+    const cell = () => screen.getByText("void").closest("li") as HTMLElement;
+    await waitFor(() => expect(cell().querySelector(".lucide-chevron-right")).not.toBeNull());
+    await userEvent.click(screen.getByText("void"));
+    await waitFor(() => expect(cell().querySelector(".lucide-chevron-right")).toBeNull());
+    expect(cell().querySelector(".lucide-folder")).not.toBeNull(); // closed, not open
+    expect(within(cell()).queryByRole("button", { name: /void/ })).toBeNull(); // opens nothing
+    expect(names()).toEqual(["void"]);
+  });
+
+  it("tells a folder pointed at shows nothing, until a hint says it may have changed", async () => {
+    let inside: FileEntry[] = [];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": (request) => {
+        const path = new URL(request.url).searchParams.get("path") ?? "";
+        const entries = path === "/e" ? [entry("void", { kind: "directory" })] : inside;
+        return json({ path, top: null, entries, count: entries.length });
+      },
+    });
+    const { client } = renderWithQueries(<Explorer initial={{ path: "/e" }} />);
+    const chevron = () =>
+      screen.getByText("void").closest("li")?.querySelector(".lucide-chevron-right");
+    await waitFor(() => expect(chevron()).not.toBeNull());
+    await userEvent.hover(screen.getByText("void"));
+    await waitFor(() => expect(chevron()).toBeNull()); // asked for ahead: nothing, not opened
+    inside = [entry("new.txt")];
+    await act(() => client.invalidateQueries({ queryKey: ["files"] })); // as a hint does
+    await waitFor(() => expect(chevron()).not.toBeNull());
+    await userEvent.click(screen.getByText("void"));
+    expect(await screen.findByText("new.txt")).toBeInTheDocument();
   });
 
   it("shows `.git` quieter, as what git does not track", async () => {

@@ -43,6 +43,7 @@ import {
   type Entry,
   type FileEntry,
   folders,
+  type Listing,
   type Making,
   rows,
   SORTS,
@@ -263,8 +264,20 @@ export function ExplorerView({
       return failed instanceof ApiError && failed.status === 403;
     }),
   );
+  const client = useQueryClient();
+  // Folders asked for ahead that show nothing, once told: to draw them anew, without a chevron.
+  const [, setToldEmpty] = useState<ReadonlySet<string>>(NONE);
   const making: Making = {
     loaded: (path) => loaded.get(path) ?? (listedFound ? listedFound.get(path) : undefined),
+    // Also what was asked for ahead, as a folder was pointed at, to tell it shows nothing;
+    // not once a hint said it may have changed, as only listings in use are asked for again.
+    known: (path) => {
+      const asked = making.loaded(path);
+      if (asked !== undefined) return asked;
+      const ahead = client.getQueryState<Listing>(filesQuery({ path }).queryKey);
+      if (ahead?.data === undefined || ahead.isInvalidated) return undefined;
+      return { items: ahead.data.entries, count: ahead.data.count };
+    },
     opened,
     hidden: look.hidden,
     sorted,
@@ -351,7 +364,6 @@ export function ExplorerView({
   const checkoutName = shownIn?.paths[0]?.split("/").at(-1) ?? "";
   const openView = useOpenView();
   const shownViews = useShownViews();
-  const client = useQueryClient();
   const columns = explorerColumns({
     open: (row) => opened.has(row.id),
     marked: (row) => {
@@ -369,7 +381,9 @@ export function ExplorerView({
     data: listed,
     getRowId: (entry) => entry.id,
     getSubRows: (entry) => entry.subRows,
-    getRowCanExpand: (row) => row.original.type === "entry" && row.original.folder, // closed, empty
+    // A folder closed, or open showing nothing yet; not one known to show nothing.
+    getRowCanExpand: (row) =>
+      row.original.type === "entry" && row.original.folder && !row.original.empty,
     state: { sorting: sorted, expanded },
     manualSorting: true, // the rows come in order, folders first
     onSortingChange: (change) =>
@@ -494,8 +508,8 @@ export function ExplorerView({
         older="files"
         detailsLabel="Details"
         details={() => null}
-        folds={(entry) => entry.type === "entry" && entry.folder}
-        plain={(entry) => entry.type !== "entry" || !entry.folder}
+        folds={(entry) => entry.type === "entry" && entry.folder && !entry.empty}
+        plain={(entry) => entry.type !== "entry" || !entry.folder || entry.empty}
         showing={(entry) => {
           if (entry.type !== "entry" || entry.folder) return false;
           const place = placeOfRow(entry);
@@ -518,9 +532,18 @@ export function ExplorerView({
           })
         }
         ahead={(entry) => {
-          // A closed folder pointed at or focused: what it holds shows at once once opened.
-          if (entry.type !== "entry" || !entry.folder || opened.has(entry.id)) return;
-          void client.prefetchQuery(filesQuery({ path: entry.path }));
+          // A closed folder pointed at or focused: what it holds shows at once once opened. One
+          // showing nothing, as it turns out, loses its chevron at once: drawn anew for it alone.
+          if (entry.type !== "entry" || !entry.folder || entry.empty || opened.has(entry.id)) {
+            return;
+          }
+          const names = filesQuery({ path: entry.path });
+          void client.prefetchQuery(names).then(() => {
+            const found = client.getQueryData<Listing>(names.queryKey);
+            if (found === undefined || found.count !== found.entries.length) return;
+            if (found.entries.some((item) => look.hidden || !item.hidden)) return;
+            setToldEmpty((told) => new Set([...told, entry.path]));
+          });
           void client.prefetchQuery(filesQuery({ path: entry.path, fields }));
         }}
       />

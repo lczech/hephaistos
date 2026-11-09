@@ -15,6 +15,7 @@ function row(path: string, fields: Partial<Shown> = {}, entry = {}): Shown {
     shown: name,
     entry: fileEntry(name, entry),
     folder: false,
+    empty: false,
     subRows: [],
     ...fields,
   };

@@ -42,7 +42,7 @@ function iconOf(row: Shown, looks: Looks): LucideIcon {
   if (entry.kind !== "directory") return KIND_ICONS[fileKind(entry.name)];
   if (looks.denied(row.path)) return FolderLock;
   if (looks.checkout(row.path)) return FolderGit2;
-  return looks.open(row) ? FolderOpen : Folder;
+  return looks.open(row) && !row.empty ? FolderOpen : Folder;
 }
 
 function titleOf(row: Shown): string {
@@ -157,7 +157,7 @@ export function explorerColumns(looks: Looks) {
       cell: ({ row }) => (
         <>
           <TreeGuides depth={row.depth} />
-          {row.original.type === "entry" && row.original.folder && (
+          {row.original.type === "entry" && row.original.folder && !row.original.empty && (
             <TreeChevron depth={row.depth} />
           )}
         </>

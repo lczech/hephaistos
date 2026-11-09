@@ -30,6 +30,7 @@ export type Entry =
       shown: string;
       entry: FileEntry;
       folder: boolean;
+      empty: boolean; // a folder known to show nothing: nothing to open, as VS Code has it
       subRows: Entry[];
     }
   | Note;
@@ -81,6 +82,18 @@ export interface Making {
   sorted: SortingState;
   search?: Search; // only what it found, folders not joined
   apart?: (path: string) => boolean; // folders never joined through, e.g. Checkouts' tops
+  known?: (path: string) => Loaded<FileEntry>; // also ahead of time, not asking: else `loaded`
+}
+
+/**
+ * Whether a folder shows nothing, as far as known without asking: it has no entries, or none
+ * shown, e.g. only hidden ones, and none left unlisted.
+ */
+function showsNothing(entry: FileEntry, path: string, id: string, making: Making): boolean {
+  if (entry.items === 0) return true;
+  const known = (making.known ?? making.loaded)(path);
+  if (known === undefined || "error" in known || known.count !== known.items.length) return false;
+  return shownOf(known.items, id, making).length === 0;
 }
 
 /** The entries in the folder whose rows are below `prefix` that show. */
@@ -122,7 +135,10 @@ export function entryRows(
     const folder = opens(entry);
     const id = `${prefix}${entry.name}${folder ? "/" : ""}`;
     const at = below(path, entry.name);
-    if (!folder || !making.opened.has(id)) {
+    const empty = folder && showsNothing(entry, at, id, making);
+    // Open, it is still asked for, so that it tells once it holds something.
+    if (empty && making.opened.has(id)) making.loaded(at);
+    if (!folder || empty || !making.opened.has(id)) {
       return {
         type: "entry",
         id,
@@ -131,6 +147,7 @@ export function entryRows(
         shown: entry.name,
         entry,
         folder,
+        empty,
         subRows: [],
       };
     }
@@ -144,6 +161,7 @@ export function entryRows(
       shown,
       entry,
       folder,
+      empty,
       subRows: loadedRows(
         id,
         making.loaded(last),
@@ -189,7 +207,7 @@ export function asked(
     if (!paths.includes(path)) paths.push(path);
     return loaded(path);
   };
-  rows(root, { ...making, loaded: recording });
+  rows(root, { ...making, loaded: recording, known: making.known ?? loaded });
   return paths;
 }
 

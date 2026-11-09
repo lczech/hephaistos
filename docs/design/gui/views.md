@@ -157,6 +157,7 @@ The bar shows the path, from the name of `root`, else from `~` under the home di
 Where the Directory shown lies in a registered Checkout, the bar links to its History, Changes and Diff, as the row of the Checkout in Repositories does, before the reload button, as Changes and the Diff place theirs.
 Folders come first, then files, by name as people sort them: case ignored, numbers by their value, as VS Code does.
 A folder opens and closes; it is asked for once opened, or once pointed at or focused, so that opening shows it at once.
+A folder known to show nothing, once its listing came, opened or asked for ahead, or as the size column says `0 items`, has no chevron, keeps its closed icon and opens nothing, as VS Code has it; one holding only hidden entries is so while they are left out.
 What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
 A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`; not a registered Checkout's top, whose row says what it is, nor a symlink, which may lead back to a folder above it.
 Hidden entries, whose names start with `.`, show in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
