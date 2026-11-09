@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { server, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import type { Schemas } from "../../api/client";
 import {
   clone,
@@ -187,25 +187,20 @@ describe("the Explorer's tree, as drawn", () => {
     expect(middle(letter.getBoundingClientRect())).toBeCloseTo(middle(box(cell)), 0);
   });
 
-  // Not in WebKit: its buttons keep the font of the browser, larger than that of the page, so
-  // their icons, sized by `em`, are larger than the formula of the path says.
-  it.skipIf(server.browser === "webkit")(
-    "keeps its path in place when its buttons wrap below it",
-    async () => {
-      const where = async (width: number) => {
-        document.body.replaceChildren();
-        await explorer(width);
-        const part = screen.getByRole("button", { name: "r" });
-        const bar = part.closest("header") as HTMLElement;
-        const buttons = screen.getByRole("button", { name: "Hidden files" });
-        return { path: box(part).top - box(bar).top, wrapped: box(buttons).top > box(part).bottom };
-      };
-      const wide = await where(700);
-      const narrow = await where(140);
-      expect([wide.wrapped, narrow.wrapped]).toEqual([false, true]);
-      expect(narrow.path).toBeCloseTo(wide.path, 0);
-    },
-  );
+  it("keeps its path in place when its buttons wrap below it", async () => {
+    const where = async (width: number) => {
+      document.body.replaceChildren();
+      await explorer(width);
+      const part = screen.getByRole("button", { name: "r" });
+      const bar = part.closest("header") as HTMLElement;
+      const buttons = screen.getByRole("button", { name: "Hidden files" });
+      return { path: box(part).top - box(bar).top, wrapped: box(buttons).top > box(part).bottom };
+    };
+    const wide = await where(700);
+    const narrow = await where(140);
+    expect([wide.wrapped, narrow.wrapped]).toEqual([false, true]);
+    expect(narrow.path).toBeCloseTo(wide.path, 0);
+  });
 
   it("keeps its find row in one line where it fits, its field narrower", async () => {
     await explorer(480);

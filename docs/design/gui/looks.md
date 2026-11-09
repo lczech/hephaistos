@@ -125,6 +125,7 @@ Each kind of View has an icon, shown before its tab's title (`layout/ViewTab.tsx
 
 What Views show takes its size and font from `[gui.text]`, code from `[gui.code]` (`look.ts`).
 Tabs, View bars and the status bar keep theirs, so zooming is not needed to read.
+Controls (buttons, fields) take the font of the text around them, not the one each browser gives them, so that they and their icons, sized by `em`, look the same in all browsers.
 Monospace among text is a little smaller (`--mono-size`), as its letters look larger.
 Tabs are at most `--tab-width` wide, a longer title cut off.
 Numbers show their thousands apart (`1,234`), a count with its noun singular for one alone, a + where a list was cut (`12+ files`); words listed read `a, b and c` (`text.ts`).

@@ -160,6 +160,15 @@ code {
   font-size: var(--mono-size);
 }
 
+/* Controls take the font of the page, as the text around them does: each browser gives them its
+ * own, which differs between browsers, and so do the icons in them, sized by `em`. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 button:disabled {
   opacity: var(--dimmed);
   cursor: default;
