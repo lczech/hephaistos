@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { type Found, find } from "./matcher";
 import { findPattern, type Pattern } from "./pattern";
 
-/** What finding the pattern found, once done. */
-function found(lines: string[], pattern: Pattern): Promise<Found> {
-  return new Promise((done) => find(lines, pattern, done));
+/** What finding the pattern found, once done, stopped after `timeout` ms if given. */
+function found(lines: string[], pattern: Pattern, timeout?: number): Promise<Found> {
+  return new Promise((done) => find(lines, pattern, done, "match", timeout));
 }
 
 function pattern(text: string, regex = false): Pattern {
@@ -30,12 +30,12 @@ describe.skipIf(typeof Worker === "undefined")("finding in a worker", () => {
     const runaway = pattern("^(a+)+$", true);
     const started = performance.now();
     // Stopped at the limit, or by the engine first: Firefox's gives up on its own under load.
-    expect(await found([`${"a".repeat(40)}b`], runaway)).toEqual({
+    expect(await found([`${"a".repeat(40)}b`], runaway, 200)).toEqual({
       error: expect.stringMatching(
-        /^(Stopped after 5 s: the expression takes too long|Could not search: too much recursion)$/,
+        /^(Stopped after 0.2 s: the expression takes too long|Could not search: too much recursion)$/,
       ),
     });
-    expect(performance.now() - started).toBeLessThan(6_000);
+    expect(performance.now() - started).toBeLessThan(3_000); // its worker loaded, under load too
     expect(await found(["a"], pattern("a"))).toEqual({
       matches: [{ line: 0, start: 0, end: 1 }],
       more: false,

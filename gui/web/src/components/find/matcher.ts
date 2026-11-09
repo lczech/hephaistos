@@ -15,13 +15,15 @@ let idle: Worker | undefined;
 
 /**
  * Finds the pattern in the lines, then calls `done`; the function returned stops it. The limit
- * counts matches, or `per` line, the lines matched.
+ * counts matches, or `per` line, the lines matched; it may take `timeout` ms, from when its
+ * worker starts it.
  */
 export function find(
   lines: readonly string[],
   pattern: Pattern,
   done: (found: Found) => void,
   per: Per = "match",
+  timeout = TIMEOUT,
 ) {
   if (typeof Worker === "undefined") {
     const timer = setTimeout(() => done(findMatches(lines, pattern, LIMIT, per)));
@@ -40,8 +42,8 @@ export function find(
     if (data === "started") {
       timer = setTimeout(() => {
         end();
-        done({ error: `Stopped after ${TIMEOUT / 1000} s: the expression takes too long` });
-      }, TIMEOUT);
+        done({ error: `Stopped after ${timeout / 1000} s: the expression takes too long` });
+      }, timeout);
       return;
     }
     busy = false;
