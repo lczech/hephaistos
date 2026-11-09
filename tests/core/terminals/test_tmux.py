@@ -100,6 +100,31 @@ def test_config_names_itself_by_its_hash() -> None:
     assert config_digest(text) != config_digest(config_text(99))
 
 
+def test_tmux_stays_out_of_sight_in_a_terminal(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """Nothing in a Terminal says tmux keeps it, so a `tmux` typed there reaches the default
+    server of the user, as from any terminal emulator, not ours."""
+    other = tmp_path / "tmux-tmpdir"  # stands in for the default server of the user
+    other.mkdir()
+    script = (
+        'printf "%s|%s|" "${TMUX-unset}" "${TMUX_PANE-unset}" > out;'
+        f" TMUX_TMPDIR={other} tmux -f /dev/null new-session -d -s mine sleep 60;"
+        f' TMUX_TMPDIR={other} tmux ls -F "#{{session_name}}" >> out 2>&1; exec sleep 60'
+    )
+    created = new(keeper, "api", tmp_path, "sh", "-c", script)
+    try:
+        assert written(tmp_path / "out") == "unset|unset|mine\n"
+        assert [session.name for session in keeper.sessions()] == ["api"]
+        assert eventually(lambda: keeper.session("api").program == "sleep")  # not `env`
+        assert created.terminal_id is not None
+    finally:
+        subprocess.run(
+            ["tmux", "kill-server"],
+            env={**os.environ, "TMUX_TMPDIR": str(other)},
+            capture_output=True,
+            check=False,
+        )
+
+
 def test_create_and_list(keeper: TmuxKeeper, tmp_path: Path) -> None:
     terminal_id = uuid.uuid4()
     out = tmp_path / "out"

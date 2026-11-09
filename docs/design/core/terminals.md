@@ -55,6 +55,8 @@ A user manager that does not answer within 5 s, e.g. under heavy load, is logged
 Where systemd answers, the server starts with the environment of the user manager, as a terminal emulator on a desktop does.
 Elsewhere it has the environment of the process that starts it.
 A new Terminal also gets the variables of its creator that a terminal emulator passes on (`DISPLAY`, `WAYLAND_DISPLAY`, `SSH_AUTH_SOCK`, …), and runs the login shell of the creator unless given a command.
+tmux sets `TMUX` and `TMUX_PANE` for each program it starts; each Terminal starts through `env -u`, which removes them, then becomes the program.
+So a `tmux` typed in a Terminal reaches the tmux of the user, as from any terminal emulator, and programs see no sign of tmux.
 
 ### Listing
 

@@ -41,6 +41,9 @@ TIMEOUT = 10.0  # seconds for one tmux command; tmux is local, so only a hung on
 DEFAULT_SOCKET = "hephaistos"
 CONFIG_NAME = "tmux.conf"  # in the state directory
 
+#: What tmux sets in each Terminal, removed there so that tmux stays out of sight.
+HIDDEN = ("TMUX", "TMUX_PANE")
+
 #: Our options: on a session, the ID of its Terminal; on the server, the config marker.
 ID_OPTION = "@hephaistos_id"
 CONFIG_OPTION = "@hephaistos_config"
@@ -495,6 +498,9 @@ class TmuxKeeper:
         variables[TERMINAL_VARIABLE] = str(terminal_id)
         pairs = [arg for item, value in variables.items() for arg in ("-e", f"{item}={value}")]
         program = list(command) if command else [_login_shell(environment), "-l"]
+        # tmux sets these for each program it starts, with no option against it. Without them, a
+        # `tmux` typed in the Terminal reaches the tmux of the user, as from any terminal emulator.
+        program = ["env", *(arg for name in HIDDEN for arg in ("-u", name)), *program]
         if self.scopes:
             program = self.scopes.command(
                 program,
