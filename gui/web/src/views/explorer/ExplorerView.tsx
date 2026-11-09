@@ -3,6 +3,7 @@ import { type Atom, useAtom } from "@tanstack/react-store";
 import { type ExpandedState, functionalUpdate } from "@tanstack/react-table";
 import { Eye, EyeOff, FileSearch, FileXCorner } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ApiError } from "../../api/client";
 import {
   filesQuery,
   KEYS,
@@ -248,6 +249,12 @@ export function ExplorerView({
       return [path, failed ? { error: failed.message } : undefined];
     }),
   );
+  const denied = new Set(
+    wanted.filter((_, index) => {
+      const failed = answers[index]?.error;
+      return failed instanceof ApiError && failed.status === 403;
+    }),
+  );
   const making: Making = {
     loaded: (path) => loaded.get(path) ?? (listedFound ? listedFound.get(path) : undefined),
     opened,
@@ -334,10 +341,7 @@ export function ExplorerView({
     },
     current: (row) => shownCurrent !== undefined && shownPaths(row).includes(shownCurrent),
     checkout: (path) => checkouts.has(path),
-    denied: (path) => {
-      const found = loaded.get(path);
-      return found !== undefined && "error" in found && found.error.startsWith("not allowed");
-    },
+    denied: (path) => denied.has(path),
     ahead: (row) => {
       void client.prefetchQuery(filesQuery({ path: row.path }));
       void client.prefetchQuery(filesQuery({ path: row.path, fields }));
@@ -371,9 +375,14 @@ export function ExplorerView({
 
   const rootLoaded = root === undefined ? undefined : loaded.get(root);
   let message: string | null = null;
-  if (root === undefined) message = info.isError ? "Could not ask for the home directory." : null;
-  else if (finding && listing.error) message = `Could not find: ${listing.error.message}`;
-  else if (search && listed.length === 0) message = "No files or folders found.";
+  let problem = false;
+  if (root === undefined) {
+    message = info.isError ? "Could not ask for the home directory." : null;
+    problem = info.isError;
+  } else if (finding && listing.error) {
+    message = `Could not find: ${listing.error.message}`;
+    problem = true;
+  } else if (search && listed.length === 0) message = "No files or folders found.";
   else if (rootLoaded !== undefined && !("error" in rootLoaded) && listed.length === 0) {
     message = "Empty.";
   }
@@ -465,6 +474,7 @@ export function ExplorerView({
         compact
         choices={{}}
         message={message}
+        problem={problem}
         older="files"
         detailsLabel="Details"
         details={() => null}

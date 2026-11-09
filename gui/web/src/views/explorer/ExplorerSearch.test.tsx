@@ -260,12 +260,11 @@ describe("finding in the Explorer", () => {
     expect(names()).toEqual(["deep", "proj", ".bashrc", "notes.md"]); // all, unfound
   });
 
-  it("says when it may not list the Directory", async () => {
+  it("says when it may not list the Directory, as a problem", async () => {
     serveDisk({ refused: true });
     await finding("ma");
-    expect(
-      await screen.findByText("Could not find: not allowed to list /home/me"),
-    ).toBeInTheDocument();
+    const said = await screen.findByText("Could not find: not allowed to list /home/me");
+    expect(said.className).toMatch(/problem/);
   });
 
   it("shows no rows of what it found before in the paths listed again", async () => {

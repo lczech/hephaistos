@@ -253,6 +253,35 @@ describe("the Explorer View", () => {
     expect(screen.getByText("notes.md")).toBeInTheDocument(); // by the names asked for first
   });
 
+  it("locks a folder it may not list, by the answer's status", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": (request) => {
+        const path = new URL(request.url).searchParams.get("path") ?? "";
+        if (path === "/home/x/closed") {
+          return json({ error: `not allowed to list ${path}`, checkout: null }, 403);
+        }
+        if (path === "/home/x/gone") {
+          return json({ error: "not allowed, as it says nothing", checkout: null }, 404);
+        }
+        const entries = [
+          entry("closed", { kind: "directory" }),
+          entry("gone", { kind: "directory" }),
+        ];
+        return json({ path, top: null, entries, count: entries.length });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/x" }} />);
+    await userEvent.click(await screen.findByText("closed"));
+    await userEvent.click(screen.getByText("gone"));
+    await waitFor(() => expect(screen.getAllByText(/^Could not load/)).toHaveLength(2));
+    const icon = (name: string) =>
+      screen.getByText(name).closest("[data-column]")?.querySelector("svg");
+    expect(icon("closed")).toHaveClass("lucide-folder-lock");
+    expect(icon("gone")).not.toHaveClass("lucide-folder-lock"); // by its status, not its words
+  });
+
   it("offers a changed file's Diff and History, and copies its path from its menu", async () => {
     serve({
       "GET /api/info": () => json(info()),
