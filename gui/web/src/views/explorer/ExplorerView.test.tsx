@@ -138,6 +138,17 @@ describe("the Explorer View", () => {
     expect(await screen.findByRole("button", { name: "Commit history of me" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Changes in me" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Diff of the changes in me" })).toBeInTheDocument();
+    // In groups: how it shows, acting on what it shows, other Views.
+    const end = screen.getByRole("button", { name: "Refresh" }).parentElement?.parentElement;
+    expect(
+      [...(end?.children ?? [])].map((group) =>
+        [...group.querySelectorAll("button")].map((button) => button.getAttribute("aria-label")),
+      ),
+    ).toEqual([
+      ["Find files and folders by name", "Hidden files"],
+      ["Close all folders", "Refresh"],
+      ["Commit history of me", "Changes in me", "Diff of the changes in me"],
+    ]);
   });
 
   it("shows a parent by its part of the path in the bar", async () => {

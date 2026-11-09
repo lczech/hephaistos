@@ -14,7 +14,7 @@ import { LayoutToggle } from "../../components/list/LayoutToggle";
 import { List } from "../../components/list/List";
 import { useList } from "../../components/list/table";
 import { SearchField } from "../../components/SearchField";
-import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
@@ -162,11 +162,15 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           />
         )}
         <BarEnd>
-          <LayoutToggle layout={layout} onChange={setLayout} />
-          <Refresh
-            busy={history.isFetching}
-            onClick={() => void client.invalidateQueries({ queryKey: KEYS.history })}
-          />
+          <BarGroup>
+            <LayoutToggle layout={layout} onChange={setLayout} />
+          </BarGroup>
+          <BarGroup>
+            <Refresh
+              busy={history.isFetching}
+              onClick={() => void client.invalidateQueries({ queryKey: KEYS.history })}
+            />
+          </BarGroup>
         </BarEnd>
       </ViewBar>
       {error && (

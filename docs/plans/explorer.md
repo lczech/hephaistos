@@ -14,6 +14,7 @@ Git history holds how it was built; the design docs hold how it works.
 ## Now
 
 Done (2026-11-09): going into a folder from its menu, `root` in the address, the links of the Checkout in the bar, and the path bar shown once the home directory is known.
+Also done: controls take the font of the page in all browsers; the buttons of all bars come in three groups, a line between them ([views](../design/gui/views.md#view-bars)).
 
 ## Before the merge
 
@@ -22,11 +23,8 @@ Done (2026-11-09): going into a folder from its menu, `root` in the address, the
 - Decided: the find row at sidebar widths waits for the sidebar; the folder icons stay ours.
 - At the merge: the decisions go into the ADRs and design docs, the roadmap on master records the step, and this file is deleted.
   For the "Owed" list of the roadmap: the browser test `DiffView.browser.test.tsx` "brings a match it steps to into view, in a file not drawn yet" fails in Firefox in about half of the full runs of `npm run check`, and never recovers within 30 s; it passes alone, under CPU load, and with Firefox alone.
-
-## Elsewhere
-
-- Buttons keep the font of the browser, not of the page: in WebKit it is larger, so their icons, sized by `em`, are about 3 px larger than in Chromium.
-  A rule giving controls the font of the page fixes it for all Views; it changes every button a little, so it wants the tour before and after (`.agents/scratch/gui-verification/README.md`).
+  Also there: `ExplorerView.browser.test.tsx` "starts a row's icon where its parent's name does" failed once in WebKit inside `userEvent.click` (`e.includes` of undefined), only with all three browsers running at once; it passed alone three times.
+  For the steps of xterm.js and Monaco: check their own controls against the rule that every button, field and text area takes the page's font (`theme.css`), which reaches theirs too.
 
 ## After the merge, each a step of its own
 

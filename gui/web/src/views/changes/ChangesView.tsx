@@ -4,7 +4,7 @@ import { LayoutList, List as ListIcon } from "lucide-react";
 import { type MouseEvent, useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { List } from "../../components/list/List";
-import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
@@ -145,41 +145,47 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
         )}
         {checkout && (
           <BarEnd>
-            {commit === undefined && sinceHead && (
-              <Toggle
-                label="Groups"
-                on={look.grouped}
-                onChange={(on) => setLook({ ...look, grouped: on })}
-                ways={[
-                  {
-                    icon: LayoutList,
-                    title:
-                      "Show changes grouped like `git status`: staged, not staged, untracked, unmerged",
-                  },
-                  {
-                    icon: ListIcon,
-                    title: "Show all changes since the last commit in one list, each file once",
-                  },
-                ]}
+            <BarGroup>
+              {commit === undefined && sinceHead && (
+                <Toggle
+                  label="Groups"
+                  on={look.grouped}
+                  onChange={(on) => setLook({ ...look, grouped: on })}
+                  ways={[
+                    {
+                      icon: LayoutList,
+                      title:
+                        "Show changes grouped like `git status`: staged, not staged, untracked, unmerged",
+                    },
+                    {
+                      icon: ListIcon,
+                      title: "Show all changes since the last commit in one list, each file once",
+                    },
+                  ]}
+                />
+              )}
+              <NestedToggle />
+            </BarGroup>
+            <BarGroup>
+              <Refresh
+                busy={changes.isFetching}
+                onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
               />
-            )}
-            <NestedToggle />
-            <ViewLink
-              address={{
-                kind: "diff",
-                params: { ...checkout, ...(commit === undefined ? picked : { commit }) },
-              }}
-              label="Diff of these changes"
-              quiet={changes.data !== undefined && groups.length === 0}
-            />
-            <ViewLink
-              address={{ kind: "history", params: checkout }}
-              label="Commit history of this checkout"
-            />
-            <Refresh
-              busy={changes.isFetching}
-              onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
-            />
+            </BarGroup>
+            <BarGroup>
+              <ViewLink
+                address={{
+                  kind: "diff",
+                  params: { ...checkout, ...(commit === undefined ? picked : { commit }) },
+                }}
+                label="Diff of these changes"
+                quiet={changes.data !== undefined && groups.length === 0}
+              />
+              <ViewLink
+                address={{ kind: "history", params: checkout }}
+                label="Commit history of this checkout"
+              />
+            </BarGroup>
           </BarEnd>
         )}
       </ViewBar>

@@ -8,6 +8,11 @@ Each kind has a folder in `views/` ([layout](layout.md#views-and-dockview)).
 ### View bars
 
 A View starts with its bar (`ViewBar`): what it shows or compares first, its toggles and links at its end, as icons alone.
+The buttons at its end come in groups, a line between two (`BarGroup`), always in this order, also in Views to come:
+1. Toggles: buttons that switch a state of the View and show it, find first (hidden files, side by side, all files unfolded, layout).
+2. Actions: buttons that do something once (close all folders, Refresh).
+3. Other Views: the links to them.
+A group without buttons leaves no line.
 Below it, the View fills the rest of its Panel (`ViewPage`).
 
 ### Commits

@@ -5,7 +5,7 @@ import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
 import { List, type Tone } from "../../components/list/List";
 import { useList } from "../../components/list/table";
-import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, BarGroup, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { loadErrorText } from "../CheckoutError";
 import type { ViewProps } from "../index";
@@ -65,7 +65,9 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
     <ViewPage>
       <ViewBar>
         <BarEnd>
-          <LayoutToggle layout={layout} onChange={setLayout} />
+          <BarGroup>
+            <LayoutToggle layout={layout} onChange={setLayout} />
+          </BarGroup>
         </BarEnd>
       </ViewBar>
       <List

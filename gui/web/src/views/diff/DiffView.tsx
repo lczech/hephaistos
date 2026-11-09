@@ -27,7 +27,7 @@ import { LazyDiffScroll } from "../../components/diff/LazyDiff";
 import { codeThemes } from "../../components/diff/themes";
 import { foldedBy, unfolding, withFolded } from "../../components/files/folds";
 import { FindBar } from "../../components/find/FindBar";
-import { BarEnd, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
+import { BarEnd, BarGroup, Refresh, Toggle, ViewBar } from "../../components/ViewBar";
 import { FilesFolded, FilesUnfolded } from "../../drawnIcons";
 import { pathParts } from "../../paths";
 import { SINCE_HEAD, shortHash, WORKING_TREE } from "../../revisions";
@@ -289,113 +289,119 @@ export function DiffView({
           />
         )}
         <BarEnd>
-          {checkout && base && (
+          <BarGroup>
+            {checkout && base && (
+              <Toggle
+                ref={(button) => {
+                  findButton.current = button;
+                  return findKey(button);
+                }}
+                label="Find in this diff"
+                on={finding !== undefined}
+                onChange={(on) => setFinding(on ? NOTHING_TYPED : undefined)}
+                ways={[{ icon: TextSearch, title: "Find in this diff (Ctrl+F)" }]}
+              />
+            )}
             <Toggle
-              ref={(button) => {
-                findButton.current = button;
-                return findKey(button);
-              }}
-              label="Find in this diff"
-              on={finding !== undefined}
-              onChange={(on) => setFinding(on ? NOTHING_TYPED : undefined)}
-              ways={[{ icon: TextSearch, title: "Find in this diff (Ctrl+F)" }]}
-            />
-          )}
-          <Toggle
-            label="Side by side"
-            on={look.split}
-            data-waiting={(look.split && narrow) || undefined} // inline until the Panel is wider
-            onChange={choose("split")}
-            ways={[
-              {
-                icon: StretchVertical,
-                title: narrow
-                  ? "Show old and new side by side, once the panel is wide enough"
-                  : "Show old and new side by side",
-              },
-              { icon: StretchHorizontal, title: "Show old and new inline" },
-            ]}
-          />
-          <Toggle
-            label="Wrap"
-            on={look.wrap}
-            onChange={choose("wrap")}
-            ways={[
-              { icon: TextWrap, title: "Wrap long lines" },
-              { icon: TableOfContents, title: "Scroll long lines" },
-            ]}
-          />
-          <Toggle
-            label="Whole file"
-            on={look.whole}
-            onChange={choose("whole")}
-            ways={[
-              { icon: ListChevronsUpDown, title: "Show whole files" },
-              { icon: ListChevronsDownUp, title: "Show context around changes only" },
-            ]}
-          />
-          {/* All files: folded at once, to their headers; in Changes' order, which
-              directories nested change. */}
-          {!query && stackedFiles.length > 0 && (
-            <Toggle
-              label="All files unfolded"
-              on={
-                hidden.length === 0
-                  ? true
-                  : hidden.length === stackedFiles.length
-                    ? false
-                    : undefined
-              }
-              onChange={(on) =>
-                setFolded(
-                  withPart(
-                    folded,
-                    STACK,
-                    on
-                      ? unfolding(stackFolded, stackedFiles)
-                      : new Set([...stackFolded, ...stackedFiles]),
-                  ),
-                )
-              }
+              label="Side by side"
+              on={look.split}
+              data-waiting={(look.split && narrow) || undefined} // inline until the Panel is wider
+              onChange={choose("split")}
               ways={[
-                { icon: FilesUnfolded, title: "Unfold all files and directories" },
-                { icon: FilesFolded, title: "Fold all files to their headers" },
+                {
+                  icon: StretchVertical,
+                  title: narrow
+                    ? "Show old and new side by side, once the panel is wide enough"
+                    : "Show old and new side by side",
+                },
+                { icon: StretchHorizontal, title: "Show old and new inline" },
               ]}
             />
-          )}
-          {!query && <NestedToggle />}
-          {/* One file: all files compared so, and its history; all files: the same links as
-              Changes has, the other way to see them, and the Checkout's history. */}
-          {query && checkout && base && (
-            <>
-              <ViewLink
-                address={{ kind: "diff", params: { ...checkout, ...base } }}
-                label="Diff of all changed files"
+            <Toggle
+              label="Wrap"
+              on={look.wrap}
+              onChange={choose("wrap")}
+              ways={[
+                { icon: TextWrap, title: "Wrap long lines" },
+                { icon: TableOfContents, title: "Scroll long lines" },
+              ]}
+            />
+            <Toggle
+              label="Whole file"
+              on={look.whole}
+              onChange={choose("whole")}
+              ways={[
+                { icon: ListChevronsUpDown, title: "Show whole files" },
+                { icon: ListChevronsDownUp, title: "Show context around changes only" },
+              ]}
+            />
+            {/* All files: folded at once, to their headers; in Changes' order, which
+                directories nested change. */}
+            {!query && stackedFiles.length > 0 && (
+              <Toggle
+                label="All files unfolded"
+                on={
+                  hidden.length === 0
+                    ? true
+                    : hidden.length === stackedFiles.length
+                      ? false
+                      : undefined
+                }
+                onChange={(on) =>
+                  setFolded(
+                    withPart(
+                      folded,
+                      STACK,
+                      on
+                        ? unfolding(stackFolded, stackedFiles)
+                        : new Set([...stackFolded, ...stackedFiles]),
+                    ),
+                  )
+                }
+                ways={[
+                  { icon: FilesUnfolded, title: "Unfold all files and directories" },
+                  { icon: FilesFolded, title: "Fold all files to their headers" },
+                ]}
               />
-              <ViewLink
-                address={{ kind: "history", params: { ...checkout, path: query.path } }}
-                label={`Commit history of ${query.path}`}
-              />
-            </>
-          )}
-          {!query && checkout && base && (
-            <>
-              <ViewLink
-                address={{ kind: "changes", params: { ...checkout, ...base } }}
-                label={capitalised(changesText(base))}
-              />
-              <ViewLink
-                address={{ kind: "history", params: checkout }}
-                label="Commit history of this checkout"
-              />
-            </>
-          )}
-          <Refresh
-            busy={listed.isFetching}
-            onClick={() =>
-              void client.invalidateQueries({ queryKey: query ? KEYS.diff : KEYS.changes })
-            }
-          />
+            )}
+            {!query && <NestedToggle />}
+          </BarGroup>
+          <BarGroup>
+            <Refresh
+              busy={listed.isFetching}
+              onClick={() =>
+                void client.invalidateQueries({ queryKey: query ? KEYS.diff : KEYS.changes })
+              }
+            />
+          </BarGroup>
+          <BarGroup>
+            {/* One file: all files compared so, and its history; all files: the same links as
+                Changes has, the other way to see them, and the Checkout's history. */}
+            {query && checkout && base && (
+              <>
+                <ViewLink
+                  address={{ kind: "diff", params: { ...checkout, ...base } }}
+                  label="Diff of all changed files"
+                />
+                <ViewLink
+                  address={{ kind: "history", params: { ...checkout, path: query.path } }}
+                  label={`Commit history of ${query.path}`}
+                />
+              </>
+            )}
+            {!query && checkout && base && (
+              <>
+                <ViewLink
+                  address={{ kind: "changes", params: { ...checkout, ...base } }}
+                  label={capitalised(changesText(base))}
+                />
+                <ViewLink
+                  address={{ kind: "history", params: checkout }}
+                  label="Commit history of this checkout"
+                />
+              </>
+            )}
+          </BarGroup>
         </BarEnd>
       </ViewBar>
       {shown && checkout && (

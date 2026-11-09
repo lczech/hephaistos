@@ -4,7 +4,7 @@ import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
 import { List } from "../../components/list/List";
 import { useList } from "../../components/list/table";
-import { BarEnd, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, BarGroup, ViewBar, ViewPage } from "../../components/ViewBar";
 import { useNow } from "../../useNow";
 import { withParam } from "../address";
 import { loadErrorText } from "../CheckoutError";
@@ -65,7 +65,9 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
     <ViewPage>
       <ViewBar>
         <BarEnd>
-          <LayoutToggle layout={layout} onChange={setLayout} />
+          <BarGroup>
+            <LayoutToggle layout={layout} onChange={setLayout} />
+          </BarGroup>
         </BarEnd>
       </ViewBar>
       <List

@@ -69,14 +69,25 @@
   margin-left: auto;
 }
 
-/* A line between the toggles of how the View shows and the buttons that lead elsewhere, with
-   --space-2 on each side: the gap and this margin. */
-.end > .modes + :not(.modes) {
+/* Buttons of one kind, a line between groups, with --space-2 on each side: the gap and this
+   margin (`BarGroup`). One whose buttons draw nothing is left out, so that no line stands
+   alone. */
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.group:empty {
+  display: none;
+}
+
+.group:not(:empty) ~ .group:not(:empty) {
   position: relative;
   margin-left: calc(2 * var(--space-2) + var(--space-hair) - var(--space-1));
 }
 
-.end > .modes + :not(.modes)::before {
+.group:not(:empty) ~ .group:not(:empty)::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -85,10 +96,6 @@
   height: var(--icon-large);
   background: var(--line);
   translate: 0 -50%;
-}
-
-.refresh {
-  margin-left: auto;
 }
 
 .refresh[data-busy] svg {

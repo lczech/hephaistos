@@ -19,7 +19,7 @@ import { List } from "../../components/list/List";
 import { useHidden, useList } from "../../components/list/table";
 import type { Loaded } from "../../components/list/tree";
 import { useKeptSets } from "../../components/list/tree";
-import { BarEnd, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
+import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { FoldersFolded } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
@@ -379,47 +379,53 @@ export function ExplorerView({
           <PathBar path={root} home={home} limit={limit} onShow={showIn} />
         )}
         <BarEnd>
-          <Toggle
-            ref={(button) => {
-              findButton.current = button;
-              return findKey(button);
-            }}
-            label="Find files and folders by name"
-            on={finding !== undefined}
-            onChange={(on) => (on ? openFind() : closeFind())}
-            ways={[{ icon: FileSearch, title: "Find files and folders by name (Ctrl+F)" }]}
-          />
-          <Toggle
-            label="Hidden files"
-            on={look.hidden}
-            onChange={(hidden) => setLook({ hidden })}
-            ways={[
-              { icon: Eye, title: "Show hidden files and folders, whose names start with a dot" },
-              { icon: EyeOff, title: "Leave out hidden files and folders" },
-            ]}
-          />
-          <IconButton
-            icon={FoldersFolded}
-            label="Close all folders"
-            disabled={opened.size === 0}
-            onClick={() => setOpened(NONE)}
-          />
-          {shownIn && (
-            <>
-              <ViewLink
-                address={{ kind: "history", params: shownIn.checkout }}
-                label={`Commit history of ${checkoutName}`}
-              />
-              <ChangesLinks checkout={shownIn.checkout} what={`changes in ${checkoutName}`} />
-            </>
-          )}
-          <Refresh
-            busy={[...answers, ...details].some((answer) => answer.isFetching)}
-            onClick={() => {
-              void client.invalidateQueries({ queryKey: KEYS.files });
-              void client.invalidateQueries({ queryKey: KEYS.paths });
-            }}
-          />
+          <BarGroup>
+            <Toggle
+              ref={(button) => {
+                findButton.current = button;
+                return findKey(button);
+              }}
+              label="Find files and folders by name"
+              on={finding !== undefined}
+              onChange={(on) => (on ? openFind() : closeFind())}
+              ways={[{ icon: FileSearch, title: "Find files and folders by name (Ctrl+F)" }]}
+            />
+            <Toggle
+              label="Hidden files"
+              on={look.hidden}
+              onChange={(hidden) => setLook({ hidden })}
+              ways={[
+                { icon: Eye, title: "Show hidden files and folders, whose names start with a dot" },
+                { icon: EyeOff, title: "Leave out hidden files and folders" },
+              ]}
+            />
+          </BarGroup>
+          <BarGroup>
+            <IconButton
+              icon={FoldersFolded}
+              label="Close all folders"
+              disabled={opened.size === 0}
+              onClick={() => setOpened(NONE)}
+            />
+            <Refresh
+              busy={[...answers, ...details].some((answer) => answer.isFetching)}
+              onClick={() => {
+                void client.invalidateQueries({ queryKey: KEYS.files });
+                void client.invalidateQueries({ queryKey: KEYS.paths });
+              }}
+            />
+          </BarGroup>
+          <BarGroup>
+            {shownIn && (
+              <>
+                <ViewLink
+                  address={{ kind: "history", params: shownIn.checkout }}
+                  label={`Commit history of ${checkoutName}`}
+                />
+                <ChangesLinks checkout={shownIn.checkout} what={`changes in ${checkoutName}`} />
+              </>
+            )}
+          </BarGroup>
         </BarEnd>
       </ViewBar>
       {finding && (

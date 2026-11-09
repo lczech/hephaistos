@@ -1,5 +1,5 @@
 import { type LucideIcon, RefreshCw } from "lucide-react";
-import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
+import { type ButtonHTMLAttributes, Children, type ReactNode, type Ref } from "react";
 import controls from "./controls.module.css";
 import { IconButton } from "./IconButton";
 import styles from "./ViewBar.module.css";
@@ -66,9 +66,21 @@ export function Toggle({ label, on, onChange, ways, className, ...props }: Toggl
   );
 }
 
-/** The bar's end, after what it says: its buttons, then Refresh. */
+/** The bar's end, after what it says: its buttons, in groups (`BarGroup`). */
 export function BarEnd({ children }: { children: ReactNode }) {
   return <div className={styles.end}>{children}</div>;
+}
+
+/**
+ * Buttons of one kind at the end of a bar, a line between groups, in this order: toggles, which
+ * switch a state of the View and show it (find, hidden files, all files unfolded); actions,
+ * done once (close all folders, Refresh); other Views (links). Nothing, without buttons, so that
+ * no line stands alone; one whose buttons draw nothing, e.g. a component drawing null, shows
+ * nothing either (`ViewBar.module.css`).
+ */
+export function BarGroup({ children }: { children: ReactNode }) {
+  if (Children.toArray(children).length === 0) return null;
+  return <div className={styles.group}>{children}</div>;
 }
 
 /** Asks again for what the View shows, turning while it does; at the bar's end. */
