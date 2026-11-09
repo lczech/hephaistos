@@ -28,6 +28,11 @@ def escaped(text: str) -> str:
     return "".join(shown)
 
 
+def is_utf8(text: str) -> bool:
+    """Whether `text`, e.g. a path, holds no bytes that are not UTF-8."""
+    return utf8(text) == text
+
+
 def utf8(text: str) -> str:
     """`text` as UTF-8 can hold it, e.g. in the database: bytes that are not UTF-8 as `�`."""
     return text.encode(errors="surrogateescape").decode(errors="replace")

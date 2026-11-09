@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from pathlib import Path
 
 import pytest
@@ -76,6 +77,18 @@ def test_register_after_asking(root: Path, monkeypatch: pytest.MonkeyPatch) -> N
     result = runner.invoke(app, ["scan", str(root / "proj")], input="n\n")
     assert result.exit_code == 1
     assert "Added" not in result.output
+
+
+def test_a_clone_at_a_path_not_utf8_is_skipped(root: Path) -> None:
+    odd = clone(root / "proj", root / os.fsdecode(b"odd\xff"))
+    result = runner.invoke(app, ["scan", str(root), "-v", "--yes"])
+    assert result.exit_code == 0, result.output
+    [row] = [line for line in result.output.splitlines() if "odd" in line]
+    assert row.split()[:2] == [f"{root}/odd\\xff", "skip"]
+    assert "is not UTF-8, as clones need; rename its directory" in row
+    result = runner.invoke(app, ["clone", "register", str(odd), "--yes"])
+    assert result.exit_code == 1
+    assert str(result.exception).endswith("is not UTF-8, as clones need; rename its directory")
 
 
 @pytest.mark.usefixtures("root")

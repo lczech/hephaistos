@@ -13,6 +13,7 @@ Each observation updates `observed_at`; rows and Events change only when somethi
 ## Clones
 
 The first observer is `clones` (git), which also finds the Clones' Worktrees.
+A Worktree at a path that is not UTF-8 is left out, its row as it was, and the pass says so as one of its problems ([Watcher](../daemon/watcher.md#failures)).
 The second, `terminals`, asks the Keeper ([terminals](terminals.md#observing)); the Watcher runs both in each pass.
 git runs outside any transaction, for several Clones in parallel, each command with a timeout (`git.timeout`).
 A command past its timeout is asked to stop (SIGTERM), on which git removes its lock files, and killed only if it is still running five seconds later.

@@ -73,6 +73,7 @@ It refuses:
 - a Clone that shares no root commit with the Repository's other Clones; such Repositories do not count as matches either;
 - a path inside a Worktree; the message names its Clone;
 - a submodule; its superproject is the Clone.
+- a path that is not UTF-8, which the database cannot hold as text; `scan` skips such a Clone, saying so.
 
 `clone unregister` says when it leaves a Repository without Clones.
 

@@ -20,7 +20,7 @@ from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, absolute, short_path
-from hephaistos.core.utils.text import escaped, utf8
+from hephaistos.core.utils.text import escaped, is_utf8
 
 MAX_TRIES = 100  # default names tried while others take them meanwhile
 
@@ -49,7 +49,7 @@ def _directory(directory: Path) -> Path:
         raise HephaistosError(f"{short_path(resolved)} is not a directory")
     if not os.access(resolved, os.X_OK):
         raise HephaistosError(f"cannot enter {short_path(resolved)}")
-    if utf8(str(resolved)) != str(resolved):
+    if not is_utf8(str(resolved)):
         path = short_path(resolved)
         raise HephaistosError(f"{path} is not UTF-8, as terminals need; choose another directory")
     return resolved

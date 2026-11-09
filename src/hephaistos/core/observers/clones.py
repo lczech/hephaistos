@@ -30,7 +30,8 @@ from hephaistos.core.state.activity import CommittedPayload as Committed
 from hephaistos.core.state.checkouts import Failed, Missing, same_state
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
-from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.paths import Paths, short_path
+from hephaistos.core.utils.text import is_utf8
 
 PAGE = 64  # reflog entries read at first; more only if the cursor is not among them
 
@@ -46,6 +47,7 @@ class Result:
     skipped: int  # Clones observed by another process meanwhile, or removed
     worktrees: int  # Worktrees observed, of the observed Clones
     updated: int  # Checkouts whose State changed, with or without Events
+    problems: tuple[str, ...] = ()  # what it could not observe, e.g. a Worktree at a path not UTF-8
 
 
 @dataclass(frozen=True)
@@ -217,6 +219,7 @@ class CloneObservation:
     worktrees: tuple[git.LinkedWorktree, ...] | None = None
     common_dir: Path | None = None
     read: CloneActivity | None = None
+    unreadable: tuple[git.LinkedWorktree, ...] = ()  # at paths that are not UTF-8: left alone
 
 
 def _failed(path: Path, error: Exception) -> Failed:
@@ -263,7 +266,10 @@ def _observed_clone(known: Known) -> CloneObservation:
     if location.main is not None:
         return CloneObservation(Failed(f"it is now a worktree of {location.main}"))
     snapshot = git.snapshot(location)
-    listed = git.worktrees(path, location.common_dir)
+    # The database holds paths as UTF-8 text, so one that is not is left out, its row as it was.
+    every = git.worktrees(path, location.common_dir)
+    listed = tuple(linked for linked in every if is_utf8(str(linked.path)))
+    unreadable = tuple(linked for linked in every if not is_utf8(str(linked.path)))
     if snapshot.head is None:
         head_log = known.head_log or _unborn_start(path)
         push_log = push_activity(path, None)[1] if known.push_log is None else known.push_log
@@ -274,7 +280,7 @@ def _observed_clone(known: Known) -> CloneObservation:
         _warn_of_old_pushes(path, pushes, known.observed_at)
         origins = branch_origins(path, set(snapshot.branches) - known.branches)
         read = CloneActivity(head.activities, head.cursor, pushes, push_cursors, origins)
-    return CloneObservation(snapshot, listed, location.common_dir, read)
+    return CloneObservation(snapshot, listed, location.common_dir, read, unreadable)
 
 
 def clone_observation(known: Known) -> CloneObservation:
@@ -391,6 +397,7 @@ def observe(
         by_clone[index][linked.name] = observed
 
     recorded: list[Event] = []
+    problems: list[str] = []
     skipped = counted = updated = 0
     with write_session(paths) as session:
         current = {existing.clone.id: existing for existing in clones.details(session)}
@@ -410,6 +417,11 @@ def observe(
             if new is not None and not same_state(known, new):
                 updated += 1
             listed = observed.worktrees
+            problems += [
+                f"worktree {short_path(linked.path)} skipped: its path is not UTF-8;"
+                " rename its directory"
+                for linked in observed.unreadable
+            ]
             if listed is not None and new is not None and new.present and new.error is None:
                 worktrees = by_clone[index]
                 before = worktree_state.of_clones(session, [clone_id])
@@ -424,6 +436,7 @@ def observe(
                         if worktree.read is not None
                     },
                     restored={name for name, worktree in worktrees.items() if worktree.restored},
+                    left={linked.name for linked in observed.unreadable},
                 )
                 updated += _updated(before, worktree_state.of_clones(session, [clone_id]))
                 counted += len(listed)
@@ -433,6 +446,7 @@ def observe(
         skipped=skipped,
         worktrees=counted,
         updated=updated,
+        problems=tuple(problems),
     )
 
 

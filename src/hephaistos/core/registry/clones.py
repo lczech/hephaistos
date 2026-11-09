@@ -23,7 +23,8 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
-from hephaistos.core.utils.paths import absolute, displayed, shell_path
+from hephaistos.core.utils.paths import absolute, displayed, shell_path, short_path
+from hephaistos.core.utils.text import is_utf8
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +158,9 @@ class Candidate:
 def candidate(typed: Path, location: git.Location) -> Candidate:
     """The git repository at `location`, found at `typed`, inspected; not a submodule."""
     display_path = displayed(typed, location.top)
+    if not is_utf8(str(location.top)) or not is_utf8(str(display_path)):
+        path = short_path(display_path)
+        raise HephaistosError(f"{path} is not UTF-8, as clones need; rename its directory")
     if (parent := git.superproject(location.top)) is not None:
         raise HephaistosError(f"{display_path} is a submodule of {parent}; register that instead")
     return Candidate(

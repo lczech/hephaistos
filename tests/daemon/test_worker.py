@@ -147,7 +147,7 @@ def test_terminals_not_observed_are_a_problem_of_the_pass(
     paths: Paths, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def clones(_: Paths) -> observer.Result:
-        return observer.Result([], 2, 0, 3, 1)
+        return observer.Result([], 2, 0, 3, 1, ("worktree /w skipped: its path is not UTF-8",))
 
     found = terminals.Result(None, "tmux did not answer within 10 s")
 
@@ -156,11 +156,14 @@ def test_terminals_not_observed_are_a_problem_of_the_pass(
 
     monkeypatch.setattr(observer, "observe", clones)
     monkeypatch.setattr(terminals, "observe", unanswered)
-    assert worker.observed(paths) == Done(
-        0, 2, 3, 1, 0, 0, ("terminals not observed: tmux did not answer within 10 s",)
+    assert worker.observed(paths).problems == (  # type: ignore[union-attr]
+        "worktree /w skipped: its path is not UTF-8",
+        "terminals not observed: tmux did not answer within 10 s",
     )
     found = terminals.Result(None)  # no Terminals here: no news
-    assert worker.observed(paths) == Done(0, 2, 3, 1, 0)
+    assert worker.observed(paths) == Done(
+        0, 2, 3, 1, 0, 0, ("worktree /w skipped: its path is not UTF-8",)
+    )
 
 
 def test_an_unexpected_error_comes_with_its_traceback(

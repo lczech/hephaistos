@@ -98,7 +98,8 @@ def observed(paths: Paths) -> Done | PassFailed:
                 result.updated,
                 result.skipped,
                 0 if found.changes is None else found.changes.open,
-                () if found.error is None else (f"terminals not observed: {found.error}",),
+                result.problems
+                + (() if found.error is None else (f"terminals not observed: {found.error}",)),
             )
     raise AssertionError  # the last delay is None
 

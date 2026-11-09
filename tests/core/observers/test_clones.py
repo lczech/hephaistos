@@ -1,4 +1,5 @@
 import dataclasses
+import os
 import shutil
 from pathlib import Path
 
@@ -336,6 +337,32 @@ def test_worktree_added_moved_and_removed(paths: Paths, repo: Path, tmp_path: Pa
     with read_session(paths) as session:
         assert clones.find(session, repo).worktrees == ()
         assert subjects.paths(session, result.events) == {first.id: tmp_path / "moved"}
+
+
+def test_a_worktree_at_a_path_not_utf8_is_left_alone(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    odd = tmp_path / os.fsdecode(b"odd\xff")
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(tmp_path / "feature"))
+    git(repo, "worktree", "add", "--quiet", "-b", "odd", str(odd))
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.branch_created", "clone.branch_created", "worktree.added"]
+    assert result.problems == (
+        f"worktree {tmp_path}/odd\\xff skipped: its path is not UTF-8; rename its directory",
+    )
+    feature = _worktree(paths, tmp_path / "feature")
+    git(repo, "worktree", "move", str(tmp_path / "feature"), str(tmp_path / os.fsdecode(b"f\xff")))
+    result = observer.observe(paths)
+    assert _kinds(result) == []  # the stored Worktree, moved there, stays as it was
+    assert _worktree(paths, tmp_path / "feature") == feature
+    assert len(result.problems) == 2
+
+
+def test_a_clone_at_a_path_not_utf8_is_refused(paths: Paths, tmp_path: Path) -> None:
+    del paths
+    odd = clone(create(tmp_path / "origin"), tmp_path / os.fsdecode(b"odd\xff"))
+    with pytest.raises(HephaistosError, match=r"odd\\xff is not UTF-8, as clones need"):
+        clones.inspect(odd)
 
 
 @needs_git(2, 48)

@@ -263,6 +263,7 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
     *,
     read: Mapping[str, CheckoutActivity] | None = None,
     restored: Collection[str] = (),
+    left: Collection[str] = (),
 ) -> list[Event]:
     """Stores what observing a Clone's Worktrees gave, and records the Events it causes.
 
@@ -270,7 +271,8 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
     whose directory is gone was removed, unless it is locked: then it is missing. Removed
     Worktrees stay as rows, for their Events. `read` holds, by name, what reading their HEAD
     reflogs gave. `restored` names those that are the last removed Worktree of their name, as
-    their history continues from it: they get its row back.
+    their history continues from it: they get its row back. `left` names those not listed that
+    stay as they were, e.g. at a path the database cannot hold.
     """
     read = read or {}
     known = {state.name: state for state in of_clones(session, [clone_id])}
@@ -309,7 +311,8 @@ def update(  # noqa: PLR0913 - the optional ones are keyword-only
             for event in caused_events(old, new, done, restored=restoring)
         ]
     for old in known.values():
-        remove(old)
+        if old.name not in left:
+            remove(old)
     return recorded
 
 
