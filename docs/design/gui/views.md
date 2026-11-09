@@ -183,7 +183,8 @@ It matches names as typed, or, where what is typed has a `/`, paths below the Di
 The Server lists every path below once as the row opens (`/api/files/paths`), and the find row's worker matches them, so typing asks for nothing; the list is asked again on focus and by the reload button, not on hints, as listing all may take seconds.
 It finds what the tree would show: hidden entries only while they show; what git ignores only with the row's own toggle (`ignored` in the fragment), as ignored folders such as `node_modules` would drown the rest.
 The tree shows only the matches, in the folders holding them, each folder its own row, not joined, as each may be a match; a folder matched that holds no other match opens to all it holds.
-It shows the first 1,000 matches, in the order listed, and the row says so, as it says when listing stopped at `files.max_paths` or after `files.search_seconds`.
+It shows the first 1,000 paths matched, in the order listed, and the row says so, as it says when listing stopped at `files.max_paths` or after `files.search_seconds`; its limit counts paths, not matches, as a name may match many times.
+While it finds again, or lists the paths again below the same Directory, it shows what it found before, in the paths it found it in.
 Their rows show at once from the list, their fields once their folders' listings come.
 The folders holding matches open for the search only, apart from those kept; folding one, or "Close all folders", hides its matches until the search ends or looks for something else, which starts with all its folders open.
 Enter and Shift+Enter step through the matches in the tree's order, opening the folders holding the one stepped to and scrolling it into view below the rows stuck above it.

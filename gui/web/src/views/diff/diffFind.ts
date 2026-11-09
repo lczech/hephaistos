@@ -47,6 +47,20 @@ export interface DiffFinding {
 
 const NONE: readonly DiffMark[] = [];
 
+// The lines, by their texts: a find's matches, found in texts that may be others than those
+// given it now (`useFind`), are read against the lines those were made of.
+const madeOf = new WeakMap<readonly string[], Lines>();
+
+/** The files' lines, registered by their texts. */
+function linesOf(files: readonly FileText[]): Lines {
+  const all = files.flatMap((file) =>
+    diffLines(file.patch, file.newText).map((line) => ({ path: file.path, line })),
+  );
+  const lines = { files, lines: all, texts: all.map(({ line }) => line.text) };
+  madeOf.set(lines.texts, lines);
+  return lines;
+}
+
 const sameFiles = (one: readonly FileText[], other: readonly FileText[]) =>
   one.length === other.length &&
   one.every(

@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { ownRow } from "../../test/list";
 import { fileEntry, info, json, renderWithQueries, serve } from "../../test/server";
@@ -32,8 +32,15 @@ function pathsBelow(path: string, prefix = ""): string[] {
   );
 }
 
-/** Serves the disk; the listing of paths `refused` with 403 if so. */
-function serveDisk({ refused = false } = {}): Request[] {
+interface Serving {
+  refused?: boolean; // the listing of paths, with 403
+  paths?: string[]; // listed instead of the disk's
+  stopped?: Pick<Schemas["PathsJson"], "stopped" | "limit">; // why the listing stopped
+  wait?: (query: URLSearchParams) => Promise<void> | undefined; // before it answers
+}
+
+/** Serves the disk, its paths listed as `serving` says. */
+function serveDisk({ refused = false, paths, stopped, wait }: Serving = {}): Request[] {
   return serve({
     "GET /api/info": () => json(info()),
     "GET /api/repositories": () => json([]),
@@ -42,24 +49,58 @@ function serveDisk({ refused = false } = {}): Request[] {
       const entries = DISK[path] ?? [];
       return json({ path, top: null, entries, count: entries.length });
     },
-    "GET /api/files/paths": (request) => {
+    "GET /api/files/paths": async (request) => {
       const query = new URL(request.url).searchParams;
       const path = query.get("path") ?? "";
+      await wait?.(query);
       if (refused) return json({ error: `not allowed to list ${path}`, checkout: null }, 403);
-      const all = pathsBelow(path);
+      const all = paths ?? pathsBelow(path);
       const hidden = query.get("hidden") !== "false";
-      const paths = all.filter(
-        (found) => hidden || !found.split("/").some((part) => part.startsWith(".")),
-      );
       const answer: Schemas["PathsJson"] = {
         path,
-        paths: paths.sort(),
-        stopped: null,
-        limit: null,
+        paths: all
+          .filter((found) => hidden || !found.split("/").some((part) => part.startsWith(".")))
+          .sort(),
+        stopped: stopped?.stopped ?? null,
+        limit: stopped?.limit ?? null,
       };
       return json(answer);
     },
   });
+}
+
+/** A promise, and a way to settle it: to answer a request when a test says. */
+function held(): { promise: Promise<void>; release: () => void } {
+  let release = () => {};
+  const promise = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
+
+/** The rows' names each time the tree changed, from now, until `stop`. */
+function watchNames(): { seen: string[][]; stop: () => void } {
+  const seen: string[][] = [];
+  const observer = new MutationObserver(() =>
+    seen.push(
+      screen
+        .queryAllByRole("listitem")
+        .map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim() ?? ""),
+    ),
+  );
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return { seen, stop: () => observer.disconnect() };
+}
+
+/** Adds an entry to the home directory for this test only, a folder holding `entries`, if given. */
+function addToHome(added: FileEntry, entries?: FileEntry[]) {
+  const home = DISK["/home/me"] ?? [];
+  home.unshift(added);
+  if (entries) DISK[`/home/me/${added.name}`] = entries;
+  onTestFinished(() => {
+    home.splice(home.indexOf(added), 1);
+    delete DISK[`/home/me/${added.name}`];
+  }); // also once timed out, before the next test
 }
 
 const names = () =>
@@ -71,10 +112,20 @@ const field = () => screen.getByRole("textbox", { name: "Find files and folders 
 
 /** Shows the Explorer at `path`, its find row opened, `text` typed, if any. */
 async function finding(text: string, initial: Params = { path: "/home/me" }) {
-  renderWithQueries(<InPanel view={ExplorerView} kind="explorer" params={initial} />);
+  return opened(initial, async () => {
+    await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
+    if (text) await userEvent.type(field(), text);
+  });
+}
+
+/** Shows the Explorer at `path`, the fragment as given, then does `then`, once it shows rows. */
+async function opened(initial: Params, then?: () => Promise<void>, fragment?: Params) {
+  const shown = renderWithQueries(
+    <InPanel view={ExplorerView} kind="explorer" params={initial} fragment={fragment} />,
+  );
   await waitFor(() => expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0));
-  await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
-  if (text) await userEvent.type(field(), text);
+  await then?.();
+  return shown;
 }
 
 /** The find row's status, once it says which match of how many, or why none. */
@@ -164,22 +215,16 @@ describe("finding in the Explorer", () => {
   });
 
   it("reveals what it found only below the Directory it found it in", async () => {
-    DISK["/home/me"]?.push(folder("inner"));
-    DISK["/home/me/inner"] = [entry("x.txt")]; // as in deep/: the same path below another
-    try {
-      serveDisk();
-      await finding("x", { path: "/home/me/deep" });
-      await waitFor(() => expect(names()).toEqual(["inner", "x.txt"]));
-      await userEvent.keyboard("{Escape}");
-      await waitFor(() => expect(document.querySelector("[data-current]")).not.toBeNull());
-      await userEvent.click(screen.getByRole("button", { name: "~" }));
-      await userEvent.click(await screen.findByText("inner"));
-      await screen.findByText("x.txt");
-      expect(document.querySelector("[data-current]")).toBeNull();
-    } finally {
-      DISK["/home/me"]?.pop();
-      delete DISK["/home/me/inner"];
-    }
+    addToHome(folder("inner"), [entry("x.txt")]); // as in deep/: the same path below another
+    serveDisk();
+    await finding("x", { path: "/home/me/deep" });
+    await waitFor(() => expect(names()).toEqual(["inner", "x.txt"]));
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(document.querySelector("[data-current]")).not.toBeNull());
+    await userEvent.click(screen.getByRole("button", { name: "~" }));
+    await userEvent.click(await screen.findByText("inner"));
+    await screen.findByText("x.txt");
+    expect(document.querySelector("[data-current]")).toBeNull();
   });
 
   it("reveals a folder found among those joined, once closed", async () => {
@@ -221,5 +266,81 @@ describe("finding in the Explorer", () => {
     expect(
       await screen.findByText("Could not find: not allowed to list /home/me"),
     ).toBeInTheDocument();
+  });
+
+  it("shows no rows of what it found before in the paths listed again", async () => {
+    serveDisk();
+    await finding("ma");
+    await waitFor(() => expect(names()).toEqual(["proj", "main.py"]));
+    await expectSettled();
+    addToHome(entry("a.txt")); // listed before them all: the lines' numbers move
+    const { seen, stop } = watchNames();
+    onTestFinished(stop);
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await expectSettled();
+    stop();
+    expect(seen.filter((rows) => rows.join() !== "proj,main.py")).toEqual([]);
+  });
+
+  it("keeps what it found while it lists the paths again, hidden ones or not", async () => {
+    const answer = held();
+    const requests = serveDisk({
+      wait: (query) => (query.get("hidden") === "false" ? answer.promise : undefined),
+    });
+    await finding("ma");
+    await waitFor(() => expect(names()).toEqual(["proj", "main.py"]));
+    await userEvent.click(screen.getByRole("button", { name: "Hidden files" }));
+    await waitFor(() =>
+      expect(requests.some((request) => request.url.includes("hidden=false"))).toBe(true),
+    );
+    expect(names()).toEqual(["proj", "main.py"]); // not the whole tree, while it is asked for
+    expect(status()).toHaveTextContent("1 of 1");
+    answer.release();
+    await expectSettled();
+    expect(names()).toEqual(["proj", "main.py"]);
+  });
+
+  // 1,000 rows drawn: seconds in jsdom, more under the load of all tests.
+  it("counts paths found, not matches, saying it shows the first 1,000", {
+    timeout: 30_000,
+  }, async () => {
+    const many = Array.from({ length: 1_500 }, (_, at) => `f-${String(at).padStart(4, "0")}.txt`);
+    addToHome(
+      folder("many"),
+      many.map((name) => entry(name)),
+    );
+    serveDisk({ paths: ["many/", ...many.map((name) => `many/${name}`)] });
+    await finding("");
+    await userEvent.click(screen.getByRole("button", { name: "Use a regular expression" }));
+    await userEvent.type(field(), "."); // 10 matches in a name: 15,000 in all
+    await waitFor(() => expect(status()).toHaveTextContent("1 of 1,000; first 1,000 shown"), {
+      timeout: 20_000,
+    });
+    expect(status()?.getAttribute("title")).toMatch(/^1,501 found; the first 1,000 show/); // and many/
+  });
+
+  it.each([
+    [{ stopped: "time", limit: 10 }, "stopped after 10 s"],
+    [{ stopped: "max_paths", limit: 200_000 }, "stopped at 200,000 paths"],
+  ] as const)("says why the paths listed may not be all: %o", async (stopped, said) => {
+    serveDisk({ stopped });
+    await finding("ma");
+    await waitFor(() => expect(status()).toHaveTextContent(`1 of 1; ${said}`));
+  });
+
+  it("opens as its address says, and closing leaves what git ignores out again", async () => {
+    const requests = serveDisk();
+    await opened({ path: "/home/me" }, undefined, { find: ["ma"], regex: ["1"], ignored: ["1"] });
+    await waitFor(() => expect(names()).toEqual(["proj", "main.py"]));
+    expect(field()).toHaveValue("ma");
+    expect(screen.getByRole("button", { name: "Use a regular expression" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    const asked = requests.find((request) => request.url.includes("/api/files/paths"));
+    expect(new URL(asked?.url ?? "/").searchParams.get("ignored")).toBe("true");
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("search")).toBeNull());
+    expect(document.querySelector("output")?.textContent).not.toMatch(/ignored|find|regex/);
   });
 });

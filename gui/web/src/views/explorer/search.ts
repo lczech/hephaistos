@@ -14,28 +14,50 @@ export const MAX_SHOWN = 1_000; // matches shown at most; no one steps through m
 /** A path below the Directory without a folder's final `/`: `src/`, `src`. */
 export const bare = (path: string) => path.replace(/\/$/, "");
 
+/** What lines to match were made of: the paths below which Directory, matched how. */
+export interface LinesOf {
+  root: string;
+  paths: readonly string[];
+  byPath: boolean;
+}
+
+// By the lines: a find's matches, found in lines that may be others than those given it now
+// (`useFind`), are read against the paths those were made of.
+const madeOf = new WeakMap<readonly string[], LinesOf>();
+
 /** What each path is matched by: its name, or, with `byPath`, all of it. */
 export function searchLines(paths: readonly string[], byPath: boolean): string[] {
   return paths.map((path) => (byPath ? bare(path) : (bare(path).split("/").at(-1) ?? "")));
 }
 
+/** What lines `useSearchLines` gave were made of. */
+export const linesOf = (lines: readonly string[]): LinesOf | undefined => madeOf.get(lines);
+
+/** The lines, made of what, registered: see `linesOf`. */
+function linesMade(of: LinesOf): string[] {
+  const lines = searchLines(of.paths, of.byPath);
+  madeOf.set(lines, of);
+  return lines;
+}
+
 /**
- * The lines the paths are matched by, held while the paths and how they are matched stay, as
- * the find matches again once its lines are others: so typing alone matches anew.
+ * The lines the paths below `root` are matched by, held while the paths and how they are
+ * matched stay, as the find matches again once its lines are others: so typing alone matches
+ * anew.
  */
 export function useSearchLines(
+  root: string | undefined,
   paths: readonly string[] | undefined,
   byPath: boolean,
 ): readonly string[] | undefined {
-  const [held, setHeld] = useState<{
-    paths: readonly string[];
-    byPath: boolean;
-    lines: string[];
-  }>();
-  if (paths === undefined) return undefined;
-  if (held?.paths === paths && held.byPath === byPath) return held.lines;
-  const lines = searchLines(paths, byPath);
-  setHeld({ paths, byPath, lines });
+  const [held, setHeld] = useState<{ of: LinesOf; lines: string[] }>();
+  if (root === undefined || paths === undefined) return undefined;
+  if (held?.of.root === root && held.of.paths === paths && held.of.byPath === byPath) {
+    return held.lines;
+  }
+  const of = { root, paths, byPath };
+  const lines = linesMade(of);
+  setHeld({ of, lines });
   return lines;
 }
 

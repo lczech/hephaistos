@@ -4,5 +4,5 @@ import { findMatches } from "./pattern";
 
 addEventListener("message", ({ data }: MessageEvent) => {
   postMessage("started"); // the time it may take starts now, the worker loaded
-  postMessage(findMatches(data.lines, data.pattern, data.limit));
+  postMessage(findMatches(data.lines, data.pattern, data.limit, data.per));
 });

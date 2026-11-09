@@ -122,17 +122,23 @@ export function findPattern(query: FindQuery): Pattern | { error: string } {
   return { source, flags };
 }
 
+/** What a find's limit counts: matches, or lines with any, all of each line's then. */
+export type Per = "match" | "line";
+
 /**
  * The pattern's matches in the lines, in their order, at most `limit` (and whether there are more);
- * none of nothing, e.g. of `a*` between the `b`s of `bb`.
+ * none of nothing, e.g. of `a*` between the `b`s of `bb`. The limit counts matches, or `per`
+ * line, the lines matched.
  */
 export function findMatches(
   lines: readonly string[],
   { source, flags }: Pattern,
   limit: number,
+  per: Per = "match",
 ): { matches: Match[]; more: boolean } {
   const pattern = new RegExp(source, flags);
   const matches: Match[] = [];
+  let counted = 0; // matches, or lines matched
   for (let line = 0; line < lines.length; line++) {
     const text = lines[line] as string;
     pattern.lastIndex = 0;
@@ -143,7 +149,10 @@ export function findMatches(
         pattern.lastIndex = end + ((text.codePointAt(end) ?? 0) > 0xffff ? 2 : 1);
         continue;
       }
-      if (matches.length === limit) return { matches, more: true };
+      if (per === "match" || matches.at(-1)?.line !== line) {
+        if (counted === limit) return { matches, more: true };
+        counted++;
+      }
       matches.push({ line, start: found.index, end });
     }
   }

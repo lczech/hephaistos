@@ -124,7 +124,8 @@ export type PathsQuery = NonNullable<paths["/api/files/paths"]["get"]["parameter
 
 /**
  * Every path below a Directory, to find files by name; while `query` is given. Asked again on
- * focus or by reloading, not on hints: listing all may take seconds.
+ * focus or by reloading, not on hints: listing all may take seconds. Asked for otherwise below
+ * the same Directory, e.g. with hidden ones, it shows what came before until the answer does.
  */
 export function usePathsBelow(query: PathsQuery | undefined) {
   return useQuery({
@@ -133,6 +134,10 @@ export function usePathsBelow(query: PathsQuery | undefined) {
       unwrap(
         await api.GET("/api/files/paths", { params: { query: query ?? { path: "" } }, signal }),
       ),
+    placeholderData: (previous, before) => {
+      const asked = before?.queryKey[1] as PathsQuery | undefined;
+      return asked !== undefined && asked.path === query?.path ? previous : undefined;
+    },
     enabled: query !== undefined,
   });
 }

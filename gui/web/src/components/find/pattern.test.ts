@@ -61,5 +61,15 @@ describe("finding text", () => {
       ],
       more: true,
     });
+    expect(findMatches(["aaa", "a", "a"], pattern, 2, "line")).toEqual({
+      matches: [
+        { line: 0, start: 0, end: 1 },
+        { line: 0, start: 1, end: 2 },
+        { line: 0, start: 2, end: 3 },
+        { line: 1, start: 0, end: 1 },
+      ],
+      more: true,
+    });
+    expect(findMatches(["aaa", "a"], pattern, 2, "line").more).toBe(false);
   });
 });

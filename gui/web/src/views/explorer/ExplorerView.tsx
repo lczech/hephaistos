@@ -51,6 +51,7 @@ import {
   foldersOf,
   foundPaths,
   inTreeOrder,
+  linesOf,
   listedOf,
   searchNote,
   searchOf,
@@ -199,13 +200,18 @@ export function ExplorerView({
       ? { path: root, hidden: look.hidden, ignored: ignoredToo }
       : undefined,
   );
-  const listedPaths = listing.data?.paths;
-  const lines = useSearchLines(listedPaths, byPath);
-  const searched = useFind(lines, finding?.text ? finding : undefined);
+  const lines = useSearchLines(root, listing.data?.paths, byPath);
+  // Its limit counts paths, as the tree shows paths, not matches.
+  const searched = useFind(lines, finding?.text ? finding : undefined, "line");
   const matches = searched && "matches" in searched ? searched.matches : undefined;
+  // While it finds again, what it found before, in the paths it found it in, if below the root.
+  const searchedIn = searched && "in" in searched ? linesOf(searched.in) : undefined;
   const found =
-    searched && "matches" in searched
-      ? foundPaths(listedPaths ?? [], searched.matches, { more: searched.more, byPath })
+    searched && "matches" in searched && searchedIn && searchedIn.root === root
+      ? foundPaths(searchedIn.paths, searched.matches, {
+          more: searched.more,
+          byPath: searchedIn.byPath,
+        })
       : undefined;
   const search = found && searchOf(found.paths);
   // What is looked for, as matched: typing anew is another search.

@@ -2,9 +2,9 @@
 // too long (e.g. `(a+)+$` on many a's) can be stopped: JS cannot interrupt one, but a worker can
 // be ended. Where there are no workers, as in WebKit's tests (`test/browser.ts`), on the page.
 import FindWorker from "./find.worker.ts?worker";
-import { findMatches, type Match, type Pattern } from "./pattern";
+import { findMatches, type Match, type Pattern, type Per } from "./pattern";
 
-export const LIMIT = 10_000; // matches found at most; beyond, it says there are more
+export const LIMIT = 10_000; // matches, or lines matched, found at most; beyond, it says there are more
 const TIMEOUT = 5_000; // ms a search may take, from when its worker starts it, loaded
 
 /** What a search found, or why it found nothing. */
@@ -13,10 +13,18 @@ export type Found = { matches: Match[]; more: boolean } | { error: string };
 // A worker done with its search, kept for the next one; one busy is ended to stop its search.
 let idle: Worker | undefined;
 
-/** Finds the pattern in the lines, then calls `done`; the function returned stops it. */
-export function find(lines: readonly string[], pattern: Pattern, done: (found: Found) => void) {
+/**
+ * Finds the pattern in the lines, then calls `done`; the function returned stops it. The limit
+ * counts matches, or `per` line, the lines matched.
+ */
+export function find(
+  lines: readonly string[],
+  pattern: Pattern,
+  done: (found: Found) => void,
+  per: Per = "match",
+) {
   if (typeof Worker === "undefined") {
-    const timer = setTimeout(() => done(findMatches(lines, pattern, LIMIT)));
+    const timer = setTimeout(() => done(findMatches(lines, pattern, LIMIT, per)));
     return () => clearTimeout(timer);
   }
   const worker = idle ?? new FindWorker();
@@ -47,7 +55,7 @@ export function find(lines: readonly string[], pattern: Pattern, done: (found: F
     end();
     done({ error: `Could not search: ${event.message || "its worker failed"}` });
   };
-  worker.postMessage({ lines, pattern, limit: LIMIT });
+  worker.postMessage({ lines, pattern, limit: LIMIT, per });
   return () => {
     if (busy) end();
   };

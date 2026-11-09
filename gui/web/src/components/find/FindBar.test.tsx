@@ -11,7 +11,7 @@ function bar(busy: boolean) {
       query={query}
       onChange={() => {}}
       onTypingEnd={() => {}}
-      finding={{ matches: [{ line: 0, start: 0, end: 1 }], more: false, busy: false }}
+      finding={{ matches: [{ line: 0, start: 0, end: 1 }], more: false, busy: false, in: ["a"] }}
       count={1}
       current={0}
       onStep={() => {}}
