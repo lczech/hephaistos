@@ -452,6 +452,16 @@ def test_a_worktree_on_an_unborn_branch_has_no_head(tmp_path: Path, object_forma
     assert (linked.head, linked.branch) == (None, "pages")
 
 
+def test_paths_with_a_carriage_return_come_back_as_they_are(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    odd = tmp_path / "a\rb"
+    git(repo, "worktree", "add", "--quiet", "-b", "odd", str(odd))
+    [linked] = worktrees(repo, locate(repo).common_dir)
+    assert linked.path == odd
+    assert locate(odd).top == odd
+    assert git_facts.run(repo, "hash-object", "--stdin", stdin="x\r\n").returncode == 0
+
+
 def test_broken_worktrees(tmp_path: Path) -> None:
     repo = create(tmp_path / "old")
     for name in ("inside", "locked"):

@@ -137,19 +137,20 @@ def run(
         stdin=None if stdin is None else subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        encoding="utf-8",
-        errors="surrogateescape",
         env=env,
     ) as process:
         try:
-            stdout, stderr = process.communicate(stdin, timeout=timeout)
+            given = None if stdin is None else stdin.encode("utf-8", "surrogateescape")
+            out, err = process.communicate(given, timeout=timeout)
         except subprocess.TimeoutExpired:
             # Its output not read on: what git started may hold it open, e.g. an alias command.
             _stop(process, group=False)
             raise _timed_out(path, args, started, timeout) from None
-    result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
-    _log_call(path, args, started, result.returncode, result.stderr)
-    return result
+    # Decoded here, as `run_bounded` does: text mode would turn a `\r`, e.g. in a path, into `\n`.
+    stdout = out.decode("utf-8", "surrogateescape")
+    stderr = err.decode("utf-8", "surrogateescape")
+    _log_call(path, args, started, process.returncode, stderr)
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
 def run_bounded(path: Path, *args: str, max_bytes: int) -> subprocess.CompletedProcess[str] | None:
@@ -502,6 +503,14 @@ class LinkedWorktree:
     lock_reason: str | None  # None unless locked; empty if locked without a reason
 
 
+def _link(path: Path) -> str:
+    r"""A path that git wrote into a file, e.g. `gitdir`, as it is.
+
+    Read as bytes: text mode would turn a `\r` into `\n`.
+    """
+    return os.fsdecode(path.read_bytes()).rstrip("\n")
+
+
 def _worktree_names(common_dir: Path) -> dict[Path, str]:
     """The linked worktrees' admin names, by their resolved paths."""
     admin = common_dir / "worktrees"
@@ -512,7 +521,7 @@ def _worktree_names(common_dir: Path) -> dict[Path, str]:
             gitdir = entry / "gitdir"
             if gitdir.is_file():
                 # It holds the path to the worktree's `.git` file, absolute or relative to `entry`.
-                names[(entry / gitdir.read_text().strip()).resolve().parent] = entry.name
+                names[(entry / _link(gitdir)).resolve().parent] = entry.name
     except OSError as error:
         raise GitError(f"reading {admin} failed: {error}") from error
     return names
@@ -525,7 +534,7 @@ def worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
     names = _worktree_names(common_dir)
     found: list[LinkedWorktree] = []
     for record in output.split("\n\n")[1:]:  # the first is the main working tree
-        lines = record.splitlines()
+        lines = record.split("\n")  # not splitlines(): a path may hold a `\r`
         if not lines or not lines[0].startswith("worktree "):
             continue
         path = Path(lines[0].removeprefix("worktree "))
@@ -564,12 +573,12 @@ def broken_worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
                 broken.append(linked)
             continue
         try:
-            text = (linked.path / ".git").read_text()
+            text = _link(linked.path / ".git")
         except OSError:
             broken.append(linked)
             continue
         # The path may be relative to the worktree, as with `worktree.useRelativePaths`.
-        pointed = (linked.path / text.removeprefix("gitdir:").strip()).resolve()
+        pointed = (linked.path / text.removeprefix("gitdir:").lstrip(" ")).resolve()
         if pointed != (common_dir / "worktrees" / linked.name).resolve():
             broken.append(linked)
     return tuple(broken)
