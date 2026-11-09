@@ -270,7 +270,9 @@ function useFound(find: DiffFind | undefined) {
     const byLine = new Map<string, DiffMark[]>();
     for (const mark of find.marks) {
       const key = lineKey(mark.old, mark.new);
-      byLine.set(key, [...(byLine.get(key) ?? []), mark]);
+      const onLine = byLine.get(key);
+      if (onLine) onLine.push(mark);
+      else byLine.set(key, [mark]);
     }
     for (const element of node.shadowRoot?.querySelectorAll<HTMLElement>("[data-line]") ?? []) {
       for (const mark of byLine.get(drawnLineKey(element)) ?? []) {

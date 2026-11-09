@@ -35,7 +35,9 @@ export function directoriesBelow<T>(
   const byDirectory = new Map<string, T[]>();
   for (const item of items) {
     const directory = directoryOf(pathOf(item), base, nested);
-    byDirectory.set(directory, [...(byDirectory.get(directory) ?? []), item]);
+    const within = byDirectory.get(directory);
+    if (within) within.push(item);
+    else byDirectory.set(directory, [item]);
   }
   const directories = [...byDirectory]
     .filter(([path]) => path !== base)

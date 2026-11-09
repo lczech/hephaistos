@@ -97,7 +97,10 @@ export function foundPaths(
     const key = bare(path);
     const from = byPath ? key.length - (key.split("/").at(-1) ?? "").length : 0;
     if (end <= from) continue; // in the folders holding it, which show it themselves
-    marks.set(key, [...(marks.get(key) ?? []), [Math.max(start - from, 0), end - from]]);
+    const mark: [number, number] = [Math.max(start - from, 0), end - from];
+    const inName = marks.get(key);
+    if (inName) inName.push(mark);
+    else marks.set(key, [mark]);
   }
   return { paths: shown, total, more, marks };
 }

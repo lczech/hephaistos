@@ -90,25 +90,28 @@ export function useDiffFind(
   let lines = held;
   if (files === undefined) lines = undefined;
   else if (held === undefined || !sameFiles(held.files, files)) {
-    const all = files.flatMap((file) =>
-      diffLines(file.patch, file.newText).map((line) => ({ path: file.path, line })),
-    );
-    lines = { files, lines: all, texts: all.map(({ line }) => line.text) };
+    lines = linesOf(files);
     setHeld(lines);
   }
   const found = useFind(query && lines?.texts, query);
   const matches = found && "matches" in found ? found.matches : undefined;
+  // While it finds again, what it found before, on the lines it found it on.
+  const searchedIn = found && "in" in found ? madeOf.get(found.in) : undefined;
   const [marked, setMarked] = useState<Marks>({ matches: undefined, all: [], byFile: new Map() });
   let marks = marked;
   if (marked.matches !== matches) {
     const all = (matches ?? []).flatMap(({ line, start, end }) => {
-      const at = lines?.lines[line];
+      const at = searchedIn?.lines[line];
       if (at === undefined) return [];
       const { old, new: current, collapsed } = at.line;
       return [{ path: at.path, mark: { old, new: current, start, end, collapsed } }];
     });
     const byFile = new Map<string, DiffMark[]>();
-    for (const { path, mark } of all) byFile.set(path, [...(byFile.get(path) ?? []), mark]);
+    for (const { path, mark } of all) {
+      const inFile = byFile.get(path);
+      if (inFile) inFile.push(mark);
+      else byFile.set(path, [mark]);
+    }
     marks = { matches, all, byFile };
     setMarked(marks);
   }

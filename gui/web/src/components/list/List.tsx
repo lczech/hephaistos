@@ -233,7 +233,9 @@ export function List<TData extends RowData>({
   const childrenOf = new Map<string, typeof rows>();
   for (const row of rows) {
     if (row.parentId === undefined) continue;
-    childrenOf.set(row.parentId, [...(childrenOf.get(row.parentId) ?? []), row]);
+    const siblings = childrenOf.get(row.parentId);
+    if (siblings) siblings.push(row);
+    else childrenOf.set(row.parentId, [row]);
   }
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
   const drawRow = (row: (typeof rows)[number]) => {
