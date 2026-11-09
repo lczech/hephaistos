@@ -145,7 +145,11 @@ History opens from a Checkout's row in Repositories, and from the bars of its Ch
 ## Explorer
 
 The Explorer View shows what a Directory holds, as a tree (`explorer?path=…`), on disk, as `/api/files` lists it: any Directory this user may list, the home directory without `path`.
-Its bar shows the path, from `~` under the home directory, each part showing that Directory instead, in the same Panel.
+With `root`, it never shows a Directory above that one, `root` itself without `path` or for a `path` outside it.
+`root` shapes the View only: the Server lists any Directory for the Token, as a terminal would.
+The bar shows the path, from the name of `root`, else from `~` under the home directory, each part showing that Directory instead, in the same Panel; it shows once the home directory is known, so that it does not change from `/home/me` to `~`.
+"Go into folder", in the menu of the row of a folder, shows that folder instead, as the parts of the path go back up.
+Where the Directory shown lies in a registered Checkout, the bar links to its History, Changes and Diff, as the row of the Checkout in Repositories does, before the reload button, as Changes and the Diff place theirs.
 Folders come first, then files, by name as people sort them: case ignored, numbers by their value, as VS Code does.
 A folder opens and closes; it is asked for once opened, or once pointed at, so that opening shows it at once.
 What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
@@ -160,12 +164,12 @@ Icons say what an entry is: a folder, open or not; a Checkout's top, registered;
 A file's kind comes from its name: exact names first, ours then GitHub's Linguist's (`CMakeLists.txt`), but for locks and configs, which our extensions say better than Linguist's formats (`uv.lock`); then extensions, our own table first, for binary files and some we show otherwise, then Linguist's, by the language's type or, for a few, the language (`components/files/kinds.ts`).
 Extensions Linguist leaves undecided, as languages of different types claim them, are listed in a test, so that an update leaving more fails there.
 Files open nothing yet.
-Pointing at a row shows its links after its name: its History, inside a registered Checkout, and before it its Diff since HEAD, for a file with changes.
-Its menu has them too, then copying its absolute path, and its path in its Checkout.
+Pointing at a row shows its links after its name: its History, inside a registered Checkout or for the top of one, all its files, not for what git ignores or does not track, as it has no commits of those, and before it its Diff since HEAD, for a file with changes.
+Its menu has them too, after going into a folder, then copying its absolute path, and its path in its Checkout.
 What was copied shows in the status bar for a while (`notice.ts`).
 A file's row is marked while a Diff of it comparing the working tree, either way, is shown in any Group, from wherever it was opened: it is about the file as the Explorer shows it, on disk; a commit's changes or the staged ones are not.
 It is asked again on a hint, on focus and by its reload button.
-The Explorer opens from a Checkout's row in Repositories, and from the "+" menu.
+The Explorer opens from the row of a Checkout in Repositories, limited to it (`root`), and from the View menu, at the home directory.
 
 ### Finding by name
 

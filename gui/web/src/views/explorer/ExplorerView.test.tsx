@@ -17,7 +17,7 @@ import {
 import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
 import { ShownContext } from "../opening";
-import { ExplorerView, pathParts } from "./ExplorerView";
+import { bareDir, ExplorerView, pathParts } from "./ExplorerView";
 import type { FileEntry } from "./rows";
 
 const entry = fileEntry;
@@ -88,6 +88,56 @@ describe("the Explorer View", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close all folders" }));
     expect(names()).toEqual(["proj", "notes.md"]);
     await userEvent.click(screen.getByRole("button", { name: "Hidden files" })); // as it was
+  });
+
+  it("shows a folder within its root, its path from there, never above", async () => {
+    serveDisk();
+    const { unmount } = renderWithQueries(
+      <Explorer initial={{ path: "/home/me/proj", root: "/home/me" }} />,
+    );
+    await screen.findByText("main.py");
+    const parts = screen.getByRole("button", { name: "me" }).parentElement?.parentElement;
+    expect(
+      within(parts as HTMLElement)
+        .getAllByRole("button")
+        .map((part) => part.textContent),
+    ).toEqual(["me", "proj"]);
+    await userEvent.click(screen.getByRole("button", { name: "me" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "explorer?path=%2Fhome%2Fme&root=%2Fhome%2Fme",
+    );
+    unmount();
+    serveDisk();
+    renderWithQueries(<Explorer initial={{ path: "/etc", root: "/home/me" }} />);
+    expect(await screen.findByText("notes.md")).toBeInTheDocument(); // its root instead
+  });
+
+  it("goes into a folder from its menu, within the same root", async () => {
+    serveDisk();
+    renderWithQueries(<Explorer initial={{ path: "/home/me", root: "/home/me" }} />);
+    fireEvent.contextMenu(await screen.findByText("proj"));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Go into folder" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "explorer?path=%2Fhome%2Fme%2Fproj&root=%2Fhome%2Fme",
+    );
+    expect(await screen.findByText("main.py")).toBeInTheDocument();
+  });
+
+  it("links to the changes and history of the Checkout it shows a folder of", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () =>
+        json([repository("me", [{ ...clone("me"), path: "/home/me", resolved_path: "/home/me" }])]),
+      "GET /api/files": (request) => {
+        const git = new URL(request.url).searchParams.has("fields");
+        const entries = DISK["/home/me"] ?? [];
+        return json({ path: "/home/me", top: git ? "/home/me" : null, entries, count: 3 });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    expect(await screen.findByRole("button", { name: "Commit history of me" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Changes in me" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Diff of the changes in me" })).toBeInTheDocument();
   });
 
   it("shows a parent by its part of the path in the bar", async () => {
@@ -214,6 +264,25 @@ describe("the Explorer View", () => {
     serveDisk();
     renderWithQueries(<Explorer initial={{ path: "/nowhere" }} />);
     expect(await screen.findByText(/Could not load: nothing is at \/nowhere/)).toBeInTheDocument();
+  });
+
+  it("takes a path and a root typed with a final slash as without", async () => {
+    serveDisk();
+    renderWithQueries(<Explorer initial={{ path: "/home/me/proj/", root: "/home/me/" }} />);
+    await screen.findByText("main.py");
+    expect(screen.getByRole("button", { name: "me" })).toHaveAttribute("title", "/home/me");
+    expect(screen.getByRole("button", { name: "proj" })).toBeInTheDocument(); // within the root
+    expect(bareDir("/")).toBe("/");
+    expect(bareDir("//")).toBe("/");
+    expect(bareDir("/home/me/proj/../../../etc/")).toBe("/etc"); // not within /home/me/proj
+  });
+
+  it("names a path's parts from a limit, by its name", () => {
+    expect(pathParts("/home/me/a/b", "/home/me", "/home/me/a")).toEqual([
+      ["a", "/home/me/a"],
+      ["b", "/home/me/a/b"],
+    ]);
+    expect(pathParts("/srv/x", "/home/me", "/")[0]).toEqual(["/", "/"]);
   });
 
   it("names a path's parts from home or the root", () => {

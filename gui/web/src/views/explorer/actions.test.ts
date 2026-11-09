@@ -50,13 +50,16 @@ describe("where an entry is in its Checkout", () => {
       checkout: { clone: "clone-proj" },
       relative: "",
     });
-    const open = vi.fn();
-    const menu = rowMenu(top, placeOf(top, undefined, known), open);
+    const [open, goInto] = [vi.fn(), vi.fn()];
+    const menu = rowMenu(top, placeOf(top, undefined, known), open, goInto);
     expect(menu.groups.map((group) => group.map(({ label }) => label))).toEqual([
+      ["Go into folder"],
       ["History"],
       ["Copy absolute path"], // no path in the Checkout to copy
     ]);
     menu.groups[0]?.[0]?.onAction();
+    expect(goInto).toHaveBeenCalledWith("/home/me/link");
+    menu.groups[1]?.[0]?.onAction();
     expect(open).toHaveBeenCalledWith(
       { kind: "history", params: { clone: "clone-proj" } }, // all its files
       { preview: true },
@@ -76,7 +79,7 @@ describe("a row's menu", () => {
 
   it("offers a changed file's Diff and History, and copying its path both ways", () => {
     const open = vi.fn();
-    const menu = rowMenu(row("/data/proj/src/a.py", {}, { status: "M" }), place, open);
+    const menu = rowMenu(row("/data/proj/src/a.py", {}, { status: "M" }), place, open, vi.fn());
     expect(labels(menu)).toEqual([
       ["Diff", "History"],
       ["Copy absolute path", "Copy relative path"],
@@ -92,14 +95,24 @@ describe("a row's menu", () => {
   });
 
   it("offers no Diff without changes, nor Views or a relative path outside a Checkout", () => {
-    expect(labels(rowMenu(row("/data/proj/src/a.py"), place, vi.fn()))).toEqual([
+    expect(labels(rowMenu(row("/data/proj/src/a.py"), place, vi.fn(), vi.fn()))).toEqual([
       ["History"],
       ["Copy absolute path", "Copy relative path"],
     ]);
-    expect(labels(rowMenu(row("/tmp/a.py", {}, { status: "M" }), undefined, vi.fn()))).toEqual([
-      [],
-      ["Copy absolute path"],
-    ]);
+    expect(
+      labels(rowMenu(row("/tmp/a.py", {}, { status: "M" }), undefined, vi.fn(), vi.fn())),
+    ).toEqual([["Copy absolute path"]]);
+  });
+
+  it("offers no History for what git ignores or does not track, as it has no commits of it", () => {
+    const folder = { folder: true };
+    for (const git of [{ ignored: true }, { status: "?", index: "?", worktree: "?" }]) {
+      const menu = rowMenu(row("/data/proj/build", folder, git), place, vi.fn(), vi.fn());
+      expect(labels(menu)).toEqual([
+        ["Go into folder"],
+        ["Copy absolute path", "Copy relative path"],
+      ]);
+    }
   });
 });
 

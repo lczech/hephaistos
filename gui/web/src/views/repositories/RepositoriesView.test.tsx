@@ -150,7 +150,7 @@ describe("the Repositories View", () => {
     expect(screen.queryByRole("button", { name: "Files of recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Files of ~/recent" }));
     expect(open.mock.calls.map(([address]) => address)).toEqual([
-      { kind: "explorer", params: { path: "/home/me/recent" } },
+      { kind: "explorer", params: { path: "/home/me/recent", root: "/home/me/recent" } },
     ]);
   });
 

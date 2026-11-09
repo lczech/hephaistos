@@ -24,12 +24,14 @@ import { FoldersFolded } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
 import { paramValues, withParam } from "../address";
+import { ChangesLinks } from "../comparison/ChangesLinks";
 import { findOf, NOTHING_TYPED, withFind } from "../find";
 import type { ViewProps } from "../index";
 import { useKeyTarget } from "../keys";
 import { useOpenView, useShownViews } from "../opening";
 import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
+import { ViewLink } from "../ViewLink";
 import { knownCheckouts, placeOf, RowActions, rowMenu, showsFile } from "./actions";
 import { COSTLY, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
@@ -79,11 +81,42 @@ interface SearchFolds {
   opened: ReadonlySet<string>;
 }
 
-/** A path's parts, each with the path it names: from `~` if under `home`, else from `/`. */
-export function pathParts(path: string, home: string | undefined): [string, string][] {
-  const inHome =
-    home !== undefined && home !== "/" && (path === home || path.startsWith(`${home}/`));
-  const [first, start]: [string, string] = inHome ? ["~", home] : ["/", ""];
+/**
+ * A path as an address may give it, typed by hand, without a final `/` and with its `.` and `..`
+ * resolved: `/a/b/` is `/a/b`, `/a/b/../c` is `/a/c`; so that a root holds what it seems to.
+ */
+export function bareDir(path: string | undefined): string | undefined {
+  if (path === undefined) return undefined;
+  if (!path.startsWith("/")) return path.replace(/\/+$/, ""); // not a path the Server lists
+  const parts: string[] = [];
+  for (const part of path.split("/")) {
+    if (part === "..") parts.pop();
+    else if (part !== "" && part !== ".") parts.push(part);
+  }
+  return `/${parts.join("/")}`;
+}
+
+/** Whether `path` is `folder` or below it. */
+export function within(path: string, folder: string): boolean {
+  return folder === "/" || path === folder || path.startsWith(`${folder}/`);
+}
+
+/**
+ * A path's parts, each with the path it names: from `limit`, by its name, if given; else from
+ * `~` if under `home`, else from `/`.
+ */
+export function pathParts(
+  path: string,
+  home: string | undefined,
+  limit?: string,
+): [string, string][] {
+  const inHome = home !== undefined && home !== "/" && within(path, home);
+  const [first, start]: [string, string] =
+    limit !== undefined && limit !== "/"
+      ? [limit.split("/").at(-1) ?? limit, limit]
+      : inHome
+        ? ["~", home]
+        : ["/", ""];
   const parts: [string, string][] = [[first, start || "/"]];
   let at = start;
   for (const name of path.slice(start.length).split("/").filter(Boolean)) {
@@ -93,17 +126,19 @@ export function pathParts(path: string, home: string | undefined): [string, stri
   return parts;
 }
 
-/** The Directory's path in the bar: each part shows that Directory instead. */
+/** The Directory's path in the bar, from `limit` if given: each part shows that Directory instead. */
 function PathBar({
   path,
   home,
+  limit,
   onShow,
 }: {
   path: string;
   home?: string;
+  limit?: string;
   onShow: (path: string) => void;
 }) {
-  const parts = pathParts(path, home);
+  const parts = pathParts(path, home, limit);
   // After each part a `/`, but the root's own.
   const after = (index: number) => index > 0 && parts[index - 1]?.[0] !== "/";
   return (
@@ -121,7 +156,8 @@ function PathBar({
 }
 
 /**
- * What a Directory holds (`path`, else the home directory), as a tree: folders first, each
+ * What a Directory holds (`path`, else `root`, else the home directory), never above `root`, as a
+ * tree: folders first, each
  * opened asked for then, what is opened kept per Directory in this browser. Hidden entries show
  * quieter, in italics, unless left out. Read anew on a hint, on focus, or by reloading.
  * Its find row finds files and folders below it by name (`search.ts`): the tree shows only them,
@@ -137,8 +173,12 @@ export function ExplorerView({
 }: ViewProps) {
   const info = useInfo();
   const home = info.data?.home;
-  const [given] = paramValues(params.path);
-  const root = given ?? home;
+  const given = bareDir(paramValues(params.path)[0]);
+  const limit = bareDir(paramValues(params.root)[0]); // shown in the View, not kept from the Server
+  const requested = given ?? limit ?? home;
+  const root =
+    limit !== undefined && requested !== undefined && !within(requested, limit) ? limit : requested;
+  const showIn = (path: string) => setParams({ ...params, path });
   const name = root === undefined ? undefined : (root.split("/").filter(Boolean).at(-1) ?? "/");
   useTitle(setTitle, name && `Explorer: ${name}`);
 
@@ -272,6 +312,11 @@ export function ExplorerView({
   const tops = new Map(wanted.map((path, index) => [path, details[index]?.data?.top ?? undefined]));
   const placeOfRow = (row: Extract<Entry, { type: "entry" }>) =>
     placeOf(row, tops.get(row.parent), known);
+  // The Checkout the shown folder lies in, by the working tree git found it in, if registered.
+  const shownTop = root === undefined ? undefined : tops.get(root);
+  const shownIn =
+    shownTop === undefined ? undefined : known.find(({ paths }) => paths.includes(shownTop));
+  const checkoutName = shownIn?.paths[0]?.split("/").at(-1) ?? "";
   const openView = useOpenView();
   const shownViews = useShownViews();
   const client = useQueryClient();
@@ -329,8 +374,9 @@ export function ExplorerView({
   return (
     <ViewPage ref={view}>
       <ViewBar>
-        {root !== undefined && (
-          <PathBar path={root} home={home} onShow={(path) => setParams({ path })} />
+        {/* Once the home directory is known, so that the path does not change from /home/me to ~. */}
+        {root !== undefined && !info.isPending && (
+          <PathBar path={root} home={home} limit={limit} onShow={showIn} />
         )}
         <BarEnd>
           <Toggle
@@ -358,6 +404,15 @@ export function ExplorerView({
             disabled={opened.size === 0}
             onClick={() => setOpened(NONE)}
           />
+          {shownIn && (
+            <>
+              <ViewLink
+                address={{ kind: "history", params: shownIn.checkout }}
+                label={`Commit history of ${checkoutName}`}
+              />
+              <ChangesLinks checkout={shownIn.checkout} what={`changes in ${checkoutName}`} />
+            </>
+          )}
           <Refresh
             busy={[...answers, ...details].some((answer) => answer.isFetching)}
             onClick={() => {
@@ -412,7 +467,7 @@ export function ExplorerView({
           entry.type === "entry" ? <RowActions row={entry} place={placeOfRow(entry)} /> : null
         }
         menu={(entry) =>
-          entry.type === "entry" ? rowMenu(entry, placeOfRow(entry), openView) : undefined
+          entry.type === "entry" ? rowMenu(entry, placeOfRow(entry), openView, showIn) : undefined
         }
       />
     </ViewPage>

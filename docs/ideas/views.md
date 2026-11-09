@@ -32,9 +32,12 @@ User, 2026-10-17: for a merge, its changes against another parent; a filter by a
 Its plan is in `docs/plans/` on the branch `lczech/file-explorer`.
 
 - File kinds as a plugin (user, 2026-11-06: "super not urgent"): mappings from file names and extensions to the icons of the Explorer, e.g. for bioinformatics formats (`.fasta`, `.nwk`) that the general table leaves out.
-- The Explorer at a Revision (user, 2026-11-06; after the File View): with a Checkout and a Revision, it lists `git ls-tree`, read-only.
+- The Explorer at a Revision (user, 2026-11-06; after the File View): with a Checkout and a Revision, it lists `git ls-tree`, read-only, marking what that commit changed against its parent, as the commit page on GitHub does.
+  The address or kind of the View decides whether the Revision picker shows, not a toggle: the Explorer in a sidebar, on disk, never shows it; the repository at a commit, linked from the rows of History, does.
   Its search then lists paths by `git ls-tree -r --name-only <rev>` through the same `/api/files/paths`, with a `ref` parameter, matched in the browser as on disk; "ignored" does not apply.
+- A field with the last commit of each entry (hash, subject, time), as the file tree on GitHub shows it, on disk too: one `git log` walk per Directory until all names are found, not one per file; optional, as it costs.
 - "Find in folder" on a row, as "Find in Folder…" in VS Code.
+- Several tops in one Explorer, each a row that folds, as the workspaces of VS Code with several folders show them (user, 2026-11-09): with Workspaces, e.g. the Checkouts of a Workspace.
 - "Terminal here": see [Terminals](terminals.md#elsewhere); opening in other applications: see [Desktop](desktop.md#launchers).
 
 ## Status

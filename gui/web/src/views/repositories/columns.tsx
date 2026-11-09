@@ -71,7 +71,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
       )}
       {state ? (
         <ViewLink
-          address={{ kind: "explorer", params: { path: state.path } }}
+          address={{ kind: "explorer", params: { path: state.path, root: state.path } }}
           label={`Files of ${name}`}
         />
       ) : (

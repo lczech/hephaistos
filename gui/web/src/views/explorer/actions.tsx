@@ -1,7 +1,7 @@
 // What can be done with an entry of the Explorer: its Diff and History, in a lane at its row's
 // end and in its menu, which can also copy its path. Those Views need a registered Checkout.
 
-import { Copy, CopySlash } from "lucide-react";
+import { Copy, CopySlash, FolderInput } from "lucide-react";
 import type { Schemas } from "../../api/client";
 import type { RowAction } from "../../components/list/RowMenu";
 import { copyText } from "../../notice";
@@ -70,9 +70,13 @@ function diffOf(row: Shown, place: Place | undefined): Address | undefined {
   return { kind: "diff", params: { ...place.checkout, ...SINCE_HEAD, path: place.relative } };
 }
 
-/** An entry's History: the commits that changed it, or what is below it; all, for a top. */
-function historyOf(place: Place | undefined): Address | undefined {
-  if (place === undefined) return undefined;
+/**
+ * An entry's History: the commits that changed it, or what is below it; all, for a top. None
+ * for what git ignores or does not track: git says so only of what it has no commits of.
+ */
+function historyOf(row: Shown, place: Place | undefined): Address | undefined {
+  const { status, ignored } = row.entry;
+  if (place === undefined || ignored || status === "?") return undefined;
   const { checkout, relative } = place;
   return { kind: "history", params: relative === "" ? checkout : { ...checkout, path: relative } };
 }
@@ -94,7 +98,7 @@ export function showsFile(shown: Address, place: Place | undefined): boolean {
 /** A row's links to its Views, packed at its end: its History last, its Diff before it. */
 export function RowActions({ row, place }: { row: Shown; place: Place | undefined }) {
   const diff = diffOf(row, place);
-  const history = historyOf(place);
+  const history = historyOf(row, place);
   const name = row.shown;
   return (
     <>
@@ -115,10 +119,21 @@ function opening(id: string, label: string, address: Address, openView: OpenView
   };
 }
 
-/** A row's menu: its Diff and History, then copying its path, absolute or in its Checkout. */
-export function rowMenu(row: Shown, place: Place | undefined, openView: OpenView) {
+/**
+ * A row's menu: going into a folder, showing it in the View instead; its Diff and History; then
+ * copying its path, absolute or in its Checkout.
+ */
+export function rowMenu(
+  row: Shown,
+  place: Place | undefined,
+  openView: OpenView,
+  goInto: (path: string) => void,
+) {
+  const into: RowAction[] = row.folder
+    ? [{ id: "into", label: "Go into folder", icon: FolderInput, onAction: () => goInto(row.path) }]
+    : [];
   const diff = diffOf(row, place);
-  const history = historyOf(place);
+  const history = historyOf(row, place);
   const views = [
     ...(diff ? [opening("diff", "Diff", diff, openView)] : []),
     ...(history ? [opening("history", "History", history, openView)] : []),
@@ -141,5 +156,6 @@ export function rowMenu(row: Shown, place: Place | undefined, openView: OpenView
         ]
       : []),
   ];
-  return { label: `Actions on ${row.shown}`, groups: [views, copies] };
+  const groups = [into, views, copies].filter((group) => group.length > 0);
+  return { label: `Actions on ${row.shown}`, groups };
 }
