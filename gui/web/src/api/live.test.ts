@@ -14,7 +14,7 @@ import {
   useConnection,
   useLiveUpdates,
 } from "./live";
-import { KEYS, type KeyName } from "./queries";
+import { KEYS, type KeyName, listingsAskedAgain } from "./queries";
 
 function Live() {
   useLiveUpdates();
@@ -28,7 +28,11 @@ function start() {
   return { invalidated, connection };
 }
 
-const keysOf = (names: KeyName[]) => names.map((name) => [{ queryKey: KEYS[name] }]);
+// The listings are all marked as changed, and some asked again (`listingsAskedAgain`).
+const keysOf = (names: KeyName[]) =>
+  names.map((name): [object] =>
+    name === "files" ? [{ queryKey: KEYS.files, refetchType: "none" }] : [{ queryKey: KEYS[name] }],
+  );
 
 function wait(ms: number): void {
   act(() => vi.advanceTimersByTime(ms));
@@ -146,6 +150,23 @@ describe("the live connection", () => {
     wait(60_000);
     act(() => document.dispatchEvent(new Event("visibilitychange", { bubbles: true })));
     expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+  });
+
+  it("asks again for a folder's names alone only where none with fields is kept", async () => {
+    const { client } = renderWithQueries(createElement("p"));
+    const listing = { path: "", top: null, entries: [], count: 0 };
+    client.setQueryData(["files", { path: "/a" }], listing);
+    client.setQueryData(["files", { path: "/a", fields: ["git"] }], listing);
+    client.setQueryData(["files", { path: "/b" }], listing);
+    const again = listingsAskedAgain(client);
+    const asked = client
+      .getQueryCache()
+      .findAll({ queryKey: ["files"] })
+      .filter(again);
+    expect(asked.map((query) => query.queryKey[1])).toEqual([
+      { path: "/a", fields: ["git"] },
+      { path: "/b" },
+    ]);
   });
 
   it("keeps every query current somehow", () => {

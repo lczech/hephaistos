@@ -5,7 +5,7 @@ import { focusManager, type QueryClient, useQueryClient } from "@tanstack/react-
 import { useEffect, useSyncExternalStore } from "react";
 import { forgetToken, token } from "../token";
 import type { Schemas } from "./client";
-import { KEYS, type KeyName, observe } from "./queries";
+import { KEYS, type KeyName, listingsAskedAgain, observe } from "./queries";
 
 export type Hint = Schemas["LiveHintsJson"]["hints"][number];
 
@@ -61,7 +61,16 @@ export function useConnection(): Connection {
 }
 
 function invalidate(client: QueryClient, names: KeyName[]): void {
-  for (const name of names) void client.invalidateQueries({ queryKey: KEYS[name] });
+  for (const name of names) {
+    if (name !== "files") void client.invalidateQueries({ queryKey: KEYS[name] });
+    else {
+      // All marked as maybe changed, as a folder asked for ahead is trusted only until then;
+      // asked again, those `listingsAskedAgain` says.
+      const predicate = listingsAskedAgain(client);
+      void client.invalidateQueries({ queryKey: KEYS.files, refetchType: "none" });
+      void client.refetchQueries({ queryKey: KEYS.files, type: "active", predicate });
+    }
+  }
 }
 
 /** One live connection: reconnects until stopped, ever later after each failure. */

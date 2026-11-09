@@ -3,6 +3,8 @@
 
 import {
   keepPreviousData,
+  type Query,
+  type QueryClient,
   type QueryClientConfig,
   type QueryKey,
   useInfiniteQuery,
@@ -114,9 +116,49 @@ export function filesQuery(query: FilesQuery) {
   };
 }
 
-/** What each of these Directories holds, read anew on a hint or focus, as files change by hand. */
+/**
+ * What each of these Directories holds, read anew on a hint or focus, as files change by hand.
+ * One asked for with other fields than before shows the answer last given with fields until
+ * its own comes: showing a column keeps git's letters meanwhile.
+ */
 export function useFilesOf(queries: FilesQuery[]) {
-  return useQueries({ queries: queries.map(filesQuery) });
+  const client = useQueryClient();
+  return useQueries({
+    queries: queries.map((query) => ({
+      ...filesQuery(query),
+      placeholderData: query.fields?.length ? () => withFields(client, query.path) : undefined,
+    })),
+  });
+}
+
+/**
+ * Of the listings kept, those to ask again: a Directory's names alone only where none with
+ * fields is kept for it, as one with fields holds the names too, and git is read for it anyway.
+ */
+export function listingsAskedAgain(client: QueryClient): (query: Query) => boolean {
+  const asked = (query: Query) => query.queryKey[1] as FilesQuery | undefined;
+  const withFields = new Set(
+    client
+      .getQueryCache()
+      .findAll({ queryKey: KEYS.files })
+      .map(asked)
+      .filter((query) => !!query?.fields?.length)
+      .map((query) => query?.path),
+  );
+  return (query) => !!asked(query)?.fields?.length || !withFields.has(asked(query)?.path);
+}
+
+/** The answer last given for the Directory at `path` with any fields, if one is kept. */
+function withFields(client: QueryClient, path: string): Schemas["FilesJson"] | undefined {
+  const kept = client
+    .getQueryCache()
+    .findAll({ queryKey: KEYS.files })
+    .filter((found) => {
+      const asked = found.queryKey[1] as FilesQuery | undefined;
+      return asked?.path === path && !!asked.fields?.length && found.state.data !== undefined;
+    });
+  const last = kept.sort((one, other) => other.state.dataUpdatedAt - one.state.dataUpdatedAt)[0];
+  return last?.state.data as Schemas["FilesJson"] | undefined;
 }
 
 /** Below which Directory, and which: `/api/files/paths`' parameters. */

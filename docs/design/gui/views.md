@@ -164,7 +164,8 @@ Names are coloured as git's letter for them says, as Changes colours its kinds o
 Ignored entries show quieter, in the regular font.
 A column shows the letter, or a dot for changes below a folder; its tooltip spells out what is staged and what is not.
 A file's size shows its amount, then its unit; a folder's, its number of entries, as GNOME's Files shows it, then `items`; either in a box as wide as the widest, so that all numbers line up.
-The size and the time last modified are columns hidden until shown, as each costs a `stat` per entry: what a folder holds is asked for twice, its names and kinds to show at once, then git's letters and the shown columns' fields to fill in.
+The size and the time last modified are columns hidden until shown, as each costs a `stat` per entry: what a folder holds is asked for twice, its names and kinds to show at once, then git's letters and the shown columns' fields to fill in; showing another column keeps the fields shown until its answer comes.
+On a hint or focus, only the second is asked again, as it holds the names too.
 Icons say what an entry is: a folder, open or not; a Checkout's top, registered; a symlink, to a file or a folder, or pointing nowhere, in the problem colour; a folder that cannot be listed; else a file's kind.
 A file's kind comes from its name: exact names first, ours then GitHub's Linguist's (`CMakeLists.txt`), but for locks and configs, which our extensions say better than Linguist's formats (`uv.lock`); then extensions, our own table first, for binary files and some we show otherwise, then Linguist's, by the language's type or, for a few, the language (`components/files/kinds.ts`).
 Extensions Linguist leaves undecided, as languages of different types claim them, are listed in a test, so that an update leaving more fails there.

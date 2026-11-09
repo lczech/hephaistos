@@ -217,6 +217,42 @@ describe("the Explorer View", () => {
     expect(asked.at(-1)).toBe("git,size,modified");
   });
 
+  it("keeps git's letters while it asks for a column shown, and names if they fail", async () => {
+    let answer = () => {};
+    const sized = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    const asked: string[] = [];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": async (request) => {
+        const fields = new URL(request.url).searchParams.getAll("fields");
+        asked.push(fields.join(","));
+        if (fields.includes("size")) await sized;
+        if (fields.includes("modified")) return json({ error: "it broke", checkout: null }, 500);
+        const entries = [
+          fileEntry("notes.md", fields.includes("git") ? { status: "M", worktree: "M" } : {}),
+        ];
+        return json({ path: "/home/me", top: "/home/me", entries, count: 1 });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    const git = () => screen.getByText("notes.md").closest("[data-git]");
+    await waitFor(() => expect(git()).not.toBeNull());
+    fireEvent.contextMenu(screen.getByText(/^name/));
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "size" }));
+    await waitFor(() => expect(asked.at(-1)).toBe("git,size"));
+    expect(git()).toHaveAttribute("data-git", "modified"); // while the sizes are asked for
+    answer();
+    await expectSettled();
+    expect(git()).toHaveAttribute("data-git", "modified");
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "modified" }));
+    await waitFor(() => expect(asked.at(-1)).toBe("git,size,modified"));
+    await expectSettled();
+    expect(screen.getByText("notes.md")).toBeInTheDocument(); // by the names asked for first
+  });
+
   it("offers a changed file's Diff and History, and copies its path from its menu", async () => {
     serve({
       "GET /api/info": () => json(info()),
