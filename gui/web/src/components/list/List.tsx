@@ -73,6 +73,7 @@ interface Props<TData extends RowData> {
   onOpenedChange?: (opened: ReadonlySet<string>) => void;
   actions?: (row: TData) => ReactNode; // after what names it (`identifies`), while pointed at
   menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
+  ahead?: (row: TData) => void; // pointed at or focused: to ask for what opening it shows
 }
 
 /**
@@ -117,6 +118,7 @@ export function List<TData extends RowData>({
   onOpenedChange,
   actions,
   menu: rowMenu,
+  ahead,
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
   const open = opened ?? kept;
@@ -269,6 +271,8 @@ export function List<TData extends RowData>({
           onContextMenu={
             rowMenu?.(row.original) ? (event) => showRowMenu(event, row.id) : undefined
           }
+          onPointerEnter={ahead && (() => ahead(row.original))}
+          onFocus={ahead && (() => ahead(row.original))}
         >
           {first && still && (
             <span {...cellData(first.column)}>

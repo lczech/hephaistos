@@ -282,6 +282,25 @@ describe("the Explorer View", () => {
     expect(icon("gone")).not.toHaveClass("lucide-folder-lock"); // by its status, not its words
   });
 
+  it("asks for what a folder holds once, both ways, when focused or pointed at", async () => {
+    const requests = serveDisk();
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    const proj = await screen.findByText("proj");
+    await expectSettled();
+    const asked = () =>
+      requests
+        .map((request) => new URL(request.url))
+        .filter((url) => url.searchParams.get("path") === "/home/me/proj")
+        .map((url) => url.searchParams.getAll("fields").join(","));
+    screen.getByRole("button", { name: /^proj/ }).focus(); // as the keyboard moves to it
+    await waitFor(() => expect(asked()).toEqual(["", "git"]));
+    await userEvent.hover(proj);
+    await userEvent.unhover(proj);
+    await userEvent.hover(proj);
+    await expectSettled();
+    expect(asked()).toEqual(["", "git"]);
+  });
+
   it("offers a changed file's Diff and History, and copies its path from its menu", async () => {
     serve({
       "GET /api/info": () => json(info()),

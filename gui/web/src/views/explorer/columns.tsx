@@ -28,7 +28,6 @@ export interface Looks {
   open: (row: Shown) => boolean;
   checkout: (path: string) => boolean; // a registered Checkout's top
   denied: (path: string) => boolean; // a folder this user may not list
-  ahead: (row: Shown) => void; // asks for what a folder holds before it is opened
   marked: (row: Shown) => { marks: [number, number][]; current: boolean } | undefined; // found
   current: (row: Shown) => boolean; // the match stepped to, or revealed once the search closed
 }
@@ -101,8 +100,6 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
       }
     />
   );
-  // Pointing at a closed folder asks for what it holds, so that opening it shows that at once.
-  const ahead = row.folder && !looks.open(row) ? () => looks.ahead(row) : undefined;
   return (
     <span
       className={styles.name}
@@ -110,7 +107,6 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
       data-ignored={row.entry.ignored || undefined}
       data-git={gitTone(row)}
       data-current={looks.current(row) || undefined}
-      onPointerEnter={ahead}
     >
       {name}
     </span>

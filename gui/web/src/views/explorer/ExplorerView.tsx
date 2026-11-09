@@ -342,10 +342,6 @@ export function ExplorerView({
     current: (row) => shownCurrent !== undefined && shownPaths(row).includes(shownCurrent),
     checkout: (path) => checkouts.has(path),
     denied: (path) => denied.has(path),
-    ahead: (row) => {
-      void client.prefetchQuery(filesQuery({ path: row.path }));
-      void client.prefetchQuery(filesQuery({ path: row.path, fields }));
-    },
   });
   const now = useNow(10_000);
   const table = useList("explorer", layout, {
@@ -491,6 +487,12 @@ export function ExplorerView({
         menu={(entry) =>
           entry.type === "entry" ? rowMenu(entry, placeOfRow(entry), openView, showIn) : undefined
         }
+        ahead={(entry) => {
+          // A closed folder pointed at or focused: what it holds shows at once once opened.
+          if (entry.type !== "entry" || !entry.folder || opened.has(entry.id)) return;
+          void client.prefetchQuery(filesQuery({ path: entry.path }));
+          void client.prefetchQuery(filesQuery({ path: entry.path, fields }));
+        }}
       />
     </ViewPage>
   );
