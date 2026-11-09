@@ -158,7 +158,7 @@ Where the Directory shown lies in a registered Checkout, the bar links to its Hi
 Folders come first, then files, by name as people sort them: case ignored, numbers by their value, as VS Code does.
 A folder opens and closes; it is asked for once opened, or once pointed at or focused, so that opening shows it at once.
 What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
-A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`.
+A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`; not a registered Checkout's top, whose row says what it is, nor a symlink, which may lead back to a folder above it.
 Hidden entries, whose names start with `.`, show quieter and in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
 Names are coloured as git's letter for them says, as Changes colours its kinds of change: added and untracked green, modified, renamed and type changed amber, unmerged red; folders with changes below them amber.
 Ignored entries show quieter, in the regular font.

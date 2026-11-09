@@ -231,6 +231,11 @@ export function ExplorerView({
   };
   const listedFound = search && root !== undefined && listedOf(root, found.paths, search.folders);
 
+  // Registered Checkouts: their tops show on their own rows, never joined through.
+  const repositories = useRepositories();
+  const known = knownCheckouts(repositories.data ?? []);
+  const checkouts = new Set(known.flatMap(({ paths }) => paths));
+
   // What each folder holds is asked for twice: names and kinds, which come at once, to show;
   // then git's letters and what the shown columns need, which cost more, to fill in.
   const [layout] = useListLayout("explorer");
@@ -261,6 +266,7 @@ export function ExplorerView({
     hidden: look.hidden,
     sorted,
     search,
+    apart: (path) => checkouts.has(path),
   };
   const needed = root === undefined ? [] : asked(root, making, making.loaded);
   if (needed.join("\0") !== wanted.join("\0")) setWanted(needed);
@@ -318,9 +324,6 @@ export function ExplorerView({
     findButton.current?.focus();
   };
 
-  const repositories = useRepositories();
-  const known = knownCheckouts(repositories.data ?? []);
-  const checkouts = new Set(known.flatMap(({ paths }) => paths));
   // The working tree each folder lies in, as git found it with its letters.
   const tops = new Map(wanted.map((path, index) => [path, details[index]?.data?.top ?? undefined]));
   const placeOfRow = (row: Extract<Entry, { type: "entry" }>) =>

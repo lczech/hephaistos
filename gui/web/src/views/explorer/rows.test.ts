@@ -82,6 +82,28 @@ describe("the Explorer's rows", () => {
     expect(text(rows("/r", { ...making([]), loaded: () => undefined }))).toEqual(["(Loading…)"]);
   });
 
+  it("join none through a symlink to a folder, which may lead back above it", () => {
+    const loop: Record<string, FileEntry[]> = {
+      "/l": [folder("x")],
+      "/l/x": [entry("self", { kind: "symlink", to: "directory" })], // self -> .
+    };
+    const loaded = (path: string): Loaded<FileEntry> => {
+      const items = loop[path] ?? loop["/l/x"] ?? [];
+      return { items, count: items.length };
+    };
+    expect(text(rows("/l", { ...making(["x/"]), loaded }))).toEqual(["x", "  self"]);
+  });
+
+  it("join none through a folder kept apart, as a Checkout's top", () => {
+    const apart = (path: string) => path === "/r/src";
+    expect(text(rows("/r", making(["src/"], { apart, hidden: false })))).toEqual([
+      "src",
+      "  app",
+      "B2.txt",
+      "b10.txt",
+    ]);
+  });
+
   it("ask for the folders shown open, through those joined", () => {
     const { loaded, ...rest } = making(["src/", "src/app/lib/", "gone/"]);
     expect(asked("/r", rest, loaded)).toEqual(["/r", "/r/src", "/r/src/app", "/r/src/app/lib"]);
