@@ -90,10 +90,10 @@ Files stay untouched.
 ## terminal
 
 `terminal create` starts a shell in a directory, the current one by default, or the command after its options; `--` marks where that starts.
-Without `-n`, its name is the directory's, numbered: `proj-1`, `proj-2`.
+Without `-n`, its name is the directory name, numbered: `proj-1`, `proj-2`.
 For now it prints how to attach with tmux itself.
-`list` and `show` observe this Machine's Terminals first, as they change between the Watcher's passes, e.g. by `exit`.
-A Terminal's repository is that of the innermost Checkout containing the directory it started in.
+`list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
+The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
 `kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first, and a lost one is forgotten.
 How Terminals work: [terminals](../core/terminals.md).
 

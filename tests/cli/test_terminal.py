@@ -17,7 +17,7 @@ runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def set_up(keeper: TmuxKeeper) -> None:
-    """Set up, with the test's own tmux socket, its server ended afterwards."""
+    """Set up, with a tmux socket of this test alone, its server ended afterwards."""
     del keeper
     runner.invoke(app, ["setup", "--name", "laptop"])
 

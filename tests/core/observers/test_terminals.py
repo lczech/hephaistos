@@ -28,14 +28,14 @@ def set_up(paths: Paths) -> Paths:
 
 @pytest.fixture
 def boot(tmp_path: Path) -> Path:
-    """A stand-in for the boot ID's file, so that tests can reboot."""
+    """A stand-in for the boot ID file, so that tests can reboot."""
     path = tmp_path / "boot_id"
     path.write_text("boot-1\n")
     return path
 
 
 def tmux(keeper: TmuxKeeper, *args: str) -> str:
-    """Runs tmux on the Keeper's socket as a user would; returns its output."""
+    """Runs tmux on the socket of the Keeper as a user would; returns its output."""
     command = [keeper.binary, "-L", keeper.socket, "-f", "/dev/null", *args]
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode == 0, f"tmux {args[0]} failed: {result.stderr}"

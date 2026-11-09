@@ -214,8 +214,8 @@ def desktop_checkout(tmp_path: Path, electron: str | None, *, built: bool = True
 
 
 def eventually[T](check: Callable[[], T], timeout: float = 20.0) -> T:
-    """`check()`'s first true result, asked every 20 ms, e.g. for what another process does;
-    fails the test after `timeout` seconds.
+    """The first true result of `check()`, asked every 20 ms, e.g. for what another process
+    does; fails the test after `timeout` seconds.
 
     That bound costs nothing where `check` comes true, as it returns at once, so it is long:
     another process may take seconds on a loaded machine, e.g. with the suite run beside.

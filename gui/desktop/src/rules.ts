@@ -15,7 +15,7 @@ export function destination(url: string, server: string | null): "window" | "bro
   return parsed.protocol === "https:" || parsed.protocol === "http:" ? "browser" : "none";
 }
 
-// What the page may ask for, each for a feature that needs it: copying, e.g. the Status View's About.
+// What the page may ask for, each for a feature that needs it: copying, e.g. About in the Status View.
 const ALLOWED = new Set(["clipboard-sanitized-write"]);
 
 /** Whether the page from `origin` gets a permission; only ours, and only what a feature needs. */

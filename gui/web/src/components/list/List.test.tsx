@@ -47,7 +47,7 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
 }
 
 describe("a list's rows", () => {
-  it("keep their cells' elements when the View builds its columns anew", () => {
+  it("keep the elements of their cells when the View builds its columns anew", () => {
     const { rerender } = render(<Fruits act={vi.fn()} />);
     const name = screen.getByText("pear");
     const peel = screen.getAllByRole("button", { name: "Peel" })[1];

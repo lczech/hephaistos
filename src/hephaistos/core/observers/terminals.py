@@ -1,4 +1,4 @@
-"""Observes this Machine's Terminals: the Keeper first, then one write session."""
+"""Observes the Terminals of this Machine: the Keeper first, then one write session."""
 
 import logging
 import uuid
@@ -16,7 +16,7 @@ from hephaistos.core.utils.paths import Paths
 
 log = logging.getLogger(__name__)
 
-BOOT_ID = Path("/proc/sys/kernel/random/boot_id")  # Linux's: new at each boot
+BOOT_ID = Path("/proc/sys/kernel/random/boot_id")  # by Linux: new at each boot
 UNKNOWN_BOOT = "unknown"  # elsewhere: then only a dead server makes Terminals lost
 
 
@@ -29,7 +29,7 @@ class Result:
 
 
 def boot_id(path: Path = BOOT_ID) -> str:
-    """This boot's ID, or UNKNOWN_BOOT where there is none."""
+    """The ID of this boot, or UNKNOWN_BOOT where there is none."""
     try:
         return path.read_text().strip() or UNKNOWN_BOOT
     except OSError:
@@ -40,14 +40,14 @@ def _adopted(keeper: Keeper, found: list[Session], stored: list[TerminalState]) 
     """`found`, each with an ID of its own; gone ones are left out.
 
     Adopts those without one, with an invalid one, or with one another session has (copied by
-    hand, say). A session named like a lost Terminal takes that one's ID, e.g. one started by
-    hand after a reboot.
+    hand, say). A session named like a lost Terminal takes the ID of that one, e.g. one started
+    by hand after a reboot.
     """
     names = {terminal.id: terminal.name for terminal in stored}
     lost = {t.name: t.id for t in stored if t.status is TerminalStatus.LOST}
 
     def order(item: Session) -> tuple[bool, bool, object, str]:
-        # Of sessions sharing an ID, the one with its Terminal's name keeps it, else the oldest.
+        # Of sessions sharing an ID, the one named like its Terminal keeps it, else the oldest.
         return (
             item.terminal_id is None,
             names.get(item.terminal_id) != item.name if item.terminal_id else True,
@@ -81,7 +81,7 @@ def observe(
     boot_file: Path = BOOT_ID,
     command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
 ) -> Result:
-    """Observes this Machine's Terminals with `keeper`, else the one its settings describe.
+    """Observes the Terminals of this Machine with `keeper`, else the one its settings describe.
 
     `command` holds what Terminals just created run, which the Keeper does not say.
 

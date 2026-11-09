@@ -65,10 +65,10 @@ def _log_text(counts: report.LogCountsJson) -> str:
 
 
 def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False) -> None:
-    """Check this machine's setup, and show the daemon and what runs, e.g. for an issue.
+    """Check the setup of this machine, and show the daemon and what runs, e.g. for an issue.
 
-    The checks run here, with this shell's PATH; the daemon's, as it ran them last, are listed
-    where they differ, as its PATH may.
+    The checks run here, with the PATH of this shell; those of the daemon, as it ran them last,
+    are listed where they differ, as its PATH may.
     """
     paths = Paths.from_environment()
     found = checks.run(os.environ)
@@ -85,7 +85,7 @@ def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False)
     if current is not None and current.checks is not None:
         recorded = current.checks
         others = [c for c in recorded.checks if c.outcome != "ok" and c not in found]
-        heading = f"The daemon's, checked {when(recorded.at)}:"
+        heading = f"Setup, checked by the daemon {when(recorded.at)}:"
         typer.echo(heading if others else f"{heading} nothing else")
         if others:
             _print_checks(others)

@@ -208,7 +208,7 @@ def version() -> str | None:
 
 
 def user_environment() -> dict[str, str]:
-    """The environment systemd gives user services, e.g. the desktop's; empty without one."""
+    """The environment systemd gives user services, e.g. that of the desktop; empty without one."""
     try:
         result = _run("systemctl", "--user", "show-environment")
     except SystemdError:

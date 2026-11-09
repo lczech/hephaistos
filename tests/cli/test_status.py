@@ -16,7 +16,7 @@ runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def no_systemd(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Never the user's own systemd."""
+    """Never the real systemd of the user."""
     monkeypatch.setattr(unit, "is_available", lambda: False)
     monkeypatch.setattr(unit, "version", lambda: None)
     monkeypatch.setattr(unit, "user_environment", dict)
@@ -41,7 +41,7 @@ def test_status_without_a_daemon(paths: Paths) -> None:
         "note",
         "no user services here; run `hephaistos daemon run`, e.g. in tmux",
     ]
-    assert "The daemon's" not in result.output  # none runs
+    assert "checked by the daemon" not in result.output  # none runs
     assert lines[lines.index("Running:") + 2] == "  Daemon  not running; never ran"
     assert "  systemd     unknown" in lines
     assert lines[-1] == "Log: no errors or warnings in the last 24 h"
@@ -50,7 +50,7 @@ def test_status_without_a_daemon(paths: Paths) -> None:
 def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
     machines.set_up(paths, "laptop")
     paths.state_dir.mkdir(parents=True, exist_ok=True)
-    now = datetime.now(UTC)  # not the module's: "5m ago" must hold when this runs
+    now = datetime.now(UTC)  # not that of the module: "5m ago" must hold when this runs
     _warn(paths, now - timedelta(hours=2), "WARNING")
     _warn(paths, now - timedelta(hours=1), "ERROR")
     shell = runner.invoke(app, ["status", "--json"])
@@ -68,7 +68,7 @@ def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
         result = runner.invoke(app, ["status"])
     assert result.exit_code == 0, result.output
     lines = result.output.splitlines()
-    heading = lines.index("The daemon's, checked 5m ago:")
+    heading = lines.index("Setup, checked by the daemon 5m ago:")
     assert lines[heading + 1].split(maxsplit=2) == [
         "git",
         "problem",

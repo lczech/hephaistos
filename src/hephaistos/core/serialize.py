@@ -239,7 +239,7 @@ def terminal_json(
 ) -> TerminalJson:
     """A Terminal, with the innermost Checkout containing the directory it started in.
 
-    `known` are this Machine's Clones, if read already.
+    `known` are the Clones of this Machine, if read already.
     """
     names = names if names is not None else machines.names(session, [state.observed_by])
     checkout = clones.recorded_checkout(session, state.directory, known)
@@ -263,7 +263,7 @@ def terminal_json(
 
 
 def terminals_json(session: ReadSession) -> list[TerminalJson]:
-    """This Machine's Terminals, by name."""
+    """The Terminals of this Machine, by name."""
     found = terminal_states.on_this_machine(session)
     names = machines.names(session, {state.observed_by for state in found})
     known = clones.on_this_machine(session)

@@ -1,9 +1,9 @@
 """tmux as the Keeper: one session with one pane per Terminal, on a socket of our own.
 
 Every call runs the tmux client with our socket (`-L`) and our generated config (`-f`), so the
-user's own tmux and `~/.tmux.conf` never come into it. Where systemd's user manager answers,
-the server starts in a scope of its own, with that manager's environment, and each Terminal's
-process in another one; see `scopes`.
+tmux of the user and `~/.tmux.conf` never come into it. Where the systemd user manager answers,
+the server starts in a scope of its own, with the environment of that manager, and the process
+of each Terminal in another one; see `scopes`.
 """
 
 import dataclasses
@@ -41,12 +41,12 @@ TIMEOUT = 10.0  # seconds for one tmux command; tmux is local, so only a hung on
 DEFAULT_SOCKET = "hephaistos"
 CONFIG_NAME = "tmux.conf"  # in the state directory
 
-#: Our session option holding the Terminal's ID, and our server option holding the config's.
+#: Our options: on a session, the ID of its Terminal; on the server, the config marker.
 ID_OPTION = "@hephaistos_id"
 CONFIG_OPTION = "@hephaistos_config"
 
-#: What a terminal emulator passes on to a new tab: tmux's `update-environment` defaults, with
-#: Wayland's display and the session's D-Bus. A new Terminal takes them from its creator.
+#: What a terminal emulator passes on to a new tab: the `update-environment` defaults of tmux,
+#: with the Wayland display and the D-Bus session bus. A new Terminal takes them from its creator.
 UPDATED_VARIABLES = (
     "DISPLAY",
     "KRB5CCNAME",
@@ -90,7 +90,7 @@ _NO_SERVER = re.compile(
 )
 #: How tmux says that a server has no sessions left, e.g. to `list-panes -a`.
 _NO_SESSIONS = re.compile(r"^no current target", re.MULTILINE)
-#: tmux's own words, its apostrophe written as `\x27` (docs/style.md: none in our text).
+#: What tmux itself prints, its apostrophe written as `\x27` (docs/style.md: none in our text).
 _NO_SESSION = re.compile(r"^(can\x27t find session|no such session)", re.MULTILINE)
 _DUPLICATE = re.compile(r"^duplicate session", re.MULTILINE)
 
@@ -98,7 +98,7 @@ _DUPLICATE = re.compile(r"^duplicate session", re.MULTILINE)
 def parse_version(text: str) -> tuple[int, int] | None:
     """The version that `tmux -V` names, e.g. `tmux 3.2a` → (3, 2); `next-3.6` counts as 3.6.
 
-    None if it names none, e.g. `tmux master` or OpenBSD's `tmux openbsd-7.5`.
+    None if it names none, e.g. `tmux master`, or `tmux openbsd-7.5` on OpenBSD.
     """
     match = re.fullmatch(r"tmux (?:next-)?(\d+)\.(\d+)[a-z]?_?", text.strip())
     return (int(match[1]), int(match[2])) if match else None
@@ -165,10 +165,10 @@ def _unescaped(match: re.Match[bytes]) -> bytes:
 def tmux_path(text: str) -> Path:
     r"""A path as tmux prints it, its escapes read where that names an existing path.
 
-    Some builds, e.g. Ubuntu's 3.4, write control characters and bytes that are not UTF-8 as
-    escapes, `\037` or C's `\b`, and `$` as `\$`, but a backslash as itself (conda-forge's print
-    them as they are): the escapes count where the path so read exists and the text as printed
-    does not.
+    Some builds, e.g. 3.4 on Ubuntu, write control characters and bytes that are not UTF-8 as
+    escapes, `\037` or `\b` as in C, and `$` as `\$`, but a backslash as itself (those of
+    conda-forge print them as they are): the escapes count where the path so read exists and the
+    text as printed does not.
     """
     printed = Path(text)
     if "\\" not in text:
@@ -193,9 +193,9 @@ def scope_of(pid: int | None) -> str | None:
 
 
 def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
-    """The socket's name for the setting `terminals.tmux.socket`.
+    """The name of the socket for the setting `terminals.tmux.socket`.
 
-    `auto` gives `hephaistos`, or with HEPHAISTOS_HOME, a name of that directory's own, so that
+    `auto` gives `hephaistos`, or with HEPHAISTOS_HOME, a name unique to that directory, so that
     tests and scratch Daemons keep apart from the real Terminals.
     """
     if setting != "auto":
@@ -210,12 +210,12 @@ def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
 def config_text(history: int) -> str:
     """Our tmux config, ending with the marker that names it by its hash.
 
-    A plain terminal: no status bar, and none of tmux's keys but detaching and copy mode. The
+    A plain terminal: no status bar, and none of the tmux keys but detaching and copy mode. The
     server outlives its last session, so that no server means it crashed or was killed.
     """
     variables = " ".join(UPDATED_VARIABLES)
     body = f"""\
-# hephaistos's tmux config, generated from its settings: changes here are overwritten.
+# The tmux config of hephaistos, generated from its settings: changes here are overwritten.
 set -g status off
 set -g default-terminal xterm-256color
 set -as terminal-features ",*:RGB"
@@ -237,12 +237,12 @@ bind -T prefix C-b send-prefix
 
 
 def config_digest(text: str) -> str:
-    """The hash that `text`'s marker names."""
+    """The hash that the marker in `text` names."""
     return text.rstrip("\n").rsplit(" ", 1)[-1]
 
 
 def _literal(text: str) -> str:
-    """Text tmux expands as a format, e.g. a new session's name or directory, kept as it is."""
+    """Text tmux expands as a format, e.g. the name or directory of a new session, kept as it is."""
     return _escaped(text.replace("#", "##"))
 
 
@@ -255,7 +255,7 @@ def _escaped(argument: str) -> str:
 
 
 def _login_shell(environment: Mapping[str, str]) -> str:
-    """The user's shell: the creator's SHELL, else the account's."""
+    """The shell of the user: SHELL in the environment of the creator, else that of the account."""
     return environment.get("SHELL") or pwd.getpwuid(os.getuid()).pw_shell or "/bin/sh"
 
 
@@ -268,7 +268,7 @@ def _time(text: str) -> datetime:
 
 
 class TmuxKeeper:
-    """Keeps Terminals alive in tmux; see the module's description."""
+    """Keeps Terminals alive in tmux; see the module docstring."""
 
     def __init__(  # noqa: PLR0913 - keyword-only, each a setting or a stand-in for tests
         self,
@@ -291,7 +291,7 @@ class TmuxKeeper:
 
     @classmethod
     def from_settings(cls, paths: Paths, env: Mapping[str, str] = os.environ) -> "TmuxKeeper":
-        """The Keeper as this Machine's settings describe it."""
+        """The Keeper as the settings of this Machine describe it."""
         settings = config.settings().terminals
         return cls(
             binary=binary(),
@@ -302,7 +302,7 @@ class TmuxKeeper:
 
     @cached_property
     def scopes(self) -> Scopes | None:
-        """The user's systemd manager, asked once, when first needed."""
+        """The systemd user manager, asked once, when first needed."""
         return self._detect_scopes()
 
     # Running tmux.
@@ -310,12 +310,13 @@ class TmuxKeeper:
     def _client(
         self, *args: str, env: Mapping[str, str] | None = None, scoped: bool = False
     ) -> subprocess.CompletedProcess[str]:
-        """Runs a tmux command on our socket; `scoped`, in a scope with systemd's environment."""
+        """Runs a tmux command on our socket; `scoped`, in a scope, with the systemd environment."""
         # -u: UTF-8 whatever the locale, else tmux prints `_` for each other character.
         command = [self.binary, "-u", "-L", self.socket, "-f", str(self.config_file), *args]
         if scoped and self.scopes:
             command = self.scopes.command(command, unit=None, description="hephaistos tmux server")
-            # The socket's directory is the caller's, whatever the manager's environment says.
+            # The directory of the socket is that of the caller, whatever the environment of the
+            # manager says.
             keep = {name: os.environ[name] for name in ("TMUX_TMPDIR",) if name in os.environ}
             env = {**self.scopes.environment, **keep}
         try:
@@ -328,7 +329,7 @@ class TmuxKeeper:
             raise KeeperError(f"tmux did not answer within {self.timeout:g} s") from None
         except OSError as error:
             raise KeeperError(f"tmux failed: {error}") from None
-        # Decoded here, not in text mode, whose universal newlines would turn a path's `\r` into
+        # Decoded here, not in text mode, whose universal newlines would turn a `\r` in a path into
         # `\n`; bytes that are not UTF-8 survive the round trip as surrogates.
         return subprocess.CompletedProcess(
             result.args,
@@ -377,7 +378,10 @@ class TmuxKeeper:
     # Sessions.
 
     def _parsed(self, record: str) -> tuple[Session, str] | None:
-        """A pane's session and the config marker its server has; None, logged, if malformed."""
+        """The session of a pane and the config marker its server has.
+
+        None, logged, if malformed.
+        """
         fields = record.split(_SEPARATOR)
         if len(fields) != len(_FIELDS):
             log.warning("skipped a tmux session we cannot read: %r", record[:200])
@@ -482,7 +486,7 @@ class TmuxKeeper:
 
         Its ID is set by the same command list, so nobody sees it without one. With systemd, its
         process runs in a scope of its own, `hephaistos-terminal-<id>.scope`. A tmux built with
-        systemd support, e.g. Ubuntu's, moves each new pane into its own `tmux-spawn-*.scope`
+        systemd support, e.g. that of Ubuntu, moves each new pane into its own `tmux-spawn-*.scope`
         too, from the server, while the pane starts: whichever move comes last holds it, as
         isolated either way.
         """
@@ -511,7 +515,7 @@ class TmuxKeeper:
         return self.session(name)
 
     def adopt(self, session: Session, terminal_id: uuid.UUID) -> uuid.UUID | None:
-        """Sets the session's ID; see `Keeper.adopt`.
+        """Sets the ID of the session; see `Keeper.adopt`.
 
         tmux compares and sets in one command, so two processes adopting at once agree. The
         session is named by its key, `$3`, single-quoted against tmux expanding `$`. An ID
@@ -543,8 +547,8 @@ class TmuxKeeper:
     def rename(self, name: str, new_name: str) -> None:
         r"""Renames a session; see `Keeper.rename`.
 
-        Targeted by its ID, as tmux may print a name otherwise than it takes it, e.g. Ubuntu's
-        `a$b` as `a\$b`; so for `kill`.
+        Targeted by its ID, as tmux may print a name otherwise than it takes it, e.g. `a$b` as
+        `a\$b` on Ubuntu; so for `kill`.
         """
         self.check()
         key = self.session(name).key
@@ -557,7 +561,7 @@ class TmuxKeeper:
     def kill(self, name: str, *, force: bool = False) -> None:
         """Ends a session; see `Keeper.kill`.
 
-        With `force`, its scope and the processes in its pane's session get SIGKILL first.
+        With `force`, its scope and the processes in the session of its pane get SIGKILL first.
         """
         self.check()
         session = self.session(name)
@@ -570,10 +574,10 @@ class TmuxKeeper:
             raise self._not_found(name, result) or self._failed(["kill-session"], result)
 
     def _kill_hard(self, session: Session) -> None:
-        """SIGKILL for a session's processes: its scope's, and those in its pane's session.
+        """SIGKILL for the processes of a session: in its scope, and in the session of its pane.
 
-        Its scope is the one its process runs in: ours, or tmux's own, see `create`. Never the
-        server's, which holds a session started by hand on a tmux that makes no scopes.
+        Its scope is the one its process runs in: ours, or the one tmux makes, see `create`. Never
+        the scope of the server, which holds a session started by hand on a tmux that makes none.
         """
         unit = scope_of(session.pid) if self.scopes else None
         if unit is not None and unit != scope_of(self._server_pid()):
@@ -584,7 +588,8 @@ class TmuxKeeper:
                 check=False,
                 timeout=self.timeout,
             )
-        # The pane's process leads its session (tmux calls setsid), whose members its children are.
+        # The process of the pane leads its session (tmux calls setsid), whose members its
+        # children are.
         pkill = shutil.which("pkill") or "pkill"
         subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
             [pkill, "-KILL", "-s", str(session.pid)],
@@ -594,7 +599,7 @@ class TmuxKeeper:
         )
 
     def _server_pid(self) -> int | None:
-        """The server's process; None if it does not say."""
+        """The process of the server; None if it does not say."""
         result = self._client("display-message", "-p", "#{pid}")
         text = result.stdout.strip()
         return int(text) if result.returncode == 0 and text.isdecimal() else None

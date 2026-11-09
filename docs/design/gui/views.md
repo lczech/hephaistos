@@ -63,14 +63,14 @@ The Config View lists the settings, with their values and where each comes from.
 
 ## Status
 
-The Status View shows this Machine's setup, its Daemon and what runs, as `hephaistos status` does ([Status](../daemon/status.md)).
-- Setup lists the checks, which the Daemon runs when the View opens or the page gains focus; and this GUI's own: whether it fits the API the Daemon runs.
+The Status View shows the setup of this Machine, its Daemon and what runs, as `hephaistos status` does ([Status](../daemon/status.md)).
+- Setup lists the checks, which the Daemon runs when the View opens or the page gains focus; and one of this GUI itself: whether it fits the API the Daemon runs.
 - About lists the versions and the system; "Copy Setup and About" copies both as Markdown, every check included, the home directory as `~`.
-- Running shows the Daemon's process, Watcher and Server, and what to check when it cannot be reached.
+- Running shows the Daemon, its process, Watcher and Server, and what to check when it cannot be reached.
 - Log links to the Log View, filtered to the warnings and errors of the last day, and says how many; without any, to the whole log.
 Their labels and values line up across the sections, in one grid.
 Its bar says at its end when the checks ran; Refresh runs them again and asks for a pass.
-Its icon is a plain circle; in its tabs, it takes the health's shape, as the status bar's icon does ([layout](layout.md#views-and-dockview)).
+Its icon is a plain circle; in its tabs, it takes the shape of the health, as the icon in the status bar does ([layout](layout.md#views-and-dockview)).
 
 ## Database
 

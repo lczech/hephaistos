@@ -19,7 +19,7 @@ One that no View has used for 5 minutes is dropped (the default `gcTime` of TanS
 
 The live connection reconnects after 1, 2, 4 … 30 s, and at once on focus.
 25 s without a heartbeat count as lost.
-The status bar says live, or since when disconnected; the health's icon turns lost, and the Status View says what to check.
+The status bar says live, or since when disconnected; the health icon turns lost, and the Status View says what to check.
 
 ## Failed requests
 

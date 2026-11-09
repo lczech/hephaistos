@@ -13,10 +13,10 @@ A View gets its parameters as props, with ways to change them and its tab's titl
 Views open other Views through `useOpenView` (`views/opening.ts`), which `layout/` provides with our `openView`, never dockview's API.
 From within a Panel, a View opens from that Panel's Group.
 From elsewhere, e.g. the status bar, it opens from the active Group (`layout/ViewOpener.tsx`).
-The status bar's health icon opens the Status View.
+The health icon in the status bar opens the Status View.
 The health is lost while disconnected, waiting until connected, a warning for each problem, and good otherwise.
-Problems are the setup's, as the Daemon last checked it, with this GUI's fit to the API, and how the Daemon runs: a failed pass or Server, or a stalled Watcher.
-Its icon is a circle of lucide's: dashed, with a check, with an exclamation mark, or with a cross.
+Problems are those of the setup, as the Daemon last checked it, whether this GUI fits the API, and how the Daemon runs: a failed pass or Server, or a stalled Watcher.
+Its icon is a lucide circle: dashed, with a check, with an exclamation mark, or with a cross.
 
 ## Addresses
 

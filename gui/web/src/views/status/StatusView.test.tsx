@@ -61,7 +61,7 @@ describe("the Status View", () => {
     expect(asked("/api/observe")).toBe(passes + 1);
   });
 
-  it("shows a problem in its tab's icon and the status bar's", async () => {
+  it("shows a problem in the icon of its tab and in that of the status bar", async () => {
     open();
     serve(routes());
     renderWithQueries(<App />);
@@ -74,12 +74,12 @@ describe("the Status View", () => {
     expect(tab.querySelector("svg")).toHaveClass("lucide-circle-alert");
   });
 
-  it("links to the log's recent warnings and errors", async () => {
+  it("links to the recent warnings and errors in the log", async () => {
     open();
     const requests = serve(routes());
     renderWithQueries(<App />);
     const link = await screen.findByRole("button", {
-      name: "The log's warnings and errors of the last day",
+      name: "The log: warnings and errors of the last day",
     });
     expect(link).toHaveTextContent(/^Log$/);
     expect(link).toHaveTextContent(/^Log$/);
@@ -99,7 +99,7 @@ describe("the Status View", () => {
     serve(routes([], { warnings: 2, errors: 0 }));
     const { unmount } = renderWithQueries(<App />);
     const some = await screen.findByRole("button", {
-      name: "The log's warnings and errors of the last day",
+      name: "The log: warnings and errors of the last day",
     });
     expect(some).toHaveTextContent(/^Log$/);
     expect(some.parentElement?.nextElementSibling).toHaveTextContent(
@@ -134,7 +134,7 @@ describe("the Status View", () => {
     expect(text).toContain("- Time zone: Europe/Berlin\n");
     expect(text).toContain(`- linger (problem): ${PROBLEM.text}\n`);
     expect(text).toContain("- ionice (note): not installed\n");
-    expect(text).not.toContain("laptop"); // the Machine's name
+    expect(text).not.toContain("laptop"); // the name of the Machine
     expect(text).toContain(
       "- unit (problem): it keeps its data elsewhere: HEPHAISTOS_HOME: the unit has none, here ~/h\n",
     );

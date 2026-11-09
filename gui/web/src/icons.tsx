@@ -131,8 +131,8 @@ export const REF_ICONS: Record<"branch" | "remote" | "tag", LucideIcon> = {
   tag: Tag,
 };
 
-/** The health of this Machine's setup and Daemon, in the status bar and the Status View's tab:
- * of one family, its colour telling it too where it shows. */
+/** The health of the setup and Daemon of this Machine, in the status bar and the tab of the Status
+ * View: of one family, its colour telling it too where it shows. */
 export const HEALTH_ICONS: Record<Health, LucideIcon> = {
   waiting: CircleDashed,
   good: CircleCheck,

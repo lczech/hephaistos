@@ -1,4 +1,4 @@
-// The Status View's About: what runs and on what, as rows; with Setup, as Markdown to paste.
+// About in the Status View: what runs and on what, as rows; with Setup, as Markdown to paste.
 
 import type { Schemas } from "../../api/client";
 import { fullTime } from "../../time";
@@ -8,7 +8,8 @@ type About = Schemas["AboutJson"];
 type Process = Schemas["ProcessJson"];
 type CheckJson = Schemas["CheckJson"];
 
-/** What shows this GUI, from its user agent: Electron's and Chromium's versions, else the browser. */
+/** What shows this GUI, from its user agent: the versions of Electron and Chromium, else the
+ * browser. */
 export function shellText(userAgent: string): string {
   const electron = /Electron\/(\S+)/.exec(userAgent)?.[1];
   const chromium = /Chrome\/(\S+)/.exec(userAgent)?.[1];
@@ -27,7 +28,7 @@ function runningText(process: Process): string {
 
 const known = (value: string | null) => value ?? "unknown";
 
-/** The rows of About: the Daemon's findings, how it runs, and what this GUI was built for. */
+/** The rows of About: what the Daemon found, how it runs, and what this GUI was built for. */
 export function aboutRows(
   about: About,
   process: Process,

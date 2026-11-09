@@ -2,7 +2,7 @@
 
 How the Daemon runs its parts, and how it is installed and checked ([ADR 002](../../decisions/002-technology-stack.md), [ADR 003](../../decisions/003-core.md)).
 Its parts: the [Watcher](watcher.md) and the [Server](server.md); later Sync.
-The checks of this Machine's setup: [Status](status.md).
+The checks of the setup on this Machine: [Status](status.md).
 
 ## Running
 
@@ -38,7 +38,7 @@ A start that finds no stop time logs that the previous Daemon ended without stop
 ## Log
 
 - INFO: start (parts, interval, git and its version), stop, and passes that record Events.
-- WARNING, or INFO for the others: the checks' problems, at the start and as they change.
+- WARNING, or INFO for the others: the problems the checks find, at the start and as they change.
 - DEBUG: passes that record none.
 - ERROR: failed passes and crashes.
 
@@ -68,7 +68,7 @@ Without systemd user services, `daemon run` in tmux takes their place.
 
 `daemon status` shows:
 - the unit;
-- the Daemon, from the lock and `daemon.json`, and whether systemd runs it: whether the unit's main process is this Daemon;
+- the Daemon, from the lock and `daemon.json`, and whether systemd runs it: whether the main process of the unit is this Daemon;
 - the last pass, and what asked for it, with its error or problems;
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.

@@ -47,7 +47,7 @@
 }
 
 .head {
-  position: relative; /* for what it places: the drop line, the menu's anchor */
+  position: relative; /* for what it places: the drop line, the anchor of the menu */
   padding: var(--space-half) var(--space-3) var(--space-half) 0;
   color: var(--text-muted);
 }
@@ -113,7 +113,8 @@
   display: contents;
 }
 
-/* At the header's end, over the last column's; kept in view where the columns scroll sideways. */
+/* At the end of the header, over that of the last column; kept in view where the columns scroll
+   sideways. */
 .clear {
   position: sticky;
   right: var(--space-2);

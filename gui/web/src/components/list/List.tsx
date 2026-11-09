@@ -922,10 +922,10 @@ function showWholeText(event: PointerEvent) {
 }
 
 /**
- * A cell's content: its column's `cell`, called. TanStack's `FlexRender` renders it as a component
- * instead, whose type is new whenever a View builds its columns anew, e.g. on each render; React
- * then mounts every cell again, dropping a selection, the focus or a tooltip in it. So a column's
- * `cell` calls no hooks itself; the components it renders may.
+ * The content of a cell: the `cell` of its column, called. `FlexRender` from TanStack renders it
+ * as a component instead, whose type is new whenever a View builds its columns anew, e.g. on each
+ * render; React then mounts every cell again, dropping a selection, the focus or a tooltip in it.
+ * So the `cell` of a column calls no hooks itself; the components it renders may.
  */
 function CellContent<TData extends RowData>({ cell }: { cell: TableCell<ListFeatures, TData> }) {
   const render = cell.column.columnDef.cell;

@@ -9,7 +9,7 @@ _SURROGATES = range(0xDC80, 0xDD00)  # bytes that are not UTF-8, as `surrogatees
 def escaped(text: str) -> str:
     r"""`text` safe to print on one line: control characters as `\t`, `\n` or `\x01`.
 
-    Also bytes that are not UTF-8 as `\xff`, and Unicode's line separators as `\u2028`. Names
+    Also bytes that are not UTF-8 as `\xff`, and Unicode line separators as `\u2028`. Names
     and paths may hold any of them; nothing else changes.
     """
     if text.isprintable():

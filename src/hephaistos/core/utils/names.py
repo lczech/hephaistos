@@ -9,14 +9,14 @@ from hephaistos.core.utils.errors import HephaistosError
 
 @dataclass(frozen=True, kw_only=True)
 class Names:
-    """What a kind of entity's names may be: the characters, a length and reserved names."""
+    """What the names of a kind of entity may be: the characters, a length and reserved names."""
 
     kind: str  # for messages, e.g. "repository"
-    characters: str  # a regex character class's body, e.g. "A-Za-z0-9._-"
+    characters: str  # the body of a regex character class, e.g. "A-Za-z0-9._-"
     described: str  # the characters for people, e.g. "ASCII letters, digits, '-' and '_'"
     max_length: int
     reserved: frozenset[str] = frozenset()
-    first: str | None = None  # a character class's body for the first one, if narrower
+    first: str | None = None  # the body of a character class for the first one, if narrower
     first_described: str = ""  # e.g. "a letter or digit"
 
     @cached_property
@@ -45,7 +45,7 @@ class Names:
             )
 
     def derived(self, text: str) -> str | None:
-        """A name from `text`, e.g. a directory's: `My Thesis` → `My-Thesis`.
+        """A name from `text`, e.g. the name of a directory: `My Thesis` → `My-Thesis`.
 
         Each run of characters a name cannot have becomes a `-`, as GitHub does, without one at
         either end; None if no name is left.

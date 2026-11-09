@@ -203,7 +203,7 @@ def test_a_creator_tells_what_a_row_stored_first_runs(set_up: Paths) -> None:
 
 
 def test_newer_readings_with_the_clock_ahead(set_up: Paths) -> None:
-    """After a Peer's clock, ahead of ours, the clock runs ahead of the wall: what counts as
+    """After the clock of a Peer, ahead of ours, the clock runs ahead of the wall: what counts as
     newer still follows the order of the writes."""
     with write_session(set_up) as written:
         written.clock.receive(Timestamp.of(wall_ms() + MAX_DRIFT_MS - 60_000))

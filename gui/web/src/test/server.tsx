@@ -111,7 +111,7 @@ export function daemon(): Schemas["DaemonJson"] {
   };
 }
 
-/** This Machine's setup and what runs, as `/api/status` gives them: all well. */
+/** The setup of this Machine and what runs, as `/api/status` gives them: all well. */
 export function status(checks: Schemas["CheckJson"][] = []): Schemas["StatusJson"] {
   return {
     checks: [

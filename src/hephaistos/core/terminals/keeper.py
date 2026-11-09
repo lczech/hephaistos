@@ -1,7 +1,7 @@
 """What keeps Terminals alive: the interface the Core uses, whichever tool implements it.
 
-A Keeper holds each Terminal's process and its output while nothing shows it. It knows nothing
-of the database; the Core compares its sessions with the State it stores.
+A Keeper holds the process of each Terminal and its output while nothing shows it. It knows
+nothing of the database; the Core compares its sessions with the State it stores.
 """
 
 import uuid
@@ -13,7 +13,7 @@ from typing import Protocol
 
 from hephaistos.core.utils.errors import HephaistosError
 
-#: The variable that tells a Terminal's programs which Terminal they run in: its ID.
+#: The variable that tells the programs in a Terminal which Terminal they run in: its ID.
 TERMINAL_VARIABLE = "HEPHAISTOS_TERMINAL"
 
 
@@ -33,7 +33,7 @@ class NoSuchSessionError(KeeperError):
 class Session:
     """A Terminal as its Keeper sees it at one moment."""
 
-    key: str  # the Keeper's own ID for it, e.g. tmux's `$3`
+    key: str  # the ID the Keeper itself gives it, e.g. `$3` in tmux
     terminal_id: uuid.UUID | None  # ours; None until adopted, or if `id_text` is not one
     id_text: str  # as the Keeper holds it: empty until adopted
     name: str
@@ -70,10 +70,10 @@ class Keeper(Protocol):
         command: Sequence[str] | None,
         environment: Mapping[str, str],
     ) -> Session:
-        """Starts a session in `directory`: `command`, else the creator's login shell.
+        """Starts a session in `directory`: `command`, else the login shell of the creator.
 
-        `environment` is the creator's, e.g. a shell's: the Terminal gets the variables that a
-        terminal emulator passes on, such as DISPLAY and SSH_AUTH_SOCK, from it.
+        `environment` is that of the creator, e.g. of a shell: the Terminal gets the variables
+        that a terminal emulator passes on, such as DISPLAY and SSH_AUTH_SOCK, from it.
         Raises NameTakenError if `name` is taken.
         """
         ...
@@ -82,8 +82,8 @@ class Keeper(Protocol):
         """Gives a session `terminal_id`, unless its ID changed since `session` was listed.
 
         For a session found without an ID, e.g. one started by hand, or with one that is not
-        valid or is another's. Returns the ID it has then, which another process may have given
-        it meanwhile; None if it is gone.
+        valid or is that of another. Returns the ID it has then, which another process may have
+        given it meanwhile; None if it is gone.
         """
         ...
 

@@ -121,7 +121,7 @@ def test_the_token_counts_only_in_the_header(
 def test_terminal_endpoints_return_what_the_cli_prints(
     client: TestClient, repo: Path, keeper: TmuxKeeper
 ) -> None:
-    del keeper  # the test's own tmux socket, ended afterwards
+    del keeper  # the tmux socket of this test alone, ended afterwards
     created = runner.invoke(cli, ["terminal", "create", "-n", "api", "-d", str(repo)])
     assert created.exit_code == 0, created.output
     [terminal] = _cli("terminal", "list")

@@ -1,5 +1,5 @@
-// How this Machine's setup and Daemon are doing, in a word and why: what the Status View's icon
-// shows, in the status bar and its tab.
+// How the setup and Daemon of this Machine are doing, in a word and why: what the icon of the
+// Status View shows, in the status bar and its tab.
 
 import type { Schemas } from "../../api/client";
 import { type Connection, useConnection } from "../../api/live";
@@ -12,8 +12,8 @@ export type Health = "waiting" | "good" | "warning" | "lost";
 
 /**
  * The health: lost while the live connection is, waiting until it first connects, else a
- * warning for each problem with the setup, as the Daemon checked it last, with this GUI's fit
- * (`apiHint`), and with how the Daemon runs; else good.
+ * warning for each problem with the setup, as the Daemon checked it last, with whether this GUI
+ * fits the API (`apiHint`), and with how the Daemon runs; else good.
  */
 export function daemonHealth(
   connection: Connection,
@@ -39,7 +39,8 @@ export function daemonHealth(
     : { health: "good", reasons: ["running"] };
 }
 
-/** This Machine's health, kept current: by the live connection, and the Daemon's status. */
+/** The health of this Machine, kept current: by the live connection, and the status of the
+ * Daemon. */
 export function useHealth(): { health: Health; reasons: string[] } {
   const info = useInfo();
   const daemon = useDaemon();
@@ -49,7 +50,7 @@ export function useHealth(): { health: Health; reasons: string[] } {
   return daemonHealth(connection, daemon.data, now, hint);
 }
 
-/** The problems the Daemon's checks of the setup found, as it ran them last. */
+/** The problems the checks of the setup by the Daemon found, as it ran them last. */
 export function setupProblems(daemon: Schemas["DaemonJson"]): string[] {
   const checks = daemon.checks?.checks ?? [];
   return checks

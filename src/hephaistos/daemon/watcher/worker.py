@@ -75,7 +75,7 @@ def _lower_priority() -> None:
 
 
 def observed(paths: Paths) -> Done | PassFailed:
-    """Observes this Machine's Clones, then its Terminals, retrying while the database is busy."""
+    """Observes Clones, then Terminals, of this Machine, retrying while the database is busy."""
     for delay in (*BUSY_RETRY_DELAYS, None):
         try:
             result = observer.observe(paths)

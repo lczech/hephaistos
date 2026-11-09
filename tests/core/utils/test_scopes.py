@@ -36,7 +36,7 @@ def test_command_runs_in_a_scope() -> None:
 
 
 def test_none_where_systemctl_fails() -> None:
-    assert scopes.detect() is None  # the tests' systemctl fails, as without a user manager
+    assert scopes.detect() is None  # systemctl fails in the tests, as without a user manager
 
 
 def test_none_without_systemd_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

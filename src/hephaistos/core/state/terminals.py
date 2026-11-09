@@ -1,8 +1,8 @@
-"""Terminals' State: what each Machine's Keeper last showed of its Terminals.
+"""The State of Terminals: what the Keeper of each Machine last showed of its Terminals.
 
 A Terminal is open while its session runs, lost once it cannot run any more, after a reboot or
-when its Keeper's server died; lost ones keep their row and name until restored or killed. One
-that ended, e.g. its shell exited, loses its row. Terminals record no Events.
+when the server of its Keeper died; lost ones keep their row and name until restored or killed.
+One that ended, e.g. its shell exited, loses its row. Terminals record no Events.
 """
 
 import json
@@ -27,8 +27,8 @@ from hephaistos.core.utils.text import escaped, number_text, utf8
 
 log = logging.getLogger(__name__)
 
-#: What hephaistos names Terminals; adopted ones keep the Keeper's name, whatever it is. tmux
-#: forbids `.` and `:`, and a leading `-` would read as an option.
+#: What hephaistos names Terminals; adopted ones keep their name in the Keeper, whatever it
+#: is. tmux forbids `.` and `:`, and a leading `-` would read as an option.
 NAMES = Names(
     kind="terminal",
     characters="A-Za-z0-9_-",
@@ -38,7 +38,7 @@ NAMES = Names(
     first_described="a letter, digit or '_'",
 )
 _NUMBERS = re.compile(r"([0-9]+)")
-DEFAULT_BASE = "terminal"  # a default name's start where the directory gives none
+DEFAULT_BASE = "terminal"  # the start of a default name where the directory gives none
 
 #: The columns of `state_terminals`, decoded for raw listings.
 DECODERS = {
@@ -126,7 +126,7 @@ def name_order(name: str) -> tuple[tuple[int, int | str], ...]:
 
 
 def on_this_machine(session: ReadSession) -> list[TerminalState]:
-    """This Machine's Terminals, by name."""
+    """The Terminals of this Machine, by name."""
     rows = session.conn.execute(
         f"SELECT {', '.join(COLUMNS)} FROM state_terminals WHERE observed_by = ?",  # noqa: S608 - our own constant
         (session.machine_id,),
@@ -143,7 +143,7 @@ class NoSuchTerminalError(HephaistosError):
 
 
 def by_name(session: ReadSession, name: str) -> TerminalState:
-    """This Machine's Terminal named exactly `name`; raises NoSuchTerminalError."""
+    """The Terminal of this Machine named exactly `name`; raises NoSuchTerminalError."""
     for state in on_this_machine(session):
         if state.name == name:
             return state
@@ -162,7 +162,7 @@ def _free_name(base: str, taken: Collection[str]) -> str:
 
 
 def by_id(session: ReadSession, terminal_id: uuid.UUID) -> TerminalState | None:
-    """This Machine's Terminal with that ID; None if it has none."""
+    """The Terminal of this Machine with that ID; None if it has none."""
     found = [state for state in on_this_machine(session) if state.id == terminal_id]
     return found[0] if found else None
 
@@ -170,15 +170,15 @@ def by_id(session: ReadSession, terminal_id: uuid.UUID) -> TerminalState | None:
 def default_name(session: ReadSession, directory: Path, refused: Collection[str] = ()) -> str:
     """A name for a new Terminal in `directory`, e.g. `hephaistos-1`, then `hephaistos-2`.
 
-    Derived from the directory's name, numbered from 1 among this Machine's Terminals, lost ones
-    included, and past those in `refused`, e.g. taken by a session not observed yet.
+    Derived from the name of the directory, numbered from 1 among the Terminals of this Machine,
+    lost ones included, and past those in `refused`, e.g. taken by a session not observed yet.
     """
     base = NAMES.derived(directory.name) or DEFAULT_BASE
     return _free_name(base, {state.name for state in on_this_machine(session)} | set(refused))
 
 
 def _write(session: WriteSession, state: TerminalState) -> None:
-    """Stores a Terminal's State, replacing the previous one.
+    """Stores the State of a Terminal, replacing the previous one.
 
     Its names and paths as UTF-8 holds them: a session started by hand where they are not, or a
     `cd` there, must not stop observation.
@@ -218,7 +218,7 @@ def rename_lost(session: WriteSession, state: TerminalState, new_name: str) -> N
 
 
 def forget(session: WriteSession, state: TerminalState) -> None:
-    """Deletes a lost Terminal's row: it is killed without having run again."""
+    """Deletes the row of a lost Terminal: it is killed without having run again."""
     _delete(session, state.id)
 
 
@@ -259,7 +259,9 @@ def _end_or_lose(
     if rebooted:
         log.info("%s lost by a reboot", number_text(rebooted, "terminal"))
     if unexpected := lost - rebooted:  # in the same boot
-        log.warning("the Keeper's server is gone: %s lost", number_text(unexpected, "terminal"))
+        log.warning(
+            "the server of the keeper is gone: %s lost", number_text(unexpected, "terminal")
+        )
     return ended, lost
 
 
@@ -272,7 +274,7 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     started: Timestamp,
     command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
 ) -> Changes:
-    """Stores what the Keeper showed of this Machine's Terminals.
+    """Stores what the Keeper showed of the Terminals of this Machine.
 
     `found` are its sessions with an ID (those without are left for the next observation),
     `running` whether its server runs. A Terminal not found ended if the server runs in the

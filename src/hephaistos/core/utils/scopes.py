@@ -1,8 +1,8 @@
 """systemd scopes: running a process in a cgroup of its own, apart from what started it.
 
 systemd stops a unit by killing its whole cgroup, and systemd-oomd kills whole cgroups under
-memory pressure; a process forked by another stays in that one's cgroup, however it detaches.
-`systemd-run --user --scope` moves a command into a new scope of the user's manager, then
+memory pressure; a process stays in the cgroup of the process that forked it, however it
+detaches. `systemd-run --user --scope` moves a command into a new scope of the user manager, then
 becomes the command, keeping its process ID.
 """
 
@@ -15,15 +15,15 @@ from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
-TIMEOUT = 5.0  # seconds for systemctl to answer; the user's manager is local
+TIMEOUT = 5.0  # seconds for systemctl to answer; the user manager is local
 
 
 @dataclass(frozen=True)
 class Scopes:
-    """systemd's user manager, reachable: its environment, and a way into scopes of it."""
+    """The systemd user manager, reachable: its environment, and a way into scopes of it."""
 
     systemd_run: str  # its path
-    environment: Mapping[str, str]  # the manager's, as a desktop session's apps get it
+    environment: Mapping[str, str]  # that of the manager, as the apps of a desktop session get it
 
     def command(self, command: Sequence[str], *, unit: str | None, description: str) -> list[str]:
         """`command`, run in a new scope: named `unit` (`<unit>.scope`), else one systemd names."""
@@ -56,7 +56,7 @@ def parse_environment(text: str) -> dict[str, str]:
                 raw = codecs.escape_decode(value[2:-1].encode())[0]
             except ValueError:
                 log.warning(
-                    "skipped systemd's variable %s, which has an escape we cannot read", name
+                    "skipped the systemd variable %s, which has an escape we cannot read", name
                 )
                 continue
             value = raw.decode(errors="surrogateescape")
@@ -65,7 +65,7 @@ def parse_environment(text: str) -> dict[str, str]:
 
 
 def detect() -> Scopes | None:
-    """The user's systemd manager, if it answers here and systemd-run exists; else None.
+    """The systemd user manager, if it answers here and systemd-run exists; else None.
 
     None e.g. on clusters, in containers or in an SSH session without a user manager.
     """

@@ -21,7 +21,7 @@ pytestmark = pytest.mark.tmux
 
 @pytest.fixture
 def set_up(paths: Paths, keeper: TmuxKeeper) -> Paths:
-    """A Machine whose Keeper is the test's own, its server ended afterwards."""
+    """A Machine whose Keeper is the one of this test, its server ended afterwards."""
     del keeper
     machines.set_up(paths, "laptop")
     return paths
@@ -261,5 +261,5 @@ def test_lost_ones_are_logged(
     with caplog.at_level(logging.INFO, logger="hephaistos.core.state.terminals"):
         lose_all(keeper, set_up)
     assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
-        ("WARNING", "the Keeper's server is gone: 2 terminals lost"),
+        ("WARNING", "the server of the keeper is gone: 2 terminals lost"),
     ]

@@ -26,7 +26,7 @@ function connectionText(connection: Connection, now: number): [string, string] {
 }
 
 /** One line at the bottom: this Machine, or for a while what was just done (`notify`); at its
- * end, how its setup and Daemon are doing, and whether the live connection is. The health's icon
+ * end, how its setup and Daemon are doing, and whether the live connection is. The health icon
  * opens the Status View. */
 export function StatusBar() {
   const info = useInfo();

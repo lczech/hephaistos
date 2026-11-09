@@ -1899,7 +1899,7 @@
           "type": "object"
         },
         "LogCountsJson": {
-          "description": "The log's recent records that may need looking at.",
+          "description": "Recent records in the log that may need looking at.",
           "properties": {
             "errors": {
               "title": "Errors",
@@ -2674,7 +2674,7 @@
           "type": "object"
         },
         "StatusJson": {
-          "description": "This Machine's setup, as checked by whoever asks, what runs, and how the Daemon is doing.",
+          "description": "The setup of this Machine, as whoever asks checks it; what runs; how the Daemon is doing.",
           "properties": {
             "about": {
               "$ref": "#/components/schemas/AboutJson"
@@ -5283,7 +5283,7 @@
       },
       "/api/status": {
         "get": {
-          "description": "This Machine's setup, as the Daemon finds it, and how it is doing, as `status --json`.\n\nThe Daemon records these checks in its status, which `status` shows beside its own.",
+          "description": "The setup of this Machine, as the Daemon finds it, and how it is doing, as `status --json`.\n\nThe Daemon records these checks in its status, which `status` shows beside its own.",
           "operationId": "status_api_status_get",
           "responses": {
             "200": {
@@ -5312,7 +5312,7 @@
       },
       "/api/terminals": {
         "get": {
-          "description": "This Machine's Terminals, as `terminal list --json`, as last observed.",
+          "description": "The Terminals of this Machine, as `terminal list --json`, as last observed.",
           "operationId": "terminal_list_api_terminals_get",
           "responses": {
             "200": {

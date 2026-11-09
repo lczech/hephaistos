@@ -2,9 +2,9 @@
   composes: page from "../../components/text.module.css";
 }
 
-/* What the Daemon reported last: dimmed while that may be out of date. One grid of a label's
-   column and a value's, across all sections, so that they line up; what is not a row spans both.
-   The sections' lists take part in it (`display: contents`). */
+/* What the Daemon reported last: dimmed while that may be out of date. One grid of a column of
+   labels and one of values, across all sections, so that they line up; what is not a row spans
+   both. The lists of the sections take part in it (`display: contents`). */
 .status {
   composes: dims from "../../components/text.module.css";
   display: grid;
@@ -57,7 +57,7 @@
   composes: action from "../../components/controls.module.css";
 }
 
-/* A section's title: Setup, About, Running, Log. */
+/* The title of a section: Setup, About, Running, Log. */
 .heading {
   margin: var(--space-3) 0 var(--space-1);
   font-size: inherit;
@@ -68,7 +68,7 @@
   margin-top: 0;
 }
 
-/* A check per line: its outcome's icon and what it checked; what it found, with what to do. */
+/* A check per line: the icon of its outcome and what it checked; what it found, with what to do. */
 .checks,
 .check {
   display: contents;
@@ -94,8 +94,9 @@
   color: var(--text-muted);
 }
 
-/* A named link as a label: at the column's start, its icon under the checks' icons. Its own
-   margins are made for text before it in a line; with `.status`, this outweighs `.link.named`. */
+/* A named link as a label: at the start of the column, its icon under the icons of the checks.
+   Its own margins are made for text before it in a line; with `.status`, this outweighs
+   `.link.named`. */
 .status .link > button {
   margin-left: calc(-1 * var(--space-1));
 }

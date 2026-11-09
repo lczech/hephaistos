@@ -1,6 +1,6 @@
 """How the Daemon is doing: what `daemon status` shows and `/api/daemon` returns.
 
-With this Machine's setup, also what `status` shows and `/api/status` returns.
+With the setup of this Machine, also what `status` shows and `/api/status` returns.
 """
 
 import logging
@@ -19,7 +19,7 @@ from hephaistos.daemon.status import Check, PassStatus, ServerStatus, Status, Tr
 from hephaistos.daemon.unit import ForeignUnitError, UnitState
 
 STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
-RECENT_LOG = timedelta(hours=24)  # how far back `status` counts the log's warnings and errors
+RECENT_LOG = timedelta(hours=24)  # how far back `status` counts warnings and errors in the log
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ class Report:
 
     @property
     def under_systemd(self) -> bool:
-        """Whether systemd runs the Daemon: its unit's process is it, not a `daemon run`."""
+        """Whether systemd runs the Daemon: the process of its unit is it, not a `daemon run`."""
         state, found = self.unit, self.status
         return (
             state is not None
@@ -221,7 +221,7 @@ def report_json(found: Report, now: datetime) -> DaemonJson:
 
 
 class LogCountsJson(TypedDict):
-    """The log's recent records that may need looking at."""
+    """Recent records in the log that may need looking at."""
 
     since: str
     warnings: int
@@ -229,7 +229,7 @@ class LogCountsJson(TypedDict):
 
 
 class StatusJson(TypedDict):
-    """This Machine's setup, as checked by whoever asks, what runs, and how the Daemon is doing."""
+    """The setup of this Machine, as whoever asks checks it; what runs; how the Daemon is doing."""
 
     checks: list[CheckJson]
     about: AboutJson

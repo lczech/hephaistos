@@ -145,7 +145,7 @@ def _outcome(value: object) -> Outcome:
 
 
 def _checked_json(checked: Checked) -> dict[str, object]:
-    """The Daemon's checks as JSON values."""
+    """The checks of the Daemon as JSON values."""
     return {
         "at": _at(checked.at),
         "checks": [
@@ -156,7 +156,7 @@ def _checked_json(checked: Checked) -> dict[str, object]:
 
 
 def _checked_from(data: Any) -> Checked:  # noqa: ANN401 - JSON, checked here
-    """The Daemon's checks from their JSON values; raises if any do not fit."""
+    """The checks of the Daemon from their JSON values; raises if any do not fit."""
     return Checked(
         datetime.fromisoformat(_of(data["at"], str)),
         tuple(

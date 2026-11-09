@@ -21,7 +21,7 @@ A list that is part of a page, the Diff's untracked files, draws the rows near t
 ## Rows
 
 A row opens by the button in its first cell, or by a click anywhere else on it but on its cells' own buttons and links, and not by one selecting text.
-A row's cells update in place as their data comes again, so a selection, the focus or a tooltip in them stays: `List` calls each column's `cell`, which therefore calls no hooks itself, rather than rendering it as a component, which a View building its columns anew would make a new one each time.
+The cells of a row update in place as their data comes again, so a selection, the focus or a tooltip in them stays: `List` calls the `cell` of each column, which therefore calls no hooks itself, rather than rendering it as a component, which a View building its columns anew would make a new one each time.
 What a row opens, and how it shows that, is in [interaction](interaction.md#rows):
 - details below it;
 - the rows within it, where it folds (`getSubRows`, `data-depth`): the Changes View's groups, directories with changes, and new folders, whose files are asked for once opened;
@@ -95,7 +95,7 @@ Any of several is for a set: kinds, Repositories; none means all.
 Filters are the View's parameters, by the names of the API's, which filters like the CLI.
 So they are saved with the Layout, and the tab's title names them.
 A filter may be linked: set only from outside, e.g. by a link, and offered only while set.
-In columns, a button at the header's end clears them all, kept in view where the columns scroll sideways.
+In columns, a button at the end of the header clears them all, kept in view where the columns scroll sideways.
 
 ## Layouts
 

@@ -2,8 +2,8 @@
 
 Entities are addressed by ID, as names change. Lists come whole, except Events, which page
 back with `before`, newest first; the log, back with `before` too; and tables' rows, with
-`offset`. A Checkout's changes and a file's diff, only here: on the command line, git shows them.
-A Directory's files, by its absolute path, anywhere this user may list.
+`offset`. The changes of a Checkout and the diff of a file, only here: on the command line, git
+shows them. The files of a Directory, by its absolute path, anywhere this user may list.
 """
 
 import asyncio
@@ -83,7 +83,7 @@ router = APIRouter(
 )
 
 type Observe = Callable[[Trigger], Awaitable[Done | PassFailed]]  # the Watcher's pass
-type RecordChecks = Callable[[Sequence[Check]], None]  # in the Daemon's status
+type RecordChecks = Callable[[Sequence[Check]], None]  # in the status of the Daemon
 
 type Current = Hint | Literal["focus", "reconnect"]
 
@@ -272,7 +272,7 @@ def worktree_show(paths: PathsOf, worktree_id: uuid.UUID) -> WorktreeJson:
 
 @router.get("/terminals")
 def terminal_list(paths: PathsOf) -> list[TerminalJson]:
-    """This Machine's Terminals, as `terminal list --json`, as last observed."""
+    """The Terminals of this Machine, as `terminal list --json`, as last observed."""
     with read_session(paths) as session:
         return serialize.terminals_json(session)
 
@@ -702,14 +702,14 @@ def daemon(paths: PathsOf) -> DaemonJson:
 
 @router.get("/status")
 async def status(paths: PathsOf, request: Request) -> StatusJson:
-    """This Machine's setup, as the Daemon finds it, and how it is doing, as `status --json`.
+    """The setup of this Machine, as the Daemon finds it, and how it is doing, as `status --json`.
 
     The Daemon records these checks in its status, which `status` shows beside its own.
     """
     found = await asyncio.to_thread(checks.run)  # in the Daemon: no shell to compare with
     record = cast("RecordChecks | None", request.app.state.record)
     if record is not None:
-        record(found)  # in the event loop, as the Daemon's other parts report
+        record(found)  # in the event loop, as the other parts of the Daemon report
     now = datetime.now(UTC)
     return await asyncio.to_thread(
         lambda: report.status_json(paths, found, about_of(), report.report(paths), now)

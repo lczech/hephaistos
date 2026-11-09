@@ -29,10 +29,10 @@ FILE_NAMES = (
     .map(lambda name: name if isinstance(name, str) else os.fsdecode(name))
     .filter(lambda name: name not in (".", "..") and len(os.fsencode(name)) <= 255)
 )
-#: What a program's argument or an environment variable may hold: anything but NUL.
+#: What an argument of a program or an environment variable may hold: anything but NUL.
 VALUES = st.text(st.characters(exclude_categories=("Cs",), exclude_characters="\x00"))
 ARGUMENTS = st.lists(VALUES, max_size=5)
-#: With real tmux, each example takes a moment, and the fixtures are the test's, shared.
+#: With real tmux, each example takes a moment, and the fixtures are those of the test, shared.
 WITH_TMUX = settings(
     max_examples=40, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
 )
@@ -74,7 +74,7 @@ def locale(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> s
 @pytest.mark.usefixtures("locale")
 @WITH_TMUX
 @given(name=FILE_NAMES, arguments=ARGUMENTS, value=VALUES)
-# What tmux reads specially: formats, a command's end, escapes it prints, a variable.
+# What tmux reads specially: formats, the end of a command, escapes it prints, a variable.
 @example(name="#S", arguments=["#{pid}", ";", "x;", "\\;"], value="#{pid};")
 @example(name="$HOME", arguments=["$HOME"], value="$HOME")
 @example(name="a\\037b", arguments=[], value="\\")
@@ -139,7 +139,7 @@ def test_a_session_named_by_hand_is_adopted_by_its_name(
     set_up: Paths, keeper: TmuxKeeper, tmp_path: Path, name: str
 ) -> None:
     """tmux escapes a name as it makes the session, e.g. a backslash doubled, and refuses some;
-    whatever name it gives is the Terminal's."""
+    whatever name it gives is that of the Terminal."""
     command = [keeper.binary, "-L", keeper.socket, "new-session", "-d", "-s", name, "-c"]
     made = subprocess.run([*command, str(tmp_path), "sleep 600"], capture_output=True, check=False)
     if made.returncode != 0:  # a name tmux refuses

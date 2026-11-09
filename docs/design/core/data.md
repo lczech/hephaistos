@@ -15,7 +15,7 @@ The database's tables, and how the Core reads and writes them ([ADR 003](../../d
 | `registry_clones` | `id`, `repository_id`, `filesystem_id`, `resolved_path`, `display_path` |
 | `state_clones` | `clone_id`, `observed_at`, `observed_by`, `present`, `bare`, `head`, `branch` (NULL when detached), status (`upstream`, `ahead`, `behind`, `staged`, `changed`, `untracked`, `conflicted`; NULL when bare), `root_commits` (JSON), `remotes` (JSON), `branches` (JSON), `error`, `head_log` and `push_log` (reflog cursors) |
 | `state_worktrees` | `id`, `clone_id`, `name` (git's), `path` (as git reports it), `lock_reason`, `observed_at`, `observed_by`, `present`, `head`, `branch`, status (as for Clones), `error`, `head_log`, `removed` |
-| `state_terminals` | `id`, `name` (unique per Machine), `directory` (where it started), `command` (JSON; NULL for a shell), `status` (`open`, `lost`), `boot_id`, `started_at` and `active_at` (by the Machine's clock), `current_directory`, `program`, `clients`, `panes`, `observed_at`, `observed_by` ([terminals](terminals.md#observing)) |
+| `state_terminals` | `id`, `name` (unique per Machine), `directory` (where it started), `command` (JSON; NULL for a shell), `status` (`open`, `lost`), `boot_id`, `started_at` and `active_at` (by the clock of the Machine), `current_directory`, `program`, `clients`, `panes`, `observed_at`, `observed_by` ([terminals](terminals.md#observing)) |
 | `events` | `id`, `recorded_at`, `recorded_by`, `kind`, `subject`, `priority`, `payload` (JSON), `occurred_at`, `key` |
 
 Table names start with their category (`registry_`, `state_`); `events` and `meta` stand alone.

@@ -1,4 +1,5 @@
-"""One process of `test_soak.py`: random creates, renames and kills of this Machine's Terminals.
+"""One process of `test_soak.py`: random creates, renames and kills of the Terminals of this
+Machine.
 
 Usage: soak_worker.py <seed> <operations> <directory>. Prints each Terminal it created, as JSON
 with its ID and command, one per line. Refusals a racing process meets (a name taken, a Terminal

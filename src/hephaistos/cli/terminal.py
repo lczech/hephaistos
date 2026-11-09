@@ -35,7 +35,7 @@ NameArgument = Annotated[str, typer.Argument(help="Name of the terminal.")]
 
 
 def _observed(paths: Paths) -> None:
-    """Observes first: Terminals change between the Watcher's passes, e.g. by `exit`."""
+    """Observes first: Terminals change between the passes of the Watcher, e.g. by `exit`."""
     result = observer.observe(paths)
     if result.error is not None:
         typer.echo(f"terminals not observed: {result.error}; showing them as last seen", err=True)
@@ -50,7 +50,7 @@ def _repository(checkout: CheckoutDetails | None) -> str:
 
 
 def _attach_text(state: TerminalState) -> str:
-    """How to attach, until `terminal attach` exists: tmux's own client on our socket."""
+    """How to attach, until `terminal attach` exists: the tmux client on our socket."""
     socket = TmuxKeeper.from_settings(Paths.from_environment()).socket
     path = config.settings().terminals.tmux.path
     return shlex.join([path, "-L", socket, "attach", "-t", f"={state.name}"])
@@ -65,7 +65,7 @@ def create(
     *,
     name: Annotated[
         str | None,
-        typer.Option("--name", "-n", help="Its name; else the directory's, numbered: proj-1."),
+        typer.Option("--name", "-n", help="Its name; else the directory name, numbered: proj-1."),
     ] = None,
     directory: Annotated[
         Path, typer.Option("--dir", "-d", help="Where it starts.", show_default="this one")
@@ -83,7 +83,7 @@ def create(
 
 @app.command("list")
 def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
-    """List this machine's terminals."""
+    """List the terminals of this machine."""
     paths = Paths.from_environment()
     _observed(paths)
     with read_session(paths) as session:

@@ -64,10 +64,10 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
     keeper: Keeper | None = None,
     environment: Mapping[str, str] = os.environ,
 ) -> TerminalState:
-    """Starts a Terminal in `directory`: `command`, else the creator's login shell.
+    """Starts a Terminal in `directory`: `command`, else the login shell of the creator.
 
     Named `name`, else by the directory, the next free number; another process taking that
-    name meanwhile moves it on to the next. `environment` is the creator's.
+    name meanwhile moves it on to the next. `environment` is that of the creator.
     """
     target = _directory(directory)
     if name is not None:
@@ -97,7 +97,7 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
             created = state.by_id(session, terminal_id)
         if created is None or created.status is TerminalStatus.LOST:
             if created is not None or not keeper.running():
-                lost = f"terminal {escaped(chosen)} was lost at once: tmux's server ended"
+                lost = f"terminal {escaped(chosen)} was lost at once: the tmux server ended"
                 raise HephaistosError(lost)
             raise HephaistosError(f"terminal {escaped(chosen)} ended at once: its command exited")
         return created

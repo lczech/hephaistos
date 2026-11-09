@@ -39,7 +39,7 @@ gui/desktop ─> gui/web ──HTTP──> server
 ```
 
 - **Daemon:** one background process per Machine runs whichever of Watcher, Sync and Server that Machine's config enables, as asyncio tasks; a crashing part is restarted without affecting the others. One command for CLI and Daemon keeps a single thing on the PATH. Each part can also run alone. On desktops it runs as a systemd user unit; elsewhere in a tmux session, which the app can start over SSH. Machines without a running Daemon are reached by Peers over SSH, running the Daemon in one-shot mode: one Watcher pass, then a sync exchange over that connection.
-- **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the Terminals' Keeper (tmux). Electron only does desktop integration; logic stays in the Core.
+- **Process ownership:** no component owns managed work (Terminals and the Agents in them); keeping them alive is the job of the Keeper of Terminals (tmux). Electron only does desktop integration; logic stays in the Core.
 - **Concurrency:** CLI, Daemon and hooks write the same SQLite database independently. WAL mode lets reads never wait for writes; on a network filesystem, where WAL does not work, a rollback journal takes its place ([setup](../design/core/setup.md#database-file)). Hooks append to a JSONL inbox file instead of starting Python, to stay fast.
 
 ## Plugins
@@ -82,4 +82,4 @@ In the GUI, first through the embedded Terminal panel attached to the Agent's Te
 - **Plain browser or installed web app:** the browser keeps shortcuts like Ctrl+W for itself.
 - **CLI as a client of a running Daemon:** the CLI would stop working whenever the Daemon is down.
 - **The Keeper as a plugin:** plugins are optional, but Terminals cannot do without it; entry points would only add indirection for one backend.
-- **A Keeper of our own (a PTY server, as some apps write):** tmux runs on clusters without compiling, keeps output and screen state for reattaching, gives plain SSH access, and its control mode streams programs' own output.
+- **A Keeper of our own (a PTY server, as some apps write):** tmux runs on clusters without compiling, keeps output and screen state for reattaching, gives plain SSH access, and its control mode streams the output of the programs as they write it.

@@ -72,10 +72,10 @@ history = 10000
 
 [terminals.tmux]
 # The tmux that keeps Terminals alive, at least 3.2a: a command on the PATH or a path,
-# e.g. one installed without root where the system's is older.
+# e.g. one installed without root where the system tmux is older.
 path = "tmux"
 # The name of its socket (`tmux -L`), apart from your own tmux. auto: hephaistos, or with
-# HEPHAISTOS_HOME set, one of that directory's own.
+# HEPHAISTOS_HOME set, one unique to that directory.
 socket = "auto"
 
 # For the GUI: it reads them from the Server it shows.

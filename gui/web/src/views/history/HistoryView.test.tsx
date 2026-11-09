@@ -461,7 +461,7 @@ describe("the History View", () => {
     expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
   });
 
-  it("keeps its rows' elements when its queries are fetched again", async () => {
+  it("keeps the elements of its rows when its queries are fetched again", async () => {
     serve({
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([repository("proj", [clone("proj", { staged: 2 })])]),

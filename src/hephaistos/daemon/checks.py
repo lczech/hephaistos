@@ -1,4 +1,4 @@
-"""Checks of this Machine's setup: what hephaistos needs, each found working or not.
+"""Checks of the setup on this Machine: what hephaistos needs, each found working or not.
 
 A problem stops or degrades a feature until the user changes something: installs, upgrades or
 reinstalls; it says what to do. A note is a choice that is fine, e.g. no systemd on a cluster.
@@ -22,8 +22,8 @@ from hephaistos.daemon.unit import ForeignUnitError
 
 INSTALL = "`hephaistos daemon install`"
 
-# The environment of the shell that asks, whose paths the unit's are compared with; None in the
-# Daemon, which is the unit's, or another on purpose, e.g. a scratch one.
+# The environment of the shell that asks, whose paths those of the unit are compared with; None
+# in the Daemon: the one the unit runs, or another on purpose, e.g. a scratch one.
 type Shell = Mapping[str, str] | None
 
 
@@ -65,7 +65,7 @@ def _sqlite(_: Shell) -> list[Check]:
 
 
 def _unit(shell: Shell) -> list[Check]:
-    """The Daemon's unit, if systemd runs user services here."""
+    """The systemd unit for the Daemon, if systemd runs user services here."""
     try:
         installed = unit.installed_text()
     except ForeignUnitError as error:
@@ -118,7 +118,7 @@ def _ionice(_: Shell) -> list[Check]:
     return [Check("ionice", "ok", found)]
 
 
-#: Each part's checks, given the shell's environment, if a shell asks.
+#: The checks of each part, given the environment of the shell, if a shell asks.
 CHECKS: Sequence[Callable[[Shell], list[Check]]] = (_git, _tmux, _sqlite, _systemd, _ionice)
 
 
@@ -128,7 +128,10 @@ def run(shell: Shell = None) -> list[Check]:
 
 
 def unit_problems(shell: Mapping[str, str]) -> list[Check]:
-    """The problems with the Daemon's unit, as `daemon status` warns of them; not linger's."""
+    """The problems with the systemd unit for the Daemon, as `daemon status` warns of them.
+
+    Not those with linger.
+    """
     if not unit.is_available():
         return []
     return [check for check in _unit(shell) if check.name == "unit" and check.outcome == "problem"]
@@ -161,7 +164,7 @@ def check_json(check: Check) -> CheckJson:
 
 
 def checked_json(checked: Checked) -> CheckedJson:
-    """The Daemon's checks as JSON."""
+    """The checks of the Daemon as JSON."""
     return CheckedJson(
         checked_at=checked.at.isoformat(), checks=[check_json(check) for check in checked.checks]
     )

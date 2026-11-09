@@ -37,7 +37,7 @@ class AboutJson(TypedDict):
 
     version: str  # e.g. `0.1.0 (bfc66f6-dirty)`
     api: str  # e.g. `0.22`
-    schema: int  # the database's
+    schema: int  # of the database
     python: str
     sqlite: str
     git: str | None

@@ -306,7 +306,7 @@ def recorded_checkout(
 ) -> CheckoutDetails | None:
     """The innermost Checkout whose recorded directory contains `path`; None if none does.
 
-    Among `known`, this Machine's Clones, if read already, e.g. for many paths.
+    Among `known`, the Clones of this Machine, if read already, e.g. for many paths.
     """
     resolved = absolute(path).resolve()
     containing = [

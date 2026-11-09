@@ -38,7 +38,7 @@ function Disconnected({ connection, now }: { connection: Lost; now: number }) {
   );
 }
 
-/** This GUI's own check: whether it fits the API the Daemon runs. */
+/** The check of this GUI itself: whether it fits the API the Daemon runs. */
 function guiCheck(api: Schemas["InfoJson"]["api"] | undefined): CheckJson | null {
   if (api === undefined) return null;
   const built = builtFor();
@@ -53,7 +53,7 @@ function Checks({ checks }: { checks: CheckJson[] }) {
   return (
     <ul className={styles.checks}>
       {checks.map((check, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: a check may come twice, e.g. the unit's
+        // biome-ignore lint/suspicious/noArrayIndexKey: a check may come twice, e.g. that of the unit
         <li key={i} className={styles.check} data-outcome={check.outcome}>
           <span className={styles.name}>
             <TextIcon icon={OUTCOME_ICONS[check.outcome]} label={check.outcome} /> {check.name}
@@ -111,8 +111,8 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
   );
 }
 
-/** The log's warnings and errors of the last day, linking to them; else to the whole log: the
- * link in the label's column, what it shows in the value's. */
+/** The warnings and errors of the last day in the log, linking to them; else to the whole log:
+ * the link in the column of labels, what it shows in that of values. */
 function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
   const found = [
     ...(counts.errors > 0 ? [counted(counts.errors, "error")] : []),
@@ -126,7 +126,7 @@ function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
         ) : (
           <ViewLink
             address={{ kind: "log", params: { level: "warning", since: "1d" } }}
-            label="The log's warnings and errors of the last day"
+            label="The log: warnings and errors of the last day"
             named
           />
         )}
@@ -139,8 +139,8 @@ function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
 }
 
 /**
- * This Machine's setup, its Daemon, and what runs, as `hephaistos status` shows them: the setup as
- * the Daemon checks it while this shows, and how the Daemon is doing, kept current. Refresh also
+ * The setup of this Machine, its Daemon, and what runs, as `hephaistos status` shows them: the
+ * setup as the Daemon checks it while this shows, and how the Daemon is doing, kept current. Refresh also
  * asks for a pass, which the last pass shows.
  */
 export function StatusView() {
@@ -208,7 +208,7 @@ export function StatusView() {
           <h2 className={styles.heading}>Running</h2>
           {process === undefined ? (
             <p className={daemon.isError ? styles.problem : styles.quiet}>
-              {daemon.isError ? loadErrorText(daemon.error) : "Loading the daemon's status…"}
+              {daemon.isError ? loadErrorText(daemon.error) : "Loading the status of the daemon…"}
             </p>
           ) : (
             <Fields

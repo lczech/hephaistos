@@ -15,7 +15,7 @@ It follows a renewed token by watching its file.
 ## The window
 
 The page stays on the Server; other web pages open in the browser.
-The page gets no Node, and is refused permission requests, except writing to the clipboard from its own Server's page: copying, e.g. the Status View's About.
+The page gets no Node, and is refused permission requests, except writing to the clipboard from the page of its own Server: copying, e.g. About in the Status View.
 The window keeps only reload, zoom, full screen, developer tools and quit as its keys; all others reach the page.
 It takes their letters as the page does ([keys](../gui/interaction.md#keys)): the one typed, or, where that is not Latin, the one at the place of the key.
 It has no title bar from the system: the GUI draws its own ([looks](../gui/looks.md#the-title-bar)), and Chromium the window buttons over its right end (Electron's `titleBarOverlay`, `src/titleBar.ts`).

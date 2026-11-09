@@ -4,7 +4,7 @@ from hephaistos.core.registry.repositories import NAMES
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.names import Names
 
-#: Rules without `.` and without reserved names, as tmux's session names need.
+#: Rules without `.` and without reserved names, as session names in tmux need.
 _NO_DOTS = Names(kind="test", characters="A-Za-z0-9_-", described="letters", max_length=10)
 
 

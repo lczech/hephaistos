@@ -58,7 +58,7 @@ const kinds = {
   history: { name: "History", icon: GitCommits, family: "git" },
   graph: { name: "Graph", icon: GitTipsJoining, family: "git" },
   explorer: { name: "Explorer", icon: Files, family: "files", offered: "menu" },
-  // A plain circle until known; its tabs show the health's (`status/health.ts`).
+  // A plain circle until known; its tabs show that of the health (`status/health.ts`).
   status: { name: "Status", icon: Circle, family: "machine", offered: "menu", TabIcon: StatusIcon },
   log: { name: "Log", icon: ScrollText, family: "machine", offered: "menu" },
   config: { name: "Config", icon: SlidersHorizontal, family: "machine", offered: "menu" },

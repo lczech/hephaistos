@@ -90,18 +90,18 @@ def isolated_git(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.M
 
 
 def kill_server(keeper: TmuxKeeper) -> None:
-    """Ends the keeper's tmux server, if one runs, and removes its socket, which tmux leaves."""
+    """Ends the tmux server of `keeper`, if one runs, and removes its socket, which tmux leaves."""
     subprocess.run(
         [keeper.binary, "-L", keeper.socket, "kill-server"], capture_output=True, check=False
     )
-    directory = Path(os.environ.get("TMUX_TMPDIR") or "/tmp") / f"tmux-{os.getuid()}"  # noqa: S108 - tmux's own default
+    directory = Path(os.environ.get("TMUX_TMPDIR") or "/tmp") / f"tmux-{os.getuid()}"  # noqa: S108 - the default of tmux itself
     (directory / keeper.socket).unlink(missing_ok=True)
 
 
 @pytest.fixture
 def keeper(paths: Paths) -> Iterator[TmuxKeeper]:
-    """A Keeper on this test's own socket (its HEPHAISTOS_HOME gives it one), without systemd
-    (the tests' systemctl fails); its server ended afterwards."""
+    """A Keeper on a socket of this test alone (its HEPHAISTOS_HOME gives it one), without systemd
+    (systemctl fails in the tests); its server ended afterwards."""
     found = TmuxKeeper.from_settings(paths)
     yield found
     kill_server(found)
@@ -110,11 +110,11 @@ def keeper(paths: Paths) -> Iterator[TmuxKeeper]:
 @pytest.fixture
 def systemd_keeper(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> Iterator[TmuxKeeper]:
     """A Keeper with the real systemd user manager; skips the test where there is none."""
-    fake = Path(os.environ["PATH"].split(os.pathsep)[0])  # the tests' failing systemctl
+    fake = Path(os.environ["PATH"].split(os.pathsep)[0])  # the systemctl of the tests, which fails
     assert (fake / "systemctl").exists()
     monkeypatch.setenv("PATH", os.environ["PATH"].removeprefix(f"{fake}{os.pathsep}"))
     if scopes.detect() is None:
-        pytest.skip("needs systemd's user manager")
+        pytest.skip("needs the systemd user manager")
     found = TmuxKeeper.from_settings(paths)
     yield found
     kill_server(found)

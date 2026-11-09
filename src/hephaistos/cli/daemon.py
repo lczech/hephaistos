@@ -318,7 +318,7 @@ def status_fields(
 
 
 def _print_status(found: Report, now: datetime, time_format: TimeFormat | None) -> None:
-    """Prints a report as `status` shows it: a line each, the unit's problems on stderr."""
+    """Prints a report as `status` shows it: a line each, the problems of the unit on stderr."""
     print_fields(status_fields(found, now, when_formatter(time_format, now)))
     for problem in checks.unit_problems(os.environ):
         fix = "" if problem.fix is None else f"; {problem.fix}"

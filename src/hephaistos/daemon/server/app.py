@@ -53,8 +53,8 @@ def create_app(  # noqa: PLR0913 - what the Daemon gives its Server
 ) -> FastAPI:
     """The Server's app for this Machine, counting its requests in `counts`.
 
-    `observe` has the Watcher run a pass; `gui` holds the GUI's built files, if there are any;
-    `record`, if given, records the checks run for a client in the Daemon's status.
+    `observe` has the Watcher run a pass; `gui` holds the built files of the GUI, if there are
+    any; `record`, if given, records the checks run for a client in the status of the Daemon.
     """
     app = FastAPI(
         title="hephaistos",

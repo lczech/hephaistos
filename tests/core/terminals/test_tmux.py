@@ -29,7 +29,7 @@ pytestmark = pytest.mark.tmux
 
 
 def tmux(keeper: TmuxKeeper, *args: str, config: str = "/dev/null") -> str:
-    """Runs tmux on the keeper's socket as a user would, with its own config; returns its output."""
+    """Runs tmux on the socket of `keeper` like a user, with its own config; returns its output."""
     command = [keeper.binary, "-L", keeper.socket, "-f", config, *args]
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode == 0, f"tmux {args[0]} failed: {result.stderr}"
@@ -44,7 +44,7 @@ def new(
 
 
 def written(path: Path, lines: int = 1) -> str:
-    """A file's text, once a Terminal's program has written `lines` lines to it."""
+    """The text of a file, once the program of a Terminal has written `lines` lines to it."""
 
     def text() -> str:
         found = path.read_text() if path.exists() else ""
@@ -54,8 +54,8 @@ def written(path: Path, lines: int = 1) -> str:
 
 
 def gone(pid: int) -> bool:
-    """Whether a process ended. A zombie counts: Ubuntu's tmux, built with systemd, sometimes
-    reaps a pane's process only when its next child ends."""
+    """Whether a process ended. A zombie counts: tmux on Ubuntu, built with systemd, sometimes
+    reaps the process of a pane only when its next child ends."""
     try:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] == "Z"
     except FileNotFoundError:
@@ -69,7 +69,7 @@ def gone(pid: int) -> bool:
         ("tmux 3.4", (3, 4)),
         ("tmux 3.10", (3, 10)),
         ("tmux next-3.6", (3, 6)),
-        ("tmux 3.8_", (3, 8)),  # as conda-forge's builds call some
+        ("tmux 3.8_", (3, 8)),  # as builds from conda-forge call some
         ("tmux master", None),
         ("tmux openbsd-7.5", None),
         ("nonsense", None),
@@ -391,7 +391,7 @@ def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
         hanging.sessions()
 
 
-@pytest.mark.stress  # races tmux's own move, see `create`
+@pytest.mark.stress  # races the move tmux itself makes, see `create`
 def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
     created = new(systemd_keeper, "api", tmp_path, "sleep", "60")
     server = scope_of(int(tmux(systemd_keeper, "display-message", "-p", "#{pid}")))
@@ -402,7 +402,8 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
         unit = scope_of(created.pid)
         return unit if unit is not None and unit not in (server, scope_of(os.getpid())) else ""
 
-    # Ours, or tmux's own where it is built with systemd support, e.g. Ubuntu's: see `create`.
+    # Ours, or the one tmux makes where it is built with systemd support, e.g. on Ubuntu: see
+    # `create`.
     unit = eventually(own)
     assert unit == f"hephaistos-terminal-{created.terminal_id}.scope" or unit.startswith(
         "tmux-spawn-"
@@ -419,7 +420,8 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
 
 def test_kill_with_force_spares_the_server(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
     other = new(systemd_keeper, "other", tmp_path, "sleep", "60")
-    # Started by hand: without our scope, and in the server's where tmux makes none (conda's).
+    # Started by hand: without our scope, and in that of the server where tmux makes none (as the
+    # tmux from conda).
     tmux(systemd_keeper, "new-session", "-d", "-s", "mine", "sleep 60")
     systemd_keeper.kill("mine", force=True)
     assert [session.name for session in systemd_keeper.sessions()] == ["other"]
