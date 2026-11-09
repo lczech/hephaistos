@@ -49,13 +49,26 @@ export function useFind(
 
 /**
  * Which of `count` matches is the current one, and a way to step to the next or the one before,
- * round; the first again once the matches are others (`of`, which stays the same as long).
+ * round; the first again once the matches are others (`of`, which stays the same as long). With
+ * `keys`, a key for each match in order, the one stepped to stays current where the order moves
+ * it, e.g. as rows sort anew.
  */
-export function useCurrentMatch(of: unknown, count: number): [number, (by: 1 | -1) => void] {
-  const [current, setCurrent] = useState<{ of: unknown; at: number }>({ of: undefined, at: 0 });
-  const at = current.of === of && current.at < count ? current.at : 0;
+export function useCurrentMatch(
+  of: unknown,
+  count: number,
+  keys?: readonly string[],
+): [number, (by: 1 | -1) => void] {
+  const [current, setCurrent] = useState<{ of: unknown; at: number; key?: string }>({
+    of: undefined,
+    at: 0,
+  });
+  const same = current.of === of;
+  const moved = same && current.key !== undefined ? (keys?.indexOf(current.key) ?? -1) : -1;
+  const at = moved >= 0 ? moved : same && current.at < count ? current.at : 0;
   const step = (by: 1 | -1) => {
-    if (count > 0) setCurrent({ of, at: (at + by + count) % count });
+    if (count === 0) return;
+    const next = (at + by + count) % count;
+    setCurrent({ of, at: next, key: keys?.[next] });
   };
   return [at, step];
 }

@@ -8,7 +8,7 @@ import {
   WholeWord,
   X,
 } from "lucide-react";
-import type { KeyboardEvent, ReactNode } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useEffectEvent, useState } from "react";
 import { Input, TextField, Toolbar } from "react-aria-components";
 import { atLeast, numberText } from "../../text";
 import { useKeyTarget } from "../../views/keys";
@@ -36,6 +36,8 @@ interface FindBarProps {
   note?: { text: string; title: string }; // after which match, e.g. why there may be more
 }
 
+export const TYPING_PAUSE = 150; // ms without a key before what is typed is looked for
+
 const OPTIONS = [
   { key: "matchCase", icon: CaseSensitive, label: "Match case" },
   { key: "wholeWord", icon: WholeWord, label: "Match whole words" },
@@ -45,7 +47,8 @@ const OPTIONS = [
 /**
  * A row to find text in, below a View's bar: what is typed, how it is matched, which match of
  * how many, the next or the one before (Enter, Shift+Enter); Escape closes it. Ctrl+F comes to
- * its field.
+ * its field. What is typed goes to the View once typing pauses (`TYPING_PAUSE`), or on Enter,
+ * an option or leaving the field: each key draws the field alone, not all the View shows.
  */
 export function FindBar({
   label,
@@ -62,11 +65,31 @@ export function FindBar({
   note,
 }: FindBarProps) {
   const target = useKeyTarget("search");
+  // Typed over the query's text then (`over`), or over the text passed on last (`passed`), as the
+  // View may not have it yet: ours until the query is another, e.g. on going back.
+  const [typed, setTyped] = useState<{ text: string; over: string; passed?: string }>();
+  const ours = typed !== undefined && (typed.over === query.text || typed.passed === query.text);
+  const text = ours ? typed.text : query.text;
+  const pending = ours && typed.text !== query.text ? typed.text : undefined;
+  const passOn = useEffectEvent(() => {
+    if (pending === undefined) return;
+    onChange({ ...query, text: pending }, true);
+    setTyped({ text: pending, over: query.text, passed: pending });
+  });
+  useEffect(() => {
+    if (pending === undefined) return;
+    const timer = setTimeout(passOn, TYPING_PAUSE);
+    return () => clearTimeout(timer);
+  }, [pending]);
+  const endTyping = () => {
+    passOn();
+    onTypingEnd();
+  };
   const keys = (event: KeyboardEvent) => {
     if (event.key === "Escape") onClose();
     else if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
-      onStep(event.shiftKey ? -1 : 1);
-      onTypingEnd();
+      if (pending === undefined) onStep(event.shiftKey ? -1 : 1);
+      endTyping(); // a search not yet looked for starts at its first match
     }
   };
   return (
@@ -80,9 +103,9 @@ export function FindBar({
       <TextField
         className={styles.field}
         aria-label={label}
-        value={query.text}
-        onChange={(text) => onChange({ ...query, text }, true)}
-        onBlur={onTypingEnd}
+        value={text}
+        onChange={(next) => setTyped((was) => ({ ...was, text: next, over: query.text }))}
+        onBlur={endTyping}
       >
         <TextIcon
           icon={busy || finding?.busy ? LoaderCircle : Search}
@@ -103,7 +126,7 @@ export function FindBar({
             label={label}
             className={styles.option}
             on={query[key]}
-            onChange={(on) => onChange({ ...query, [key]: on }, false)}
+            onChange={(on) => onChange({ ...query, text, [key]: on }, false)}
             ways={[{ icon, title: label }]}
           />
         ))}
