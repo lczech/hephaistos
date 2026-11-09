@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from "react";
 import styles from "./App.module.css";
 import { useLiveUpdates } from "./api/live";
-import { useInfo } from "./api/queries";
+import { useInfo, useSetting } from "./api/queries";
+import { TimeFormatContext, timeFormatOf } from "./components/Ago";
 import { StatusBar } from "./components/StatusBar";
 import { TitleBar } from "./components/TitleBar";
 import { TokenHint } from "./components/TokenHint";
@@ -23,19 +24,22 @@ function Shell() {
   useLook();
   useTheme();
   const info = useInfo();
+  const times = timeFormatOf(useSetting("time_format"));
   const fits = info.data ? apiFit(builtFor(), info.data.api) : null;
   return (
-    <ViewOpener>
-      <div className={styles.app}>
-        <TitleBar />
-        {fits?.hint && (
-          <p className={fits.usable ? styles.banner : styles.blocker} role="alert">
-            {fits.hint}
-          </p>
-        )}
-        <main className={styles.main}>{fits?.usable !== false && <Workbench />}</main>
-        <StatusBar />
-      </div>
-    </ViewOpener>
+    <TimeFormatContext value={times}>
+      <ViewOpener>
+        <div className={styles.app}>
+          <TitleBar />
+          {fits?.hint && (
+            <p className={fits.usable ? styles.banner : styles.blocker} role="alert">
+              {fits.hint}
+            </p>
+          )}
+          <main className={styles.main}>{fits?.usable !== false && <Workbench />}</main>
+          <StatusBar />
+        </div>
+      </ViewOpener>
+    </TimeFormatContext>
   );
 }

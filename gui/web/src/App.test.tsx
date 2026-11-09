@@ -5,7 +5,7 @@ import { App } from "./App";
 import { Boundary } from "./components/Boundary";
 import { saveViews } from "./test/layout";
 import { lastSocket } from "./test/live";
-import { daemon, info, json, renderWithQueries, serve, setting } from "./test/server";
+import { daemon, event, info, json, renderWithQueries, serve, setting } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
 import { builtFor } from "./version";
 
@@ -79,6 +79,27 @@ describe("the GUI", () => {
     expect(style.getPropertyValue("--code-size")).toBe(""); // theme.css's default
     unmount();
     expect(style.getPropertyValue("--text-size")).toBe("");
+  });
+
+  it("shows the times of lists as the setting time_format says, the day once a month old", async () => {
+    signIn();
+    saveViews("events");
+    const old = event(1, { recorded_at: "2019-03-03T09:00:00Z" });
+    const routes = (format?: string) => ({
+      ...ok,
+      "GET /api/events": () => json([old]),
+      "GET /api/config": () => json({ settings: format ? [setting("time_format", format)] : [] }),
+    });
+    serve(routes());
+    const { unmount } = renderWithQueries(<App />);
+    expect(await screen.findByText("2019-03-03")).toBeInTheDocument(); // auto, by default
+    unmount();
+    serve(routes("relative"));
+    renderWithQueries(<App />);
+    expect(await screen.findByText(/^\d+y ago$/)).toHaveAttribute(
+      "title",
+      expect.stringMatching(/^2019-03-03 /),
+    );
   });
 
   it("forgets a token the Server refuses", async () => {

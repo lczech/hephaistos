@@ -67,6 +67,8 @@ The Database View's tables, of any columns, show only in columns.
 
 Every column is as wide as set, none taking the rest.
 A column's header and cells align left, centre or right (`align`): numbers and times right, so that they line up, `5m ago` under `16d ago`.
+Times show as the setting `time_format` says, as in the CLI ([commands](../cli/commands.md#output)): by default relative for the last 30 days, `5d ago`, then the day, `2026-09-05`, as the full dates line up so; in full when hovered (`components/Ago.tsx`).
+The Daemon's texts and the status bar say how long ago, whatever it says, as they tell how long something has run.
 Wider than the list, they scroll sideways, header and all.
 Narrower, the room left stays blank.
 
