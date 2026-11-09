@@ -129,7 +129,7 @@ Regular expressions are those of JavaScript, with `\w`, `\b` and `\d` meaning wo
 It says which match of how many, from the first, and why there may be more than shown.
 While it looks, its search icon turns, as the reload button does.
 Enter and Shift+Enter go to the next match and the one before; Escape closes the row.
-Matches are marked on what is drawn, the current one stronger, its line too, by the CSS Custom Highlight API.
+Matches are marked on what is drawn, the current one stronger, its line too: in a diff by the CSS Custom Highlight API, as its renderer draws its lines itself; in a list's names by `<mark>` (`components/find/Marked.tsx`).
 The current match is brought into view, also from lines not drawn yet.
 What is looked for is in the address's fragment while the row is open (`find=`, and `case`, `word`, `regex` while on); the current match is not.
 Matching runs in a Web Worker, ended after 5 s, so that a regular expression running away cannot hang the page.

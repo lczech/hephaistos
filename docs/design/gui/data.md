@@ -30,4 +30,4 @@ Per browser, in localStorage, and not part of addresses:
 - the Layout (`hephaistos.layout`; [layout](layout.md#saving));
 - lists' widths, hidden columns, order and layout (`hephaistos.lists.<kind>.<part>`; [lists](lists.md#kept));
 - the Diffs' look (`hephaistos.diff`) and the Changes View's (`hephaistos.changes`);
-- what is folded (`hephaistos.folds.diff`, `hephaistos.folds.changes`).
+- what is folded or opened (`hephaistos.folds.diff`, `hephaistos.folds.changes`, `hephaistos.folds.explorer`), and the Explorer's look (`hephaistos.explorer`).

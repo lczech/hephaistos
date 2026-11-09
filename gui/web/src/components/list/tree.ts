@@ -95,12 +95,12 @@ function comparing(collator: Intl.Collator | undefined): (x: Value, y: Value) =>
   };
 }
 
-/** Named sets of row IDs, e.g. those folded and those opened. */
+/** Named sets of strings, e.g. the IDs or paths of rows folded, and of those opened. */
 export type Sets = Readonly<Record<string, ReadonlySet<string>>>;
 
 type Saved = Record<string, Record<string, string[]>>;
 
-/** Sets of row IDs kept in this browser under `hephaistos.folds.<name>`, by a key each. */
+/** Named sets kept in this browser under `hephaistos.folds.<name>`, by a key each. */
 function keptSets(name: string) {
   return keptAtom(`hephaistos.folds.${name}`, (saved): Saved => {
     const valid: Saved = {};
@@ -121,7 +121,7 @@ function keptSets(name: string) {
 const NO_SETS: Sets = {};
 
 /**
- * What is folded or opened in a tree, as sets of row IDs, kept in this browser (`name`) for
+ * What is folded or opened in a tree, as named sets, kept in this browser (`name`) for
  * what the tree shows (`key`), e.g. a Checkout: shared by all its trees of that name, until
  * changed. Without a key, none, and none kept.
  */

@@ -86,9 +86,17 @@ interface Props<TData extends RowData> {
  * those beyond the list's width scroll sideways, its details staying in view; in lines, each row
  * shows in the View's two lines (or one, keeping its height), below buttons for its filters and
  * its sort instead of headers. It scrolls itself, its header staying in view, filling what its
- * View leaves below its bar, unless it is part of a page. A row whose View is shown, in any Group, is marked. In columns, its header's menu (the
- * right button, or a long press) hides, shows and moves them, or resets their look; a double
- * click on a column's edge fits it to its cells, at most as wide as the list.
+ * View leaves below its bar, unless it is part of a page. A row whose View is shown, in any
+ * Group, is marked. In columns, its header's menu (the right button, or a long press) hides,
+ * shows and moves them, or resets their look; a double click on a column's edge fits it to its
+ * cells, at most as wide as the list.
+ *
+ * As a `tree`, a row's rows are drawn within it, its square as narrow as its chevrons, and a row
+ * holding rows stays in view below the header and those holding it while they scroll past,
+ * unless it is part of a page. A row may have actions after what names it, shown while it is
+ * pointed at or focused, and a menu (the right button, or the menu key: its first item focused
+ * then); `ahead` is called as a row is pointed at or focused, to ask for what opening it shows.
+ * `compact` rows stand closer together.
  */
 export function List<TData extends RowData>({
   table,
