@@ -72,11 +72,12 @@ function diffOf(row: Shown, place: Place | undefined): Address | undefined {
 
 /**
  * An entry's History: the commits that changed it, or what is below it; all, for a top. None
- * for what git ignores or does not track: git says so only of what it has no commits of.
+ * for what git ignores or does not track, as it has no commits of those, nor for `.git`, git's
+ * own, which git never reports.
  */
 function historyOf(row: Shown, place: Place | undefined): Address | undefined {
-  const { status, ignored } = row.entry;
-  if (place === undefined || ignored || status === "?") return undefined;
+  const { name, status, ignored } = row.entry;
+  if (place === undefined || ignored || status === "?" || name === ".git") return undefined;
   const { checkout, relative } = place;
   return { kind: "history", params: relative === "" ? checkout : { ...checkout, path: relative } };
 }

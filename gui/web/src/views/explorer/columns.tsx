@@ -104,7 +104,7 @@ function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
     <span
       className={styles.name}
       data-hidden={row.entry.hidden || undefined}
-      data-ignored={row.entry.ignored || undefined}
+      data-ignored={row.entry.ignored || row.entry.name === ".git" || undefined}
       data-git={gitTone(row)}
       data-current={looks.current(row) || undefined}
     >

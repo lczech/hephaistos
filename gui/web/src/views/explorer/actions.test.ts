@@ -104,10 +104,15 @@ describe("a row's menu", () => {
     ).toEqual([["Copy absolute path"]]);
   });
 
-  it("offers no History for what git ignores or does not track, as it has no commits of it", () => {
+  it("offers no History for what git ignores or does not track, nor for `.git`", () => {
     const folder = { folder: true };
-    for (const git of [{ ignored: true }, { status: "?", index: "?", worktree: "?" }]) {
-      const menu = rowMenu(row("/data/proj/build", folder, git), place, vi.fn(), vi.fn());
+    const cases: [string, object][] = [
+      ["/data/proj/build", { ignored: true }],
+      ["/data/proj/new", { status: "?", index: "?", worktree: "?" }],
+      ["/data/proj/.git", {}], // git's own, which it never reports
+    ];
+    for (const [path, git] of cases) {
+      const menu = rowMenu(row(path, folder, git), place, vi.fn(), vi.fn());
       expect(labels(menu)).toEqual([
         ["Go into folder"],
         ["Copy absolute path", "Copy relative path"],

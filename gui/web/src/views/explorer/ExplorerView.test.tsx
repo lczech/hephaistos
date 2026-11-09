@@ -65,6 +65,24 @@ describe("the Explorer View", () => {
     expect(names()).toEqual(["proj", ".bashrc", "notes.md"]);
     expect(screen.getByRole("heading")).toHaveTextContent("Explorer: me");
     expect(screen.getByText(".bashrc").closest("[data-hidden]")).not.toBeNull();
+    expect(screen.getByText(".bashrc").closest("[data-ignored]")).toBeNull(); // not quieter
+  });
+
+  it("shows `.git` quieter, as what git does not track", async () => {
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": () => {
+        const entries = [
+          fileEntry(".git", { kind: "directory" }),
+          fileEntry(".github", { kind: "directory" }),
+        ];
+        return json({ path: "/home/me", top: null, entries, count: 2 });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    expect((await screen.findByText(".git")).closest("[data-ignored]")).not.toBeNull();
+    expect(screen.getByText(".github").closest("[data-ignored]")).toBeNull();
   });
 
   it("opens a folder, kept so, and leaves hidden entries out when asked", async () => {

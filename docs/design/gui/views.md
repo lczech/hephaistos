@@ -159,9 +159,9 @@ Folders come first, then files, by name as people sort them: case ignored, numbe
 A folder opens and closes; it is asked for once opened, or once pointed at or focused, so that opening shows it at once.
 What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
 A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`; not a registered Checkout's top, whose row says what it is, nor a symlink, which may lead back to a folder above it.
-Hidden entries, whose names start with `.`, show quieter and in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
+Hidden entries, whose names start with `.`, show in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
 Names are coloured as git's letter for them says, as Changes colours its kinds of change: added and untracked green, modified, renamed and type changed amber, unmerged red; folders with changes below them amber.
-Ignored entries show quieter, in the regular font.
+Ignored entries show quieter, as does `.git`, git's own, so that the colour says what git tracks: a hidden folder git tracks, as `.github`, shows in italics in the colour of the tracked.
 A column shows the letter, or a dot for changes below a folder; its tooltip spells out what is staged and what is not.
 A file's size shows its amount, then its unit; a folder's, its number of entries, as GNOME's Files shows it, then `items`; either in a box as wide as the widest, so that all numbers line up.
 The size and the time last modified are columns hidden until shown, as each costs a `stat` per entry: what a folder holds is asked for twice, its names and kinds to show at once, then git's letters and the shown columns' fields to fill in; showing another column keeps the fields shown until its answer comes.
@@ -170,7 +170,7 @@ Icons say what an entry is: a folder, open or not; a Checkout's top, registered;
 A file's kind comes from its name: exact names first, ours then GitHub's Linguist's (`CMakeLists.txt`), but for locks and configs, which our extensions say better than Linguist's formats (`uv.lock`); then extensions, our own table first, for binary files and some we show otherwise, then Linguist's, by the language's type or, for a few, the language (`components/files/kinds.ts`).
 Extensions Linguist leaves undecided, as languages of different types claim them, are listed in a test, so that an update leaving more fails there.
 Files open nothing yet.
-Pointing at a row shows its links after its name: its History, inside a registered Checkout or for the top of one, all its files, not for what git ignores or does not track, as it has no commits of those, and before it its Diff since HEAD, for a file with changes.
+Pointing at a row shows its links after its name: its History, inside a registered Checkout or for the top of one, all its files, not for what git ignores or does not track, as it has no commits of those, nor for `.git`, and before it its Diff since HEAD, for a file with changes.
 Its menu has them too, after going into a folder, then copying its absolute path, and its path in its Checkout.
 What was copied shows in the status bar for a while (`notice.ts`).
 A file's row is marked while a Diff of it comparing the working tree, either way, is shown in any Group, from wherever it was opened: it is about the file as the Explorer shows it, on disk; a commit's changes or the staged ones are not.

@@ -1,10 +1,11 @@
-/* An entry's name: quieter if hidden (its name starts with `.`), and in italics, as the file
- * system hides it; quieter if git ignores it; else in the colour of git's letter for it. */
+/* An entry's name: in italics if hidden (its name starts with `.`), as the file system hides
+ * it; quieter if git ignores it, or is git's own (`.git`), so that the colour says what git
+ * tracks; else in the colour of git's letter for it. */
 .name[data-hidden] {
   font-style: italic;
 }
 
-.name:is([data-hidden], [data-ignored]) {
+.name[data-ignored] {
   color: var(--text-muted);
 }
 
