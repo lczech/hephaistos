@@ -1,11 +1,14 @@
 """`hephaistos terminal`: Terminals, shells on this Machine that outlive what shows them."""
 
+import os
 import shlex
+import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 
+from hephaistos.cli import tty
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
@@ -14,7 +17,7 @@ from hephaistos.cli.output import (
     print_table,
     time_formatter,
 )
-from hephaistos.core import config, serialize
+from hephaistos.core import serialize
 from hephaistos.core.config import TimeFormat
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.observers import terminals as observer
@@ -23,7 +26,7 @@ from hephaistos.core.registry.clones import CheckoutDetails
 from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import TerminalState
 from hephaistos.core.terminals import actions
-from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.core.utils.text import escaped
 
@@ -50,10 +53,19 @@ def _repository(checkout: CheckoutDetails | None) -> str:
 
 
 def _attach_text(state: TerminalState) -> str:
-    """How to attach, until `terminal attach` exists: the tmux client on our socket."""
-    socket = TmuxKeeper.from_settings(Paths.from_environment()).socket
-    path = config.settings().terminals.tmux.path
-    return shlex.join([path, "-L", socket, "attach", "-t", f"={state.name}"])
+    """How to attach to it later."""
+    return shlex.join(["hephaistos", "terminal", "attach", state.name])
+
+
+def _attached(paths: Paths, name: str) -> NoReturn:
+    """Becomes plain `tmux attach-session` to the Terminal, restored first if it was lost."""
+    if not tty.attachable():
+        raise HephaistosError(
+            "this command attaches only when run interactively; run it in a terminal emulator"
+        )
+    _, command = actions.attach(paths, name)
+    sys.stdout.flush()
+    os.execvp(command[0], command)  # noqa: S606 - tmux, as the settings name it
 
 
 @app.command(context_settings={"allow_interspersed_args": False})
@@ -70,15 +82,33 @@ def create(
     directory: Annotated[
         Path, typer.Option("--dir", "-d", help="Where it starts.", show_default="this one")
     ] = Path(),
+    detached: Annotated[
+        bool,
+        typer.Option(
+            "--detached",
+            help="Leave it running without attaching; when not run interactively, always.",
+        ),
+    ] = False,
 ) -> None:
-    """Create a terminal, running your shell or a command."""
+    """Create a terminal, running your shell or a command, and attach to it."""
     paths = Paths.from_environment()
     created = actions.create(paths, directory, name=name, command=command)
+    if not detached and tty.attachable():
+        _attached(paths, created.name)
     running = "" if created.command is None else f", running {_command_text(created)}"
     typer.echo(
         f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{running}"
     )
     typer.echo(f"  attach with: {_attach_text(created)}")
+
+
+@app.command()
+def attach(name: NameArgument) -> None:
+    """Attach to a terminal with tmux; a lost one is restored first, as a shell.
+
+    Plain tmux: Ctrl+B d detaches, and leaves the terminal running.
+    """
+    _attached(Paths.from_environment(), name)
 
 
 @app.command("list")

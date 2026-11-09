@@ -97,3 +97,7 @@ class Keeper(Protocol):
         With `force`, they get SIGKILL first, which also ends those that ignore SIGHUP.
         """
         ...
+
+    def attach_command(self, session: Session) -> list[str]:
+        """The command that attaches the terminal emulator it runs in to `session`."""
+        ...

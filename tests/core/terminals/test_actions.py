@@ -15,6 +15,7 @@ from hephaistos.core.terminals import actions
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
+from support import eventually
 
 pytestmark = pytest.mark.tmux
 
@@ -263,3 +264,68 @@ def test_lost_ones_are_logged(
     assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
         ("WARNING", "the server of the keeper is gone: 2 terminals lost"),
     ]
+
+
+def keeper_options(keeper: TmuxKeeper) -> list[str]:
+    return ["-u", "-L", keeper.socket, "-f", str(keeper.config_file)]
+
+
+def screen(keeper: TmuxKeeper, name: str) -> str:
+    """What the pane of a Terminal shows, once its shell has printed something."""
+    return eventually(lambda: tmux(keeper, "capture-pane", "-p", "-J", "-t", f"={name}:").strip())
+
+
+def test_attach(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    created = actions.create(set_up, proj, name="api")
+    found, command = actions.attach(set_up, "api", environment={})
+    assert found.id == created.id
+    key = keeper.session("api").key
+    assert command == [keeper.binary, *keeper_options(keeper), "attach-session", "-t", key]
+
+
+def test_attach_refuses_the_terminal_itself(set_up: Paths, proj: Path) -> None:
+    created = actions.create(set_up, proj, name="api")
+    inside = {"HEPHAISTOS_TERMINAL": str(created.id)}
+    with pytest.raises(HephaistosError, match=r"^this is terminal api itself; attach to it from"):
+        actions.attach(set_up, "api", environment=inside)
+    actions.create(set_up, proj, name="web")
+    actions.attach(set_up, "web", environment=inside)  # another one, from inside: fine
+    with pytest.raises(NoSuchTerminalError):
+        actions.attach(set_up, "nope", environment={})
+
+
+def test_attach_restores_a_lost_one_as_a_shell(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    created = actions.create(set_up, proj, name="build", command=["sleep", "600"])
+    lose_all(keeper, set_up)
+    found, _ = actions.attach(set_up, "build", environment={"SHELL": "/bin/sh"})
+    assert (found.id, found.name, found.status, found.command) == (
+        created.id,
+        "build",
+        TerminalStatus.OPEN,
+        None,  # it runs a shell now, not its command again
+    )
+    session = keeper.session("build")
+    assert (session.terminal_id, session.directory) == (created.id, proj)
+    assert screen(keeper, "build").startswith(
+        "restored after a restart; earlier output is gone; it ran: sleep 600"
+    )
+    assert eventually(lambda: keeper.session("build").program == "sh")  # the login shell
+
+
+def test_a_restored_one_whose_directory_is_gone_starts_at_home(
+    set_up: Paths, keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    actions.create(set_up, gone, name="api")
+    lose_all(keeper, set_up)
+    gone.rmdir()
+    home = tmp_path / "home-of-user"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    actions.attach(set_up, "api", environment={"SHELL": "/bin/sh"})
+    assert f"{gone} is gone, so it starts in the home directory" in screen(keeper, "api")
+    assert keeper.session("api").current_directory == home
+    assert stored(set_up)["api"].directory == gone  # where it started, as before

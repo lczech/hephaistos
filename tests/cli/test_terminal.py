@@ -1,14 +1,19 @@
 import json
+import shlex
 import subprocess
+import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from hephaistos.cli import terminal as terminal_cli
+from hephaistos.cli import tty
 from hephaistos.cli.main import app
 from hephaistos.core.terminals.tmux import TmuxKeeper
-from support import clone, create, git
+from support import clone, create, eventually, git
 
 pytestmark = pytest.mark.tmux
 
@@ -44,10 +49,10 @@ def failed(*args: str) -> str:
     return str(result.exception)
 
 
-def test_create(keeper: TmuxKeeper, proj: Path) -> None:
+def test_create(proj: Path) -> None:
     assert ok("create", "--dir", str(proj)) == [
         f"Created terminal proj-1 in {proj}",
-        f"  attach with: tmux -L {keeper.socket} attach -t =proj-1",
+        "  attach with: hephaistos terminal attach proj-1",
     ]
     lines = ok("create", "-n", "build", "-d", str(proj), "--", "sh", "-c", "exec sleep 60")
     assert lines[0] == f"Created terminal build in {proj}, running sh -c 'exec sleep 60'"
@@ -163,3 +168,104 @@ def test_list_many_quickly(keeper: TmuxKeeper, tmp_path: Path) -> None:
     start = time.monotonic()
     assert len(ok("list")) == 201
     assert time.monotonic() - start < 3
+
+
+class Exec:
+    """Stands in for `os.execvp`: records the command the CLI would become."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.commands: list[list[str]] = []
+        monkeypatch.setattr(terminal_cli.os, "execvp", self)
+        monkeypatch.setattr(tty, "attachable", lambda: True)
+
+    def __call__(self, file: str, args: list[str]) -> None:
+        assert file == args[0]
+        self.commands.append(args)
+        raise SystemExit(0)  # as the process would be replaced
+
+
+def test_attach_needs_a_terminal_emulator(proj: Path) -> None:
+    ok("create", "-d", str(proj))
+    assert failed("attach", "proj-1") == (
+        "this command attaches only when run interactively; run it in a terminal emulator"
+    )
+
+
+def test_attach_becomes_tmux(
+    keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ok("create", "-d", str(proj))
+    becomes = Exec(monkeypatch)
+    ok("attach", "proj-1")
+    key = keeper.session("proj-1").key
+    assert becomes.commands == [
+        [keeper.binary, "-u", "-L", keeper.socket, "-f", str(keeper.config_file),
+         "attach-session", "-t", key],
+    ]  # fmt: skip
+
+
+def test_create_attaches_unless_detached(
+    keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    becomes = Exec(monkeypatch)
+    assert ok("create", "-d", str(proj)) == []  # it became tmux, printing nothing
+    assert becomes.commands[0][-2:] == ["-t", keeper.session("proj-1").key]
+    lines = ok("create", "-d", str(proj), "--detached")
+    assert lines[0] == f"Created terminal proj-2 in {proj}"
+    assert len(becomes.commands) == 1
+
+
+class Outer:
+    """A terminal emulator for the tests: a tmux of its own, without a prefix of its own, so
+    that every key reaches what runs in it."""
+
+    def __init__(self, keeper: TmuxKeeper, tmp_path: Path) -> None:
+        self.binary = keeper.binary
+        self.socket = f"{keeper.socket}-outer"
+        self.out = tmp_path / "outer-done"
+
+    def tmux(self, *args: str) -> str:
+        command = [self.binary, "-L", self.socket, "-f", "/dev/null", *args]
+        return subprocess.run(command, capture_output=True, text=True, check=True).stdout
+
+    def run(self, *args: str) -> None:
+        """Runs the CLI in it, as a user would type it, with nothing of tmux in its environment."""
+        main = "from hephaistos.cli.main import run; run()"
+        cli = shlex.join([sys.executable, "-c", main, *args])
+        script = f"env -u TMUX -u TMUX_PANE {cli}; echo done > {self.out}; exec sleep 600"
+        self.tmux("new-session", "-d", "-x", "100", "-y", "30", "-s", "outer", script)
+        self.tmux("set", "-g", "prefix", "None")
+
+    def screen(self) -> str:
+        return self.tmux("capture-pane", "-p", "-t", "=outer:")
+
+    def end(self) -> None:
+        command = [self.binary, "-L", self.socket, "kill-server"]
+        subprocess.run(command, capture_output=True, check=False)
+
+
+@pytest.fixture
+def outer(keeper: TmuxKeeper, tmp_path: Path) -> Iterator[Outer]:
+    found = Outer(keeper, tmp_path)
+    yield found
+    found.end()
+
+
+def test_attach_is_plain_tmux(outer: Outer, proj: Path) -> None:
+    ok("create", "-d", str(proj), "-n", "api", "--", "sh", "-c", "echo hello there; exec sleep 600")
+    outer.run("terminal", "attach", "api")
+    eventually(lambda: "hello there" in outer.screen())
+    assert eventually(lambda: "[api]" in outer.screen().splitlines()[-1])  # the bar of tmux
+    outer.tmux("send-keys", "-t", "=outer:", "C-b", "d")  # the keys of tmux: detach
+    eventually(outer.out.exists)
+    assert "[detached (from session api)]" in outer.screen()
+    assert ok("show", "api")[0].split() == ["name", "api"]  # still running
+
+
+def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path) -> None:
+    ok("create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
+    subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
+    outer.run("terminal", "attach", "api")
+    eventually(lambda: "restored after a restart; earlier output is gone" in outer.screen())
+    assert "it ran: sleep 600" in outer.screen()
+    assert ok("list")[1].split()[:2] == ["api", "open"]

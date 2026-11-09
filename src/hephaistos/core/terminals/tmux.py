@@ -207,13 +207,15 @@ def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
 def config_text(history: int) -> str:
     """Our tmux config, ending with the marker that names it by its hash.
 
-    A plain terminal: no status bar, and none of the tmux keys but detaching and copy mode. The
+    The defaults of tmux, with only what the server needs on top; never the config of the user.
+    The look and the keys stay those of tmux, so that attaching from the CLI is plain tmux; a
+    client in control mode, as the GUI uses, shows no status bar and runs no key bindings. The
     server outlives its last session, so that no server means it crashed or was killed.
     """
     variables = " ".join(UPDATED_VARIABLES)
     body = f"""\
 # The tmux config of hephaistos, generated from its settings: changes here are overwritten.
-set -g status off
+# The defaults of tmux, with only what its server needs on top.
 set -g default-terminal xterm-256color
 set -as terminal-features ",*:RGB"
 set-environment -g COLORTERM truecolor
@@ -223,11 +225,6 @@ set -s escape-time 10
 set -s exit-empty off
 set -g history-limit {history}
 set -g update-environment "{variables}"
-unbind -a -T prefix
-bind -T prefix d detach-client
-bind -T prefix [ copy-mode
-bind -T prefix PageUp copy-mode -u
-bind -T prefix C-b send-prefix
 """
     digest = hashlib.sha256(body.encode()).hexdigest()[:12]
     return f"{body}set -g {CONFIG_OPTION} {digest}\n"
@@ -251,7 +248,7 @@ def _escaped(argument: str) -> str:
     return f"{argument[:-1]}\\;" if argument.endswith(";") else argument
 
 
-def _login_shell(environment: Mapping[str, str]) -> str:
+def login_shell(environment: Mapping[str, str]) -> str:
     """The shell of the user: SHELL in the environment of the creator, else that of the account."""
     return environment.get("SHELL") or pwd.getpwuid(os.getuid()).pw_shell or "/bin/sh"
 
@@ -304,12 +301,16 @@ class TmuxKeeper:
 
     # Running tmux.
 
+    def _options(self) -> list[str]:
+        """What every tmux command of ours starts with: UTF-8, our socket and our config."""
+        # -u: UTF-8 whatever the locale, else tmux prints `_` for each other character.
+        return ["-u", "-L", self.socket, "-f", str(self.config_file)]
+
     def _client(
         self, *args: str, env: Mapping[str, str] | None = None, scoped: bool = False
     ) -> subprocess.CompletedProcess[str]:
         """Runs a tmux command on our socket; `scoped`, in a scope, with the systemd environment."""
-        # -u: UTF-8 whatever the locale, else tmux prints `_` for each other character.
-        command = [self.binary, "-u", "-L", self.socket, "-f", str(self.config_file), *args]
+        command = [self.binary, *self._options(), *args]
         if scoped and self.scopes:
             command = self.scopes.command(command, unit=None, description="hephaistos tmux server")
             # The directory of the socket is that of the caller, whatever the environment of the
@@ -518,7 +519,7 @@ class TmuxKeeper:
         variables = {name: environment[name] for name in UPDATED_VARIABLES if name in environment}
         variables[TERMINAL_VARIABLE] = str(terminal_id)
         pairs = [arg for item, value in variables.items() for arg in ("-e", f"{item}={value}")]
-        program = list(command) if command else [_login_shell(environment), "-l"]
+        program = list(command) if command else [login_shell(environment), "-l"]
         # tmux sets these for each program it starts, with no option against it. Without them, a
         # `tmux` typed in the Terminal reaches the tmux of the user, as from any terminal emulator.
         program = ["env", *(arg for name in HIDDEN for arg in ("-u", name)), *program]
@@ -586,6 +587,10 @@ class TmuxKeeper:
             if self._taken(new_name, by_other_than=key):
                 raise NameTakenError(f"a terminal named {new_name} exists already")
             raise self._failed(["rename-session"], result)
+
+    def attach_command(self, session: Session) -> list[str]:
+        """Plain `tmux attach-session`, by the ID of the session: tmux, as the user knows it."""
+        return [self.binary, *self._options(), "attach-session", "-t", session.key]
 
     def kill(self, name: str, *, force: bool = False) -> None:
         """Ends a session; see `Keeper.kill`.

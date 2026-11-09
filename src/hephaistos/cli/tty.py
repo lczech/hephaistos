@@ -20,6 +20,11 @@ def interactive() -> bool:
     return sys.stdin.isatty()
 
 
+def attachable() -> bool:
+    """Whether a Terminal can be attached here: input and output both the tty."""
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
 def confirm(question: str, *, default: bool, action: str) -> None:
     """Asks the user to confirm; aborts unless they do.
 

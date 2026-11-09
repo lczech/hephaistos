@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos.core import config
 from hephaistos.core.terminals.keeper import (
     KeeperError,
     NameTakenError,
@@ -95,6 +96,8 @@ def test_socket_names(tmp_path: Path) -> None:
 def test_config_names_itself_by_its_hash() -> None:
     text = config_text(1234)
     assert "set -g history-limit 1234\n" in text
+    assert "status" not in text  # the look and the keys of tmux stay as they are
+    assert "bind" not in text
     assert text.endswith(f"set -g {CONFIG_OPTION} {config_digest(text)}\n")
     assert config_digest(text) == config_digest(config_text(1234))
     assert config_digest(text) != config_digest(config_text(99))
@@ -123,6 +126,17 @@ def test_tmux_stays_out_of_sight_in_a_terminal(keeper: TmuxKeeper, tmp_path: Pat
             capture_output=True,
             check=False,
         )
+
+
+def test_control_mode_shows_no_bar(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """The bar of tmux shows to a plain client, as from the CLI; a client in control mode, as
+    the GUI uses, gets the whole window, with no row taken for a bar."""
+    new(keeper, "api", tmp_path)
+    shown = "#{status} #{window_height}"
+    commands = f"refresh-client -C 80,24\ndisplay-message -p 'seen: {shown}'\n"
+    control = [keeper.binary, "-L", keeper.socket, "-C", "attach-session", "-t", "=api"]
+    result = subprocess.run(control, input=commands, capture_output=True, text=True, check=False)
+    assert "seen: on 24" in result.stdout
 
 
 def test_create_and_list(keeper: TmuxKeeper, tmp_path: Path) -> None:
@@ -303,16 +317,19 @@ def option(keeper: TmuxKeeper, name: str) -> str:
 
 def test_our_config_reaches_a_server_started_by_hand(keeper: TmuxKeeper, tmp_path: Path) -> None:
     tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
-    assert option(keeper, "status") == "on"
+    assert option(keeper, "history-limit") == "2000"  # the default of tmux
     keeper.sessions()
-    assert option(keeper, "status") == "off"
+    assert option(keeper, "history-limit") == str(config.settings().terminals.history)
     assert option(keeper, CONFIG_OPTION) == config_digest(keeper.config)
 
 
-def test_none_of_tmuxs_keys_but_ours(keeper: TmuxKeeper, tmp_path: Path) -> None:
+def test_the_look_and_keys_of_tmux_stay(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """Attaching from the CLI is plain tmux: its status bar and every key it binds."""
     new(keeper, "api", tmp_path)
+    assert option(keeper, "status") == "on"
+    assert option(keeper, "prefix") == "C-b"
     keys = tmux(keeper, "list-keys", "-T", "prefix").splitlines()
-    assert sorted(line.split()[3] for line in keys) == ["C-b", "PPage", "[", "d"]
+    assert {"c", "d", "[", "n", "o"} <= {line.split()[3] for line in keys}
     tmux(keeper, "set-option", "-g", CONFIG_OPTION, "outdated")  # as after a settings change
     keeper.sessions()  # loads it again, which changes nothing else
     assert option(keeper, CONFIG_OPTION) == config_digest(keeper.config)
@@ -320,9 +337,9 @@ def test_none_of_tmuxs_keys_but_ours(keeper: TmuxKeeper, tmp_path: Path) -> None
 
 
 def test_the_users_tmux_config_stays_out(keeper: TmuxKeeper, tmp_path: Path) -> None:
-    Path(os.environ["HOME"], ".tmux.conf").write_text("set -g status on\nset -g @theirs 1\n")
+    Path(os.environ["HOME"], ".tmux.conf").write_text("set -g status off\nset -g @theirs 1\n")
     new(keeper, "api", tmp_path)
-    assert option(keeper, "status") == "off"
+    assert option(keeper, "status") == "on"
     assert option(keeper, "@theirs") == ""
 
 

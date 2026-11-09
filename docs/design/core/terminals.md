@@ -27,16 +27,16 @@ All our tmux commands use a socket of our own, `tmux -L hephaistos`, apart from 
 With `HEPHAISTOS_HOME` set, the socket gets a name unique to that directory, so tests and scratch Daemons never see the real Terminals.
 `terminals.tmux.socket` names another; `terminals.tmux.path` names the tmux to run, e.g. one installed without root where the system tmux is older.
 
-Every command passes our config with `-f`, so `~/.tmux.conf` never applies on our socket.
+Every command passes our config with `-f`, so `~/.tmux.conf` never applies on our socket: a config of the user could change what the GUI shows, e.g. the terminal programs see, or restore sessions of its own by a plugin.
 The config is generated from the settings and written to the state directory.
-It makes tmux a plain terminal:
-- no status bar;
-- `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`);
+It keeps the defaults of tmux, its status bar and keys included, so that attaching from the CLI is plain tmux; a client in control mode, as the GUI uses, shows no status bar and runs no key bindings.
+On top, only what the server needs:
+- `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`): every machine has its terminfo, unlike that of `tmux-256color`, and in the GUI programs write to xterm.js;
 - extended keys (e.g. Shift+Enter) and focus events;
 - a short escape time, so Esc does not lag;
 - the server staying after its last session, so that no server means it crashed or was killed;
 - `history-limit` from `terminals.history`;
-- none of the tmux keys but Ctrl+B d (detach), Ctrl+B [ and PageUp (copy mode), and Ctrl+B Ctrl+B (a Ctrl+B for the program).
+- `update-environment` with the variables of a desktop session, see below.
 
 It ends with a marker, `@hephaistos_config`, the hash of its text.
 Listing the sessions finds a server whose marker differs, e.g. one started by hand or before a settings change, and loads our config into it.
@@ -110,7 +110,7 @@ Without a working Keeper, e.g. without tmux, a Machine without Terminals is no n
 
 ## Actions
 
-Creating, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
+Creating, attaching, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
 A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it.
 
@@ -119,4 +119,10 @@ Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) f
 A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
 A command that ends before the Terminal is observed is reported as having ended at once; a server that ends meanwhile, as lost at once.
+
+Attaching gives the command that attaches a terminal emulator: for tmux, `tmux attach-session` with our socket and config, targeting the session by its ID.
+Attaching to a lost Terminal first starts it again, with its ID, name and directory, as the login shell.
+A short `sh` prints a dim line first: "restored after a restart; earlier output is gone", with what a command Terminal ran, which does not run again, as it may have been anything, e.g. a deployment.
+Where its directory is gone, it starts in the home directory, and the line says so.
+Its row then holds no command, as it runs a shell.
 

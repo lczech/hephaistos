@@ -217,6 +217,11 @@ def rename_lost(session: WriteSession, state: TerminalState, new_name: str) -> N
     _write(session, replace(state, name=new_name, observed_at=session.tick()))
 
 
+def restored(session: WriteSession, state: TerminalState) -> None:
+    """Records that a lost Terminal runs again, as a shell: its command, if any, ran no more."""
+    _write(session, replace(state, command=None, observed_at=session.tick()))
+
+
 def forget(session: WriteSession, state: TerminalState) -> None:
     """Deletes the row of a lost Terminal: it is killed without having run again."""
     _delete(session, state.id)

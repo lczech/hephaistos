@@ -1,4 +1,4 @@
-"""What users do to Terminals: create, rename and kill them, for the CLI and the Server.
+"""What users do to Terminals: create, attach, rename and kill them, for the CLI and the Server.
 
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper
 outside any transaction, then observes again: State always comes from the one comparison
@@ -7,6 +7,7 @@ outside any transaction, then observes again: State always comes from the one co
 
 import contextlib
 import os
+import shlex
 import uuid
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -15,8 +16,13 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.observers import terminals as observer
 from hephaistos.core.state import terminals as state
 from hephaistos.core.state.terminals import NAMES, TerminalState, TerminalStatus
-from hephaistos.core.terminals.keeper import Keeper, NameTakenError, NoSuchSessionError
-from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.terminals.keeper import (
+    TERMINAL_VARIABLE,
+    Keeper,
+    NameTakenError,
+    NoSuchSessionError,
+)
+from hephaistos.core.terminals.tmux import TmuxKeeper, login_shell
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, absolute, short_path
@@ -137,6 +143,68 @@ def rename(
     if renamed is None:
         raise state.NoSuchTerminalError(new_name)
     return renamed
+
+
+#: What a restored Terminal runs first: the dim line of its hint, then the login shell.
+_RESTORING = 'printf "\\033[2m%s\\033[0m\\n" "$1"; exec "$2" -l'
+
+
+def _restore(
+    paths: Paths, keeper: Keeper, lost: TerminalState, environment: Mapping[str, str]
+) -> None:
+    """Starts a lost Terminal again, with its ID, name and directory, as a shell.
+
+    A dim line in it says so, and what it ran, which does not run again: it may have been
+    anything, e.g. a deployment. Where its directory is gone, it starts in the home directory.
+    """
+    directory = lost.directory
+    hint = "restored after a restart; earlier output is gone"
+    if lost.command is not None:
+        hint += f"; it ran: {shlex.join(lost.command)}"
+    if not directory.is_dir() or not os.access(directory, os.X_OK):
+        hint += f"; {directory} is gone, so it starts in the home directory"
+        directory = Path.home()
+    shell = login_shell(environment)
+    command = ["sh", "-c", _RESTORING, "sh", hint, shell]
+    try:
+        keeper.create(lost.id, lost.name, directory, command, environment)
+    except NameTakenError:  # a session started by hand meanwhile, not observed yet
+        raise HephaistosError(_taken_text(lost.name, lost=False)) from None
+    except NoSuchSessionError:
+        raise HephaistosError(f"terminal {escaped(lost.name)} ended at once") from None
+    with write_session(paths) as session:
+        state.restored(session, lost)
+
+
+def attach(
+    paths: Paths,
+    name: str,
+    *,
+    keeper: Keeper | None = None,
+    environment: Mapping[str, str] = os.environ,
+) -> tuple[TerminalState, list[str]]:
+    """The Terminal named `name`, restored first if lost, and the command that attaches to it.
+
+    `environment` is that of the process attaching: refused inside the Terminal itself, whose
+    output would loop back into it.
+    """
+    keeper = keeper or TmuxKeeper.from_settings(paths)
+    _observed(paths, keeper)
+    with read_session(paths) as session:
+        found = state.by_name(session, name)
+    if environment.get(TERMINAL_VARIABLE) == str(found.id):
+        raise HephaistosError(
+            f"this is terminal {escaped(name)} itself; attach to it from another terminal emulator"
+        )
+    if found.status is TerminalStatus.LOST:
+        _restore(paths, keeper, found, environment)
+        _observed(paths, keeper)
+        with read_session(paths) as session:
+            found = state.by_id(session, found.id) or found
+    listed = [session for session in keeper.sessions() if session.terminal_id == found.id]
+    if not listed:
+        raise HephaistosError(f"terminal {escaped(name)} ended meanwhile")
+    return found, keeper.attach_command(listed[0])
 
 
 def kill(
