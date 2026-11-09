@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { columnWidths, useListLayout } from "./kept";
+import { columnWidths, hiddenColumns, resetLook, useListLayout } from "./kept";
+import { useHidden } from "./table";
 
 describe("column widths", () => {
   it("start from what this browser kept, if readable", () => {
@@ -40,5 +41,26 @@ describe("a list's layout", () => {
     expect(result.current[0]).toBe("columns");
     expect(localStorage.getItem("hephaistos.lists.chosen.layout")).toBe('"columns"');
     expect(renderHook(() => useListLayout("other")).result.current[0]).toBe("lines");
+  });
+});
+
+describe("a list's hidden columns", () => {
+  const COLUMNS = [{ id: "name" }, { id: "size", meta: { hiddenAtFirst: true } }];
+
+  it("are those hidden until shown, until chosen, and again once reset", () => {
+    const { result } = renderHook(() => useHidden("reset", "columns", COLUMNS));
+    expect([...result.current]).toEqual(["size"]);
+    act(() => hiddenColumns("reset").set([]));
+    expect([...result.current]).toEqual([]);
+    act(() => resetLook("reset"));
+    expect([...result.current]).toEqual(["size"]);
+  });
+
+  it("show while sorted or filtered by, and in two lines all", () => {
+    const sorted = { sorting: [{ id: "size" }] };
+    expect([
+      ...renderHook(() => useHidden("by", "columns", COLUMNS, sorted)).result.current,
+    ]).toEqual([]);
+    expect([...renderHook(() => useHidden("by", "lines", COLUMNS)).result.current]).toEqual([]);
   });
 });

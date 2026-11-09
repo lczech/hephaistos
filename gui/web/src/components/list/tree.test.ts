@@ -1,5 +1,6 @@
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { inOrder, loadedRows, note, noteId } from "./tree";
+import { inOrder, loadedRows, note, noteId, useKeptSets } from "./tree";
 
 describe("rows asked for once opened", () => {
   const rows = (items: string[]) => items.map((item) => ({ type: "item", id: item }));
@@ -75,5 +76,29 @@ describe("rows beside each other", () => {
       "b",
       "c",
     ]);
+  });
+});
+
+describe("sets kept for a tree", () => {
+  it("read what this browser kept, leaving out what is not sets of strings", () => {
+    localStorage.setItem(
+      "hephaistos.folds.odd",
+      JSON.stringify({ list: ["a"], text: "no", "/r": { opened: ["a/", 3], gone: "x" } }),
+    );
+    const { result } = renderHook(() => useKeptSets("odd", "/r"));
+    expect(result.current[0]).toEqual({ opened: new Set(["a/"]), gone: new Set() });
+    localStorage.setItem("hephaistos.folds.broken", "not json");
+    expect(renderHook(() => useKeptSets("broken", "/r")).result.current[0]).toEqual({});
+  });
+
+  it("forget a key once all its sets are empty", () => {
+    const { result } = renderHook(() => useKeptSets("emptied", "/r"));
+    act(() => result.current[1]({ opened: new Set(["a/"]), folded: new Set() }));
+    expect(JSON.parse(localStorage.getItem("hephaistos.folds.emptied") ?? "")).toEqual({
+      "/r": { opened: ["a/"] },
+    });
+    act(() => result.current[1]({ opened: new Set() }));
+    expect(JSON.parse(localStorage.getItem("hephaistos.folds.emptied") ?? "")).toEqual({});
+    expect(renderHook(() => useKeptSets("emptied", undefined)).result.current[0]).toEqual({});
   });
 });

@@ -301,6 +301,26 @@ describe("the Explorer View", () => {
     expect(asked()).toEqual(["", "git"]);
   });
 
+  it("says how many more a folder holds than listed, also while finding in it", async () => {
+    Element.prototype.scrollIntoView = () => {}; // to the match found: jsdom lays nothing out
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([]),
+      "GET /api/files": () => {
+        const entries = [fileEntry("a.txt"), fileEntry("b.txt")];
+        return json({ path: "/home/me", top: null, entries, count: 7 });
+      },
+      "GET /api/files/paths": () =>
+        json({ path: "/home/me", paths: ["a.txt", "b.txt", "c.txt"], stopped: null, limit: null }),
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    const more = "5 more not listed, as the setting files.max_entries allows 2";
+    expect(await screen.findByText(more)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
+    await userEvent.type(screen.getByRole("textbox", { name: /^Find files/ }), "a");
+    await waitFor(() => expect(names()).toEqual(["a.txt", more]));
+  });
+
   it("offers a changed file's Diff and History, and copies its path from its menu", async () => {
     serve({
       "GET /api/info": () => json(info()),
