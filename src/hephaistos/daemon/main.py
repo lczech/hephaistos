@@ -104,7 +104,7 @@ class Daemon:
     """
 
     def __init__(
-        self, paths: Paths, names: list[str], version: str, found: Sequence[Check] = ()
+        self, paths: Paths, names: list[str], version: str, found: Sequence[Check]
     ) -> None:
         """Prepares the parts named, with the checks `found` at the start; `run` starts them."""
         self._paths = paths

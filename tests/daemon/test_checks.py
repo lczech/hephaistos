@@ -74,6 +74,7 @@ FIX = "install tmux 3.2a or later, or set terminals.tmux.path to one"
         (None, "problem", "tmux is not installed (tmux not found)"),
         ("echo 'tmux 3.1c'", "problem", "3.1c is too old; need 3.2a or later"),
         ("echo 'no tmux here' >&2; exit 1", "problem", "tmux -V failed: no tmux here"),
+        ("echo 'bad; worse' >&2; exit 1", "problem", "tmux -V failed: bad; worse"),  # all of it
         ("echo 'tmux 3.2a'", "ok", "3.2a, {bin}/tmux"),
         ("echo 'tmux next-3.7'", "ok", "next-3.7, {bin}/tmux"),
         ("echo 'tmux openbsd-7.5'", "ok", "openbsd-7.5, {bin}/tmux"),  # no version: new enough

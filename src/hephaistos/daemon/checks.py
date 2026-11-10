@@ -43,11 +43,13 @@ def _git(_: Shell) -> list[Check]:
 
 def _tmux(_: Shell) -> list[Check]:
     """tmux, which keeps Terminals: a problem without it, even on a Machine without any."""
-    fix = f"install tmux {tmux.MINIMUM_TEXT} or later, or set terminals.tmux.path to one"
+    fix = tmux.INSTALL_TEXT
     try:
         found = tmux.installation(tmux.binary())
-    except KeeperError as error:
-        return [Check("tmux", "problem", str(error).partition(";")[0], fix)]
+    except tmux.MissingError as error:
+        return [Check("tmux", "problem", error.problem, fix)]
+    except KeeperError as error:  # e.g. `tmux -V` failed: what it said, whatever it holds
+        return [Check("tmux", "problem", str(error), fix)]
     version = found.text.removeprefix("tmux ")
     if found.too_old:
         text = f"{version} is too old; need {tmux.MINIMUM_TEXT} or later"

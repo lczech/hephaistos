@@ -127,12 +127,17 @@ def binary() -> str:
     return shutil.which(path) or path
 
 
-def missing_text(binary: str) -> str:
-    """Why there are no Terminals without tmux, and what to do."""
-    return (
-        f"tmux is not installed ({binary} not found); install tmux {MINIMUM_TEXT} or later,"
-        " or set terminals.tmux.path to one"
-    )
+#: What to do without tmux, or with one too old.
+INSTALL_TEXT = f"install tmux {MINIMUM_TEXT} or later, or set terminals.tmux.path to one"
+
+
+class MissingError(KeeperError):
+    """tmux is not installed: there are no Terminals without it."""
+
+    def __init__(self, binary: str) -> None:
+        """The error for `binary` not found; `problem` says that without what to do."""
+        self.problem = f"tmux is not installed ({binary} not found)"
+        super().__init__(f"{self.problem}; {INSTALL_TEXT}")
 
 
 def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
@@ -142,7 +147,7 @@ def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
             [binary, "-V"], capture_output=True, text=True, check=False, timeout=timeout
         )
     except FileNotFoundError:
-        raise KeeperError(missing_text(binary)) from None
+        raise MissingError(binary) from None
     except (OSError, subprocess.SubprocessError) as error:
         raise KeeperError(f"tmux failed: {error}") from None
     if result.returncode != 0:
@@ -331,7 +336,7 @@ class TmuxKeeper:
                 command, capture_output=True, check=False, timeout=self.timeout, env=env
             )
         except FileNotFoundError:
-            raise KeeperError(missing_text(self.binary)) from None
+            raise MissingError(self.binary) from None
         except subprocess.TimeoutExpired:
             raise KeeperError(f"tmux did not answer within {self.timeout:g} s") from None
         except OSError as error:

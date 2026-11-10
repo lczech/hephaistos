@@ -86,6 +86,6 @@ def page(text: str) -> None:
     command = shlex.split(os.environ.get("PAGER") or PAGER)
     env = os.environ | {"LESS": os.environ.get("LESS", LESS)}
     try:
-        subprocess.run(command, input=text + "\n", text=True, env=env, check=False)  # noqa: S603 - the user's pager
+        subprocess.run(command, input=text + "\n", text=True, env=env, check=False)  # noqa: S603 - the pager of the user
     except OSError:
         typer.echo(text)
