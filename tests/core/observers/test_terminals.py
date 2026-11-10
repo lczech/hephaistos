@@ -16,6 +16,7 @@ from hephaistos.core.state.terminals import TerminalStatus
 from hephaistos.core.terminals.tmux import ID_OPTION, TmuxKeeper
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.watcher import worker
+from support import eventually
 
 pytestmark = pytest.mark.tmux
 
@@ -81,6 +82,22 @@ def test_created_then_ended(set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_p
     assert result.changes is not None
     assert result.changes.ended == 1
     assert list(stored(set_up)) == ["web"]
+
+
+def test_one_that_cannot_be_read_keeps_its_row(
+    set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: Path
+) -> None:
+    odd = tmp_path / "x\t\x1f\ty"  # the separator of our listing, exactly
+    odd.mkdir()
+    script = 'sleep 1; cd "$1" && exec sleep 600'  # listed first, as created
+    keeper.create(uuid.uuid4(), "api", tmp_path, ["sh", "-c", script, "sh", str(odd)], {})
+    observe(set_up, keeper, boot)
+    eventually(lambda: not keeper.sessions())  # listed, but no longer read
+    assert keeper.listing().unreadable
+    result = observe(set_up, keeper, boot)
+    assert result.changes is not None
+    assert result.changes.ended == 0
+    assert stored(set_up)["api"].status is TerminalStatus.OPEN
 
 
 def test_lost_when_the_server_dies(

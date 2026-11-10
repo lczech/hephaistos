@@ -26,6 +26,7 @@ from hephaistos.core import config
 from hephaistos.core.terminals.keeper import (
     TERMINAL_VARIABLE,
     KeeperError,
+    Listing,
     NameTakenError,
     NoSuchSessionError,
     Session,
@@ -257,6 +258,14 @@ def login_shell(environment: Mapping[str, str]) -> str:
 _UNNAMED: set[tuple[str, str]] = set()
 
 
+def _id(text: str) -> uuid.UUID | None:
+    """The ID of a Terminal as tmux holds it; None if none, or not one."""
+    try:
+        return uuid.UUID(text) if text else None
+    except ValueError:
+        return None
+
+
 def _time(text: str) -> datetime:
     return datetime.fromtimestamp(int(text), UTC)
 
@@ -375,15 +384,16 @@ class TmuxKeeper:
 
     # Sessions.
 
-    def _parsed(self, record: str) -> tuple[Session, str] | None:
+    def _parsed(self, record: str) -> tuple[Session, str] | uuid.UUID | None:
         """The session of a pane and the config marker its server has.
 
-        None, logged, if malformed.
+        If malformed, logged, the ID of its Terminal, if it reads; else None. The ID reads
+        whatever a name or path holds, as it comes before them, after the key, e.g. `$3`.
         """
         fields = record.split(_SEPARATOR)
         if len(fields) != len(_FIELDS):
             log.warning("skipped a tmux session we cannot read: %r", record[:200])
-            return None
+            return _id(fields[1]) if len(fields) > 1 else None
         (
             key,
             terminal_id,
@@ -401,7 +411,7 @@ class TmuxKeeper:
             if (self.socket, key) not in _UNNAMED:
                 _UNNAMED.add((self.socket, key))
                 log.warning("left tmux session %s alone: it has no name; rename it to see it", key)
-            return None
+            return _id(terminal_id)
         try:
             parsed_id = uuid.UUID(terminal_id) if terminal_id else None
         except ValueError:
@@ -424,24 +434,32 @@ class TmuxKeeper:
             )
         except ValueError:
             log.warning("skipped a tmux session we cannot read: %r", record[:200])
-            return None
+            return parsed_id
         return session, marker
 
     def sessions(self) -> list[Session]:
         """All sessions, each as its first pane, with the number of its panes."""
+        return self.listing().sessions
+
+    def listing(self) -> Listing:
+        """All sessions, as `sessions`, and the IDs of those it could not read."""
         self.check()
         result = self._client("list-panes", "-a", "-F", _FORMAT)
         if result.returncode != 0:
             if not self.running() or not self._keys():  # no server, or one without sessions
-                return []
+                return Listing([])
             raise self._failed(["list-panes"], result)
         found: dict[str, Session] = {}
+        unreadable: set[uuid.UUID] = set()
         markers: set[str] = set()
         output = result.stdout
         for escaped, raw in _ESCAPED.items():
             output = output.replace(escaped, raw)
         for record in output.split(_END):
             if not record or (parsed := self._parsed(record)) is None:
+                continue
+            if isinstance(parsed, uuid.UUID):
+                unreadable.add(parsed)
                 continue
             session, marker = parsed
             markers.add(marker)
@@ -451,7 +469,9 @@ class TmuxKeeper:
                 found[session.key] = dataclasses.replace(first, panes=first.panes + 1)
         if markers - {config_digest(self.config)}:
             self._load_config()
-        return list(found.values())
+        # A pane read, of a session with another pane that is not, still lists it.
+        readable = {session.terminal_id for session in found.values()}
+        return Listing(list(found.values()), frozenset(unreadable - readable))
 
     def _load_config(self) -> None:
         """Loads our config into a running server that lacks it, e.g. one started by hand."""

@@ -94,9 +94,9 @@ def observe(
         started = session.clock_value  # rows observed after it are newer than what we find
         stored = state.on_this_machine(session)
     try:
-        found = keeper.sessions()
-        running = bool(found) or keeper.running()
-        found = _adopted(keeper, found, stored)
+        listing = keeper.listing()
+        running = bool(listing.sessions or listing.unreadable) or keeper.running()
+        found = _adopted(keeper, listing.sessions, stored)
     except KeeperError as error:
         if not stored:
             log.debug("no terminals observed: %s", error)
@@ -111,5 +111,6 @@ def observe(
             boot_id=boot_id(boot_file),
             started=started,
             command=command,
+            unreadable=listing.unreadable,
         )
     return Result(changes)

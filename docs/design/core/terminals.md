@@ -67,6 +67,7 @@ So fields are separated by a tab, a Unit Separator and a tab, escaped or not, an
 The escapes in a path count where the path so read exists and the text as printed does not.
 tmux runs with `-u`, else without a UTF-8 locale, e.g. in a Daemon, it prints `_` for each character beyond ASCII; its output is decoded as bytes, as text mode would turn a `\r` into a `\n`.
 A pane whose fields do not add up is skipped and logged, never misread; so is a session without a name, which tmux 3.8 makes of `new -s '#'`.
+Its Terminal still runs, so where its ID reads, as it comes before any name or path, its row stays as it was, e.g. after a `cd` into a directory whose name holds the separator.
 Without a server, or with one whose socket refuses connections, e.g. left by a crash, there are no sessions.
 
 ### Killing

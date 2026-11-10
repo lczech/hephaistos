@@ -47,6 +47,15 @@ class Session:
     panes: int  # more than 1 if someone split it outside hephaistos; the first one counts
 
 
+@dataclass(frozen=True)
+class Listing:
+    """All sessions of a Keeper at one moment."""
+
+    sessions: list[Session]
+    #: The IDs of those it could not read, e.g. renamed by hand to no name: they still run.
+    unreadable: frozenset[uuid.UUID] = frozenset()
+
+
 class Keeper(Protocol):
     """Keeps Terminals alive: creates, lists, renames and kills them."""
 
@@ -60,6 +69,10 @@ class Keeper(Protocol):
 
     def sessions(self) -> list[Session]:
         """All sessions, of every Terminal; empty if none run, e.g. after a reboot."""
+        ...
+
+    def listing(self) -> Listing:
+        """All sessions, as `sessions`, and the IDs of those it could not read."""
         ...
 
     def create(

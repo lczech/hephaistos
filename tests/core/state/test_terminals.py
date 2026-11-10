@@ -123,6 +123,22 @@ def test_ended_with_the_server_running(set_up: Paths) -> None:
     assert statuses(set_up) == {"web": "open"}
 
 
+def test_ones_that_cannot_be_read_stay(set_up: Paths) -> None:
+    api, web = new_id(), new_id()
+    update(set_up, session("api", api), session("web", web))
+    with write_session(set_up) as written:
+        changes = terminals.update(
+            written,
+            [session("web", web)],
+            running=True,
+            boot_id=BOOT,
+            started=clock(set_up),
+            unreadable={api},
+        )
+    assert changes.ended == 0
+    assert set(stored(set_up)) == {"api", "web"}
+
+
 def test_lost_when_the_server_died(set_up: Paths) -> None:
     update(set_up, session("api", new_id()))
     assert update(set_up, running=False) == Changes(open=0, added=0, ended=0, lost=1)

@@ -341,6 +341,7 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     boot_id: str,
     started: Timestamp,
     command: Mapping[uuid.UUID, tuple[str, ...]] | None = None,
+    unreadable: Collection[uuid.UUID] = (),
 ) -> Changes:
     """Stores what the Keeper showed of the Terminals of this Machine.
 
@@ -349,7 +350,8 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     same boot; else it is lost. A found one takes its name from the Keeper; another holding
     that name moves to a free one. `command` holds what Terminals just created run, also for
     rows another process stored first; others found anew run a shell, or whatever was started
-    by hand, which the Keeper does not say.
+    by hand, which the Keeper does not say. `unreadable` are the IDs of sessions it lists but
+    could not read, e.g. renamed by hand to no name: their rows stay as they were.
 
     `started` is the clock before the Keeper was asked. A row observed later, e.g. of a
     Terminal another process created meanwhile, is a newer reading than `found`, so it stays
@@ -365,7 +367,11 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
             _write(session, known[terminal_id])
     newer = {state.id for state in known.values() if state.observed_at > started}
     seen = {item.terminal_id: item for item in found if item.terminal_id is not None}
-    missing = [state for state in known.values() if state.id not in seen and state.id not in newer]
+    missing = [
+        state
+        for state in known.values()
+        if state.id not in seen and state.id not in newer and state.id not in unreadable
+    ]
     # First, so that the names of ended Terminals become free.
     ended, lost = _end_or_lose(
         session, missing, running=running, boot_id=boot_id, observed_at=observed_at
