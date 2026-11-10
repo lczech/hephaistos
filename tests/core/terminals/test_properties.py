@@ -79,6 +79,8 @@ def locale(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> s
 @example(name="$HOME", arguments=["$HOME"], value="$HOME")
 @example(name="a\\037b", arguments=[], value="\\")
 @example(name="\x1f\b\x7f", arguments=["\x1b[31m"], value="\n")
+@example(name="#[", arguments=["#["], value="#[")  # tmux keeps `#[` and `##[` as they are
+@example(name="a##[b#[#", arguments=[], value="")
 def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then the examples
     set_up: Paths,
     keeper: TmuxKeeper,

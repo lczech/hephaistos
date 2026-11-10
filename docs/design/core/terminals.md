@@ -17,7 +17,7 @@ Each Terminal is one tmux session with one pane.
 Its ID is a session option, `@hephaistos_id`, set by the same command list that creates the session, so no one sees it without one.
 The programs in each Terminal find its ID in `HEPHAISTOS_TERMINAL`.
 Renaming and killing target a session by the ID tmux gives it (`$3`), found by its name, as tmux may print a name otherwise than it takes it.
-tmux reads some arguments specially, so each holding a name, a path or a value is written to be taken literally: one ending in `;` would end the command (`\;`), and a `#` in a name or directory starts a format (`##`).
+tmux reads some arguments specially, so each holding a name, a path or a value is written to be taken literally: one ending in `;` would end the command (`\;`), and a `#` in a name or directory starts a format (`##`), except in a run of them before `[`, which tmux keeps as it is.
 tmux refuses a name that is taken, which settles races between creators.
 A failed command is told apart by state, never by the message of tmux: whether the server answers on its socket, whether the session is still listed, whether the name is taken ([development](../../development.md#principles)).
 

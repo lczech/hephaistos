@@ -242,8 +242,14 @@ def config_digest(text: str) -> str:
 
 
 def _literal(text: str) -> str:
-    """Text tmux expands as a format, e.g. the name or directory of a new session, kept as it is."""
-    return _escaped(text.replace("#", "##"))
+    """Text tmux expands as a format, e.g. the name or directory of a new session, kept as it is.
+
+    Each `#` doubled, except in a run of them before `[`, which tmux keeps as it is (a style).
+    """
+    return _escaped(_HASHES.sub(lambda run: run[0] if run[2] else run[1] * 2, text))
+
+
+_HASHES = re.compile(r"(#+)(\[?)")
 
 
 def _escaped(argument: str) -> str:
