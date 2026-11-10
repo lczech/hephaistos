@@ -73,6 +73,6 @@ Without systemd user services, `daemon run` in tmux takes their place.
 - the Watcher's timer: `stalled` if the last pass is more than 3 intervals plus `git.timeout` ago;
 - the Server.
 
-It warns of the problems that the checks in this shell find with the systemd unit for the daemon: its program gone, or other directories than those of this shell.
+It warns of the problems that the checks in this shell find with the systemd unit for the daemon: a unit not written by hephaistos, its program gone, or other directories than those of this shell.
 It exits with 0 if the Daemon runs, 3 if not.
 `--json` gives what the Server's `/api/daemon` gives.

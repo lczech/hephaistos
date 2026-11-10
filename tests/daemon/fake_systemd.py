@@ -1,10 +1,11 @@
-# ruff: noqa: T201, C901 - prints as systemctl does; one branch per command
+# ruff: noqa: T201, C901, PLR0912 - prints as systemctl does; one branch per command
 """Stands in for `systemctl --user` and `loginctl` in tests, as a script of either name.
 
 Keeps its state in FAKE_SYSTEMD (a directory): `calls` lists each call, `state.json` whether our
 unit is enabled and the pid it runs. It starts `ExecStart` of the unit in $HOME's
 ~/.config/systemd/user, with this environment, and stops it with SIGTERM. With
-FAKE_SYSTEMD_UNAVAILABLE set, systemctl fails as without a user session.
+FAKE_SYSTEMD_UNAVAILABLE set, systemctl fails as without a user session; with
+FAKE_SYSTEMD_SHOW_FAILS, only its `show` fails, as a manager stuck under load may.
 """
 
 import getpass
@@ -77,6 +78,9 @@ def systemctl(args: list[str]) -> int:
     match command:
         case "show-environment" | "daemon-reload":
             pass
+        case "show" if os.environ.get("FAKE_SYSTEMD_SHOW_FAILS"):
+            print("Failed to get properties: Connection timed out", file=sys.stderr)
+            return 1
         case "show":
             running = _alive(state["pid"])
             print(f"LoadState={'loaded' if UNIT_FILE.exists() else 'not-found'}")

@@ -16,7 +16,8 @@ The checks, in `daemon/checks.py`, each part adding its own:
   A version tmux does not name, e.g. `master`, counts as new enough.
 - SQLite: that of Python, at least 3.37.
 - systemd: its version; a note without user services.
-- The unit, with systemd: a note if not installed or disabled; a problem if a unit of another installation is in the way, its program is gone, or, asked from a shell, it uses other directories than those of this shell.
+- The unit, with systemd: a note if not installed or disabled; a problem if a unit not written by hephaistos is in the way, its program is gone, or, asked from a shell, it uses other directories than those of this shell.
+  So is systemd failing to say how the unit is, after it answered, e.g. stuck under load: the Daemon still starts, and `daemon status` shows its unit as unknown.
   A Daemon does not compare its own: it is the one the unit runs, or another on purpose, e.g. a scratch one.
 - Linger, with the unit enabled: a note if off, as the Daemon then stops at logout; fine where someone is logged in while it should run, as on a laptop, not on an always-on Machine.
 - ionice: a note if missing, as passes then run at normal I/O priority.
@@ -50,3 +51,4 @@ While the Daemon runs, the problems and notes it recorded that the checks in the
 Then come About, the lines of `daemon status`, and the counts of the log, naming the `log show` that lists them: the order of the Status View.
 `--json` gives what `/api/status` gives: the checks, About, the counts of the log, and `daemon status --json`.
 It runs on the default settings if the config is broken, to look into that.
+It exits with 0 whatever the checks find, as a report; `daemon status` exits by whether the Daemon runs.

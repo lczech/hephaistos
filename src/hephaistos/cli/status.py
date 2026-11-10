@@ -60,7 +60,7 @@ def _log_text(counts: report.LogCountsJson) -> str:
     warnings = number_text(counts["warnings"], "warning")
     return (
         f"{errors} and {warnings} in the last {hours} h;"
-        f" `hephaistos log show --level warning --since {hours}h`"
+        f" see them with `hephaistos log show --level warning --since {hours}h`"
     )
 
 

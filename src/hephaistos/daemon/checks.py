@@ -18,7 +18,7 @@ from hephaistos.core.utils import git
 from hephaistos.core.utils.installation import inline_text
 from hephaistos.daemon import unit
 from hephaistos.daemon.status import Check, Checked, Outcome
-from hephaistos.daemon.unit import ForeignUnitError
+from hephaistos.daemon.unit import ForeignUnitError, SystemdError
 
 INSTALL = "`hephaistos daemon install`"
 
@@ -88,7 +88,11 @@ def _unit(shell: Shell) -> list[Check]:
         compared = inline_text(differences, "the unit", "this shell")
         text = f"it uses other directories than this shell ({compared})"
         found.append(Check("unit", "problem", text, INSTALL))
-    state = unit.unit_state()
+    try:
+        state = unit.unit_state()
+    except SystemdError as error:  # it answered just before, e.g. now stuck under heavy load
+        text = f"systemd did not say how the unit is: {error}"
+        return [*found, Check("unit", "problem", text, "run `hephaistos status` again shortly")]
     if state is not None and not state.enabled:
         text = "installed, but disabled: the daemon does not start at login"
         return [*found, Check("unit", "note", text, INSTALL)]
@@ -97,7 +101,8 @@ def _unit(shell: Shell) -> list[Check]:
     if not unit.has_linger():
         # Fine where someone is logged in while it should run, as on a laptop.
         text = "off: the daemon starts at login, and stops at logout"
-        found.append(Check("linger", "note", text, "`hephaistos daemon install --linger`"))
+        fix = "`hephaistos daemon install --linger` runs it from boot, also when logged out"
+        found.append(Check("linger", "note", text, fix))
     else:
         found.append(Check("linger", "ok", "on: the daemon runs from boot, also when logged out"))
     return found

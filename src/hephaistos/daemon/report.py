@@ -16,7 +16,9 @@ from hephaistos.daemon import status, unit
 from hephaistos.daemon.about import AboutJson
 from hephaistos.daemon.checks import CheckedJson, CheckJson, check_json, checked_json
 from hephaistos.daemon.status import Check, PassStatus, ServerStatus, Status, Trigger
-from hephaistos.daemon.unit import ForeignUnitError, UnitState
+from hephaistos.daemon.unit import ForeignUnitError, SystemdError, UnitState
+
+log = logging.getLogger(__name__)
 
 STALLED_PASSES = 3  # intervals, plus git.timeout, after which a pass is overdue
 RECENT_LOG = timedelta(hours=24)  # how far back `status` counts warnings and errors in the log
@@ -51,8 +53,12 @@ class Report:
 
 
 def report(paths: Paths) -> Report:
-    """How the Daemon is doing."""
-    state = unit.unit_state()
+    """How the Daemon is doing; without the state of its unit if systemd fails to say it."""
+    try:
+        state = unit.unit_state()
+    except SystemdError as error:  # the checks say so, as a problem
+        log.warning("the state of the systemd unit is unknown: %s", error)
+        state = None
     try:
         installed = unit.installed_text()
     except ForeignUnitError:

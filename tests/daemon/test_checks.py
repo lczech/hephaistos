@@ -128,6 +128,19 @@ def test_without_systemd(systemd: Path, monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.usefixtures("repo")
+def test_systemd_failing_after_it_answered(
+    systemd: Path, monkeypatch: pytest.MonkeyPatch, paths: Paths
+) -> None:
+    assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
+    assert run_cli(monkeypatch, "daemon", "stop", program=str(systemd)) == 0
+    monkeypatch.setenv("FAKE_SYSTEMD_SHOW_FAILS", "1")
+    (check,) = [check for check in checks.run() if check.name == "unit"]  # as the Daemon starts
+    assert check.outcome == "problem"
+    assert check.text.startswith("systemd did not say how the unit is: systemctl --user show")
+    assert report.report(paths).unit is None
+
+
+@pytest.mark.usefixtures("repo")
 def test_the_unit_as_installed(
     systemd: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -138,7 +151,9 @@ def test_the_unit_as_installed(
     assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
     found = _found()
     assert found["unit"] == [("ok", None)]
-    assert found["linger"] == [("note", "`hephaistos daemon install --linger`")]
+    assert found["linger"] == [
+        ("note", "`hephaistos daemon install --linger` runs it from boot, also when logged out")
+    ]
     (tmp_path / "linger").mkdir()
     (tmp_path / "linger" / getpass.getuser()).touch()
     assert _found()["linger"] == [("ok", None)]

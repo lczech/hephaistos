@@ -78,7 +78,7 @@ def test_status_lists_the_daemons_other_findings(paths: Paths) -> None:
     assert lines.index("About:") < lines.index("Running:")
     assert lines[-1] == (
         "Log: 1 error and 1 warning in the last 24 h;"
-        " `hephaistos log show --level warning --since 24h`"
+        " see them with `hephaistos log show --level warning --since 24h`"
     )
     answer = json.loads(shell.output)
     assert answer["daemon"]["checks"] is None  # not running then
