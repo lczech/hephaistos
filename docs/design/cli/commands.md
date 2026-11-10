@@ -94,7 +94,7 @@ Files stay untouched.
 Without `-n`, its name is the directory name, numbered: `proj-1`, `proj-2`.
 Run interactively, it then attaches to the Terminal, unless `--detached`; otherwise it prints how to attach later.
 `terminal attach` becomes `tmux attach-session` to the Terminal: plain tmux, with its status bar and keys, so Ctrl+B d detaches, and leaves the Terminal running.
-It runs only interactively, input and output both a tty, and not where the Terminal would show itself, e.g. inside it ([terminals](../core/terminals.md#actions)).
+It runs only interactively, input and output both a tty, and not at a tty that the Terminal shows, e.g. inside it ([terminals](../core/terminals.md#actions)).
 It logs its end before it becomes tmux.
 Attaching to a lost Terminal restores it first ([terminals](../core/terminals.md#actions)).
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.

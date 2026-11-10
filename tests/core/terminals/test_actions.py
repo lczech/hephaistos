@@ -306,7 +306,8 @@ def test_attach_refuses_a_tty_the_terminal_shows(
     actions.create(set_up, proj, name="api")
     tty = tmux(keeper, "display-message", "-p", "-t", keeper.session("api").key, "#{pane_tty}")
     with pytest.raises(
-        HephaistosError, match=r"^this terminal emulator is shown inside terminal api;"
+        HephaistosError,
+        match=r"^this runs inside terminal api; attach to it from another terminal emulator$",
     ):
         actions.attach(set_up, "api", environment={}, tty=tty.strip())
     actions.attach(set_up, "api", environment={}, tty="/dev/pts/nonexistent")
@@ -363,13 +364,13 @@ def test_attach_to_one_ended_meanwhile(
         actions.attach(set_up, "api", keeper=keeper, environment={})
 
 
-def test_attach_refuses_the_terminal_itself(set_up: Paths, proj: Path) -> None:
+def test_attach_decides_by_the_tty_not_the_variable(set_up: Paths, proj: Path) -> None:
+    """`HEPHAISTOS_TERMINAL` spreads, e.g. into a tmux of the user whose server started inside the
+    Terminal, and from there into sessions shown elsewhere: attaching there is fine."""
     created = actions.create(set_up, proj, name="api")
-    inside = {"HEPHAISTOS_TERMINAL": str(created.id)}
-    with pytest.raises(HephaistosError, match=r"^this is terminal api itself; attach to it from"):
-        actions.attach(set_up, "api", environment=inside)
-    actions.create(set_up, proj, name="web")
-    actions.attach(set_up, "web", environment=inside)  # another one, from inside: fine
+    spread = {"HEPHAISTOS_TERMINAL": str(created.id)}
+    found, _ = actions.attach(set_up, "api", environment=spread, tty="/dev/pts/nonexistent")
+    assert found.id == created.id
     with pytest.raises(NoSuchTerminalError):
         actions.attach(set_up, "nope", environment={})
 

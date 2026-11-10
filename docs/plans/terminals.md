@@ -26,16 +26,18 @@ The CLI attaches with plain tmux, which shows that it is tmux.
   - [x] `TMUX` and `TMUX_PANE` removed in each Terminal (`env -u`), so that a `tmux` typed inside reaches the tmux of the user, as from any terminal emulator;
   - [x] errors of tmux decided from state, never from its messages: whether the socket answers, whether a session is still listed, whether a name is taken; the rule goes into [development](../development.md#principles).
 - [x] 1b Attaching from the CLI:
-  - [x] our tmux server runs the defaults of tmux, plus only the settings it needs: `exit-empty off`, `history-limit` from `terminals.history`, `default-terminal xterm-256color` with true colour (every machine has its terminfo, unlike that of `tmux-256color`, and in the GUI programs write to xterm.js; to be checked by the user), `update-environment` extended, `extended-keys on`, `focus-events on`, `escape-time 10`; no status bar or key bindings of ours, and never the config of the user;
+  - [x] our tmux server runs the defaults of tmux, plus only the settings it needs: `exit-empty off`, `history-limit` from `terminals.history`, `default-terminal xterm-256color` with true colour (as in GNOME Terminal; see [terminals](../design/core/terminals.md#socket-and-config) for what it means when attached from the CLI), `update-environment` extended, `extended-keys on`, `focus-events on`, `escape-time 10`; no status bar or key bindings of ours, and never the config of the user;
   - [x] `terminal attach` hands over to `tmux attach-session`, targeting the session by its ID: plain tmux, with its green bar and Ctrl+B;
   - [x] attaching to a lost Terminal restores it, with the same ID, name and directory, as a shell: a short `sh` prints a dim line ("restored after a restart; earlier output is gone", and "it ran: …" for a command Terminal, which does not run again), then becomes the login shell;
   - [x] `terminal create` attaches when run interactively; `--detached` stays out (no short form: `-d` is `--dir`);
-  - [x] attaching is refused when not run interactively, and from inside the same Terminal (`HEPHAISTOS_TERMINAL`);
+  - [x] attaching is refused when not run interactively, and at a tty that the Terminal shows, e.g. inside it;
   - [x] tests: the CLI attach run inside a second tmux, its screen read with `capture-pane`.
+- [x] Fixes from a review (branch `terminals-review`): names of Terminals renamed by hand in one pass, sessions listed but not readable, retries of Clones and Terminals apart, systemd failing in the checks, the Status View against an older Daemon, attaching where it cannot loop.
 - [ ] 1c Exit statuses: `remain-on-exit` for every Terminal; a command that ended, or a pane ended by a signal, stays as ended, with its status or signal, until killed.
 - [ ] 2 The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode, which passes what it does not know and says so once.
   To find out with tests: whether tmux and xterm.js both answer the queries of a program, e.g. which terminal it is in.
 - [ ] 3 The Terminal View (xterm.js): a Panel whose Terminal ended or was lost says so, with actions; see [ideas](../ideas/terminals.md#the-terminal-view).
+  To test: keys (e.g. Home, End) and colours reach programs as xterm.js sends them; a pane whose size another client sets (`window-size latest`, e.g. the CLI attached too) still shows well in its Panel.
 - [ ] Terminals on other Machines.
 
 ## At the merge

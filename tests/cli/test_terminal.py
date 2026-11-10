@@ -232,15 +232,23 @@ def test_attach_needs_both_ends_the_tty(monkeypatch: pytest.MonkeyPatch) -> None
     assert tty.attachable()
 
 
-def test_attach_inside_the_terminal_itself(proj: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ok("create", "-d", str(proj), "--detached")
-    shown = json.loads(runner.invoke(app, ["terminal", "show", "proj-1", "--json"]).stdout)
-    monkeypatch.setenv("HEPHAISTOS_TERMINAL", shown["id"])
-    becomes = Exec(monkeypatch)
-    assert failed("attach", "proj-1") == (
-        "this is terminal proj-1 itself; attach to it from another terminal emulator"
+def cli_text(*args: str) -> str:
+    """The CLI with `args`, as a shell command: as a user would type it."""
+    return shlex.join([sys.executable, "-c", "from hephaistos.cli.main import run; run()", *args])
+
+
+def test_attach_inside_the_terminal_itself(keeper: TmuxKeeper, proj: Path, tmp_path: Path) -> None:
+    ok("create", "-d", str(proj), "-n", "api", "--detached", "--", "sh")
+    said = tmp_path / "said"
+    typed = f"{cli_text('terminal', 'attach', 'api')} 2> {said}.part; mv {said}.part {said}"
+    target = keeper.session("api").key
+    command = [keeper.binary, "-L", keeper.socket, "send-keys", "-t", target]
+    subprocess.run([*command, "-l", typed], check=True)
+    subprocess.run([*command, "Enter"], check=True)
+    eventually(said.exists)
+    assert said.read_text() == (
+        "error: this runs inside terminal api; attach to it from another terminal emulator\n"
     )
-    assert becomes.commands == []
 
 
 class Outer:
@@ -256,13 +264,12 @@ class Outer:
         command = [self.binary, "-L", self.socket, "-f", "/dev/null", *args]
         return subprocess.run(command, capture_output=True, text=True, check=True).stdout
 
-    def run(self, *args: str, in_tmux: bool = False) -> None:
+    def run(self, *args: str, in_tmux: bool = False, spread: str | None = None) -> None:
         """Runs the CLI in it, as a user would type it: with nothing of tmux in its environment,
-        unless `in_tmux`, as in a tmux of the user."""
-        main = "from hephaistos.cli.main import run; run()"
-        cli = shlex.join([sys.executable, "-c", main, *args])
-        unset = "" if in_tmux else "env -u TMUX -u TMUX_PANE "
-        script = f"{unset}{cli}; echo done > {self.out}; exec sleep 600"
+        unless `in_tmux`, as in a tmux of the user; `spread` is a `HEPHAISTOS_TERMINAL` there."""
+        unset = "" if in_tmux else "-u TMUX -u TMUX_PANE"
+        variable = "" if spread is None else f"HEPHAISTOS_TERMINAL={spread}"
+        script = f"env {unset} {variable} {cli_text(*args)}; echo done > {self.out}; exec sleep 600"
         self.tmux("new-session", "-d", "-x", "100", "-y", "30", "-s", "outer", script)
         self.tmux("set", "-g", "prefix", "None")
 
@@ -302,6 +309,10 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
 
 
 def test_attach_from_a_tmux_of_the_user(outer: Outer, proj: Path) -> None:
+    """tmux attaches from a pane of another server; so do we, also where `HEPHAISTOS_TERMINAL`
+    spread into it, as into a tmux of the user whose server started inside the Terminal."""
     ok("create", "-d", str(proj), "-n", "api", "--", "sh", "-c", "echo hello there; exec sleep 600")
-    outer.run("terminal", "attach", "api", in_tmux=True)  # TMUX names the socket of the outer one
+    shown = json.loads(runner.invoke(app, ["terminal", "show", "api", "--json"]).stdout)
+    # TMUX names the socket of the outer one.
+    outer.run("terminal", "attach", "api", in_tmux=True, spread=shown["id"])
     eventually(lambda: "hello there" in outer.screen())

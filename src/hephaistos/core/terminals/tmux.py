@@ -644,7 +644,8 @@ class TmuxKeeper:
             raise self._failed(args, result)
         return [
             (key, value)
-            for line in result.stdout.splitlines()
+            for line in result.stdout.split("\n")  # not splitlines(), which also splits at \r
+            if line
             for key, _, value in [line.partition("\t")]
         ]
 

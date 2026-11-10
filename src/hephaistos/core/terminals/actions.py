@@ -17,7 +17,6 @@ from hephaistos.core.observers import terminals as observer
 from hephaistos.core.state import terminals as state
 from hephaistos.core.state.terminals import NAMES, TerminalState, TerminalStatus
 from hephaistos.core.terminals.keeper import (
-    TERMINAL_VARIABLE,
     Keeper,
     NameTakenError,
     NoSuchSessionError,
@@ -179,29 +178,21 @@ def _restore(
         state.restored(session, lost)
 
 
-def _refuse_itself(found: TerminalState, environment: Mapping[str, str]) -> None:
-    """Raises HephaistosError if `environment` is that of a program inside `found`."""
-    if environment.get(TERMINAL_VARIABLE) == str(found.id):
-        raise HephaistosError(
-            f"this is terminal {escaped(found.name)} itself;"
-            " attach to it from another terminal emulator"
-        )
-
-
 def _attach_command(
     keeper: Keeper, found: TerminalState, tty: str | None, *, ended: str = "ended meanwhile"
 ) -> list[str]:
     """The command that attaches to `found`; refused at a `tty` that it shows.
 
-    E.g. at a pane of another Terminal attached in it: its output would loop back into it.
+    E.g. at its own pane, or at a pane of another Terminal attached in it: its output would loop
+    back into it.
     """
     listed = [session for session in keeper.sessions() if session.terminal_id == found.id]
     if not listed:
         raise HephaistosError(f"terminal {escaped(found.name)} {ended}")
     if tty is not None and keeper.shows(listed[0], tty):
         raise HephaistosError(
-            f"this terminal emulator is shown inside terminal {escaped(found.name)};"
-            " attach to it from another one"
+            f"this runs inside terminal {escaped(found.name)};"
+            " attach to it from another terminal emulator"
         )
     return keeper.attach_command(listed[0])
 
@@ -216,14 +207,14 @@ def attach(
 ) -> tuple[TerminalState, list[str]]:
     """The Terminal named `name`, restored first if lost, and the command that attaches to it.
 
-    `environment` and `tty` are those of the process attaching: refused inside the Terminal
-    itself, or at a tty that the Terminal shows, as its output would loop back into it.
+    `environment` and `tty` are those of the process attaching: refused at a tty that the
+    Terminal shows, as its output would loop back into it. Not by `HEPHAISTOS_TERMINAL`, which
+    may have spread beyond it, e.g. into a tmux of the user whose server started inside it.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
     with read_session(paths) as session:
         found = state.by_name(session, name)
-    _refuse_itself(found, environment)
     if found.status is TerminalStatus.LOST:
         _restore(paths, keeper, found, environment)
         _observed(paths, keeper)

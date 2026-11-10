@@ -16,6 +16,8 @@ The snapshot of a session has the ID of its Terminal (none until adopted), its n
 Each Terminal is one tmux session with one pane.
 Its ID is a session option, `@hephaistos_id`, set by the same command list that creates the session, so no one sees it without one.
 The programs in each Terminal find its ID in `HEPHAISTOS_TERMINAL`.
+It is a hint, never proof that a process runs in that Terminal: it spreads beyond it, e.g. into a tmux of the user whose server started inside it, and from there into every later session of that server.
+What runs in a Terminal is told by state, e.g. by its tty or processes.
 Renaming and killing target a session by the ID tmux gives it (`$3`), found by its name, as tmux may print a name otherwise than it takes it.
 tmux reads some arguments specially, so each holding a name, a path or a value is written to be taken literally: one ending in `;` would end the command (`\;`), and a `#` in a name or directory starts a format (`##`), except in a run of them before `[`, which tmux keeps as it is.
 tmux refuses a name that is taken, which settles races between creators.
@@ -31,7 +33,8 @@ Every command passes our config with `-f`, so `~/.tmux.conf` never applies on ou
 The config is generated from the settings and written to the state directory.
 It keeps the defaults of tmux, its status bar and keys included, so that attaching from the CLI is plain tmux; a client in control mode, as the GUI uses, shows no status bar and runs no key bindings.
 On top, only what the server needs:
-- `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`): every machine has its terminfo, unlike that of `tmux-256color`, and in the GUI programs write to xterm.js;
+- `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`), as in GNOME Terminal: in the GUI, programs write to xterm.js and get its keys, and `ssh` from a Terminal finds the terminfo on any host, unlike that of `tmux-256color`;
+  attached from the CLI, tmux draws and sends keys as itself, e.g. Home and End as `\E[1~` and `\E[4~`, not as `xterm-256color` says (`\EOH`, `\EOF`), so a program that takes them from terminfo alone misses them there;
 - extended keys (e.g. Shift+Enter) and focus events;
 - a short escape time, so Esc does not lag;
 - the server staying after its last session, so that no server means it crashed or was killed;
@@ -128,10 +131,8 @@ Where its directory is gone, it starts in the home directory, and the line says 
 Its row then holds no command, as it runs a shell.
 Two attaching to the same lost Terminal at once both attach to it: the second finds it restored by the first.
 
-Attaching is refused where the Terminal would show itself, its output looping back into it:
-- inside the Terminal itself, by `HEPHAISTOS_TERMINAL`;
-- at a tty that the Terminal shows (`Keeper.shows`): one of its panes, or that of another Terminal attached in it, and so on, by the clients of tmux and their ttys.
-
-A Terminal shown through a tmux of the user is not found that way; that tmux carries `HEPHAISTOS_TERMINAL` only if its server started inside the Terminal, and then refuses there also when shown elsewhere later.
+Attaching is refused at a tty that the Terminal shows, where its output would loop back into it (`Keeper.shows`): one of its panes, or that of another Terminal attached in it, and so on, by the clients of tmux and their ttys.
+tmux refuses the same only with `TMUX` set, which no Terminal has.
+A Terminal shown through a tmux of the user, e.g. one started inside it, is not found that way, as tmux itself does not find it across servers.
 `terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile; a command already ended says so.
 
