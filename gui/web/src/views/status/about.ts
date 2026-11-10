@@ -72,5 +72,8 @@ export function statusMarkdown(
     ...rows.map(([label, value]) => `- ${label}: ${value}`),
   ];
   const text = `${lines.join("\n")}\n`;
-  return home === undefined || home === "/" ? text : text.replaceAll(home, "~");
+  if (home === undefined || home === "/") return text;
+  // Only where it is the whole of a path or its start: not in `/home/meg` for `/home/me`.
+  const escaped = home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`${escaped}(?=/|[^\\w.-]|$)`, "gm"), "~");
 }

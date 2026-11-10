@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { daemon, NOW, secondsAgo } from "../../test/server";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 
-describe("the Daemon card's lines", () => {
+describe("the lines of Running", () => {
   it("say how the Daemon runs", () => {
     const { daemon: process } = daemon();
     expect(daemonText(process, NOW)).toBe("running, pid 4242, started 2h ago");

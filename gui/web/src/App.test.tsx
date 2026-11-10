@@ -166,7 +166,8 @@ describe("the GUI", () => {
     serve(ok);
     renderWithQueries(<App />);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
-    const notice = /^No connection to this machine's server since .*; trying again in \d+ s\.$/;
+    const notice =
+      /^No connection to the server of this machine since .*; trying again in \d+ s\.$/;
     expect(screen.queryByText(notice)).not.toBeInTheDocument();
     act(() => lastSocket().open());
     act(() => lastSocket().drop());

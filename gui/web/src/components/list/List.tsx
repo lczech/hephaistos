@@ -932,7 +932,7 @@ function CellContent<TData extends RowData>({ cell }: { cell: TableCell<ListFeat
   return typeof render === "function" ? render(cell.getContext()) : (render ?? null);
 }
 
-/** A row's square: the chevron that turns as its details open. */
+/** The square of a row: the chevron that turns as its details open. */
 export function Chevron() {
   return <ChevronRight className={styles.chevron} aria-hidden="true" />;
 }

@@ -15,7 +15,7 @@ From within a Panel, a View opens from that Panel's Group.
 From elsewhere, e.g. the status bar, it opens from the active Group (`layout/ViewOpener.tsx`).
 The health icon in the status bar opens the Status View.
 The health is lost while disconnected, waiting until connected, a warning for each problem, and good otherwise.
-Problems are those of the setup, as the Daemon last checked it, whether this GUI fits the API, and how the Daemon runs: a failed pass or Server, or a stalled Watcher.
+Problems are those of the setup, as the Daemon last checked it, whether this GUI fits the API, and how the Daemon runs: a failed pass or Server, a stalled Watcher, or what the last pass could not observe, e.g. Terminals.
 Its icon is a lucide circle: dashed, with a check, with an exclamation mark, or with a cross.
 
 ## Addresses

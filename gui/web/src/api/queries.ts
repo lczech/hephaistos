@@ -71,11 +71,15 @@ export function useDaemon() {
   });
 }
 
-/** The setup, as the Daemon checks it for this: asked only while shown, as checking takes calls. */
-export function useStatus() {
+/**
+ * The setup, as the Daemon checks it for this: asked only while `shown`, as checking takes calls;
+ * while hidden, neither focus nor a reconnect asks again.
+ */
+export function useStatus(shown: boolean) {
   return useQuery({
     queryKey: KEYS.status,
     queryFn: async () => unwrap(await api.GET("/api/status")),
+    enabled: shown,
   });
 }
 

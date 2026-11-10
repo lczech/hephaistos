@@ -64,9 +64,11 @@ The Config View lists the settings, with their values and where each comes from.
 ## Status
 
 The Status View shows the setup of this Machine, its Daemon and what runs, as `hephaistos status` does ([Status](../daemon/status.md)).
-- Setup lists the checks, which the Daemon runs when the View opens or the page gains focus; and one of this GUI itself: whether it fits the API the Daemon runs.
-- About lists the versions and the system; "Copy Setup and About" copies both as Markdown, every check included, the home directory as `~`.
-- Running shows the Daemon, its process, Watcher and Server, and what to check when it cannot be reached.
+- Setup lists the checks, which the Daemon runs when the View is shown, and again as the page gains focus or the connection comes back, while it is shown; and one of this GUI itself: whether it fits the API the Daemon runs.
+- About lists the versions and the system; "Copy Setup and About" copies both as Markdown, every check included without what to do, the home directory as `~` where it starts a path.
+- Running shows the Daemon, its process, Watcher and Server, all from one answer: that of `/api/daemon`, which live hints keep current, else the one in the setup.
+  What to check when the Server cannot be reached is shown above all sections.
+- Against a Daemon older than the GUI, what it lacks is left out, e.g. the problems of a pass before API 0.25; before API 0.23, which has no `/api/status`, About and Log say that they come with the setup.
 - Log links to the Log View, filtered to the warnings and errors of the last day, and says how many; without any, to the whole log.
 Their labels and values line up across the sections, in one grid.
 Its bar says at its end when the checks ran; Refresh runs them again and asks for a pass.

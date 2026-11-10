@@ -1,4 +1,4 @@
-// The lines of the Daemon card, worded as `hephaistos daemon status` words them.
+// The lines of Running in the Status View, worded as `hephaistos daemon status` words them.
 
 import type { Schemas } from "../../api/client";
 import { counted, numberText } from "../../text";
@@ -24,7 +24,8 @@ export function lastPassText(pass: Pass | null, now: number): string {
   const by = pass.trigger === "watcher" ? "the watcher" : "API request";
   const text = `${ago(pass.finished_at, now)} (${seconds(pass.duration)}), by ${by}`;
   if (pass.error !== null) return `${text}; failed: ${pass.error}`;
-  return [text, ...pass.problems].join("; ");
+  // A Daemon before API 0.25 names no problems.
+  return [text, ...(pass.problems ?? [])].join("; ");
 }
 
 export function watcherText(watcher: Watcher | null, now: number): string {

@@ -383,7 +383,7 @@ describe("the Workbench", () => {
     });
     save("status", "events");
     await renderWorkbench();
-    const link = await screen.findByRole("button", { name: "The daemon's log" });
+    const link = await screen.findByRole("button", { name: "The log of the daemon" });
     expect(link).toHaveTextContent("Log");
     await altClick(link);
     // Events, never shown, keeps the title its Layout saved: its View is built once shown.

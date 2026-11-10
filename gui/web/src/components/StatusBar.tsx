@@ -14,7 +14,7 @@ import { TextIcon } from "./TextIcon";
 function connectionText(connection: Connection, now: number): [string, string] {
   switch (connection.state) {
     case "connecting":
-      return ["connecting…", "connecting to this machine's server"];
+      return ["connecting…", "connecting to the server of this machine"];
     case "live":
       return ["live", `connected since ${fullTime(connection.since)}`];
     case "disconnected": {

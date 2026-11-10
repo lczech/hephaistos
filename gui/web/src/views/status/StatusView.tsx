@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ClipboardCopy } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { type Connection, useConnection } from "../../api/live";
 import { KEYS, useDaemon, useInfo, useObserve, useStatus } from "../../api/queries";
@@ -13,6 +13,7 @@ import { ago, fullTime } from "../../time";
 import { useNow } from "../../useNow";
 import { apiFit, builtFor } from "../../version";
 import { loadErrorText } from "../CheckoutError";
+import { useIsShown } from "../opening";
 import { ViewLink } from "../ViewLink";
 import { aboutRows, statusMarkdown } from "./about";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
@@ -28,7 +29,8 @@ function Disconnected({ connection, now }: { connection: Lost; now: number }) {
   return (
     <div className={styles.notice} role="status">
       <p>
-        No connection to this machine's server since {since}; {retryText(connection.retryAt, now)}.
+        No connection to the server of this machine since {since};{" "}
+        {retryText(connection.retryAt, now)}.
       </p>
       <p>
         Is the daemon running? <code>hephaistos daemon status</code>; to start it:{" "}
@@ -89,14 +91,23 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
 /** Copies `text`, saying so for a moment beside it, or why it could not, moving nothing. */
 function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
   const [said, setSaid] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const say = (text: string) => {
+    setSaid(text);
+    // Each copy says so for its own moment, not cut short by the one before.
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setSaid(null), 3_000);
+  };
   const copy = async () => {
+    // Undefined outside a secure context, e.g. a page served over plain HTTP but not localhost.
+    if (navigator.clipboard === undefined) return say("Not copied: this page has no clipboard");
     try {
       await navigator.clipboard.writeText(text);
-      setSaid("Copied");
+      say("Copied");
     } catch (error) {
-      setSaid(`Not copied: ${error instanceof Error ? error.message : String(error)}`);
+      say(`Not copied: ${error instanceof Error ? error.message : String(error)}`);
     }
-    setTimeout(() => setSaid(null), 3_000);
   };
   return (
     <div className={styles.actions}>
@@ -138,13 +149,22 @@ function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
   );
 }
 
+/** What About and Log show while the setup is not there: checking, or why it failed. */
+function Waiting({ failed }: { failed: boolean }) {
+  return (
+    <p className={styles.quiet}>{failed ? "Not loaded: it comes with the setup" : "Loading…"}</p>
+  );
+}
+
+const ADDRESS = { kind: "status", params: {} };
+
 /**
  * The setup of this Machine, its Daemon, and what runs, as `hephaistos status` shows them: the
- * setup as the Daemon checks it while this shows, and how the Daemon is doing, kept current. Refresh also
- * asks for a pass, which the last pass shows.
+ * setup as the Daemon checks it while this shows, and how the Daemon is doing, kept current by
+ * live hints. Refresh also asks for a pass, which the last pass shows.
  */
 export function StatusView() {
-  const status = useStatus();
+  const status = useStatus(useIsShown()(ADDRESS));
   const daemon = useDaemon();
   const info = useInfo();
   const client = useQueryClient();
@@ -154,16 +174,18 @@ export function StatusView() {
   const stale = connection.state === "disconnected" || status.isError || daemon.isError;
   const own = guiCheck(info.data?.api);
   const checks = [...(status.data?.checks ?? []), ...(own === null ? [] : [own])];
-  const process = daemon.data?.daemon ?? status.data?.daemon.daemon;
+  // Running all from one answer: that of `/api/daemon`, kept current, else the one in the setup.
+  const running = daemon.data ?? status.data?.daemon;
+  const process = running?.daemon;
   const log =
     process?.pid !== null && process?.pid !== undefined ? (
       <ViewLink
         address={{ kind: "log", params: { process: "daemon", pid: String(process.pid) } }}
-        label="The daemon's log"
+        label="The log of the daemon"
         named
       />
     ) : null;
-  const watcher = daemon.data?.watcher ?? null;
+  const watcher = running?.watcher ?? null;
   const about =
     status.data && process
       ? aboutRows(status.data.about, process, builtFor(), navigator.userAgent)
@@ -193,7 +215,7 @@ export function StatusView() {
 
           <h2 className={styles.heading}>About</h2>
           {about === null ? (
-            <p className={styles.quiet}>Loading…</p>
+            <Waiting failed={status.isError} />
           ) : (
             <>
               <Fields rows={about} />
@@ -221,14 +243,18 @@ export function StatusView() {
                 ],
                 ["Last pass", lastPassText(watcher?.last_pass ?? null, now)],
                 ["Watcher", watcherText(watcher, now)],
-                ["Server", serverText(daemon.data?.server ?? null, now)],
+                ["Server", serverText(running?.server ?? null, now)],
               ]}
             />
           )}
           {observing.isError && <p className={styles.error}>{observing.error.message}</p>}
 
           <h2 className={styles.heading}>Log</h2>
-          {status.data !== undefined && <LogCounts counts={status.data.log} />}
+          {status.data === undefined ? (
+            <Waiting failed={status.isError} />
+          ) : (
+            <LogCounts counts={status.data.log} />
+          )}
         </div>
       </section>
     </ViewPage>
