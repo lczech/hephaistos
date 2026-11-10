@@ -7,6 +7,9 @@ How the GUI's lists work (`components/list/`).
 TanStack Table (`@tanstack/react-table`, headless) holds a list's columns and their state.
 Views render them as CSS grids of their own markup.
 Widths reach the grid as CSS variables.
+The header and each row lay out the same columns, each on its own, not as subgrids of one grid: so that a change in one row, even its actions shown on hover, does not lay out all the others again.
+So a column's width is the same in every row, never sized by its cells (`max-content`); one sized by what it shows is set by its View, as the Changes list's lines (`vars`).
+Rows out of view are not drawn, keeping their room, as guessed until drawn once (`content-visibility`).
 
 ## Rows
 

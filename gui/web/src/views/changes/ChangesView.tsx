@@ -69,7 +69,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
 
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
-  const { table, folds, layout } = useChangesTable({
+  const { table, vars, folds, layout } = useChangesTable({
     query,
     groups,
     folded,
@@ -204,6 +204,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       <List
         table={table}
         className={listStyles.columns}
+        vars={vars}
         grouped
         tree
         layout={layout}

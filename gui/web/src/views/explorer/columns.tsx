@@ -189,7 +189,7 @@ export function explorerColumns(looks: Looks) {
       header: "git",
       enableResizing: false,
       meta: {
-        width: "max-content",
+        width: "3ch", // as its header: a letter, or •
         align: "center",
         description: "git's status: its letter, or • for changes below",
       },

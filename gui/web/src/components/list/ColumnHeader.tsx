@@ -29,7 +29,7 @@ interface Props {
   resizing: boolean; // whether its edge is dragged
   moves?: string; // what dragging it carries (`COLUMN_DRAG`), if it can be dragged elsewhere
   choices?: Choice[]; // what its filter offers; none while they load
-  onFit: (header: HTMLElement) => void; // fits the column to its cells
+  onFit: () => void; // fits the column to its cells
   children?: ReactNode; // the column's label
 }
 
@@ -107,13 +107,7 @@ export function ColumnHeader({
           </button>
         </Filter>
       )}
-      {column.getCanResize() && (
-        <Resizer
-          header={header}
-          resizing={resizing}
-          fit={() => own.current && onFit(own.current)}
-        />
-      )}
+      {column.getCanResize() && <Resizer header={header} resizing={resizing} fit={onFit} />}
     </span>
   );
 }

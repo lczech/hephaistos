@@ -47,13 +47,16 @@ describe("a list with more to load", () => {
   });
 });
 
-/** A fruit with a long name, in a list this wide. */
-function Long({ name, width }: { name: string; width: number }) {
+/** A fruit with a long name, in a list this wide, after this many others. */
+function Long({ name, width, after = 0 }: { name: string; width: number; after?: number }) {
   const columns = column.columns([
     column.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
     column.accessor("name", { header: "name", size: 60 }),
   ]);
-  const table = useList("long", "columns", { columns, data: [{ name }] });
+  const table = useList("long", "columns", {
+    columns,
+    data: [...Array.from({ length: after }, (_, at) => ({ name: `fruit ${at + 1}` })), { name }],
+  });
   return (
     <div style={{ width, height: 200, display: "flex", flexDirection: "column" }}>
       <List
@@ -81,6 +84,15 @@ describe("a column's edge, double-clicked", () => {
     fitName();
     await waitFor(() => expect(nameWidth()).toBeGreaterThanOrEqual(cell.scrollWidth));
     expect(nameWidth()).toBeLessThan(cell.scrollWidth + 2);
+  });
+
+  it("fits it to a cell out of view too, never drawn", async () => {
+    render(<Long name="a rather long name for a fruit" width={800} after={300} />);
+    const cell = screen.getByText("a rather long name for a fruit");
+    fitName();
+    await waitFor(() => expect(nameWidth()).toBeGreaterThan(100));
+    cell.scrollIntoView();
+    await waitFor(() => expect(nameWidth()).toBeGreaterThanOrEqual(cell.scrollWidth));
   });
 
   it("but no wider than the list", async () => {
@@ -114,6 +126,31 @@ function Coloured() {
     </div>
   );
 }
+
+describe("a list's rows", () => {
+  it("are drawn only near the view, as it scrolls", async () => {
+    render(<Long name="last" width={800} after={300} />);
+    const drawn = (name: string) =>
+      screen.getByText(name).checkVisibility({ contentVisibilityAuto: true });
+    await waitFor(() => expect(drawn("fruit 1")).toBe(true));
+    expect(drawn("last")).toBe(false);
+    screen.getByText("last").scrollIntoView();
+    await waitFor(() => expect(drawn("last")).toBe(true));
+  });
+
+  it("line up their cells below the headers, as they are set", async () => {
+    const { container } = render(<Coloured />);
+    const lined = () => {
+      const [header, cell] = container.querySelectorAll('[data-column="colour"]');
+      return [header, cell].map((at) => at?.getBoundingClientRect().left);
+    };
+    const [header, cell] = lined();
+    expect(cell).toBeCloseTo(header ?? 0, 1);
+    fireEvent.doubleClick(document.querySelector('[data-column="name"] hr') as Element);
+    await waitFor(() => expect(lined()[0]).not.toBeCloseTo(header ?? 0, 1));
+    expect(lined()[1]).toBeCloseTo(lined()[0] ?? 0, 1);
+  });
+});
 
 describe("a list's header menu, open", () => {
   // A click lands on what React Aria lays over the page while it is open.
@@ -255,6 +292,14 @@ describe("a list as a tree", () => {
         rowOf("src").getBoundingClientRect().bottom - 1,
       ),
     );
+  });
+
+  it("lines up the rows within a row below the headers too", () => {
+    render(<Tree />);
+    const [header, ...cells] = document.querySelectorAll('[data-column="name"]');
+    const left = (at: Element | undefined) => at?.getBoundingClientRect().left ?? Number.NaN;
+    expect(cells.length).toBeGreaterThan(1);
+    for (const cell of cells) expect(left(cell)).toBeCloseTo(left(header), 1);
   });
 
   it("sticks an open row, still marked as shown, unless part of a page", () => {

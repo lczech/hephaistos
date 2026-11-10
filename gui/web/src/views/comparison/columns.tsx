@@ -60,6 +60,25 @@ export function Lines({ added, removed }: { added: number; removed: number }) {
   );
 }
 
+/**
+ * How wide the lines' column is for these rows and those within them, in `ch`: as their widest
+ * cell, each count at least 6 (`.lines`), or the text said instead; as its header, sorted by, at
+ * least. Each row lays out the columns on its own, so that their cells cannot size it.
+ */
+export function linesWidth(entries: Entry[]): number {
+  const count = (lines: number) => Math.max(6, `+${lines}`.length);
+  const both = ({ added, removed }: { added: number; removed: number }) =>
+    count(added) + 1 + count(removed);
+  const own = (entry: Entry): number => {
+    if (entry.type === "note") return 0;
+    if (entry.type !== "change") return both(totals(changesOf(entry)));
+    const lines = counted(entry);
+    return lines ? both(lines) : (otherText(entry.change)?.length ?? 0);
+  };
+  const width = (entry: Entry): number => Math.max(own(entry), ...entry.subRows.map(width));
+  return Math.max(7, ...entries.map(width));
+}
+
 /** A bar as long as the lines' share of the most in any file: added, then removed. */
 function Meter({ added, removed, most }: { added: number; removed: number; most: number }) {
   const shares = { "--added": most ? added / most : 0, "--removed": most ? removed / most : 0 };
@@ -126,9 +145,10 @@ function GroupName({ entry }: { entry: Extract<Entry, { type: "group" }> }) {
 }
 
 /**
- * The Changes list's columns: the path takes what the others leave, then the lines, then their
- * bars, as long as their share of `most`. Rows that `fold` have a chevron; rows below those at
- * depth `top`, the groups' own, are indented.
+ * The Changes list's columns: the path takes what the others leave, then the lines, as wide as
+ * `--lines-width` says (`linesWidth`, set by the list's View: so that the columns stay as they
+ * are, their cells too, when it changes), then their bars, as long as their share of `most`. Rows
+ * that `fold` have a chevron; rows below those at depth `top`, the groups' own, are indented.
  */
 export function changesColumns(most: number, folds: (entry: Entry) => boolean, top: number) {
   return column.columns([
@@ -160,7 +180,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
       sortDescFirst: true,
       enableResizing: false,
       meta: {
-        width: "max-content",
+        width: "var(--lines-width)",
         align: "right",
         description: "Lines added and removed; the size for binary or very large files",
       },
@@ -184,7 +204,7 @@ export function changesColumns(most: number, folds: (entry: Entry) => boolean, t
     column.display({
       id: "meter",
       enableResizing: false,
-      // The row's padding at its end comes out of its last column, as the rows are subgrids.
+      // The row's room at its end, as in columns a row has no padding there (`list.module.css`).
       meta: { width: "calc(var(--meter-length) + var(--space-3))" },
       cell: ({ row }) => {
         const lines = counted(row.original);

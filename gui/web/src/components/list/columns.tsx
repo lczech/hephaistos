@@ -4,7 +4,8 @@ import styles from "./list.module.css";
 
 /** How a column is laid out, beyond TanStack's sizes: `tableFeatures({ columnMeta: {} as ColumnLook })`. */
 export interface ColumnLook {
-  width?: string; // a CSS grid track instead of the column's size, for one not resized: a square
+  width?: string; // a CSS grid track instead of its size, for one not resized; never `max-content`,
+  // as each row lays out the columns on its own, so that its cells cannot size them
   filter?: ColumnFilterLook; // if the list can be filtered by it
   description?: string; // what it shows, if its label does not say: in the header's tooltip
   align?: "left" | "center" | "right"; // its header and cells; numbers and times right, to line up

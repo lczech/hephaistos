@@ -1,4 +1,6 @@
-/* A list as a table: rows share the columns, sized by TanStack Table (`--columns`). */
+/* A list as a table: its header and each row lay out the same columns, sized by TanStack Table
+ * (`--columns`), each on its own, so that a change in one row leaves the others as they are; rows
+ * out of view are not drawn, but keep their room. */
 .frame {
   composes: dims from "../text.module.css";
   --square: calc(1lh + var(--space-1)); /* as wide as a row is high */
@@ -10,6 +12,7 @@
   /* A row's height, and the header's: a line, and their room above and below; the header's as
      drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. */
   --row-height: calc(1lh + 2 * var(--row-space));
+  --row-guess: var(--row-height); /* the room of a row not yet drawn, until it is */
   --head-height: calc(1lh + 2 * var(--space-half));
   container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
@@ -36,20 +39,11 @@
   composes: note problem from "../text.module.css";
 }
 
-.grid {
+.head,
+.row {
   display: grid;
   grid-template-columns: var(--columns);
   column-gap: var(--column-gap);
-}
-
-.head,
-.rows,
-.within,
-.item,
-.row {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
 }
 
 .head {
@@ -137,6 +131,8 @@
 
 .row {
   position: relative; /* for its button's outline */
+  content-visibility: auto; /* drawn only near the view */
+  contain-intrinsic-size: auto var(--row-guess);
   align-items: center;
   padding: var(--row-space) var(--space-3) var(--row-space) 0;
   color: var(--text);
@@ -300,7 +296,6 @@
 }
 
 .details {
-  grid-column: 1 / -1;
   margin: var(--space-1) var(--space-3) var(--space-2) calc(var(--square) + var(--column-gap));
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
@@ -595,8 +590,7 @@
   min-width: 100%;
 }
 
-/* Their padding at the end is the last track's, the room left: WebKit would take a subgrid's
-   from the last column with a width, when that track is empty. */
+/* Their padding at the end is the last track's, the room left. */
 .frame[data-layout="columns"] :is(.head, .row) {
   padding-right: 0;
 }
@@ -619,8 +613,8 @@
  * each line take the room left (`flex: 1 1 0`). The header is a line of buttons for the filters
  * and the sort, wrapping where narrow. A list whose rows stay in one line keeps its rows' height.
  */
-.frame[data-layout="lines"] .grid {
-  grid-template-columns: minmax(0, 1fr); /* as wide as the Panel, whatever the rows hold */
+.frame[data-layout="lines"] {
+  --row-guess: calc(2lh + 2 * var(--space-1));
 }
 
 .frame[data-layout="lines"] .row {
@@ -670,6 +664,10 @@
 /* Without filters or a sort, e.g. History's. */
 .frame[data-layout="lines"] .head:empty {
   display: none;
+}
+
+.frame[data-layout="lines"][data-one-line] {
+  --row-guess: var(--row-height);
 }
 
 .frame[data-layout="lines"][data-one-line] .row {

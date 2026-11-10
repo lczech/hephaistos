@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { cssVars } from "../cssVars";
+import { type CssVars, cssVars } from "../cssVars";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
 import { useColumnDrop } from "./columnDrop";
@@ -48,6 +48,7 @@ interface Paging {
 interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;
   className?: string; // the View's, e.g. for its look in two lines per row
+  vars?: CssVars; // the View's, for its stylesheet: e.g. a column's width, from what it shows
   layout: ListLayout;
   embedded?: boolean; // part of a page that scrolls: then it only scrolls sideways itself
   oneLine?: boolean; // its rows stay in one line in the two lines' layout, as high as in columns
@@ -103,6 +104,7 @@ interface Props<TData extends RowData> {
 export function List<TData extends RowData>({
   table,
   className,
+  vars,
   layout,
   embedded,
   oneLine,
@@ -226,15 +228,19 @@ export function List<TData extends RowData>({
     document.addEventListener("contextmenu", again);
     return () => document.removeEventListener("contextmenu", again);
   });
-  // As wide as its widest cell, the header's too: measured with only its width given by them.
-  const fitColumn = (id: string, header: HTMLElement) => {
-    if (grid.current === null || frame.current === null) return;
-    const { style } = grid.current;
+  // As wide as its widest cell, the header's too: measured with only its width given by them,
+  // in each row, as each lays out the columns on its own; those of lists within details aside.
+  const fitColumn = (id: string) => {
+    const [at, box] = [grid.current, frame.current];
+    if (at === null || box === null) return;
     const columns = table.getVisibleLeafColumns();
-    style.setProperty("--columns", gridColumns(columns, id));
-    const width = header.getBoundingClientRect().width;
-    style.setProperty("--columns", gridColumns(columns));
-    const room = frame.current.clientWidth; // still all in view, scrolled to
+    at.style.setProperty("--columns", gridColumns(columns, id));
+    const cells = [...at.querySelectorAll(`[data-column="${CSS.escape(id)}"]`)].filter(
+      (cell) => cell.closest(`.${styles.grid}`) === at,
+    );
+    const width = Math.max(0, ...cells.map((cell) => cell.getBoundingClientRect().width));
+    at.style.setProperty("--columns", gridColumns(columns));
+    const room = box.clientWidth; // still all in view, scrolled to
     table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
   };
   const rows = table.getRowModel().rows;
@@ -374,6 +380,7 @@ export function List<TData extends RowData>({
     <div
       ref={frame}
       className={`${styles.frame} ${className ?? ""}`}
+      style={cssVars(vars ?? {})}
       data-stale={stale || undefined}
       data-layout={layout}
       data-embedded={embedded || undefined}
@@ -414,7 +421,7 @@ export function List<TData extends RowData>({
                       arrangeable(header.column.columnDef) ? carried(header.column.id) : undefined
                     }
                     choices={choices[header.column.id]}
-                    onFit={(element) => fitColumn(header.column.id, element)}
+                    onFit={() => fitColumn(header.column.id)}
                   >
                     {typeof label === "string" ? label : undefined}
                   </ColumnHeader>

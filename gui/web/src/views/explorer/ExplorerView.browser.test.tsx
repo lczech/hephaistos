@@ -184,7 +184,10 @@ describe("the Explorer's tree, as drawn", () => {
     const letter = new Range();
     letter.selectNodeContents(cell);
     const middle = (rect: DOMRect) => (rect.left + rect.right) / 2;
-    expect(middle(letter.getBoundingClientRect())).toBeCloseTo(middle(box(cell)), 0);
+    // Rows are drawn once the browser finds them in view (`content-visibility`), WebKit's later.
+    await waitFor(() =>
+      expect(middle(letter.getBoundingClientRect())).toBeCloseTo(middle(box(cell)), 0),
+    );
   });
 
   it("keeps its path in place when its buttons wrap below it", async () => {

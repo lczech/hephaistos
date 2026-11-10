@@ -3,7 +3,7 @@ import { type ChangesQuery, useChangesWithin } from "../../api/queries";
 import { foldedBy, unfolding, withFolded } from "../../components/files/folds";
 import { useListLayout } from "../../components/list/kept";
 import { useList } from "../../components/list/table";
-import { changesColumns } from "./columns";
+import { changesColumns, linesWidth } from "./columns";
 import { type Folds, partFolded, withPart } from "./folds";
 import {
   type Change,
@@ -72,6 +72,7 @@ export function useChangesTable(options: Options) {
   const several = groups.length > 1;
   const folds = (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry));
   const columns = changesColumns(most, folds, ungrouped ? 0 : 1);
+  const vars = { "--lines-width": `${linesWidth(listed)}ch` } as const; // the List's
   // Every row that holds rows open, new folders too.
   const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
   const [layout] = useListLayout("changes");
@@ -96,7 +97,7 @@ export function useChangesTable(options: Options) {
       onFoldedChange(changed);
     },
   });
-  return { table, folds, listed, openAll, layout };
+  return { table, vars, folds, listed, openAll, layout };
 }
 
 /** Whether a row that holds rows is open: a group or directory unless folded, a new folder if

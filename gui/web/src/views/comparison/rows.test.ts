@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { linesWidth } from "./columns";
 import {
   type Change,
   type Entry,
@@ -229,5 +230,36 @@ describe("the rows", () => {
       "untracked:new/a",
       "untracked:new/b",
     ]);
+  });
+});
+
+describe("the lines' column", () => {
+  const listed = (changes: Change[], within: Change[] = []): Entry[] => {
+    const named = group("unstaged", [...changes, ...within]);
+    const row = (change: Change, subRows: Entry[] = []): Entry => ({
+      type: "change",
+      group: named,
+      change,
+      base: "",
+      subRows,
+    });
+    const rows = changes.map((change, at) =>
+      row(change, at === 0 ? within.map((c) => row(c)) : []),
+    );
+    return [{ type: "group", group: named, subRows: rows }];
+  };
+
+  it("is as wide as its widest cell, each count at least six wide", () => {
+    expect(linesWidth([])).toBe(7); // its header's, sorted by
+    expect(linesWidth(listed([change("a"), change("b", { removed: 3 })]))).toBe(13);
+    // The group's sum, +1234568, is the widest.
+    expect(linesWidth(listed([change("a", { added: 1234567 }), change("b")]))).toBe(8 + 1 + 6);
+  });
+
+  it("is as wide as what is said instead of counts, in rows within others too", () => {
+    const binary = { added: null, removed: null, binary: true, size: 1400, old_size: 1200 };
+    expect(linesWidth(listed([change("src")], [change("src/a.png", binary)]))).toBe(
+      "binary, 1.2 kB → 1.4 kB".length,
+    );
   });
 });
