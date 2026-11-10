@@ -166,6 +166,39 @@ def test_terminals_not_observed_are_a_problem_of_the_pass(
     )
 
 
+def test_terminals_failing_leave_the_clones_observed(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(worker, "BUSY_RETRY_DELAYS", (0.0, 0.0, 0.0))
+    passes: list[str] = []
+
+    def clones(_: Paths) -> observer.Result:
+        passes.append("clones")
+        return observer.Result([], 2, 0, 3, 1)
+
+    def busy(_: Paths) -> terminals.Result:
+        passes.append("terminals")
+        if passes.count("terminals") < 3:
+            raise DatabaseBusyError(5)
+        return terminals.Result(None)
+
+    monkeypatch.setattr(observer, "observe", clones)
+    monkeypatch.setattr(terminals, "observe", busy)
+    assert worker.observed(paths) == Done(0, 2, 3, 1, 0)
+    assert passes == ["clones", "terminals", "terminals", "terminals"]  # git once
+
+    def broken(_: Paths) -> terminals.Result:
+        raise ValueError("bad")
+
+    monkeypatch.setattr(terminals, "observe", broken)
+    done = worker.observed(paths)
+    assert isinstance(done, Done)
+    assert (done.observed, done.problems) == (
+        2,
+        ("terminals not observed: unexpected ValueError: bad",),
+    )
+
+
 def test_an_unexpected_error_comes_with_its_traceback(
     paths: Paths, monkeypatch: pytest.MonkeyPatch
 ) -> None:

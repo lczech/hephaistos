@@ -14,6 +14,7 @@ import signal
 import subprocess
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
 from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
@@ -74,12 +75,11 @@ def _lower_priority() -> None:
         log.warning("git runs at normal I/O priority: ionice failed: %s", error)
 
 
-def observed(paths: Paths) -> Done | PassFailed:
-    """Observes Clones, then Terminals, of this Machine, retrying while the database is busy."""
+def _retried[T](observe: Callable[[], T]) -> T | PassFailed:
+    """What `observe` gives, retried while the database is busy; else why it failed."""
     for delay in (*BUSY_RETRY_DELAYS, None):
         try:
-            result = observer.observe(paths)
-            found = terminals.observe(paths)
+            return observe()
         except DatabaseBusyError as error:
             if delay is None:
                 return PassFailed(str(error))
@@ -90,18 +90,35 @@ def observed(paths: Paths) -> Done | PassFailed:
         except Exception as error:  # noqa: BLE001 - reported to the Watcher, which logs it
             message = f"unexpected {type(error).__name__}: {error}"
             return PassFailed(message, traceback.format_exc())
-        else:
-            return Done(
-                len(result.events),
-                result.observed,
-                result.worktrees,
-                result.updated,
-                result.skipped,
-                0 if found.changes is None else found.changes.open,
-                result.problems
-                + (() if found.error is None else (f"terminals not observed: {found.error}",)),
-            )
     raise AssertionError  # the last delay is None
+
+
+def observed(paths: Paths) -> Done | PassFailed:
+    """Observes Clones, then Terminals, of this Machine, each retried while the database is busy.
+
+    Terminals that cannot be observed are a problem of the pass, which the Clones still make.
+    """
+    result = _retried(lambda: observer.observe(paths))
+    if isinstance(result, PassFailed):
+        return result
+    found = _retried(lambda: terminals.observe(paths))
+    if isinstance(found, PassFailed):
+        if found.details is not None:
+            log.error("terminals not observed: %s\n%s", found.message, found.details)
+        problems = (f"terminals not observed: {found.message}",)
+        open_terminals = 0
+    else:
+        problems = () if found.error is None else (f"terminals not observed: {found.error}",)
+        open_terminals = 0 if found.changes is None else found.changes.open
+    return Done(
+        len(result.events),
+        result.observed,
+        result.worktrees,
+        result.updated,
+        result.skipped,
+        open_terminals,
+        result.problems + problems,
+    )
 
 
 def _serve(

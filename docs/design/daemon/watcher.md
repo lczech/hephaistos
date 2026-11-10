@@ -25,4 +25,4 @@ A dead worker is replaced.
 
 A failed pass is logged, and the next one runs on schedule.
 A pass that cannot observe one part, e.g. Terminals with tmux not answering, observes the rest, and records the problem with the pass: `daemon status`, the status bar and the Status View show it until a pass without it ([Terminals](../core/terminals.md#observing)).
-A busy database is retried 3 times, after 1, 2 and 4 s.
+A busy database is retried 3 times, after 1, 2 and 4 s, for Clones and for Terminals apart, so that Terminals retried do not observe the Clones again; Terminals that fail even so are a problem of the pass.
