@@ -304,6 +304,11 @@ def test_a_broken_config_stops_commands_but_log(
     )
     assert err == f"warning: {problem}; using the defaults\n"
 
+    assert run_cli(monkeypatch, "status") == 0  # to look into it
+    out, err = capsys.readouterr()
+    assert out.startswith("Setup, checked in this shell:\n")
+    assert err == f"warning: {problem}; using the defaults\n"
+
     assert run_cli(monkeypatch, "--version") == 0
     assert run_cli(monkeypatch, "machine", "--help") == 0
 
