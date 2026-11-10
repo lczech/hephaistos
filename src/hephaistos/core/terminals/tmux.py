@@ -588,6 +588,35 @@ class TmuxKeeper:
                 raise NameTakenError(f"a terminal named {new_name} exists already")
             raise self._failed(["rename-session"], result)
 
+    def shows(self, session: Session, tty: str) -> bool:
+        """Whether `session` shows the terminal at `tty`; see `Keeper.shows`.
+
+        From its panes to the sessions that clients in them show, and on, by their ttys.
+        """
+        self.check()
+        panes = self._listed("list-panes", "-a", "-F", "#{session_id}\t#{pane_tty}")
+        clients = self._listed("list-clients", "-F", "#{session_id}\t#{client_tty}")
+        inside, ttys = {session.key}, set[str]()
+        while True:
+            ttys = {pane for key, pane in panes if key in inside}
+            shown = {key for key, client in clients if client in ttys} - inside
+            if not shown:
+                return tty in ttys
+            inside |= shown
+
+    def _listed(self, *args: str) -> list[tuple[str, str]]:
+        """The pairs that a listing of tmux prints, one per line; none without a server."""
+        result = self._client(*args)
+        if result.returncode != 0:
+            if not self.running():
+                return []
+            raise self._failed(args, result)
+        return [
+            (key, value)
+            for line in result.stdout.splitlines()
+            for key, _, value in [line.partition("\t")]
+        ]
+
     def attach_command(self, session: Session) -> list[str]:
         """Plain `tmux attach-session`, by the ID of the session: tmux, as the user knows it."""
         return [self.binary, *self._options(), "attach-session", "-t", session.key]

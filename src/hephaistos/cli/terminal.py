@@ -1,5 +1,6 @@
 """`hephaistos terminal`: Terminals, shells on this Machine that outlive what shows them."""
 
+import logging
 import os
 import shlex
 import sys
@@ -30,6 +31,8 @@ from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.core.utils.text import escaped
 
+log = logging.getLogger(__name__)
+
 app = typer.Typer(
     no_args_is_help=True, help="Terminals: shells on this machine that outlive what shows them."
 )
@@ -57,15 +60,25 @@ def _attach_text(state: TerminalState) -> str:
     return shlex.join(["hephaistos", "terminal", "attach", state.name])
 
 
-def _attached(paths: Paths, name: str) -> NoReturn:
-    """Becomes plain `tmux attach-session` to the Terminal, restored first if it was lost."""
+def _attachable() -> None:
     if not tty.attachable():
         raise HephaistosError(
             "this command attaches only when run interactively; run it in a terminal emulator"
         )
-    _, command = actions.attach(paths, name)
+
+
+def _become(command: list[str]) -> NoReturn:
+    """Becomes `command`, e.g. plain `tmux attach-session`, logging that this command ends."""
+    log.info("end: becomes %s", shlex.join(command))
     sys.stdout.flush()
     os.execvp(command[0], command)  # noqa: S606 - tmux, as the settings name it
+
+
+def _attached(paths: Paths, name: str) -> NoReturn:
+    """Becomes plain `tmux attach-session` to the Terminal, restored first if it was lost."""
+    _attachable()
+    _, command = actions.attach(paths, name, tty=tty.terminal_name())
+    _become(command)
 
 
 @app.command(context_settings={"allow_interspersed_args": False})
@@ -94,7 +107,7 @@ def create(
     paths = Paths.from_environment()
     created = actions.create(paths, directory, name=name, command=command)
     if not detached and tty.attachable():
-        _attached(paths, created.name)
+        _become(actions.attach_created(paths, created, tty=tty.terminal_name()))
     running = "" if created.command is None else f", running {_command_text(created)}"
     typer.echo(
         f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{running}"

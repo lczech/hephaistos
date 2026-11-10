@@ -1,4 +1,5 @@
 import os
+import shlex
 import signal
 import subprocess
 import time
@@ -369,6 +370,33 @@ def stubborn(keeper: TmuxKeeper, tmp_path: Path) -> list[int]:
     """A Terminal whose shell and background job ignore SIGHUP and SIGTERM; their PIDs."""
     new(keeper, "stubborn", tmp_path, "sh", "-c", STUBBORN)
     return [int(pid) for pid in written(tmp_path / "pids", lines=2).split()]
+
+
+def pane_tty(keeper: TmuxKeeper, name: str) -> str:
+    return tmux(
+        keeper, "display-message", "-p", "-t", keeper.session(name).key, "#{pane_tty}"
+    ).strip()
+
+
+def test_what_a_session_shows(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    api, web = new(keeper, "api", tmp_path), new(keeper, "web", tmp_path)
+    new(keeper, "other", tmp_path)
+    assert keeper.shows(api, pane_tty(keeper, "api"))  # its own pane
+    assert not keeper.shows(api, pane_tty(keeper, "web"))
+    assert not keeper.shows(api, "/dev/pts/nonexistent")
+    # web attached inside api: api shows the pane of web too, so attaching api there would loop.
+    attach = shlex.join(keeper.attach_command(web))
+    tmux(keeper, "send-keys", "-t", api.key, attach, "Enter")
+    eventually(lambda: keeper.session("web").clients == 1)
+    assert keeper.shows(api, pane_tty(keeper, "web"))
+    assert not keeper.shows(web, pane_tty(keeper, "api"))
+    assert not keeper.shows(api, pane_tty(keeper, "other"))
+
+
+def test_nothing_shows_without_a_server(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    api = new(keeper, "api", tmp_path)
+    tmux(keeper, "kill-server")
+    assert not keeper.shows(api, "/dev/pts/0")
 
 
 def test_kill_hangs_up(keeper: TmuxKeeper, tmp_path: Path) -> None:

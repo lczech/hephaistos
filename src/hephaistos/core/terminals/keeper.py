@@ -98,6 +98,15 @@ class Keeper(Protocol):
         """
         ...
 
+    def shows(self, session: Session, tty: str) -> bool:
+        """Whether `session` shows the terminal at `tty`, which attaching there would loop.
+
+        So it does if `tty` is one of its panes, or that of a session attached in one of them,
+        and so on. A tty that a Terminal shows through another Keeper, e.g. the tmux of the
+        user, is not found.
+        """
+        ...
+
     def attach_command(self, session: Session) -> list[str]:
         """The command that attaches the terminal emulator it runs in to `session`."""
         ...

@@ -112,7 +112,7 @@ Without a working Keeper, e.g. without tmux, a Machine without Terminals is no n
 
 Creating, attaching, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
-A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it.
+A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it, also one lost while being killed, as its server ended meanwhile.
 
 A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as text in the database is.
 Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.
@@ -125,4 +125,12 @@ Attaching to a lost Terminal first starts it again, with its ID, name and direct
 A short `sh` prints a dim line first: "restored after a restart; earlier output is gone", with what a command Terminal ran, which does not run again, as it may have been anything, e.g. a deployment.
 Where its directory is gone, it starts in the home directory, and the line says so.
 Its row then holds no command, as it runs a shell.
+Two attaching to the same lost Terminal at once both attach to it: the second finds it restored by the first.
+
+Attaching is refused where the Terminal would show itself, its output looping back into it:
+- inside the Terminal itself, by `HEPHAISTOS_TERMINAL`;
+- at a tty that the Terminal shows (`Keeper.shows`): one of its panes, or that of another Terminal attached in it, and so on, by the clients of tmux and their ttys.
+
+A Terminal shown through a tmux of the user is not found that way; that tmux carries `HEPHAISTOS_TERMINAL` only if its server started inside the Terminal, and then refuses there also when shown elsewhere later.
+`terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile; a command already ended says so.
 

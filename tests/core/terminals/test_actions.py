@@ -4,6 +4,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -12,6 +13,7 @@ from hephaistos.core.registry import machines
 from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import NoSuchTerminalError, TerminalStatus
 from hephaistos.core.terminals import actions
+from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
@@ -204,6 +206,21 @@ def test_kill(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
         actions.kill(set_up, "api")
 
 
+def test_kill_one_lost_meanwhile(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    actions.create(set_up, proj, name="api")
+    kill = keeper.kill
+
+    def crashed_first(name: str, *, force: bool = False) -> None:
+        tmux(keeper, "kill-server")  # the server ends after the first observation
+        kill(name, force=force)
+
+    monkeypatch.setattr(keeper, "kill", crashed_first)
+    actions.kill(set_up, "api", keeper=keeper)
+    assert stored(set_up) == {}  # not left as lost
+
+
 def test_kill_a_lost_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
     lose_all(keeper, set_up)
@@ -281,6 +298,69 @@ def test_attach(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     assert found.id == created.id
     key = keeper.session("api").key
     assert command == [keeper.binary, *keeper_options(keeper), "attach-session", "-t", key]
+
+
+def test_attach_refuses_a_tty_the_terminal_shows(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    actions.create(set_up, proj, name="api")
+    tty = tmux(keeper, "display-message", "-p", "-t", keeper.session("api").key, "#{pane_tty}")
+    with pytest.raises(
+        HephaistosError, match=r"^this terminal emulator is shown inside terminal api;"
+    ):
+        actions.attach(set_up, "api", environment={}, tty=tty.strip())
+    actions.attach(set_up, "api", environment={}, tty="/dev/pts/nonexistent")
+
+
+def test_two_restores_at_once(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created = actions.create(set_up, proj, name="api")
+    lose_all(keeper, set_up)
+    create = keeper.create
+
+    def raced(*args: Any) -> Session:  # noqa: ANN401 - those of `create`
+        create(*args)  # another attach, which had seen it lost too, restores it first
+        return create(*args)
+
+    monkeypatch.setattr(keeper, "create", raced)
+    found, command = actions.attach(set_up, "api", keeper=keeper, environment={"SHELL": "/bin/sh"})
+    assert (found.id, found.status) == (created.id, TerminalStatus.OPEN)
+    assert command[-2:] == ["-t", keeper.session("api").key]
+
+
+def test_a_created_one_attaches_by_its_id(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    created = actions.create(set_up, proj, name="api")
+    tmux(keeper, "rename-session", "-t", keeper.session("api").key, "renamed")
+    command = actions.attach_created(set_up, created, keeper=keeper)
+    assert command[-2:] == ["-t", keeper.session("renamed").key]
+
+
+def test_a_created_one_that_ended_before_attaching(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    created = actions.create(set_up, proj, name="build", command=["sleep", "0.5"])
+    eventually(lambda: not keeper.sessions())
+    with pytest.raises(
+        HephaistosError, match=r"^terminal build ended before attaching: its command exited$"
+    ):
+        actions.attach_created(set_up, created, keeper=keeper)
+
+
+def test_attach_to_one_ended_meanwhile(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    actions.create(set_up, proj, name="api")
+    observe = actions.observer.observe
+
+    def observed_then_killed(*args: object, **kwargs: object) -> object:
+        result = observe(*args, **kwargs)  # type: ignore[arg-type]
+        tmux(keeper, "kill-session", "-t", keeper.session("api").key)
+        return result
+
+    monkeypatch.setattr(actions.observer, "observe", observed_then_killed)
+    with pytest.raises(HephaistosError, match=r"^terminal api ended meanwhile$"):
+        actions.attach(set_up, "api", keeper=keeper, environment={})
 
 
 def test_attach_refuses_the_terminal_itself(set_up: Paths, proj: Path) -> None:

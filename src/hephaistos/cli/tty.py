@@ -25,6 +25,14 @@ def attachable() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
+def terminal_name() -> str | None:
+    """The tty that input comes from, e.g. `/dev/pts/3`; None if none."""
+    try:
+        return os.ttyname(sys.stdin.fileno())
+    except (OSError, ValueError):  # not a tty, or stdin closed or replaced, as in tests
+        return None
+
+
 def confirm(question: str, *, default: bool, action: str) -> None:
     """Asks the user to confirm; aborts unless they do.
 

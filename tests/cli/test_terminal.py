@@ -215,6 +215,34 @@ def test_create_attaches_unless_detached(
     assert len(becomes.commands) == 1
 
 
+def test_attach_needs_both_ends_the_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Stream:
+        def __init__(self, *, tty: bool) -> None:
+            self.tty = tty
+
+        def isatty(self) -> bool:
+            return self.tty
+
+    for stdin, stdout in [(True, False), (False, True)]:
+        monkeypatch.setattr(tty.sys, "stdin", Stream(tty=stdin))
+        monkeypatch.setattr(tty.sys, "stdout", Stream(tty=stdout))
+        assert not tty.attachable()
+    monkeypatch.setattr(tty.sys, "stdout", Stream(tty=True))
+    monkeypatch.setattr(tty.sys, "stdin", Stream(tty=True))
+    assert tty.attachable()
+
+
+def test_attach_inside_the_terminal_itself(proj: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ok("create", "-d", str(proj), "--detached")
+    shown = json.loads(runner.invoke(app, ["terminal", "show", "proj-1", "--json"]).stdout)
+    monkeypatch.setenv("HEPHAISTOS_TERMINAL", shown["id"])
+    becomes = Exec(monkeypatch)
+    assert failed("attach", "proj-1") == (
+        "this is terminal proj-1 itself; attach to it from another terminal emulator"
+    )
+    assert becomes.commands == []
+
+
 class Outer:
     """A terminal emulator for the tests: a tmux of its own, without a prefix of its own, so
     that every key reaches what runs in it."""
@@ -228,11 +256,13 @@ class Outer:
         command = [self.binary, "-L", self.socket, "-f", "/dev/null", *args]
         return subprocess.run(command, capture_output=True, text=True, check=True).stdout
 
-    def run(self, *args: str) -> None:
-        """Runs the CLI in it, as a user would type it, with nothing of tmux in its environment."""
+    def run(self, *args: str, in_tmux: bool = False) -> None:
+        """Runs the CLI in it, as a user would type it: with nothing of tmux in its environment,
+        unless `in_tmux`, as in a tmux of the user."""
         main = "from hephaistos.cli.main import run; run()"
         cli = shlex.join([sys.executable, "-c", main, *args])
-        script = f"env -u TMUX -u TMUX_PANE {cli}; echo done > {self.out}; exec sleep 600"
+        unset = "" if in_tmux else "env -u TMUX -u TMUX_PANE "
+        script = f"{unset}{cli}; echo done > {self.out}; exec sleep 600"
         self.tmux("new-session", "-d", "-x", "100", "-y", "30", "-s", "outer", script)
         self.tmux("set", "-g", "prefix", "None")
 
@@ -269,3 +299,9 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     eventually(lambda: "restored after a restart; earlier output is gone" in outer.screen())
     assert "it ran: sleep 600" in outer.screen()
     assert ok("list")[1].split()[:2] == ["api", "open"]
+
+
+def test_attach_from_a_tmux_of_the_user(outer: Outer, proj: Path) -> None:
+    ok("create", "-d", str(proj), "-n", "api", "--", "sh", "-c", "echo hello there; exec sleep 600")
+    outer.run("terminal", "attach", "api", in_tmux=True)  # TMUX names the socket of the outer one
+    eventually(lambda: "hello there" in outer.screen())

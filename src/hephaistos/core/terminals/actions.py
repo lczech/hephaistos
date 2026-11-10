@@ -168,12 +168,42 @@ def _restore(
     command = ["sh", "-c", _RESTORING, "sh", hint, shell]
     try:
         keeper.create(lost.id, lost.name, directory, command, environment)
-    except NameTakenError:  # a session started by hand meanwhile, not observed yet
+    except NameTakenError:
+        if any(session.terminal_id == lost.id for session in keeper.sessions()):
+            return  # restored meanwhile by another process, e.g. a second attach
+        # A session started by hand meanwhile, not observed yet.
         raise HephaistosError(_taken_text(lost.name, lost=False)) from None
     except NoSuchSessionError:
         raise HephaistosError(f"terminal {escaped(lost.name)} ended at once") from None
     with write_session(paths) as session:
         state.restored(session, lost)
+
+
+def _refuse_itself(found: TerminalState, environment: Mapping[str, str]) -> None:
+    """Raises HephaistosError if `environment` is that of a program inside `found`."""
+    if environment.get(TERMINAL_VARIABLE) == str(found.id):
+        raise HephaistosError(
+            f"this is terminal {escaped(found.name)} itself;"
+            " attach to it from another terminal emulator"
+        )
+
+
+def _attach_command(
+    keeper: Keeper, found: TerminalState, tty: str | None, *, ended: str = "ended meanwhile"
+) -> list[str]:
+    """The command that attaches to `found`; refused at a `tty` that it shows.
+
+    E.g. at a pane of another Terminal attached in it: its output would loop back into it.
+    """
+    listed = [session for session in keeper.sessions() if session.terminal_id == found.id]
+    if not listed:
+        raise HephaistosError(f"terminal {escaped(found.name)} {ended}")
+    if tty is not None and keeper.shows(listed[0], tty):
+        raise HephaistosError(
+            f"this terminal emulator is shown inside terminal {escaped(found.name)};"
+            " attach to it from another one"
+        )
+    return keeper.attach_command(listed[0])
 
 
 def attach(
@@ -182,29 +212,39 @@ def attach(
     *,
     keeper: Keeper | None = None,
     environment: Mapping[str, str] = os.environ,
+    tty: str | None = None,
 ) -> tuple[TerminalState, list[str]]:
     """The Terminal named `name`, restored first if lost, and the command that attaches to it.
 
-    `environment` is that of the process attaching: refused inside the Terminal itself, whose
-    output would loop back into it.
+    `environment` and `tty` are those of the process attaching: refused inside the Terminal
+    itself, or at a tty that the Terminal shows, as its output would loop back into it.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
     with read_session(paths) as session:
         found = state.by_name(session, name)
-    if environment.get(TERMINAL_VARIABLE) == str(found.id):
-        raise HephaistosError(
-            f"this is terminal {escaped(name)} itself; attach to it from another terminal emulator"
-        )
+    _refuse_itself(found, environment)
     if found.status is TerminalStatus.LOST:
         _restore(paths, keeper, found, environment)
         _observed(paths, keeper)
         with read_session(paths) as session:
             found = state.by_id(session, found.id) or found
-    listed = [session for session in keeper.sessions() if session.terminal_id == found.id]
-    if not listed:
-        raise HephaistosError(f"terminal {escaped(name)} ended meanwhile")
-    return found, keeper.attach_command(listed[0])
+    return found, _attach_command(keeper, found, tty)
+
+
+def attach_created(
+    paths: Paths,
+    created: TerminalState,
+    *,
+    keeper: Keeper | None = None,
+    tty: str | None = None,
+) -> list[str]:
+    """The command that attaches to a Terminal just created, by its ID, without observing again.
+
+    So it attaches also if renamed meanwhile; if its command already ended, it says so.
+    """
+    keeper = keeper or TmuxKeeper.from_settings(paths)
+    return _attach_command(keeper, created, tty, ended="ended before attaching: its command exited")
 
 
 def kill(
@@ -212,17 +252,23 @@ def kill(
 ) -> TerminalState:
     """Ends a Terminal, its processes getting SIGHUP, or with `force` SIGKILL first.
 
-    Returns it as last known. A lost one is forgotten; one that ended meanwhile counts as killed.
+    Returns it as last known. A lost one is forgotten, also one lost meanwhile with its server;
+    one that ended meanwhile counts as killed.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
     with read_session(paths) as session:
         found = state.by_name(session, name)
-    if found.status is TerminalStatus.LOST:
-        with write_session(paths) as session:
-            state.forget(session, found)
-    else:
+    if found.status is TerminalStatus.OPEN:
         with contextlib.suppress(NoSuchSessionError):  # ended meanwhile
             keeper.kill(name, force=force)
+        _observed(paths, keeper)
+        with read_session(paths) as session:
+            found_now = state.by_id(session, found.id)
+        if found_now is None or found_now.status is TerminalStatus.OPEN:
+            return found
+        found = found_now  # lost meanwhile, with its server: it is forgotten as well
+    with write_session(paths) as session:
+        state.forget(session, found)
     _observed(paths, keeper)
     return found
