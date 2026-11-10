@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import machines
@@ -168,6 +170,80 @@ def test_names_swapped_by_hand(set_up: Paths) -> None:
     update(set_up, session("api", api), session("web", web))
     update(set_up, session("web", api), session("api", web))
     assert {name: state.id for name, state in stored(set_up).items()} == {"web": api, "api": web}
+
+
+#: Names that collide when some are given and others moved to the next free number.
+NAMES_TO_SHUFFLE = ["a", "a-1", "a-2", "a-1-1", "b", "b-1", "c"]
+
+
+@settings(
+    max_examples=60, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
+@given(data=st.data())
+def test_renames_by_hand_in_one_pass(set_up: Paths, data: st.DataObject) -> None:
+    """Each found one has the name of its session; the others keep their rows, lost as they were."""
+    with write_session(set_up) as written:
+        written.conn.execute("DELETE FROM state_terminals")
+    some_names = st.lists(st.sampled_from(NAMES_TO_SHUFFLE), min_size=2, max_size=6, unique=True)
+    before = {new_id(): name for name in data.draw(some_names)}
+    update(set_up, *(session(name, i) for i, name in before.items()))
+    lost = data.draw(st.sets(st.sampled_from(list(before)), max_size=len(before) - 1))
+    with write_session(set_up) as written:
+        for terminal_id in lost:
+            written.conn.execute(
+                "UPDATE state_terminals SET status = 'lost' WHERE id = ?", (terminal_id,)
+            )
+    found = data.draw(st.permutations([i for i in before if i not in lost]))
+    names = st.lists(
+        st.sampled_from(NAMES_TO_SHUFFLE), min_size=len(found), max_size=len(found), unique=True
+    )
+    after = dict(zip(found, data.draw(names), strict=True))
+    update(set_up, *(session(name, i) for i, name in after.items()))
+    rows = {state.id: state for state in stored(set_up).values()}
+    assert rows.keys() == before.keys()
+    assert {i: rows[i].name for i in after} == after
+    assert {i for i, row in rows.items() if row.status is TerminalStatus.LOST} == lost
+
+
+@pytest.mark.parametrize(
+    ("before", "after"),
+    [
+        # Which Terminal, by its place in `before`, has which name, in the order tmux lists them.
+        (["a-1", "b", "b-1", "a"], [(0, "a"), (1, "a-2"), (2, "a-1"), (3, "b")]),  # was a KeyError
+        (["a-1", "b", "a"], [(0, "a"), (2, "a-1"), (1, "a-2")]),  # left one as `a-3`
+    ],
+)
+def test_names_rotated_by_hand(
+    set_up: Paths, before: list[str], after: list[tuple[int, str]]
+) -> None:
+    ids = [new_id() for _ in before]
+    update(set_up, *(session(name, i) for name, i in zip(before, ids, strict=True)))
+    update(set_up, *(session(name, ids[index]) for index, name in after))
+    assert {state.id: name for name, state in stored(set_up).items()} == {
+        ids[index]: name for index, name in after
+    }
+
+
+def test_names_alike_once_stored_keep_their_rows(set_up: Paths) -> None:
+    # The database holds bytes that are not UTF-8 as U+FFFD, so these two names store alike.
+    first, second = new_id(), new_id()
+    update(set_up, session("x\udcff", first))
+    update(set_up, session("x\udcff", first), session("x\udcfe", second))
+    assert {state.id for state in stored(set_up).values()} == {first}
+
+
+def test_a_lost_one_renamed_onto_a_taken_name(set_up: Paths) -> None:
+    api, web = new_id(), new_id()
+    update(set_up, session("api", api), session("web", web), running=True)
+    update(set_up, session("web", web), boot="boot-2")  # api lost by a reboot
+    with read_session(set_up) as read:
+        lost = terminals.by_name(read, "api")
+    with (
+        pytest.raises(HephaistosError, match="a terminal named web exists"),
+        write_session(set_up) as written,
+    ):
+        terminals.rename_lost(written, lost, "web")
+    assert set(stored(set_up)) == {"api", "web"}
 
 
 @pytest.mark.parametrize("name", ["x y", "ünï-😀", "-lead", "tab\tname"])

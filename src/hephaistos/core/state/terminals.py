@@ -178,10 +178,11 @@ def default_name(session: ReadSession, directory: Path, refused: Collection[str]
 
 
 def _write(session: WriteSession, state: TerminalState) -> None:
-    """Stores the State of a Terminal, replacing the previous one.
+    """Stores the State of a Terminal, replacing its previous one.
 
     Its names and paths as UTF-8 holds them: a session started by hand where they are not, or a
-    `cd` there, must not stop observation.
+    `cd` there, must not stop observation. A name another Terminal holds raises IntegrityError,
+    never replaces that one.
     """
     stored = {
         "id": state.id,
@@ -202,10 +203,14 @@ def _write(session: WriteSession, state: TerminalState) -> None:
         "observed_by": state.observed_by,
     }
     session.conn.execute(
-        f"INSERT OR REPLACE INTO state_terminals ({', '.join(COLUMNS)})"  # noqa: S608 - our own constant
-        f" VALUES ({', '.join('?' * len(COLUMNS))})",
+        f"INSERT INTO state_terminals ({', '.join(COLUMNS)})"  # noqa: S608 - our own constant
+        f" VALUES ({', '.join('?' * len(COLUMNS))})"
+        f" ON CONFLICT (id) DO UPDATE SET {_UPDATED}",
         tuple(stored.values()),
     )
+
+
+_UPDATED = ", ".join(f"{column} = excluded.{column}" for column in COLUMNS if column != "id")
 
 
 def _delete(session: WriteSession, terminal_id: uuid.UUID) -> None:
@@ -213,13 +218,27 @@ def _delete(session: WriteSession, terminal_id: uuid.UUID) -> None:
 
 
 def rename_lost(session: WriteSession, state: TerminalState, new_name: str) -> None:
-    """Renames a lost Terminal, which has no session to rename."""
-    _write(session, replace(state, name=new_name, observed_at=session.tick()))
+    """Renames a lost Terminal, which has no session to rename.
+
+    Raises HephaistosError if another Terminal took `new_name` meanwhile.
+    """
+    try:
+        _write(session, replace(state, name=new_name, observed_at=session.tick()))
+    except sqlite3.IntegrityError:
+        raise HephaistosError(
+            f"a terminal named {escaped(new_name)} exists; choose another name"
+        ) from None
 
 
 def restored(session: WriteSession, state: TerminalState) -> None:
-    """Records that a lost Terminal runs again, as a shell: its command, if any, ran no more."""
-    _write(session, replace(state, command=None, observed_at=session.tick()))
+    """Records that a lost Terminal runs again, as a shell: its command, if any, ran no more.
+
+    Only the command changes: an observation may have stored its session meanwhile.
+    """
+    session.conn.execute(
+        "UPDATE state_terminals SET command = NULL, observed_at = ? WHERE id = ?",
+        (session.tick(), state.id),
+    )
 
 
 def forget(session: WriteSession, state: TerminalState) -> None:
@@ -270,6 +289,50 @@ def _end_or_lose(
     return ended, lost
 
 
+def _names_taken(
+    seen: Mapping[uuid.UUID, Session],
+    known: Mapping[uuid.UUID, TerminalState],
+    newer: Collection[uuid.UUID],
+) -> dict[uuid.UUID, str]:
+    """The name each found session gives its Terminal, as stored.
+
+    Not for a session whose row, or the row holding its name, is a newer reading; nor for a
+    second session whose name the database stores like that of another, e.g. two that differ
+    only in bytes that are not UTF-8: their rows stay as they were.
+    """
+    holders = {state.name: terminal_id for terminal_id, state in known.items()}
+    taking: dict[uuid.UUID, str] = {}
+    for terminal_id, item in seen.items():
+        name = utf8(item.name)
+        if terminal_id in newer or holders.get(name) in newer or name in taking.values():
+            continue
+        taking[terminal_id] = name
+    return taking
+
+
+def _final_names(
+    known: Mapping[uuid.UUID, TerminalState], taking: Mapping[uuid.UUID, str]
+) -> dict[uuid.UUID, str]:
+    """The name of each Terminal after an observation: that its session gives it, else its own.
+
+    One whose name a session gives another, e.g. a lost one, or one renamed meanwhile, moves to
+    a free name, e.g. `api-1`.
+    """
+    kept = {
+        terminal_id: state.name for terminal_id, state in known.items() if terminal_id not in taking
+    }
+    given = set(taking.values())
+    names = dict(taking) | {
+        terminal_id: name for terminal_id, name in kept.items() if name not in given
+    }
+    taken = set(names.values())
+    for terminal_id, name in sorted(kept.items(), key=lambda pair: name_order(pair[1])):
+        if terminal_id not in names:
+            names[terminal_id] = moved = _free_name(NAMES.derived(name) or DEFAULT_BASE, taken)
+            taken.add(moved)
+    return names
+
+
 def update(  # noqa: PLR0913 - keyword-only after the first two: what one observation found
     session: WriteSession,
     found: Sequence[Session],
@@ -307,31 +370,28 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
     ended, lost = _end_or_lose(
         session, missing, running=running, boot_id=boot_id, observed_at=observed_at
     )
-    names = {state.name: state.id for state in known.values() if state.id not in ended}
-    added = 0
-
+    remaining = {state.id: state for state in on_this_machine(session)}  # lost ones as lost now
+    taking = _names_taken(seen, remaining, newer)
+    names = _final_names(remaining, taking)
+    # Rows whose name changes go first, so that each write finds its name free.
+    renamed = [t for t, name in names.items() if t in remaining and name != remaining[t].name]
+    for terminal_id in renamed:
+        if terminal_id not in taking:
+            log.info(
+                "terminal %s gives its name to another, now %s",
+                remaining[terminal_id].name,
+                names[terminal_id],
+            )
+        _delete(session, terminal_id)
     for terminal_id, item in seen.items():
-        holder = names.get(item.name)
-        if terminal_id in newer or holder in newer:
+        if (name := taking.get(terminal_id)) is None:
             continue
-        if holder is not None and holder != terminal_id:  # a lost one, or one renamed meanwhile
-            other = known[holder]
-            moved = _free_name(NAMES.derived(other.name) or DEFAULT_BASE, names)
-            log.info("terminal %s takes its name from another, now %s", item.name, moved)
-            _write(session, replace(other, name=moved, observed_at=observed_at))
-            del names[other.name]
-            names[moved] = holder
-        old = known.get(terminal_id)
-        if old is not None and names.get(old.name) == terminal_id and old.name != item.name:
-            del names[old.name]
-        names[item.name] = terminal_id
-        if old is None:
-            added += 1
+        old = remaining.get(terminal_id)
         _write(
             session,
             TerminalState(
                 id=terminal_id,
-                name=item.name,
+                name=name,
                 directory=old.directory if old else item.directory,
                 command=old.command if old else (command or {}).get(terminal_id),
                 status=TerminalStatus.OPEN,
@@ -346,4 +406,11 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
                 observed_by=session.machine_id,
             ),
         )
+    for terminal_id in renamed:
+        if terminal_id not in taking:
+            _write(
+                session,
+                replace(remaining[terminal_id], name=names[terminal_id], observed_at=observed_at),
+            )
+    added = sum(terminal_id not in remaining for terminal_id in taking)
     return Changes(open=len(seen), added=added, ended=len(ended), lost=lost)
