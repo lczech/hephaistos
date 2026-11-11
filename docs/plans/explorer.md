@@ -28,7 +28,14 @@ Also done: controls take the font of the page in all browsers; the buttons of al
 
 ## After the merge, each a step of its own
 
-- Keyboard and ARIA for all lists: a treegrid, whose rows may stay flat, with `aria-level` and `aria-expanded`.
+- First, keyboard, ARIA and virtualization for all lists, together, as each changes how rows are drawn and reached:
+  - a treegrid of flat rows, with `aria-level` and `aria-expanded`, moved between by the arrow keys;
+  - only the rows in view drawn (TanStack Virtual), as React and TanStack advise for long lists, VS Code's trees too;
+  - the folders stuck below the header drawn apart from the rows, above them, looking and behaving as now (as VS Code's sticky scroll).
+
+  Why (measured 2026-11-11, in the built GUI, by a script kept in `.agents/scratch/explorer-perf/`): with rows laid out each on its own and drawn only near the view (`content-visibility`), an Explorer of 1,900 rows opens a folder in about 740 ms of work, 440 ms of it React's, 70% of that drawing the rows; dragging a column's edge takes about 145 ms per step.
+  Skipping the rows that did not change was ruled out: TanStack Table makes every row anew when the data changes, in a tree whenever a folder opens, so it would need comparing rows by hand, which lint rejects ([development](../development.md)), or drawing cells around TanStack.
+  Before the Explorer at a Revision, whose trees may be as large.
 - Density for all lists.
 - Dragging rows into Groups.
 - The File View; then the Explorer at a Revision and "Find in folder" ([ideas](../ideas/views.md#explorer)); a sidebar with Workspaces.
