@@ -17,6 +17,8 @@ The first step after the Explorer merged (decided with the user, 2026-11-11, aft
 - One rule for what sticks: a row whose content is open (a folder's rows, a file's diff, an event's details) stays below the header, and below the rows holding it, while that content scrolls past; drawn apart from the rows, above them, sliding out as now, pushed up by the next.
   In the Explorer, and in the trees of Changes and the Diff's List, below what stays at the top of their page; flat paths hold no folders, so nothing sticks there.
   A click on a row stuck scrolls it to its place, at the top, then closes it.
+  Drawn apart, the rows stuck could be one block, without seams: now each lies at a fraction of a pixel and is drawn at whole pixels on its own, so a pixel of the rows passing below may show between two; a row covers it once stuck, but only Chromium can tell that (`scroll-state`), so in Firefox and WebKit it may still show (found 2026-11-11, scripts in `.agents/scratch/sticky-folders/` of the main checkout).
+  At a device scale of 1.25 (the Desktop zoomed), a pixel of a row passing below sometimes shows just above a list's header, at its scroll edge.
 - A treegrid, with `aria-level` and `aria-expanded`, by VS Code's keys: up and down between rows, also PageUp and PageDown, Home and End; left and right fold and unfold, and left on a row within one goes to it; Enter and Space open a row as a click does; Escape closes details and returns to the row; the menu key and Shift+F10 open the row's menu, or the header's.
   The row focused is the only selection, kept when rows change (live updates), with a visible focus ring.
   Later: typing jumps to the next row starting so (typeahead).
