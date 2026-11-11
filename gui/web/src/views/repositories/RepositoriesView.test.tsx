@@ -148,6 +148,17 @@ describe("the Repositories View", () => {
     renderWithQueries(<Repositories open={open} />);
     await screen.findByText("recent");
     expect(screen.queryByRole("button", { name: "Files of recent" })).toBeNull();
+    // After its Events, before what git has of it.
+    const links = screen.getByRole("button", { name: "Files of ~/recent" }).parentElement;
+    expect(
+      [...(links?.querySelectorAll("button") ?? [])].map((link) => link.getAttribute("aria-label")),
+    ).toEqual([
+      "Events of ~/recent",
+      "Files of ~/recent",
+      "Commit history of ~/recent",
+      "Changes in ~/recent",
+      "Diff of the changes in ~/recent",
+    ]);
     await userEvent.click(screen.getByRole("button", { name: "Files of ~/recent" }));
     expect(open.mock.calls.map(([address]) => address)).toEqual([
       { kind: "explorer", params: { path: "/home/me/recent", root: "/home/me/recent" } },

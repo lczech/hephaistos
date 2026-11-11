@@ -43,7 +43,7 @@ A Diff's file header names the file and its lines, not the comparison again.
 ## Repositories
 
 The Repositories View lists the Repositories, their Clones and Worktrees as a tree, each with its state and activity.
-A Checkout's row links to its Events, History, Changes and Diff.
+A Checkout's row links to its Events and its files in the Explorer, then to what git has of it: its History, Changes and Diff.
 
 ## Events
 
