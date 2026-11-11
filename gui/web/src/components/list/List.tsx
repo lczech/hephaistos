@@ -161,12 +161,12 @@ export function List<TData extends RowData>({
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
   // The header's height, as drawn, for the rows stuck below it: in lines its buttons have their
-  // own height, and wrap where narrow.
+  // own height, and wrap where narrow. Not rounded, as rows are a fraction of a pixel high.
   useEffect(() => {
     const [at, box] = [head.current, frame.current];
     if (at === null || box === null || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() =>
-      box.style.setProperty("--head-height", `${at.offsetHeight}px`),
+      box.style.setProperty("--head-height", `${at.getBoundingClientRect().height}px`),
     );
     observer.observe(at);
     return () => observer.disconnect();
@@ -361,6 +361,7 @@ export function List<TData extends RowData>({
               onClose={() => setRowMenuAt(null)}
             />
           )}
+          {within.length > 0 && <span className={styles.seam} aria-hidden="true" />}
         </div>
         {shown && !folding && !still && !view && (
           <section

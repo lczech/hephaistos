@@ -365,4 +365,23 @@ describe("a tree's rows stuck below its header", () => {
       expect(inner?.top).toBeCloseTo(src?.bottom ?? 0, 0);
     });
   });
+
+  // Firefox and WebKit cannot tell yet whether a row is stuck: they show no seam at all.
+  it.skipIf(!CSS.supports("container-type", "scroll-state"))(
+    "cover the pixel above each with the background, only once stuck",
+    async () => {
+      render(<Deep layout="columns" />);
+      const frame = document.querySelector("[data-tree]") as HTMLElement;
+      const seam = (name: string) => rowOf(name).lastElementChild as HTMLElement;
+      expect(getComputedStyle(seam("inner")).display).toBe("none");
+      frame.scrollTop = frame.scrollHeight;
+      await waitFor(() => expect(getComputedStyle(seam("inner")).display).toBe("block"));
+      const row = rowOf("inner").getBoundingClientRect();
+      expect(seam("inner").getBoundingClientRect()).toMatchObject({
+        top: row.top - 1,
+        height: 1,
+        width: row.width,
+      });
+    },
+  );
 });

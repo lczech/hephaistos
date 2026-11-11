@@ -39,6 +39,7 @@ A tree's square holds only its chevron, a little in from the list's edge and rea
 A list may set its rows closer together (`compact`): the Explorer does, as a sidebar's list will.
 A tree draws a row's rows within it, so that a row holding rows stays in view below the header and those holding it while its rows scroll past, as VS Code's trees do; not where the list is part of a page.
 What is focused or scrolled to in a row comes into view below those rows, not under them.
+Rows stuck so lie at fractions of a pixel and are each drawn at whole pixels, so that a pixel of the rows passing below may show between two: once stuck, a row covers the pixel above it with the background, as the header covers the one above itself; only once stuck, which only Chromium can tell yet (`@container scroll-state(stuck: top)`).
 A row's tone is its own, not that of the rows within it.
 While the list is pointed at, a thin line runs below each open row's chevron, through the rows within it.
 
