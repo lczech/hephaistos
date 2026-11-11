@@ -15,6 +15,16 @@ Focus is TanStack's `focusManager`, for which the page's window gaining it count
 Answers stay current while a View shows them, until a hint, focus or connecting asks again (`staleTime: Infinity`).
 One that no View has used for 5 minutes is dropped (the default `gcTime` of TanStack), and asked again once shown.
 
+## While the next answer loads
+
+A View whose parameters change, e.g. another branch, filter or file, keeps showing the answer before, greyed out, until the new one arrives: History, Changes, Diff, Events and the Log.
+Its bar and title show what was asked at once; what the answer shows is all of that answer, never mixed with what was asked next:
+- its rows, and what their texts and links say, e.g. on which branch a commit was found, or which commit a file's diff opens in, follow the query it answers, which History and Changes keep with their answers;
+- a message about an empty list says that it is loading, or names what was answered, never the filters asked for next;
+- finding in a diff waits for the diff of the file asked for.
+
+A refetch with the same parameters, e.g. on a live hint, keeps what shows, the current match of Find included ([interaction](interaction.md#find)).
+
 ## Connection
 
 The live connection reconnects after 1, 2, 4 … 30 s, and at once on focus.

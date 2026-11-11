@@ -106,10 +106,14 @@ function changesKey(query: ChangesQuery): QueryKey {
   return [...KEYS.changes, query];
 }
 
+/** The changes asked for by `query`, holding it: those of another may show while these load. */
 function changesQuery(query: ChangesQuery) {
   return {
     queryKey: changesKey(query),
-    queryFn: async () => unwrap(await api.GET("/api/changes", { params: { query } })),
+    queryFn: async () => ({
+      ...unwrap(await api.GET("/api/changes", { params: { query } })),
+      query,
+    }),
   };
 }
 
@@ -117,6 +121,7 @@ function changesQuery(query: ChangesQuery) {
  * A Checkout's changes, which git reads anew each time: asked again on a hint, as files
  * changed by hand change no State, on focus too. Others keep showing until theirs arrive, but
  * not when none are asked for: a disabled query never replaces them, so they would stay stale.
+ * They hold the `query` they answer.
  */
 export function useChanges(query: ChangesQuery) {
   const enabled = query.clone !== undefined || query.worktree !== undefined;

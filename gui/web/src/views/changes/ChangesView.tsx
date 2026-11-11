@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List as ListIcon } from "lucide-react";
 import { useState } from "react";
-import { refreshChanges, useChanges, useRepositories } from "../../api/queries";
+import { type ChangesQuery, refreshChanges, useChanges, useRepositories } from "../../api/queries";
 import { List, type Opening } from "../../components/list/List";
 import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { FoldersFolded, FoldersUnfolded } from "../../drawnIcons";
@@ -50,7 +50,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   const [look, setLook] = useAtom(changesLook());
   const grouped = commit === undefined && sinceHead && look.grouped;
   const compared = commit === undefined && !grouped ? picked : undefined;
-  const query = { ...checkout, ...(commit === undefined ? compared : { commit }) };
+  const query: ChangesQuery = { ...checkout, ...(commit === undefined ? compared : { commit }) };
   const changes = useChanges(query);
   const error = useKeptError(changes, query);
   const client = useQueryClient();
@@ -67,11 +67,14 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   const title = name && `Changes: ${name}${comparing}`;
   useTitle(setTitle, title);
   const groups = changes.data?.groups ?? [];
+  // The rows are of the query answered: while the next answer loads, the one before.
+  const answered = changes.data?.query ?? query;
+  const answeredCommit = answered.commit ?? undefined;
 
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
   const { table, vars, folds, layout, directories } = useChangesTable({
-    query,
+    query: answered,
     groups,
     folded,
     onFoldedChange: setFolded,
@@ -86,7 +89,10 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   const diffOf = (entry: Entry): Address | undefined => {
     if (entry.type !== "change" || isFolder(entry.change) || checkout === undefined) return;
     const { group, change } = entry;
-    const states: Params = commit === undefined ? { from: group.from, to: group.to } : { commit };
+    const states: Params =
+      answeredCommit === undefined
+        ? { from: group.from, to: group.to }
+        : { commit: answeredCommit };
     return { kind: "diff", params: { ...checkout, ...states, path: change.path } };
   };
   const opens = (entry: Entry) => {
@@ -102,10 +108,11 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
     message = "No checkout: open Changes from a clone or worktree in Repositories.";
   } else if (changes.data === undefined) {
     message = error ? null : "Loading changes…"; // an error: above the table
-  } else if (commit !== undefined) {
-    if (groups.length === 0 && shown?.commit) message = noChanges({ commit });
+  } else if (answeredCommit !== undefined) {
+    if (groups.length === 0 && shown?.commit) message = noChanges({ commit: answeredCommit });
   } else if (groups.length === 0) {
-    message = noChanges(picked);
+    const { from, to } = answered;
+    message = noChanges(from && to ? { from, to } : SINCE_HEAD);
   }
   const { from: _, to: __, commit: ___, ...others } = params;
   // Since HEAD as no `from` and `to`: one address for it.

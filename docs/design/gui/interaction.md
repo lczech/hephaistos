@@ -139,7 +139,8 @@ Regular expressions are those of JavaScript, with `\w`, `\b` and `\d` meaning wo
 What is typed is looked for once typing pauses for 150 ms, or at once on Enter, an option or leaving the field: each key draws the field alone, not all the View shows, which may be many rows.
 It says which match of how many, from the first, and why there may be more than shown.
 While it looks, its search icon turns, as the reload button does.
-Enter and Shift+Enter go to the next match and the one before, the match stepped to staying current where the order moves it; Escape closes the row.
+Enter and Shift+Enter go to the next match and the one before; Escape closes the row.
+The match stepped to stays current while it is found again: where the order moves it, as the content is asked for again or more of it comes, or the case is matched; until other text is looked for, which makes the first current.
 Matches are marked on what is drawn, the current one stronger, its line too: in a diff by the CSS Custom Highlight API, as its renderer draws its lines itself; in a list's names by `<mark>` (`components/find/Marked.tsx`).
 The current match is brought into view, also from lines not drawn yet; once only, not again as its diff is drawn anew, e.g. an untracked file's scrolled away and back (`seen`).
 What is looked for is in the address's fragment while the row is open (`find=`, and `case`, `word`, `regex` while on); the current match is not.

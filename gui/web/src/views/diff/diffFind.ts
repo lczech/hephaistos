@@ -78,7 +78,7 @@ const sameFiles = (one: readonly FileText[], other: readonly FileText[]) =>
  * `reveal`s its file, e.g. unfolds it, and says so (`revealed`).
  * Lines and marks are held while what they come from stays, as React keeps what a render
  * showed, rather than memoized: a search starts again only once the lines or the query change,
- * and a current match stays one while the marks do.
+ * and a current match stays one while found again.
  */
 export function useDiffFind(
   files: readonly FileText[] | undefined,
@@ -130,7 +130,15 @@ export function useDiffFind(
     shown.push(...local.map((at) => offset + at));
     offset += inFile.length;
   }
-  const [current, stepTo] = useCurrentMatch(marks.all, shown.length);
+  // A match told apart by its file, lines and place in them: the same once the whole file is known,
+  // or the diff asked for again; only another text to find makes the first current again.
+  const keys = shown.map((index) => {
+    const found = marks.all[index];
+    return found
+      ? `${found.path}\0${found.mark.old}:${found.mark.new}:${found.mark.start}:${found.mark.end}`
+      : "";
+  });
+  const [current, stepTo] = useCurrentMatch(query?.text, shown.length, keys);
   const at = (index: number) => marks.all[shown[index] ?? -1];
   // The match last stepped to, revealed then: typing leaves folds and large diffs as they are.
   const [stepped, setStepped] = useState<FileMark>();

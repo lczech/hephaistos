@@ -555,6 +555,33 @@ describe("the Diff View", () => {
       expect(status()).toHaveTextContent("1 of 4");
     });
 
+    it("stays at the match stepped to while the diff is asked for again", async () => {
+      let answer = () => {};
+      const held = new Promise<void>((resolve) => {
+        answer = resolve;
+      });
+      let versionsAsked = 0;
+      serve({
+        ...ASIDE,
+        "GET /api/diff": () => json({ change: change(), patch: FOUND }),
+        "GET /api/diff/files": async () => {
+          versionsAsked += 1;
+          if (versionsAsked > 1) await held; // those of the patch asked again
+          return json({ old: OLD, new: OLD.replace("alpha beta", "alpha Beta") });
+        },
+      });
+      const { client } = renderWithQueries(<Diff initial={STAGED} fragment={{ find: "beta" }} />);
+      await waitFor(() => expect(status()).toHaveTextContent("1 of 4"));
+      await userEvent.keyboard("{Enter}");
+      expect(status()).toHaveTextContent("2 of 4");
+      act(() => void client.invalidateQueries()); // as when the Checkout changed
+      await waitFor(() => expect(versionsAsked).toBeGreaterThan(1));
+      expect(status()).toHaveTextContent("2 of 4");
+      act(() => answer());
+      await waitFor(() => expect(screen.getByText(/^versions:/)).toBeInTheDocument());
+      expect(status()).toHaveTextContent("2 of 4");
+    });
+
     it("matches case or whole words if asked, and the whole file's lines while it shows", async () => {
       serveFound();
       renderWithQueries(<Diff initial={STAGED} fragment={{ find: "beta" }} />);

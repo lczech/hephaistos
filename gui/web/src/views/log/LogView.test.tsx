@@ -114,8 +114,24 @@ describe("the Log View", () => {
     expect(await screen.findByText("Older records load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
     expect(await screen.findByText("pass 1")).toBeInTheDocument();
-    expect(asked(requests).get("before")).toBe("2026-10-14:200");
-    expect(asked(requests).get("limit")).toBe(String(LOG_PAGE));
+    // The last request for older ones: a refetch may come after it.
+    const older = requests.filter((request) => request.url.includes("before="));
+    expect(asked(older).get("before")).toBe("2026-10-14:200");
+    expect(asked(older).get("limit")).toBe(String(LOG_PAGE));
+  });
+
+  it("says nothing of other filters while those of the ones asked for load", async () => {
+    serve({
+      "GET /api/log": (request) =>
+        new URL(request.url).searchParams.has("since")
+          ? json({ entries: [], skipped: 0 })
+          : new Promise<never>(() => {}), // without filters: still loading
+    });
+    renderWithQueries(<Log at={{ since: "1h" }} />);
+    expect(await screen.findByText("No records match.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all filters" }));
+    expect(address()).toBe("log");
+    expect(screen.getByText("Loading the log…")).toBeInTheDocument(); // not "No records yet."
   });
 
   it("says when there are none, and when lines were not records", async () => {

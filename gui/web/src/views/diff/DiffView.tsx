@@ -191,16 +191,28 @@ export function DiffView({
   // files', asked for at once as the find row opens, in the stack's order; untracked ones only
   // while open, after them. A match stepped to in a folded file unfolds it, for good.
   const versions = useDiffFiles(fileQuery, fileDiff, false);
+  // The new version as last known with its patch: each answer to the diff, e.g. refetched as the
+  // Checkout changes, asks for its versions again, and finding must not start over meanwhile.
+  const [known, setKnown] = useState<{ path: string; patch: string; text: string | null }>();
   const stack = query === undefined && checkout && base ? { ...checkout, ...base } : undefined;
   const all = useDiffs(finding && stack);
   const [untrackedOpen, setUntrackedOpen] = useState<readonly string[]>([]);
   const untrackedDiffs = useDiffsOf(stack ?? {}, finding ? untrackedOpen : []);
   let files: FileText[] | undefined;
   if (query !== undefined) {
-    const patch = fileDiff.data?.patch;
+    // Not that of another file, shown while this one loads: finding waits for it.
+    const patch = fileDiff.isPlaceholderData ? undefined : fileDiff.data?.patch;
     if (patch === null) files = [];
     else if (patch !== undefined) {
-      files = [{ path: query.path, patch, newText: versions.data?.new }];
+      let newText = versions.data?.new;
+      if (newText !== undefined) {
+        if (known?.path !== query.path || known.patch !== patch || known.text !== newText) {
+          setKnown({ path: query.path, patch, text: newText });
+        }
+      } else if (known?.path === query.path && known.patch === patch) {
+        newText = known.text; // asked again, the patch the same
+      }
+      files = [{ path: query.path, patch, newText }];
     }
   } else if (all.data) {
     const { diffs, texts } = all.data;

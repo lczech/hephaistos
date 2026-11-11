@@ -59,7 +59,9 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
   if (events.data === undefined) {
     message = events.isError ? loadErrorText(events.error) : "Loading events…";
   } else if (listed.length === 0) {
-    message = filters.length > 0 ? "No events match." : "No events yet.";
+    // None of the filters before says nothing of those asked for: theirs are still to come.
+    if (events.isPlaceholderData) message = "Loading events…";
+    else message = filters.length > 0 ? "No events match." : "No events yet.";
   }
   return (
     <ViewPage>

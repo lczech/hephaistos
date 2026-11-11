@@ -50,7 +50,9 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
     message = log.isError ? loadErrorText(log.error) : "Loading the log…";
     problem = log.isError;
   } else if (listed.length === 0) {
-    message = columnFilters.length > 0 ? "No records match." : "No records yet.";
+    // None of the filters before says nothing of those asked for: theirs are still to come.
+    if (log.isPlaceholderData) message = "Loading the log…";
+    else message = columnFilters.length > 0 ? "No records match." : "No records yet.";
   } else if (pages.some((page) => page.skipped > 0)) {
     message = "Some lines in the log files are not records.";
     problem = true;

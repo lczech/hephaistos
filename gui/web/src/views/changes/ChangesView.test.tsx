@@ -399,6 +399,45 @@ describe("the Changes View", () => {
     expect(screen.getByRole("button", { name: "Compare to: ccccccc" })).toBeInTheDocument();
   });
 
+  it("opens from the rows shown what they are, while those asked for next load", async () => {
+    const hash = "c".repeat(40);
+    const parent = "b".repeat(40);
+    const person = { name: "Lucas", email: "lucas@example.org", at: "2026-10-13T10:00:00Z" };
+    const ofCommit: Schemas["ChangesJson"] = {
+      branch: null,
+      commit: {
+        name: hash,
+        commit: {
+          ...{ hash, parents: [parent], subject: "Fix it", body: "", refs: [] },
+          ...{ author: person, committer: person, renamed_from: null },
+        },
+        reachable: true,
+        amended_as: null,
+      },
+      groups: [{ name: "changes", from: parent, to: hash, changes: [change("a.txt")], count: 1 }],
+    };
+    const held = new Promise<never>(() => {}); // the comparison asked for next: still loading
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": (request) =>
+        new URL(request.url).searchParams.has("commit") ? json(ofCommit) : held,
+    });
+    const opened: Address[] = [];
+    renderWithQueries(
+      <OpenViewContext.Provider value={(address) => opened.push(address)}>
+        <Changes initial={{ clone: "clone-proj", commit: hash }} />
+      </OpenViewContext.Provider>,
+    );
+    await screen.findByText("a.txt");
+    await userEvent.click(screen.getByRole("button", { name: "Compare with other revisions" }));
+    expect(screen.getByRole("status")).toHaveTextContent(`from=${parent}&to=${hash}`);
+    await userEvent.click(screen.getByText("a.txt")); // dimmed, of the commit
+    expect(opened).toEqual([
+      { kind: "diff", params: { clone: "clone-proj", commit: hash, path: "a.txt" } },
+    ]);
+  });
+
   it("says when git has a commit no longer", async () => {
     serve({
       "GET /api/info": () => json(info()),
