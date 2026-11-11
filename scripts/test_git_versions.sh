@@ -12,9 +12,12 @@ for version in $versions; do
         echo "== building git $version into $prefix"
         build=$(mktemp -d)
         # The tests use local repositories only: no network or translation support needed.
+        # As C17: in C23, GCC 15's default, <stddef.h> defines an `unreachable()` macro, which
+        # breaks older git, e.g. 2.47, whose reflog.c has a function of that name.
         if ! curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-$version.tar.xz" \
             | tar -xJ -C "$build" \
             || ! make -C "$build/git-$version" -j"$(nproc)" prefix="$prefix" \
+                CFLAGS="-g -O2 -std=gnu17" \
                 NO_CURL=1 NO_OPENSSL=1 NO_EXPAT=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_PYTHON=1 \
                 install >"$build/make.log" 2>&1; then
             tail -n 20 "$build/make.log" >&2 2>/dev/null
