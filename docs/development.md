@@ -18,6 +18,8 @@ The subject names an area, then an imperative summary, lowercase after the colon
 Areas: `gui`, `core`, `daemon` (the Daemon, the Server and the API), `cli`, `desktop`, `tests`, `docs`, `build`, `ci`, `assets`, `scripts`; the area is where the change mainly lives.
 A change of the API version ends the subject with `(API 0.x)`, or goes in the body.
 The body gives the details, wrapped at 100 characters at most.
+A fix to a commit of a branch not yet merged goes into that commit, as a `git commit --fixup=<commit>`, folded in by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --committer-date-is-author-date <base>`, so that each commit keeps its date.
+Commits whose conflicts were resolved by hand get the date of the rebase: a second `git rebase --force-rebase --committer-date-is-author-date <base>` sets them back, and `git log --format='%ad %cd' <base>..` then shows the same date twice on every line.
 
 ## Python
 
@@ -129,7 +131,7 @@ The script refuses to run in the main checkout, whose GUI the real Daemon serves
 
 Agents may build the GUI in any checkout, main included, but never start, stop or restart the real Daemon: they give the user the commands.
 In a worktree, they show their work with `scripts/worktree_gui.sh start`, run outside Claude Code's sandbox: there, Electron gets no user namespaces, and what the command leaves running ends with it.
-Before removing their worktree, they run `scripts/worktree_gui.sh remove`.
+A worktree is removed only once its branch is merged and the user said so: first `scripts/worktree_gui.sh remove`, then Orca's `orca worktree rm --worktree current --delete-branch`, which also deletes the branch once merged, and stops the sessions in the worktree, the agent's own too, so it is the session's last step.
 
 ## Tests
 
