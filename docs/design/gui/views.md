@@ -140,13 +140,36 @@ It starts from HEAD or a branch, tag or commit picked (`ref`, HEAD as none, foll
 It shows all files or one path (`path`), a file's renames marked where they happened.
 A search (`search`) keeps only commits whose message has all words searched for, in any order and case.
 For a hash, its commit comes first; else it says where it is: on other branches, offered to show it there, or not changing the path, offered with all files.
-A commit's refs show as small badges framed in orange before its subject, each with its icon: HEAD, branches, remote branches, tags.
+The refs of a commit show as small badges framed in orange before its subject, each with its icon: HEAD, branches, remote branches, tags; with the graph, that of a branch in the colour of its line ([the graph](#the-graph)).
 On a row, at most two show, HEAD and then main or master first, so the subject still shows; the rest are counted, named on hovering, and all show in the commit box.
 A row opens all about its commit: the commit box, also under a commit's Changes and in a commit Event's details.
 While HEAD's commits show, a row above them says what is not committed, with its Changes and Diff.
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.
 They say if no branch or tag leads to the commit any more, and what amends of it led to.
 History opens from a Checkout's row in Repositories, and from the bars of its Changes and of a file's Diff.
+
+### The graph
+
+Beside the commits, their graph (`views/commits/`): a lane per line of commits, drawn down from a commit to the parent it waits for.
+It shows by default, hidden or shown again from the header menu, which never moves it: it stays after the square, so that what opens below a row lines up with it.
+It is drawn only where every commit listed comes above its parents and none is left out between, so not for a path or a search.
+The column fits the lanes of the rows loaded, up to eight, until resized; lanes beyond its width are cut off.
+Lanes are laid out row by row (`lanes.ts`): a row depends only on those above it, so a page loaded on scrolling goes on with the layout, and rows drawn never change.
+Lanes waiting for the same parent stay apart until it comes, so that a branch joins another where it left it; lanes keep their column, so lines are straight.
+Where a lane passes a row is kept once per lane, as the rows it spans, so that a row looks up only its own.
+A commit listed below its parent, as the default order of git may list with clocks apart, draws no line to it rather than one that never ends.
+Each row draws its part across its whole height (`Graph.tsx`), in two lines too; the node is in the middle of its first line; lanes go on beside the details opened below it.
+Nodes are drawn as most graphs draw them: a commit a dot, a merge a ring around a dot, HEAD a larger, thicker ring, what is not committed a dotted ring, joined to HEAD by a dotted line.
+
+Colours:
+- the line of the start, in lane 0, takes the accent;
+- a lane a branch starts takes a hue from the name of the branch (`hues.ts`), the same in every session, at the lightness and chroma of the theme (`--hue-*` in `theme.css`);
+- a lane no branch starts, e.g. the side of a merge, takes a muted hue, from the commit it leads to, so that it stays as pages load;
+- the badge of the branch leading a line, and of its remote-tracking branch, is framed in the colour of that line.
+
+Words:
+- *Lane*: a column of the graph, in which a line is drawn from a commit down to the parent it waits for.
+- *Passing*: a lane neither ending nor starting in a row.
 
 ## Explorer
 

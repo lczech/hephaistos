@@ -19,7 +19,7 @@ import { type CssVars, cssVars } from "../cssVars";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
 import { useColumnDrop } from "./columnDrop";
-import { arrangeable, type ColumnLook, gridColumns } from "./columns";
+import { arrangeable, type ColumnLook, gridColumns, movable } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import { LinesHead } from "./LinesHead";
@@ -623,9 +623,7 @@ export function List<TData extends RowData>({
                     sorted={header.column.getIsSorted()}
                     values={(header.column.getFilterValue() as string[] | undefined) ?? NO_VALUES}
                     resizing={header.column.getIsResizing()}
-                    moves={
-                      arrangeable(header.column.columnDef) ? carried(header.column.id) : undefined
-                    }
+                    moves={movable(header.column.columnDef) ? carried(header.column.id) : undefined}
                     choices={choices[header.column.id]}
                     onFit={() => fitColumn(header.column.id)}
                   >

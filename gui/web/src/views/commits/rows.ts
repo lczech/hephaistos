@@ -2,6 +2,7 @@
 
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";
+import { Layout } from "./lanes";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
@@ -70,4 +71,38 @@ export function uncommittedText(counts: {
 /** Whether someone else committed it than wrote it: only then is the committer worth showing. */
 export function committedApart(author: Commit["author"], committer: Commit["author"]): boolean {
   return author.name !== committer.name || author.email !== committer.email;
+}
+
+/** The graph of the commits listed, and the row of each entry in it, by its ID. */
+export interface Drawn {
+  layout: Layout;
+  rows: Map<string, number>;
+}
+
+/**
+ * The graph of these entries, newest first: their commits, and above HEAD's what is not
+ * committed, the start's line in lane 0 and the accent. Other entries have no row in it.
+ */
+export function graphOf(entries: Entry[], head: string | null | undefined): Drawn {
+  const layout = new Layout({ head, accent: "first" });
+  const rows = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.type === "commit") {
+      const { hash, parents, refs } = entry.commit;
+      rows.set(entryId(entry), layout.rows.length);
+      layout.add({ hash, parents, branch: branchOf(refs) });
+    } else if (entry.type === "uncommitted" && head) {
+      rows.set(entryId(entry), layout.rows.length);
+      layout.add({ hash: entryId(entry), parents: [head], uncommitted: true });
+    }
+  }
+  return { layout, rows };
+}
+
+/** The branch a commit's lane is named by: a local one, else a remote one by its own name. */
+export function branchOf(refs: Ref[]): string | undefined {
+  const local = refs.find((ref) => ref.kind === "branch");
+  if (local) return local.name;
+  const remote = refs.find((ref) => ref.kind === "remote");
+  return remote?.name.slice(remote.name.indexOf("/") + 1);
 }

@@ -5,7 +5,7 @@ import type { RefObject } from "react";
 import { Menu, MenuItem, MenuSection, Popover, Separator } from "react-aria-components";
 import popover from "../popover.module.css";
 import styles from "./ColumnsMenu.module.css";
-import { arrangedOrder, movedPast } from "./columns";
+import { arrangedOrder, movable, movedPast } from "./columns";
 import { columnOrder, hiddenColumns, hiddenOf, resetLook } from "./kept";
 import type { ListFeatures } from "./table";
 
@@ -54,9 +54,18 @@ export function ColumnsMenu<TData extends RowData>({
     ]);
   };
   const name = clicked && table.getColumn(clicked)?.columnDef.header;
+  const moving = new Set(
+    [...shown].filter((id) => {
+      const def = table.getColumn(id)?.columnDef;
+      return def !== undefined && movable(def);
+    }),
+  );
   const moves = ([-1, 1] as const).map((step) => ({
     step,
-    order: clicked === undefined ? undefined : movedPast(order, clicked, step, shown),
+    order:
+      clicked === undefined || !moving.has(clicked)
+        ? undefined
+        : movedPast(order, clicked, step, moving),
     Icon: step < 0 ? ArrowLeft : ArrowRight,
     label: `Move "${name}" ${step < 0 ? "left" : "right"}`,
   }));

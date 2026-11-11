@@ -1,0 +1,74 @@
+/*
+ * A row's part of a commit graph (`Graph.tsx`): across the whole row, from the cell of the graph
+ * column, cut off at its width (`--graph-width`). Its first line's height is twice the height of
+ * the node's middle (`--graph-node-y`, set by the list).
+ */
+.rail,
+.beside {
+  --graph-stroke: 2px;
+  --graph-node-half: 7px; /* half of the box a node is drawn in (`SIZE` in Graph.tsx) */
+  --details-border: 1px; /* of the box of what opens below a row, which the lanes go around */
+}
+
+.rail {
+  position: absolute; /* in the row, from where its cell starts */
+  top: 0;
+  bottom: 0;
+  width: var(--graph-width);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rail svg {
+  display: block;
+  stroke-width: var(--graph-stroke);
+}
+
+.head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: calc(2 * var(--graph-node-y));
+}
+
+.tail,
+.fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.tail {
+  top: calc(2 * var(--graph-node-y));
+}
+
+.fill {
+  top: 0;
+}
+
+.tail svg,
+.fill svg {
+  display: block;
+  stroke-width: var(--graph-stroke);
+}
+
+.node {
+  position: absolute;
+  top: calc(var(--graph-node-y) - var(--graph-node-half));
+  left: var(--node-x);
+}
+
+.ring {
+  fill: var(--background);
+}
+
+/* Beside what opens below a row, in the gap before it: the lanes going on. */
+.beside {
+  position: absolute;
+  top: calc(-1 * var(--space-1) - var(--details-border));
+  right: calc(100% + var(--details-border) + var(--column-gap));
+  bottom: calc(-1 * var(--space-2) - var(--details-border));
+  width: var(--graph-width);
+  overflow: hidden;
+  pointer-events: none;
+}

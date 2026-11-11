@@ -50,7 +50,8 @@ It is the highlight colour for what should be visible at a glance.
 In the GUI: a row whose View is shown, keyboard focus, a filter in effect and the button clearing filters, a drag in progress, the tab of a View just focused.
 In git: the refs at a commit, HEAD's too.
 A toggle on is grey.
-Nothing else is orange.
+Nothing else is orange, but colours by name, e.g. the lanes of a commit graph and the badges of their branches, which take any hue ([views](views.md#the-graph)).
+They are drawn at one lightness and chroma per theme, so that all read alike (`--hue-*`, `hues.ts`).
 
 Text saying that something is wrong or gone is yellow (`problem` in `text.module.css`).
 That covers a failed load, a removed Worktree, an unregistered Clone, a missing branch, a commit nothing leads to, and the Server's warnings.

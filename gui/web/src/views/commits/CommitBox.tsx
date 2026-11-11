@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cssVars } from "../../components/cssVars";
 import { Fields } from "../../components/list/Fields";
 import { TextIcon } from "../../components/TextIcon";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../../icons";
@@ -9,7 +10,7 @@ import type { Checkout } from "../checkout";
 import { ChangesLinks } from "../comparison/ChangesLinks";
 import { changesText } from "../comparison/rows";
 import styles from "./CommitBox.module.css";
-import { type Commit, committedApart, type Ref } from "./rows";
+import { branchOf, type Commit, committedApart, type Ref } from "./rows";
 
 /**
  * A commit as named wherever it is shown but in pickers and the bar: its icon and its hash, as
@@ -35,11 +36,19 @@ export function CommitHash({ hash, checkout }: { hash: string | undefined; check
 
 const SHOWN_LABELS = 2; // on a line, HEAD first, then main or master, then the others; the rest counted
 
+interface RefLabelsProps {
+  refs: Ref[];
+  head?: boolean;
+  all?: boolean;
+  lead?: { name: string; colour: string }; // the branch whose line a graph draws, in its colour
+}
+
 /**
  * The branches and tags pointing at a commit, and HEAD if it does, as labels: on a line, a few,
- * so its subject still shows, and how many more; all where `all`.
+ * so its subject still shows, and how many more; all where `all`. The branch leading the line of
+ * a graph is framed in that line's colour, its remote-tracking branch too.
  */
-export function RefLabels({ refs, head, all }: { refs: Ref[]; head?: boolean; all?: boolean }) {
+export function RefLabels({ refs, head, all, lead }: RefLabelsProps) {
   if (refs.length === 0 && !head) return null;
   const first = [...refs].sort((a, b) => Number(isMain(b)) - Number(isMain(a)));
   const room = all ? first.length : SHOWN_LABELS - (head ? 1 : 0);
@@ -55,8 +64,14 @@ export function RefLabels({ refs, head, all }: { refs: Ref[]; head?: boolean; al
       )}
       {shown.map((ref) => {
         const Icon = REF_ICONS[ref.kind];
+        const leads = lead !== undefined && ref.kind !== "tag" && branchOf([ref]) === lead.name;
         return (
-          <span key={`${ref.kind}:${ref.name}`} className={styles.ref} title={REF_KINDS[ref.kind]}>
+          <span
+            key={`${ref.kind}:${ref.name}`}
+            className={styles.ref}
+            title={REF_KINDS[ref.kind]}
+            style={cssVars(leads ? { "--ref-colour": lead.colour } : {})}
+          >
             <Icon aria-hidden="true" />
             {ref.name}
           </span>

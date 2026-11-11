@@ -7,7 +7,8 @@ import { numberText } from "../../text";
 import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitList.module.css";
-import { type Entry, type Found, whereText } from "./rows";
+import { colourOf, fittedWidth, GraphCell } from "./Graph";
+import { branchOf, type Drawn, type Entry, entryId, type Found, whereText } from "./rows";
 
 const column = listColumnHelper<Entry>();
 
@@ -30,6 +31,7 @@ export function commitColumns(
   checkout: Checkout | undefined,
   head: string | null | undefined,
   actions: FoundActions,
+  graph: Drawn | undefined,
 ) {
   return column.columns([
     column.display({
@@ -38,6 +40,23 @@ export function commitColumns(
       enableResizing: false,
       meta: { width: "var(--square)" },
     }),
+    ...(graph === undefined
+      ? []
+      : [
+          column.display({
+            id: "graph",
+            header: "graph",
+            size: fittedWidth(graph.layout.columns),
+            meta: {
+              stays: true, // the lanes below an opened row line up with it
+              description: "How the commits descend from each other, a line per lane",
+            },
+            cell: ({ row }) => {
+              const at = graph.rows.get(entryId(row.original));
+              return at === undefined ? "" : <GraphCell layout={graph.layout} row={at} />;
+            },
+          }),
+        ]),
     column.display({
       id: "commit",
       header: "commit",
@@ -75,9 +94,14 @@ export function commitColumns(
           );
         }
         const { commit } = entry;
+        const at = graph?.rows.get(entryId(entry));
+        const lane = at === undefined ? undefined : graph?.layout.rows[at];
+        const named = branchOf(commit.refs);
+        const lead =
+          lane && named !== undefined ? { name: named, colour: colourOf(lane.colour) } : undefined;
         return (
           <span title={commit.subject}>
-            <RefLabels refs={commit.refs} head={commit.hash === head} />
+            <RefLabels refs={commit.refs} head={commit.hash === head} lead={lead} />
             {commit.parents.length > 1 && (
               <span title="Merge commit: changes shown against its first parent">
                 <TextIcon icon={GitMerge} className={styles.icon} label="merge" />

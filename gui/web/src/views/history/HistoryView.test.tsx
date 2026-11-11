@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
@@ -378,5 +378,57 @@ describe("the History View", () => {
     renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
     expect(await screen.findByText("No commits yet.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Branch, tag or commit: HEAD" })).toBeInTheDocument();
+  });
+
+  const nodes = () =>
+    [...document.querySelectorAll("svg[data-node]")].map((node) => node.getAttribute("data-node"));
+
+  it("draws the graph of the commits: HEAD, merges and commits", async () => {
+    const merge = commit(2, { parents: ["1".padStart(40, "c"), "f".repeat(40)] });
+    const side = commit(9, { hash: "f".repeat(40), parents: ["1".padStart(40, "c")] });
+    serveHistory(() => json(page([HEAD, merge, side, commit(1, { parents: [] })])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 1");
+    expect(screen.getByText("graph")).toBeInTheDocument();
+    expect(nodes()).toEqual(["head", "merge", "commit", "commit"]);
+  });
+
+  it("draws no graph for a path or a search, which leave commits out between", async () => {
+    serveHistory(() => json(page([HEAD, commit(2), commit(1)])));
+    const { unmount } = renderWithQueries(
+      <History initial={{ clone: "clone-proj", path: "src/rows.ts" }} />,
+    );
+    await screen.findByText("Commit 1");
+    expect(nodes()).toEqual([]);
+    expect(screen.queryByText("graph")).toBeNull();
+    unmount();
+    renderWithQueries(<History initial={{ clone: "clone-proj", search: "Commit" }} />);
+    await screen.findByText("Commit 1");
+    expect(nodes()).toEqual([]);
+  });
+
+  it("hides the graph from the header menu, which never moves it", async () => {
+    serveHistory(() => json(page([HEAD, commit(2)])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 2");
+    fireEvent.contextMenu(screen.getByText("graph"));
+    const menu = screen.getByRole("menu", { name: "Columns" });
+    for (const side of ["left", "right"]) {
+      expect(within(menu).getByRole("menuitem", { name: `Move "graph" ${side}` })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    }
+    await userEvent.keyboard("{Escape}");
+    fireEvent.contextMenu(
+      screen.getByText("commit", { selector: "[data-column] *, [data-column]" }),
+    );
+    expect(screen.getByRole("menuitem", { name: 'Move "commit" left' })).toHaveAttribute(
+      "aria-disabled",
+      "true", // past the graph is no place to go: it stays after the square
+    );
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "graph" }));
+    expect(nodes()).toEqual([]);
+    expect(localStorage.getItem("hephaistos.lists.history.hidden")).toBe('["graph"]');
   });
 });

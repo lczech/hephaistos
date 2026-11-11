@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { columnsOrdered, movedPast } from "./columns";
+import { arrangedOrder, columnsOrdered, movable, movedPast } from "./columns";
 
 const columns = [
   { id: "square" },
@@ -47,5 +47,37 @@ describe("a column moved", () => {
   it("goes nowhere where none shows", () => {
     expect(movedPast(["name", "kind", "time"], "name", -1, shown)).toBeUndefined();
     expect(movedPast(["name", "kind", "time"], "time", 1, shown)).toBeUndefined();
+  });
+});
+
+describe("a column that stays", () => {
+  const withGraph = [
+    { id: "square" },
+    { id: "graph", header: "graph", meta: { stays: true } },
+    { accessorKey: "name", header: "name" },
+    { id: "kind", header: "kind" },
+  ];
+
+  it("keeps its place however the others move, yet is listed to show or hide", () => {
+    expect(movable(withGraph[1] ?? {})).toBe(false);
+    expect(movable(withGraph[2] ?? {})).toBe(true);
+    expect(movable(withGraph[0] ?? {})).toBe(false);
+    expect(columnsOrdered(withGraph, ["kind", "graph", "name"])).toEqual([
+      "square",
+      "graph",
+      "kind",
+      "name",
+    ]);
+    expect(arrangedOrder(withGraph, ["kind", "name"])).toEqual(["graph", "kind", "name"]);
+  });
+
+  it("is passed over by the others moving, as if not shown", () => {
+    const moving = new Set(["name", "kind"]);
+    expect(movedPast(["graph", "name", "kind"], "name", -1, moving)).toBeUndefined();
+    expect(movedPast(["graph", "name", "kind"], "kind", -1, moving)).toEqual([
+      "graph",
+      "kind",
+      "name",
+    ]);
   });
 });

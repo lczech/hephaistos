@@ -179,6 +179,8 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         message={message}
         stale={error !== null || history.isPlaceholderData}
         paging={history}
+        // Not for a path or a search, which leave commits out between those listed.
+        graph={path === undefined && words.length === 0}
       />
     </ViewPage>
   );

@@ -11,6 +11,8 @@ export interface ColumnLook {
   align?: "left" | "center" | "right"; // its header and cells; numbers and times right, to line up
   identifies?: boolean; // says what a row is: never hidden
   hiddenAtFirst?: boolean; // hidden until shown, e.g. one whose values cost to ask for
+  stays?: boolean; // kept in its place, shown or hidden but never moved: e.g. a commit graph, which
+  // what is drawn below a row lines up with
   second?: boolean; // in two lines, on the second line, quieter
   figures?: boolean; // times or counts: their figures as wide as each other, to line up
 }
@@ -46,6 +48,12 @@ interface Defined {
   id?: string;
   accessorKey?: unknown;
   header?: unknown;
+  meta?: ColumnLook;
+}
+
+/** Whether a column to arrange may also move: all but those that stay in their places. */
+export function movable(column: Defined): boolean {
+  return arrangeable(column) && !column.meta?.stays;
 }
 
 /** A column's ID, as TanStack Table gives it: as set, else its key, else its header. */
@@ -61,17 +69,18 @@ function columnId({ id, accessorKey, header }: Defined): string {
  */
 export function columnsOrdered(columns: readonly Defined[], moved: string[]): string[] {
   const ids = columns.map(columnId);
-  const movable = new Set(columns.filter(arrangeable).map(columnId));
-  const order = moved.filter((id) => movable.has(id));
+  const moving = new Set(columns.filter(movable).map(columnId));
+  const order = moved.filter((id) => moving.has(id));
   const placed = new Set(order);
   let next = 0;
   return ids.map((id) => (placed.has(id) ? (order[next++] as string) : id));
 }
 
-/** The columns to arrange in their order, given in their first order, as `moved`. */
+/** The columns to arrange in their order, given in their first order, as `moved`; those that
+ * stay in their places among them. */
 export function arrangedOrder(columns: readonly Defined[], moved: string[]): string[] {
-  const movable = new Set(columns.filter(arrangeable).map(columnId));
-  return columnsOrdered(columns, moved).filter((id) => movable.has(id));
+  const listed = new Set(columns.filter(arrangeable).map(columnId));
+  return columnsOrdered(columns, moved).filter((id) => listed.has(id));
 }
 
 /**

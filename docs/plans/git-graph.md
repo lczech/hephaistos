@@ -84,6 +84,10 @@ Each step its own commits, stopping for review.
 
 - `GitRevisionPicker` no longer imports from History: `headText` is in `revisions.ts`, `searchWords` in `text.ts`; at the merge, the roadmap on master drops the item it owed.
 - 1.1: the list of commits, its columns, rows and styles, `CommitBox` and `CommitHeader` in `views/commits/`; History keeps its bar and its words (`views/history/text.ts`).
+- 1.2: the lanes (`lanes.ts`), the hues (`hues.ts`), and the graph column of History, with lanes beside opened details and badges in the colour of their line; a column that stays in its place (`stays`).
+  Found on the way: the details of a row have smaller text, so lengths in `lh` there are shorter: the end of the graph is a registered length (`@property --graph-end`).
+  WebKit lays out nothing positioned in a flex row with `content-visibility: auto`: rows of a graph in two lines are always drawn, until virtual lists replace that.
+  A branch merged and still named starts no lane of its own colour: its lane was opened by the merge, unnamed, and keeps its muted colour, so that rows drawn never change.
 
 ## Open
 
