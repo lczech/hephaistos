@@ -1,13 +1,11 @@
-Help me design and start building a personal application for managing repositories, checkouts, machines, terminals and agents.
+hephaistos is a personal application for managing repositories, checkouts, machines, terminals and agents, which we build together, step by step.
 
 Use the terms defined in [docs/glossary.md](docs/glossary.md) consistently in code, GUI and docs; in docs and code comments, defined terms are capitalised; in what users read (GUI, CLI output, messages), they are lowercase, except the name of a View where it names that View.
 Write all text as [docs/style.md](docs/style.md) says, and fix text that breaks it where you work.
 
 **Context and problem**
 
-I use Ubuntu and VS Code on my laptop. I also have an always-on remote machine, accessed over SSH, where I want agents and other tasks to run unattended, including overnight. Furthermore, I have access to several computer clusters, via VPN and SSH, on which I want to run work via SLURM.
-
-Starting work currently involves manually opening an editor, terminals in the checkout, and a file manager. I also need to find existing agents and running terminals again, and later on also scheduler jobs. A repository may have independent clones on several machines (laptop, remote machine, clusters), plus several git worktrees for parallel tasks.
+I use Ubuntu and VS Code on my laptop, an always-on remote machine over SSH, where agents and other tasks run unattended, overnight too, and several computer clusters, over VPN and SSH, running work via SLURM. A repository may have clones on several of these, plus git worktrees for parallel tasks. Starting work means opening an editor, terminals and a file manager by hand, and finding agents, terminals and later scheduler jobs again.
 
 I want one extensible GUI that helps me launch, resume, and oversee this work.
 
@@ -24,7 +22,7 @@ Eventually, the application should provide:
 - Embedded terminal tabs, followed by file browsing, previews, and possibly editing.
 - An Android-accessible interface for checking progress and interacting with remote terminals and agents.
 
-Build this incrementally. The first version should be useful without becoming a complete IDE.
+Each step should be useful on its own, without the whole becoming a complete IDE.
 
 **Architecture**
 
@@ -52,33 +50,13 @@ A Terminal and an Agent are different things. Do not assume Agents from editor e
 
 **Reference project**
 
-A colleague’s project contains useful ideas:
-https://github.com/genomewalker/relay-terminal
+A colleague’s [relay-terminal](https://github.com/genomewalker/relay-terminal) (macOS-only, with a custom remote daemon) is design inspiration: durable remote session identities, structured agent events, machine/workspace/session navigation, and its “since you last checked” inbox. It has no license yet: copy none of its implementation without permission. Its sister plugin repositories describe experimental or unreleased features.
 
-Especially relevant are durable remote session identities, structured agent events, machine/workspace/session navigation, and its “since you last checked” inbox.
+**How we work**
 
-Its desktop app is macOS-only and uses a custom remote daemon. We want our own Ubuntu-compatible application. Use it as design inspiration; it currently states that no project license has been selected, so do not copy its implementation without appropriate permission. Several sister plugin repositories describe experimental or unreleased features.
+The steps are in [docs/plans/roadmap.md](docs/plans/roadmap.md). Each has its own branch and worktree ([how](docs/development.md#branches-and-worktrees)), a commit per part, with tests; stop where agreed with the user, with a short summary and how to try it. The user reviews the commits, which may still be reworked, before they are merged onto master.
 
-**First milestone**
-
-Aim for a small working vertical slice:
-
-1. Register a repository and its local checkout.
-2. Show the checkout in a repository overview.
-3. Open it in the editor, an external terminal emulator, and the file manager.
-4. Create or reconnect to a named terminal.
-5. Reopen the application and recover the registered repositories and terminals.
-6. Establish how the same core will support other machines later (sync, SSH + CLI).
-
-Then add remote-machine support, agent events and attention, embedded terminals, and phone access in successive milestones.
-
-**How to proceed**
-
-First inspect the repository and available environment. Present a concise architecture recommendation, the important open decisions, and a staged implementation plan. Identify which choices are costly to change and which can wait.
-
-Then begin the smallest useful implementation. Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Keep explanations concise, document important decisions, and verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
-
-Implement one step at a time, with tests. Each feature has its own branch and worktree, where each step is its own commit; stop where agreed with the user, with a short summary and how to try it. The user reviews the commits, which may still be reworked, before they are merged onto master.
+Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
 
 Never start, stop or restart the user's Daemon; give them the commands.
 Run `hephaistos setup` only with `--no-daemon --no-desktop`, and never `daemon install|uninstall` or `desktop install|uninstall`: whatever `HEPHAISTOS_HOME` says, they replace the user's systemd unit and launcher entry, and restart the Daemon. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).
