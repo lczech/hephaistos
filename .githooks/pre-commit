@@ -1,5 +1,6 @@
 #!/bin/sh
-# Fast checks before each commit; type checks and tests run before each push (pre-push).
+# Quick checks before each commit: the linters, and the GUI's types when GUI files are staged
+# (about 10 s); pyright and the tests run before each push (pre-push).
 # Enable once per clone: git config core.hooksPath .githooks
 # Skip in an emergency with `git commit --no-verify`.
 set -e
@@ -10,3 +11,10 @@ if [ ! -d gui/node_modules ]; then
     exit 1
 fi
 uv run --frozen npm --prefix gui run --silent lint
+# The working tree's types, as the linters check it; a deleted file counts too.
+if git diff --cached --name-only -- gui | grep -q .; then
+    out=$(uv run --frozen npm --prefix gui run --silent typecheck 2>&1) || {
+        echo "$out" >&2
+        exit 1
+    }
+fi

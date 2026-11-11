@@ -37,7 +37,7 @@ hephaistos desktop open            # the GUI in its own window, also from the de
 ## Development
 
 ```sh
-git config core.hooksPath .githooks   # once: linters before each commit, type checks and tests before each push
+git config core.hooksPath .githooks   # once: linters and the GUI's types before each commit, all checks before each push
 uv run pytest
 uv run ruff check . && uv run ruff format .
 uv run pyright
