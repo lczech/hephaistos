@@ -7,6 +7,7 @@ import {
   nameOrId,
   numberText,
   plural,
+  searchWords,
   shortId,
   sizeText,
 } from "./text";
@@ -43,6 +44,15 @@ describe("text", () => {
     expect(shortId("0199e000-0000-7000-8000-0000deadbeef")).toBe("deadbeef");
     expect(nameOrId({ name: null, id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("deadbeef");
     expect(nameOrId({ name: "gaia", id: "0199e000-0000-7000-8000-0000deadbeef" })).toBe("gaia");
+  });
+});
+
+describe("searchWords", () => {
+  it("splits what is typed at any spaces, keeping no empty words", () => {
+    expect(searchWords("row  view\tfold ")).toEqual(["row", "view", "fold"]);
+    expect(searchWords("   ")).toEqual([]);
+    expect(searchWords("")).toEqual([]);
+    expect(searchWords(undefined)).toEqual([]);
   });
 });
 

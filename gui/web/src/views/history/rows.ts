@@ -2,7 +2,7 @@
 
 import type { Schemas } from "../../api/client";
 import { pathParts } from "../../paths";
-import { revisionText, shortHash } from "../../revisions";
+import { revisionText } from "../../revisions";
 import { listText, numberText } from "../../text";
 
 export type Commit = Schemas["CommitJson"];
@@ -69,12 +69,6 @@ export function uncommittedText(counts: {
     .join(", ");
 }
 
-/** What HEAD is: `HEAD (main)`, or `HEAD (detached at abc1234)`; `HEAD` before the first. */
-export function headText(head: string | null | undefined, branch: string | null | undefined) {
-  if (branch) return `HEAD (${branch})`;
-  return head ? `HEAD (detached at ${shortHash(head)})` : "HEAD";
-}
-
 /** The tab's title: `History: proj`, `History: proj, origin/main`, `History: rows.ts`; refs and
  * hashes shortened. */
 export function historyTitle(
@@ -87,11 +81,6 @@ export function historyTitle(
   if (shown === undefined) return undefined;
   const searched = search.length > 0 ? `, “${search.join(" ")}”` : "";
   return `History: ${shown}${ref === undefined ? "" : `, ${revisionText(ref)}`}${searched}`;
-}
-
-/** The words of a search: what is typed, apart at spaces. */
-export function searchWords(search: string | undefined): string[] {
-  return search?.split(/\s+/).filter(Boolean) ?? [];
 }
 
 /** That no commits have all the words searched for: `No commits mention row and view.` */

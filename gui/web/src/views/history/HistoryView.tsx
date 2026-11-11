@@ -16,6 +16,7 @@ import { useList } from "../../components/list/table";
 import { SearchField } from "../../components/SearchField";
 import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
+import { searchWords } from "../../text";
 import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
@@ -28,14 +29,7 @@ import { useTitle } from "../title";
 import { CommitBox } from "./CommitBox";
 import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
-import {
-  entryId,
-  historyTitle,
-  noneFoundText,
-  searchedEntries,
-  searchWords,
-  uncommittedText,
-} from "./rows";
+import { entryId, historyTitle, noneFoundText, searchedEntries, uncommittedText } from "./rows";
 
 const SEARCH_DELAY = 300; // ms after the last key typed
 

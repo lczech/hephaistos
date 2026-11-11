@@ -15,6 +15,12 @@ export function shortHash(hash: string): string {
   return hash.slice(0, 7);
 }
 
+/** What HEAD is: `HEAD (main)`, or `HEAD (detached at abc1234)`; `HEAD` before the first. */
+export function headText(head: string | null | undefined, branch: string | null | undefined) {
+  if (branch) return `HEAD (${branch})`;
+  return head ? `HEAD (detached at ${shortHash(head)})` : "HEAD";
+}
+
 /** A revision in words: `working tree`; a full ref name or hash shortened as git shows them,
  * `main` or `abc1234`; others as named. */
 export function revisionText(revision: string): string {

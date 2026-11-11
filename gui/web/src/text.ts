@@ -25,6 +25,11 @@ export function counted(n: number, noun: string, more = false): string {
   return `${atLeast(n, more)} ${plural(n, noun, more)}`;
 }
 
+/** The words of a search: what is typed, apart at spaces. */
+export function searchWords(search: string | undefined): string[] {
+  return search?.split(/\s+/).filter(Boolean) ?? [];
+}
+
 /** Words in a sentence: `a`, `a and b`, `a, b and c`. */
 export function listText(words: string[]): string {
   return words.length > 1
