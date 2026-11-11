@@ -1,0 +1,3 @@
+# Orca's settings for this repository, read in each worktree it creates.
+scripts:
+  setup: scripts/worktree_setup.sh

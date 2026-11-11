@@ -118,6 +118,14 @@ Reports for upstream are in [ideas](ideas/gui.md#upstream).
   Reported as microsoft/playwright#43582 (maybe the same as #42330); a reproduction is in `.agents/scratch/webkit-crash/report/`.
   When Playwright updates WebKit, run it again, and once it no longer crashes, drop the workaround.
 
+## Branches and worktrees
+
+Each step of the [roadmap](plans/roadmap.md) has its own branch, in a worktree of its own.
+When Orca runs the session (`ORCA_AGENT_SESSION_ID` is set), a worktree is made with `orca worktree create`, throwaway ones too, so that Orca shows and removes it.
+Orca then runs the setup of `orca.yaml`: `scripts/worktree_setup.sh`, which links the worktree's `.agents/scratch/` to the main checkout's, so that what is kept there is the same in every checkout and outlives the worktree; elsewhere, run it once in the new worktree.
+A branch with code gets one code review (`/code-review`), once its commits are done and before the user's last test, so that the fixes are tested too.
+A worktree is removed only once its branch is merged and the user said so: first `scripts/worktree_gui.sh remove`, then Orca's `orca worktree rm --worktree current --delete-branch`, which also deletes the branch once merged, and stops the sessions in the worktree, the agent's own too, so it is the session's last step.
+
 ## A worktree's GUI
 
 `scripts/worktree_gui.sh` shows a worktree's GUI before it reaches main, in a Desktop window of its own.
@@ -131,8 +139,6 @@ The script refuses to run in the main checkout, whose GUI the real Daemon serves
 
 Agents may build the GUI in any checkout, main included, but never start, stop or restart the real Daemon: they give the user the commands.
 In a worktree, they show their work with `scripts/worktree_gui.sh start`, run outside Claude Code's sandbox: there, Electron gets no user namespaces, and what the command leaves running ends with it.
-A worktree is removed only once its branch is merged and the user said so: first `scripts/worktree_gui.sh remove`, then Orca's `orca worktree rm --worktree current --delete-branch`, which also deletes the branch once merged, and stops the sessions in the worktree, the agent's own too, so it is the session's last step.
-
 ## Tests
 
 pytest tests the Core, with fake plugins standing in for real tools.
