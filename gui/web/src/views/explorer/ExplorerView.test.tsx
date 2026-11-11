@@ -213,6 +213,34 @@ describe("the Explorer View", () => {
     ]);
   });
 
+  it("greys out the Checkout's changes where it has none", async () => {
+    const served = (fields: Partial<Schemas["CloneJson"]>) =>
+      serve({
+        "GET /api/info": () => json(info()),
+        "GET /api/repositories": () =>
+          json([repository("me", [{ ...clone("me", fields), path: "/home/me" }])]),
+        "GET /api/files": (request) => {
+          const git = new URL(request.url).searchParams.has("fields");
+          const entries = DISK["/home/me"] ?? [];
+          return json({ path: "/home/me", top: git ? "/home/me" : null, entries, count: 3 });
+        },
+      });
+    const links = ["Changes in me", "Diff of the changes in me"];
+    served({ untracked: 2 });
+    const { unmount } = renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    for (const name of links) {
+      const link = await screen.findByRole("button", { name });
+      expect(link).toHaveAttribute("title", `${name}: no changes; 2 untracked`);
+      expect(link.className).toMatch(/quiet/);
+    }
+    unmount();
+    served({ changed: 1 });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    for (const name of links) {
+      expect((await screen.findByRole("button", { name })).className).not.toMatch(/quiet/);
+    }
+  });
+
   it("shows a parent by its part of the path in the bar", async () => {
     serveDisk();
     renderWithQueries(<Explorer initial={{ path: "/home/me/proj" }} />);

@@ -25,6 +25,7 @@ import { FoldersFolded } from "../../drawnIcons";
 import { keptAtom } from "../../kept";
 import { useNow } from "../../useNow";
 import { paramValues, withParam } from "../address";
+import { checkoutState } from "../checkout";
 import { ChangesLinks } from "../comparison/ChangesLinks";
 import { findOf, NOTHING_TYPED, withFind } from "../find";
 import type { ViewProps } from "../index";
@@ -467,7 +468,11 @@ export function ExplorerView({
                   address={{ kind: "history", params: shownIn.checkout }}
                   label={`Commit history of ${checkoutName}`}
                 />
-                <ChangesLinks checkout={shownIn.checkout} what={`changes in ${checkoutName}`} />
+                <ChangesLinks
+                  checkout={shownIn.checkout}
+                  what={`changes in ${checkoutName}`}
+                  state={checkoutState(repositories.data, shownIn.checkout)}
+                />
               </>
             )}
           </BarGroup>

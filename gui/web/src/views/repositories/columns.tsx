@@ -45,9 +45,6 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   const state = checkout(entry);
   const params: Checkout | undefined =
     state && (entry.type === "worktree" ? { worktree: state.id } : { clone: state.id });
-  // Untracked files alone are often left there for good, so they do not call for a look.
-  const quiet = state && !(state.staged || state.changed || state.conflicted);
-  const untracked = state?.untracked ? `; ${state.untracked} untracked` : "";
   return (
     <span className={styles.views}>
       <ViewLink address={eventsAt(entry)} label={`Events of ${name}`} />
@@ -57,12 +54,7 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
         <span />
       )}
       {params && state?.staged !== null ? ( // not for a bare Clone
-        <ChangesLinks
-          checkout={params}
-          what={`changes in ${name}`}
-          quiet={quiet}
-          note={quiet ? `no changes${untracked}` : undefined}
-        />
+        <ChangesLinks checkout={params} what={`changes in ${name}`} state={state} />
       ) : (
         <>
           <span />
