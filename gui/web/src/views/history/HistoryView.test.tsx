@@ -393,6 +393,15 @@ describe("the History View", () => {
     expect(nodes()).toEqual(["head", "merge", "commit", "commit"]);
   });
 
+  it("fits the graph column to its lanes, one lane as narrow as it needs", async () => {
+    serveHistory(() => json(page([HEAD, commit(2), commit(1, { parents: [] })])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 1");
+    const grid = document.querySelector<HTMLElement>("[style*='--columns']");
+    // After the square, the graph: one lane of 12 px and half a lane of room.
+    expect(grid?.style.getPropertyValue("--columns")).toMatch(/^var\(--square\) 18px /);
+  });
+
   it("draws no graph for a path or a search, which leave commits out between", async () => {
     serveHistory(() => json(page([HEAD, commit(2), commit(1)])));
     const { unmount } = renderWithQueries(

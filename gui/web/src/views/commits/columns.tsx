@@ -47,6 +47,7 @@ export function commitColumns(
             id: "graph",
             header: "graph",
             size: fittedWidth(graph.layout.columns),
+            minSize: fittedWidth(1), // one lane, narrower than other columns may be
             meta: {
               stays: true, // the lanes below an opened row line up with it
               description: "How the commits descend from each other, a line per lane",
