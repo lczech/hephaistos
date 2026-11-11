@@ -10,16 +10,22 @@ Ideas for the GUI as a whole; those for single Views are in [Views](views.md).
 
 ## Keys and lists
 
-- Keyboard navigation in lists (after the table work; it does not work at all now, and the user has ideas of their own to add):
-  arrow keys move a roving focus between rows, also Home, End, PageUp and PageDown;
-  Enter opens the details or the View of a row, Space folds;
-  Left and Right fold and unfold rows that hold rows (the tree of Repositories, the directories of Changes), and Left on a child goes to its parent, as tree views do;
-  typing jumps to the next row starting so (typeahead);
-  Escape closes details and returns focus to the row;
-  focus stays on its row when rows change (live updates);
-  the context-menu key or Shift+F10 opens the header menu;
-  a visible focus ring.
-- In TanStack Table, for when needed (2026-10-24): a quick text filter over the loaded rows of a list (global filtering), counts per value in header filters (faceting), rows grouped by a column (grouping), several rows selected for one action (row selection), and virtual scrolling (TanStack Virtual) once a list with many pages measures slow.
+The first step after the Explorer merged (decided with the user, 2026-11-11, after a prototype, branch `proto/explorer-virtual`, kept until this step merges): lists virtual, reached by the keys, with ARIA, in one branch, merged together; virtualization first, then the keys and ARIA, as Tab reaches only the rows drawn.
+
+- In the List, for all lists, as flat rows: only those near the view drawn, by TanStack Virtual's `useVirtualizer`, as documented; rows measured exactly, not rounded to pixels, and placed by `top`, as text at a fraction of a pixel moved by `transform` is drawn blurred.
+  Its component in a file of its own, which React's compiler leaves out (`sources` in `vite.config.ts`): the compiler refuses `useVirtualizer` ("incompatible library"), whose virtualizer stays the same object as what it shows changes.
+- One rule for what sticks: a row whose content is open (a folder's rows, a file's diff, an event's details) stays below the header, and below the rows holding it, while that content scrolls past; drawn apart from the rows, above them, sliding out as now, pushed up by the next.
+  In the Explorer, and in the trees of Changes and the Diff's List, below what stays at the top of their page; flat paths hold no folders, so nothing sticks there.
+  A click on a row stuck scrolls it to its place, at the top, then closes it.
+- A treegrid, with `aria-level` and `aria-expanded`, by VS Code's keys: up and down between rows, also PageUp and PageDown, Home and End; left and right fold and unfold, and left on a row within one goes to it; Enter and Space open a row as a click does; Escape closes details and returns to the row; the menu key and Shift+F10 open the row's menu, or the header's.
+  The row focused is the only selection, kept when rows change (live updates), with a visible focus ring.
+  Later: typing jumps to the next row starting so (typeahead).
+- Done with it, as the List then draws only the rows near the view: it watches every row for `seen` anew on each draw, and builds every row's menu only to know whether it has one (found by a review, 2026-11-11).
+- Why (measured 2026-11-11 by scripts in `.agents/scratch/explorer-perf/` and `explorer-virtual/` of the Explorer's worktree): in an Explorer of 1,900 rows, all drawn, opening a folder shows its rows after about 860 ms, and dragging a column's edge blocks the page for about 4.4 s in all; virtual, about 160 ms, no task over 50 ms, and scrolling smoothly.
+  Skipping the rows that did not change was ruled out: TanStack Table makes every row anew when the data changes, in a tree whenever a folder opens, so it would need comparing rows by hand, which lint rejects ([development](../development.md)), or drawing cells around TanStack.
+- Later: the page's own find (Ctrl+F, in a browser) finds only the rows drawn; a find of their own for the lists without one (Events, Repositories, History, the database).
+- In TanStack Table, for when needed (2026-10-24): a quick text filter over the loaded rows of a list (global filtering), counts per value in header filters (faceting), rows grouped by a column (grouping), several rows selected for one action (row selection).
+- Density for all lists: how close their rows stand, as a setting.
 
 ## Panels and the Layout
 
@@ -30,6 +36,7 @@ Ideas for the GUI as a whole; those for single Views are in [Views](views.md).
 - Memory with many Panels (user): if needed, send the Panels used least recently back to `onlyWhenVisible`, saving and restoring their scroll position.
 - A dashboard or control center: status icons with counts, summaries per Repository, entry points into other Views.
 - GUI View types as plugins, in TypeScript (from the ADRs).
+- Dragging rows into Groups: a file of the Explorer, a row of Repositories, to open its View there.
 
 ## Looks
 

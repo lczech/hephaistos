@@ -29,9 +29,11 @@ User, 2026-10-17: for a merge, its changes against another parent; a filter by a
 
 ## Explorer
 
-Its plan is in `docs/plans/` on the branch `lczech/file-explorer`.
-
 - File kinds as a plugin (user, 2026-11-06: "super not urgent"): mappings from file names and extensions to the icons of the Explorer, e.g. for bioinformatics formats (`.fasta`, `.nwk`) that the general table leaves out.
+  The folder icons stay ours (decided 2026-11-09).
+- The File View, showing a file of the Explorer; then the Explorer at a Revision (below) and "Find in folder".
+- Writing to files (renaming, deleting, dragging) waits for the rule of [ADR 003](../decisions/003-core.md) for the files of the user.
+- The find row at sidebar widths waits for a sidebar (decided 2026-11-09); a sidebar with Workspaces.
 - The Explorer at a Revision (user, 2026-11-06; after the File View): with a Checkout and a Revision, it lists `git ls-tree`, read-only, marking what that commit changed against its parent, as the commit page on GitHub does.
   The address or kind of the View decides whether the Revision picker shows, not a toggle: the Explorer in a sidebar, on disk, never shows it; the repository at a commit, linked from the rows of History, does.
   Its search then lists paths by `git ls-tree -r --name-only <rev>` through the same `/api/files/paths`, with a `ref` parameter, matched in the browser as on disk; "ignored" does not apply.
