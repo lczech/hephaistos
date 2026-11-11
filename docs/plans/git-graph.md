@@ -1,0 +1,91 @@
+# The git graph
+
+The step: a graph of lanes beside the commits, in History and in a new Graph View of a whole Clone, to see where each branch and Worktree stands against the others and the default branch.
+Branch `lczech/git-graph`, worktree `~/orca/workspaces/hephaistos/git-graph`.
+Decided with the user on 2026-11-11, after a prototype and research in `.agents/scratch/git-graph/` (untracked): its `README.md`, the pages in `out/`, and `research/terminology.md`, `features.md` and `nodes.md` on other git tools.
+
+## Two Views, one list
+
+- History stays the history of a Checkout from one Revision, with `path` and `search`, and gains the graph as a column, shown by default and hidden from the header menu, and the order.
+  From one Revision the graph is not a straight line where branches were merged: it shows them beside it, as `git log --graph` does.
+- The Graph View (`graph?clone=…`) shows a whole Clone: all local branches and the HEAD of every Worktree, detached ones too, as `--branches` misses those.
+  It opens only from other Views, as History does: from the row of a Clone in Repositories, from the row of a Worktree (scrolled to its HEAD, its chip marked), and from the bar of History.
+  Its icon is Lucide `git-graph`, in the git family.
+- Both show one list of commits, in `views/commits/`, as `views/comparison/` holds what Changes and the Diff share: the list with its pages and uncommitted rows, its columns, `CommitBox`, the lane layout and the cell of the graph.
+  `views/history/` and `views/graph/` keep their bars and parameters.
+- The Core has one walk in `history.py`: from one Revision or a set of branches, in an order.
+  `/api/history` gains `order` (both Views) and `branches` (the Graph View).
+  `/api/graph?clone=…` gives what only the Graph View needs: the Worktrees with their HEADs and changes, the default branch, and ahead and behind for each branch.
+
+## The graph
+
+- Lanes are laid out in the GUI, row by row, newest first; a row depends only on the rows above it, so each page loaded on scrolling continues the layout, and rows drawn never change.
+  Lanes waiting for the same parent stay apart until it comes, so a branch joins another where it left it; lanes keep their column, so lines are straight.
+  Lanes passing a row are worked out only for rows drawn: a lane is kept as the rows it spans, not copied into every row (measured on the repository of git, 86,000 commits: 111 ms for all rows without them, 1.2 s with them).
+- The lanes run through the whole height of a row: in two lines, and under a commit box opened below it; the node is level with the first line.
+- The column fits the lanes of the rows loaded, up to about 8, until resized by its header; then it keeps its width, and clips lanes beyond it.
+- The default branch is found by one rule, for every count and mark: `origin/HEAD`, else `init.defaultBranch` where that branch exists, else `main`, else `master`.
+  In the Graph View it keeps lane 0, pinned to the left; in History, lane 0 holds the line of the start.
+- Colours:
+  - the default branch takes the accent, and lane 0 in History may too;
+  - a lane led by a branch takes a hue from the name of the branch, the same across reloads, at a lightness and chroma set per theme;
+  - lanes no branch leads take muted colours, by lane;
+  - the badge of a branch takes the colour of its line; remote branches and tags keep the orange frame;
+  - a small helper gives a hue for a name (`gui/web/src/hues.ts`), with lightness and chroma as tokens per theme, for Worktrees elsewhere later; lighter or darker variants are CSS relative colours where needed, and the fills by `color-mix` stay.
+  - `looks.md` says "Nothing else is orange": reworded, as lanes may be orange or yellow.
+- Nodes, as most tools draw them: a commit is a filled dot in the colour of its lane; a merge a ring with a dot inside, at the size of a commit; a HEAD a larger, thick ring; uncommitted changes a dotted ring, joined to its HEAD by a dotted line; a gap in the background colour around each node.
+- Toggles:
+  - the order, two modes: topological order (a drawn icon, a graph with the arrow of `clock-arrow-down`) and date order (Lucide `clock-arrow-down`); History by default in date order, the Graph View in topological order; kept as a parameter of each View;
+  - compact (Lucide `fold-horizontal`), in both Views, off by default: lanes waiting for the same parent join at once, and empty columns close up, as `git log --graph` draws (on the repository of git, a median of 63 lanes rather than 204);
+  - branch tips only (a drawn icon, two heads), in the Graph View.
+- Badges: at most two on a row, the rest counted, all in the commit box; in the Graph View first the default branch, then branches checked out in a Worktree, other local branches, remote branches, tags.
+
+## Worktrees and branches, in the Graph View
+
+- The HEAD of each Worktree is the larger ring; the badge of its branch carries the icon and the name of the Worktree.
+- A Worktree with changes has a row of uncommitted changes above its HEAD, with links to its Changes and Diff.
+- A row of chips below the bar, one per Worktree, in the colour of its branch, with ahead and behind (`↑3 ↓12`, a part of zero left out, the tooltip saying "3 ahead of main, 12 behind"); a click scrolls to its HEAD.
+- Ahead and behind are against the default branch; for the default branch, against its upstream (`origin/…`, as last fetched).
+  All counts in one call where git has it (`for-each-ref --format=%(ahead-behind:…)`, git 2.41), else a call per branch.
+- The branch filter keeps the hidden branches in the address (`hide=…`), so a new branch shows; solo hides all but one; show all clears it.
+  The chip of a Worktree whose branch is hidden stays, greyed, and a click shows it again.
+- Branch tips only keeps the tips, the HEADs of Worktrees, the default branch, the merge bases with it, and the commits where lines to different kept commits part or join; the others fold away, each line standing for the commits between.
+  A line that leaves commits out is dashed, with their count beside it; each left-out commit lies on exactly one such line.
+  Computed on the Daemon over the whole walk, as `--simplify-by-decoration` loses the merge bases.
+
+## The commit-graph file
+
+Topological and date order make git walk all commits before the first: on the repository of git, about 0.8 s per page; with the commit-graph file of git, 11 to 160 ms.
+- The Daemon writes it where it is missing, the first time a Clone is walked in either order: `git commit-graph write --reachable --split`.
+  At most once a day, if the branches moved, it adds the new commits as a layer (`--split`).
+- It writes in the background, apart from the passes of the Watcher, so that cutting a pass short still loses nothing; meanwhile, and wherever writing fails (a read-only filesystem, another owner, a lock held by git), the walk goes on without it.
+- A setting turns it off (`git.write_commit_graph`, on by default).
+- ADR 004 and the design docs of the Daemon (`server.md`: "git runs read-only"; `daemon.md`: "git only reads") are loosened: the Daemon may run git commands that write to repositories.
+
+## Words
+
+Defined under the Graph View in `docs/design/gui/views.md`, as the words of other tools and of git name them: lane, default branch (pinned to the left), all local branches, ahead and behind, merge base, uncommitted changes, topological order and date order, branch filter (hide, solo, show all), compact, branch tips only.
+Badges keep their name; git calls them decorations, and "reference labels" is the word of one tool.
+The glossary names no View, so it gains nothing.
+
+## Steps
+
+Each step its own commits, stopping for review.
+
+1. History, with the graph:
+   1. the list of History moved into `views/commits/`, unchanged in behaviour;
+   2. the lane layout, the helper for hues and the column of the graph;
+   3. the order: in the walk of the Core, `/api/history`, and the toggle;
+   4. the commit-graph file, with ADR 004 and the design docs.
+2. The Graph View: the walk of all local branches, `/api/graph`, the default branch, Worktrees (rings, badges, uncommitted rows, chips), ahead and behind, the branch filter, and the links from Repositories and History.
+3. Branch tips only, with dashed lines and their counts; compact.
+
+## Open
+
+- `GitRevisionPicker` imports `views/history/rows`, which the roadmap owes untangling on a branch of its own; step 1.1 moves those helpers, so ask the user whether to settle it there.
+- Live hints: check that a branch moved without a Checkout changing (`git branch -f`, a fetch) reaches the Views.
+- History with a path: whether git rewriting parents keeps the renames that History follows; until checked, the graph hides for a path, and while searching.
+
+## Later
+
+To move into the [ideas](../ideas/views.md#history) at the merge: search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.

@@ -4,7 +4,9 @@ Ideas for single Views; those for the GUI as a whole are in [the GUI](gui.md).
 
 ## History
 
-User, 2026-10-17: for a merge, its changes against another parent; a filter by author; the successor of a rebased commit; maybe `--all`, with a graph of lanes.
+User, 2026-10-17: for a merge, its changes against another parent; a filter by author; the successor of a rebased commit. A graph of lanes is planned in [the git graph](../plans/git-graph.md).
+
+- A graph in the CLI (user, 2026-11-11: later, if at all): `hephaistos history --graph`, passing to `git log --graph --branches` in the Checkout picked by our names; later on other Machines too.
 
 ## Changes and Diff
 
