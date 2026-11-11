@@ -37,6 +37,7 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("log.level", "info", "default"),
         ("log.retention_days", "30", "default"),
         ("git.timeout", "60.0", "config.toml"),
+        ("git.write_commit_graph", "true", "default"),
         ("observe.workers", "4", "HEPHAISTOS_OBSERVE_WORKERS"),
         ("scan.depth", "5", f"config.{HOST}.toml"),
         ("files.max_entries", "5000", "default"),
@@ -59,8 +60,9 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         ("gui.diff.max_files", "1000", "default"),
     ]
     width = max(len(value) for _, value, _ in rows)
+    keys = max(len(key) for key, _, _ in rows)
     assert result.stdout.splitlines()[: len(rows) + 2] == [
-        *(f"{key:<21}  {value:<{width}}  {source}" for key, value, source in rows),
+        *(f"{key:<{keys}}  {value:<{width}}  {source}" for key, value, source in rows),
         "",
         f"Host: {HOST}",
     ]
@@ -83,7 +85,12 @@ def test_show(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.usefixtures("directory")
 def test_show_a_section_or_one_setting() -> None:
     lines = runner.invoke(app, ["config", "show", "git"]).stdout.splitlines()
-    assert lines[:3] == ["git.timeout  30.0  default", "", f"Host: {HOST}"]
+    assert lines[:4] == [
+        "git.timeout             30.0  default",
+        "git.write_commit_graph  true  default",
+        "",
+        f"Host: {HOST}",
+    ]
     assert runner.invoke(app, ["config", "show", "git.timeout"]).stdout == "30.0\n"
     assert runner.invoke(app, ["config", "show", "time_format"]).stdout == "auto\n"
     nested = runner.invoke(app, ["config", "show", "gui"]).stdout.splitlines()

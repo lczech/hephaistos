@@ -120,6 +120,7 @@ class Git:
     """The section [git]."""
 
     timeout: Annotated[float, Above(0)]
+    write_commit_graph: bool
 
 
 @dataclass(frozen=True)

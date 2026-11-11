@@ -85,11 +85,15 @@ The answer says whether a branch, tag or HEAD still leads to the commit; if not,
 Untracked files count as added to the working tree, and as deleted from it.
 Bare Clones answer only what compares commits.
 Patches and versions come only up to `gui.diff.max_bytes`.
-git runs read-only, with no external diff tools.
+git runs read-only, with no external diff tools, but for the commit-graph file (below).
 The Revisions compared are checked with `rev-parse --verify --end-of-options`.
 
 History pages on from where a page ended, and follows a file's renames.
 It lists in the order of `git log`, or by date or topologically (`order`), each commit only after all its children, as a graph needs; with clocks apart, the order of `git log` may list a parent first.
+In either order, git walks all commits before listing the first, unless the commit-graph file of git holds them (`core/utils/commit_graph.py`, [ADR 004](../../decisions/004-server.md)).
+A walk in an order writes it in the background, where it is missing or a day old: `git commit-graph write --reachable --split`, which adds the commits new since as a layer.
+Each Clone is tried at most once a day in a process, whether it worked or not, and a failure is logged; walks never wait for it, and go on without it, only slower.
+`git.write_commit_graph = false` turns it off.
 Where a file's history ends, its oldest commit is checked for having renamed it.
 `search=` keeps the commits whose message has all its words, as `git log --grep` with `--all-match` does.
 It also names the commit of a hash searched for, with where it is.

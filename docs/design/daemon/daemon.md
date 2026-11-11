@@ -17,6 +17,7 @@ That is the case with a broken config, nothing to do, no setup, no git, or a Dae
 
 Stopping is immediate.
 A pass cut short loses nothing, as git only reads and SQLite rolls back; requests waiting for it get 503.
+The commit-graph file is written apart from passes, by git, which either finishes or leaves the file as it was ([server](server.md)).
 The Server then stops as uvicorn does: open requests finish within 3 s, and live connections close with 1012.
 A second signal exits at once.
 

@@ -46,7 +46,7 @@ from hephaistos.core.serialize import (
     WorktreeJson,
 )
 from hephaistos.core.state import worktrees
-from hephaistos.core.utils import changes, file_search, files, history, logs, times
+from hephaistos.core.utils import changes, commit_graph, file_search, files, history, logs, times
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon import report
@@ -500,6 +500,8 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     if not first and start is None and not everywhere:
         raise HTTPException(400, "give start to go on, unless everywhere")
     after = None if first else history.Next(start, path, skip)
+    if order is not None:
+        commit_graph.refresh_soon(top)  # in the background: this walk goes on without it
     found = history.history(
         top,
         ref,

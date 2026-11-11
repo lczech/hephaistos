@@ -276,7 +276,11 @@ def test_branches(tmp_path: Path) -> None:
 
 def test_timeout(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
-    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=1e-6)))
+    config.activate(
+        dataclasses.replace(
+            config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=1e-6)
+        )
+    )
     with pytest.raises(GitTimeoutError, match="timed out after 1e-06 s"):
         status(repo)
 
@@ -296,7 +300,11 @@ def test_run_bounded(tmp_path: Path) -> None:
 
 def test_run_bounded_times_out(tmp_path: Path) -> None:
     repo = create(tmp_path / "repo")
-    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=0.2)))
+    config.activate(
+        dataclasses.replace(
+            config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=0.2)
+        )
+    )
     started = time.monotonic()
     with pytest.raises(GitTimeoutError, match=r"timed out after 0\.2 s"):
         git_facts.run_bounded(repo, "-c", "alias.wait=!sleep 30", "wait", max_bytes=100)

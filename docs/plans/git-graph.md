@@ -90,6 +90,8 @@ Each step its own commits, stopping for review.
   A branch merged and still named starts no lane of its own colour: its lane was opened by the merge, unnamed, and keeps its muted colour, so that rows drawn never change.
 - 1.3: the order, by date or topological, in the walk of the Core, `/api/history` (API 0.26) and a toggle in History (`OrderToggle`, shared), its icon drawn.
   Decided (2026-11-12): History asks by date even with the graph hidden, rather than in the order of git; a first walk waits for git once, until the commit-graph file is written, and the order never changes under the user.
+- 1.4: the commit-graph file (`core/utils/commit_graph.py`), written in the background by a walk in an order, the setting `git.write_commit_graph`, ADR 004 and the design docs of the Daemon.
+  Simpler than planned: no check whether the branches moved, as `--split` adds nothing where nothing is new, and each Clone is tried at most once a day.
 
 ## Open
 

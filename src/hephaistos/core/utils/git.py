@@ -107,10 +107,16 @@ def _timed_out(path: Path, args: tuple[str, ...], started: float, timeout: float
     return GitTimeoutError(f"`git {command}` timed out after {timeout:g} s in {path}")
 
 
-def run(path: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
-    """Runs git in `path`, given `stdin`; the caller checks the exit code."""
+def run(
+    path: Path, *args: str, stdin: str | None = None, timeout: float | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Runs git in `path`, given `stdin`; the caller checks the exit code.
+
+    Within `git.timeout`, or `timeout` for what takes longer, e.g. writing a cache of all commits.
+    """
     command, env = _command(path, args)
-    timeout = config.settings().git.timeout  # a hung network filesystem must not block us
+    if timeout is None:
+        timeout = config.settings().git.timeout  # a hung network filesystem must not block us
     started = time.monotonic()
     try:
         result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell

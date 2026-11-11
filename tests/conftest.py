@@ -6,6 +6,7 @@ import pytest
 
 from hephaistos.core import config
 from hephaistos.core.registry import machines
+from hephaistos.core.utils import commit_graph
 from hephaistos.core.utils.paths import PATH_VARIABLES, Paths
 from hephaistos.desktop import apparmor
 from support import hostnamectl
@@ -50,6 +51,13 @@ def no_systemd_or_desktop(
 def laptop_chassis(monkeypatch: pytest.MonkeyPatch) -> None:
     """systemd, as asked about the chassis, answers as on a laptop; never the real one."""
     monkeypatch.setattr(machines, "hostnamectl", hostnamectl({("chassis",): "laptop"}))
+
+
+@pytest.fixture(autouse=True)
+def commit_graphs_settled() -> Iterator[None]:
+    """No commit-graph file a test asked for is still being written in the next."""
+    yield
+    commit_graph.settle()
 
 
 @pytest.fixture(autouse=True)

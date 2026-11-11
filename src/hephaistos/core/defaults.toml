@@ -25,6 +25,9 @@ retention_days = 30
 [git]
 # Seconds one git command may take; a hung network filesystem must not block us.
 timeout = 30.0
+# Whether the Daemon writes the commit-graph file of git into a Clone where it is missing or a day
+# old, so that git lists its commits in a graph's order without walking all first.
+write_commit_graph = true
 
 [observe]
 # Clones observed in parallel; git mostly waits for the disk.

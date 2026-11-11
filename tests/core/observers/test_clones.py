@@ -145,7 +145,11 @@ def test_shallow_clone_deepened(paths: Paths, tmp_path: Path) -> None:
 def test_timeout_fails_then_recovers(
     paths: Paths, repo: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    config.activate(dataclasses.replace(config.DEFAULTS, git=config.Git(timeout=1e-6)))
+    config.activate(
+        dataclasses.replace(
+            config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=1e-6)
+        )
+    )
     result = observer.observe(paths)
     config.activate(config.DEFAULTS)
     assert _kinds(result) == ["clone.failed"]

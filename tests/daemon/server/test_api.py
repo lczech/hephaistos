@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 
 from hephaistos.cli.main import app as cli
 from hephaistos.core import config, serialize
-from hephaistos.core.utils import logs
+from hephaistos.core.utils import commit_graph, logs
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon.server import token
 from hephaistos.daemon.server.app import create_app
@@ -504,6 +504,17 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     assert listed.index(aside) < listed.index(git(repo, "rev-parse", "main~1"))  # its parent
     unknown = client.get("/api/history", params={**ordered, "order": "author"})
     assert unknown.status_code == 400
+
+
+def test_history_in_an_order_writes_the_commit_graph_file(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    client.get("/api/history", params={"clone": clone["id"]})
+    commit_graph.settle()
+    assert commit_graph.age(repo) is None  # in the order of git: no need
+    answer = client.get("/api/history", params={"clone": clone["id"], "order": "date"})
+    assert answer.status_code == 200  # answered without waiting for it
+    commit_graph.settle()
+    assert commit_graph.age(repo) is not None
     gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
     assert (gone.status_code, gone.json()["error"]) == (
         400,
