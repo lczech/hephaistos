@@ -1555,6 +1555,13 @@
         "title": "MountJson",
         "type": "object"
       },
+      "Order": {
+        "enum": [
+          "date",
+          "topo"
+        ],
+        "type": "string"
+      },
       "PassJson": {
         "description": "The Watcher's last pass.",
         "properties": {
@@ -2607,7 +2614,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.25"
+    "version": "0.26"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3790,7 +3797,7 @@
     },
     "/api/history": {
       "get": {
-        "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. `path` keeps those that changed a file or folder, following a\nfile's renames; `search`, those whose message has all of its words. A search for one hash\n(4 to 40 hex digits) also finds its commit, wherever it is, on the first page. The `next`\nof a page gives `start`, `path` and `skip` to go on where it ended, with the same `search`\nand `everywhere`.",
+        "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. In `order`, by date or topologically, each commit comes only after\nall its children, as a graph needs; else in the order of `git log`. `path` keeps those that\nchanged a file or folder, following a file's renames; `search`, those whose message has all\nof its words. A search for one hash (4 to 40 hex digits) also finds its commit, wherever it\nis, on the first page. The `next` of a page gives `start`, `path` and `skip` to go on where it\nended, with the same `search`, `everywhere` and `order`.",
         "operationId": "history_show_api_history_get",
         "parameters": [
           {
@@ -3883,6 +3890,22 @@
               "default": false,
               "title": "Everywhere",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Order"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order"
             }
           },
           {

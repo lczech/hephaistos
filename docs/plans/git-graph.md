@@ -88,6 +88,8 @@ Each step its own commits, stopping for review.
   Found on the way: the details of a row have smaller text, so lengths in `lh` there are shorter: the end of the graph is a registered length (`@property --graph-end`).
   WebKit lays out nothing positioned in a flex row with `content-visibility: auto`: rows of a graph in two lines are always drawn, until virtual lists replace that.
   A branch merged and still named starts no lane of its own colour: its lane was opened by the merge, unnamed, and keeps its muted colour, so that rows drawn never change.
+- 1.3: the order, by date or topological, in the walk of the Core, `/api/history` (API 0.26) and a toggle in History (`OrderToggle`, shared), its icon drawn.
+  Decided (2026-11-12): History asks by date even with the graph hidden, rather than in the order of git; a first walk waits for git once, until the commit-graph file is written, and the order never changes under the user.
 
 ## Open
 

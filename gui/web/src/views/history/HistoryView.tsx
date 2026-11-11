@@ -21,6 +21,7 @@ import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
 import { CommitList } from "../commits/CommitList";
+import { OrderToggle, orderOf, withOrder } from "../commits/OrderToggle";
 import { searchedEntries, uncommittedText } from "../commits/rows";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
@@ -40,6 +41,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const [ref] = paramValues(params.ref);
   const [path] = paramValues(params.path);
   const [search = ""] = paramValues(params.search);
+  const order = orderOf(params, "date");
   // Asked for once typing pauses, or at once on Enter.
   const [searched, searchNow] = useDebounced(search, SEARCH_DELAY);
   const words = searchWords(searched);
@@ -48,6 +50,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
     ...(ref === undefined ? {} : { ref }),
     ...(path === undefined ? {} : { path }),
     ...(words.length === 0 ? {} : { search: words.join(" ") }),
+    order,
   };
   const history = useHistory(query);
   const error = useKeptError(history, query);
@@ -145,6 +148,10 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         )}
         <BarEnd>
           <BarGroup>
+            <OrderToggle
+              order={order}
+              onChange={(next) => setParams(withOrder(params, next, "date"))}
+            />
             <LayoutToggle layout={layout} onChange={setLayout} />
           </BarGroup>
           <BarGroup>

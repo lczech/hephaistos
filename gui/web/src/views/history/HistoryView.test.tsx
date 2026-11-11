@@ -431,4 +431,34 @@ describe("the History View", () => {
     expect(nodes()).toEqual([]);
     expect(localStorage.getItem("hephaistos.lists.history.hidden")).toBe('["graph"]');
   });
+
+  it("asks for commits by date, or topologically once toggled, keeping it in the address", async () => {
+    const requests = serveHistory(() => json(page([HEAD, commit(2)])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 2");
+    const order = () => orderAsked(requests);
+    expect(order()).toBe("date");
+    const toggle = screen.getByRole("button", { name: "Topological order" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    expect(screen.getByRole("status")).toHaveTextContent("history?clone=clone-proj&order=topo");
+    await waitFor(() => expect(order()).toBe("topo"));
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
+    expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
+    expect(toggle).toHaveAttribute("aria-pressed", "false"); // by date, as asked for before
+  });
+
+  it("takes an order it does not know as by date", async () => {
+    const requests = serveHistory(() => json(page([HEAD])));
+    renderWithQueries(<History initial={{ clone: "clone-proj", order: "author" }} />);
+    await screen.findByText("Commit 3");
+    expect(orderAsked(requests)).toBe("date");
+  });
 });
+
+/** The order the last request for commits asked for. */
+function orderAsked(requests: Request[]): string | null {
+  const asked = requests.filter((request) => request.url.includes("/api/history")).at(-1);
+  return new URL(asked?.url ?? "http://none").searchParams.get("order");
+}

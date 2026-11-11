@@ -498,6 +498,12 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
         400,
         "give start to go on, unless everywhere",
     )
+    ordered = {"clone": clone["id"], "everywhere": True, "order": "topo"}
+    topological = client.get("/api/history", params=ordered).json()["commits"]
+    listed = [commit["hash"] for commit in topological]
+    assert listed.index(aside) < listed.index(git(repo, "rev-parse", "main~1"))  # its parent
+    unknown = client.get("/api/history", params={**ordered, "order": "author"})
+    assert unknown.status_code == 400
     gone = client.get("/api/history", params={"clone": clone["id"], "ref": "gone"})
     assert (gone.status_code, gone.json()["error"]) == (
         400,

@@ -1,8 +1,11 @@
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from hephaistos.core.utils import git as git_facts
+from hephaistos.core.utils import history as history_module
 from hephaistos.core.utils.changes import ChangesError, changes, commit_revisions
 from hephaistos.core.utils.history import (
     History,
@@ -240,3 +243,85 @@ def test_bodies_of_commits_git_still_has(repo: Path) -> None:
     parent = git(repo, "rev-parse", "HEAD~1")
     assert git_facts.bodies(repo, [head, parent, "1" * 40]) == {head: "Body.", parent: ""}
     assert git_facts.bodies(repo, []) == {}
+
+
+def _dated(repo: Path, message: str, parents: list[str], when: int) -> str:
+    """A commit of the empty tree, authored and committed `when` seconds after a day in 2023."""
+    tree = git(repo, "write-tree")
+    date = f"{1_700_000_000 + when} +0000"
+    env = {**os.environ, "GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date}
+    args = ["git", "-C", str(repo), "commit-tree", tree, "-m", message]
+    for parent in parents:
+        args += ["-p", parent]
+    return subprocess.run(args, check=True, capture_output=True, text=True, env=env).stdout.strip()
+
+
+@pytest.fixture
+def forked(tmp_path: Path) -> Path:
+    """main and side, forked at base, each committing in turn, then side merged into main."""
+    repo = create(tmp_path / "forked", commits=0)
+    base = _dated(repo, "base", [], 1000)
+    m1 = _dated(repo, "m1", [base], 2000)
+    s1 = _dated(repo, "s1", [base], 3000)
+    m2 = _dated(repo, "m2", [m1], 4000)
+    s2 = _dated(repo, "s2", [s1], 5000)
+    merge = _dated(repo, "merge", [m2, s2], 6000)
+    git(repo, "update-ref", "refs/heads/main", merge)
+    git(repo, "update-ref", "refs/heads/side", s2)
+    return repo
+
+
+def _ordered(
+    repo: Path, order: history_module.Order | None, *, everywhere: bool = False
+) -> list[str]:
+    found = history(repo, everywhere=everywhere, order=order, limit=100)
+    return [commit.subject for commit in found.commits]
+
+
+def _children_first(repo: Path, subjects: list[str]) -> bool:
+    """Whether every commit listed comes after all its children listed."""
+    found = history(repo, everywhere=True, limit=100).commits
+    by_subject = {commit.subject: commit for commit in found}
+    hashes = {by_subject[subject].hash: at for at, subject in enumerate(subjects)}
+    return all(
+        hashes[parent] > hashes[by_subject[subject].hash]
+        for subject in subjects
+        for parent in by_subject[subject].parents
+        if parent in hashes
+    )
+
+
+def test_by_date_lines_interleave_and_topologically_each_keeps_together(forked: Path) -> None:
+    by_date = _ordered(forked, "date")
+    assert by_date == ["merge", "s2", "m2", "s1", "m1", "base"]
+    topological = _ordered(forked, "topo")
+    assert topological[0] == "merge"
+    assert topological[-1] == "base"
+    lines = ["".join(sorted(topological[1:3])), "".join(sorted(topological[3:5]))]
+    assert sorted(lines) == ["m1m2", "s1s2"]  # each line of commits together
+    for subjects in (by_date, topological):
+        assert _children_first(forked, subjects)
+
+
+def test_orders_list_children_before_parents_even_with_clocks_apart(tmp_path: Path) -> None:
+    """P is newer than C, its child: git's own order lists P first, the graph's orders after C."""
+    repo = create(tmp_path / "skewed", commits=0)
+    p = _dated(repo, "P", [], 3000)
+    c = _dated(repo, "C", [p], 1000)  # committed on a machine whose clock was behind
+    a = _dated(repo, "A", [p], 2000)
+    b = _dated(repo, "B", [c], 1500)
+    git(repo, "update-ref", "refs/heads/main", a)
+    git(repo, "update-ref", "refs/heads/other", b)
+    own = _ordered(repo, None, everywhere=True)
+    assert own.index("P") < own.index("C")  # what the graph cannot draw
+    for order in ("date", "topo"):
+        listed = _ordered(repo, order, everywhere=True)
+        assert listed.index("C") < listed.index("P"), order
+        assert _children_first(repo, listed), order
+
+
+def test_pages_in_an_order_go_on_in_it(forked: Path) -> None:
+    whole = _ordered(forked, "topo")
+    first = history(forked, order="topo", limit=2)
+    rest = history(forked, order="topo", after=first.next, limit=100)
+    assert [commit.subject for commit in (*first.commits, *rest.commits)] == whole

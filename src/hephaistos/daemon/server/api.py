@@ -480,6 +480,7 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     path: str | None = None,
     search: str | None = None,
     everywhere: bool = False,
+    order: history.Order | None = None,
     start: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = DEFAULT_COMMITS,
@@ -487,11 +488,12 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     """The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.
 
     Or from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there
-    are to walk from instead. `path` keeps those that changed a file or folder, following a
-    file's renames; `search`, those whose message has all of its words. A search for one hash
-    (4 to 40 hex digits) also finds its commit, wherever it is, on the first page. The `next`
-    of a page gives `start`, `path` and `skip` to go on where it ended, with the same `search`
-    and `everywhere`.
+    are to walk from instead. In `order`, by date or topologically, each commit comes only after
+    all its children, as a graph needs; else in the order of `git log`. `path` keeps those that
+    changed a file or folder, following a file's renames; `search`, those whose message has all
+    of its words. A search for one hash (4 to 40 hex digits) also finds its commit, wherever it
+    is, on the first page. The `next` of a page gives `start`, `path` and `skip` to go on where it
+    ended, with the same `search`, `everywhere` and `order`.
     """
     top = _working_tree(paths, clone, worktree, bare=True)
     first = start is None and skip == 0
@@ -499,7 +501,14 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
         raise HTTPException(400, "give start to go on, unless everywhere")
     after = None if first else history.Next(start, path, skip)
     found = history.history(
-        top, ref, path, search=search, everywhere=everywhere, after=after, limit=limit
+        top,
+        ref,
+        path,
+        search=search,
+        everywhere=everywhere,
+        order=order,
+        after=after,
+        limit=limit,
     )
     named = history.by_hash(top, search, ref, path, everywhere=everywhere) if first else None
     return serialize.history_json(history.refs(top), found, named)

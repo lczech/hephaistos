@@ -137,6 +137,7 @@ Matches are marked in the renderer's shadow DOM, again as it draws.
 
 The History View lists a Checkout's commits as `git log` walks back (`history?clone=…`).
 It starts from HEAD or a branch, tag or commit picked (`ref`, HEAD as none, following what is checked out).
+It lists by date, newest first, or topologically, each line of commits together, a toggle in its bar (`order=topo`, by date as none); either lists each commit below its children, as the graph needs.
 It shows all files or one path (`path`), a file's renames marked where they happened.
 A search (`search`) keeps only commits whose message has all words searched for, in any order and case.
 For a hash, its commit comes first; else it says where it is: on other branches, offered to show it there, or not changing the path, offered with all files.

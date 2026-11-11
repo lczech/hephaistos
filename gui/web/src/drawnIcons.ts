@@ -128,3 +128,18 @@ export const FoldersFolded = createLucideIcon({
     ["path", { d: "m13 7.5 3 3-3 3", key: "chevron" }],
   ],
 });
+
+/** Commits in topological order, each line of them together: two lines of commits, one joining
+ * the other, with Lucide's `clock-arrow-down`'s arrow, as date order shows it. */
+export const GitGraphArrowDown = createLucideIcon({
+  name: "git-graph-arrow-down",
+  node: [
+    ["circle", { cx: "5", cy: "5", r: "3", key: "newer" }],
+    ["path", { d: "M5 8v8", key: "line" }],
+    ["circle", { cx: "5", cy: "19", r: "3", key: "older" }],
+    ["circle", { cx: "15", cy: "5", r: "3", key: "other" }],
+    ["path", { d: "M15 8c0 5-4 8-10 8", key: "joining" }],
+    ["path", { d: "m14 18 4 4 4-4", key: "arrow-head" }],
+    ["path", { d: "M18 14v8", key: "arrow-stem" }],
+  ],
+});

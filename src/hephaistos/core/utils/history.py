@@ -15,6 +15,11 @@ from hephaistos.core.utils import changes, git
 from hephaistos.core.utils.errors import HephaistosError
 
 type RefKind = Literal["branch", "remote", "tag"]
+# Orders listing a commit only after all its children, as a graph needs: newest first otherwise,
+# or each line of commits kept together.
+type Order = Literal["date", "topo"]
+
+_ORDERS: dict[Order, str] = {"date": "--date-order", "topo": "--topo-order"}
 
 _KINDS: tuple[tuple[str, RefKind], ...] = (
     ("refs/heads/", "branch"),
@@ -171,12 +176,15 @@ def _starts(walk: Next, known: Refs) -> list[str]:
     return [*_EVERYWHERE, "--end-of-options", *([known.head] if known.head else [])]
 
 
-def _log(top: Path, walk: Next, count: int, known: Refs, matching: list[str]) -> list[Commit]:
-    """Up to `count` commits of a walk, of those `matching` keeps."""
+def _log(  # noqa: PLR0913 - all of a walk's choices
+    top: Path, walk: Next, count: int, known: Refs, matching: list[str], *, order: Order | None
+) -> list[Commit]:
+    """Up to `count` commits of a walk, of those `matching` keeps, in `order` if given."""
     output = git.read(
         top,
         "--literal-pathspecs",
         *_LOG,
+        *([_ORDERS[order]] if order else []),
         *matching,
         f"--skip={walk.skip}",
         f"--max-count={count}",
@@ -229,14 +237,16 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
     *,
     search: str | None = None,
     everywhere: bool = False,
+    order: Order | None = None,
     after: Next | None = None,
     limit: int,
 ) -> History:
     """Up to `limit` commits of the Checkout at `top`, from `ref` (or HEAD) back.
 
     Or, `everywhere`, from all branches, remote-tracking branches and tags. In `git log`'s
-    order; only those that changed `path`, if given, following a file's renames, and whose
-    message has the words of `search`. `after` goes on where a page ended, for the same search.
+    order, or `order`: by date or topologically, each commit only after all its children; only
+    those that changed `path`, if given, following a file's renames, and whose message has the
+    words of `search`. `after` goes on where a page ended, for the same search and order.
     """
     if everywhere and ref is not None:
         raise HistoryError("give a ref or everywhere, not both")
@@ -257,7 +267,7 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
     walk: Next | None = after
     while walk is not None and len(found) < limit:
         wanted = limit - len(found)
-        page = _log(top, walk, wanted + 1, known, matching)
+        page = _log(top, walk, wanted + 1, known, matching, order=order)
         found += page[:wanted]
         if len(page) > wanted:
             walk = replace(walk, skip=walk.skip + wanted)

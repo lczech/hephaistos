@@ -89,6 +89,7 @@ git runs read-only, with no external diff tools.
 The Revisions compared are checked with `rev-parse --verify --end-of-options`.
 
 History pages on from where a page ended, and follows a file's renames.
+It lists in the order of `git log`, or by date or topologically (`order`), each commit only after all its children, as a graph needs; with clocks apart, the order of `git log` may list a parent first.
 Where a file's history ends, its oldest commit is checked for having renamed it.
 `search=` keeps the commits whose message has all its words, as `git log --grep` with `--all-match` does.
 It also names the commit of a hash searched for, with where it is.
