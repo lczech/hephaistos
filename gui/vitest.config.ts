@@ -91,6 +91,8 @@ const browsers = ["chromium", "firefox", "webkit"] as const;
 if (globSync(BROWSER_TESTS, { cwd: fileURLToPath(new URL("web", import.meta.url)) }).length === 0) {
   throw new Error(`The browser tests are gone: no file in gui/web matches ${BROWSER_TESTS}.`);
 }
+// The seed of a fuzzed run (`src/test/fuzz.ts`), given to the tests of the GUI; none by default.
+const fuzz = process.env.TEST_FUZZ_SEED ?? "";
 
 // The GUI with its Vite config: in a simulated browser, and those of its tests that need a real
 // one in real ones; the Desktop's main process in Node.
@@ -105,6 +107,7 @@ export default defineConfig({
           environment: "jsdom",
           setupFiles: ["src/test/setup.ts"],
           exclude: [...configDefaults.exclude, BROWSER_TESTS],
+          provide: { fuzz },
         },
       },
       {
@@ -130,7 +133,7 @@ export default defineConfig({
             // WebKit's without workers: `src/test/browser.ts`.
             instances: browsers.map((browser) => ({
               browser,
-              provide: { workers: browser !== "webkit" },
+              provide: { workers: browser !== "webkit", fuzz },
             })),
           },
         },

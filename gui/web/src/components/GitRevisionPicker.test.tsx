@@ -1,8 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Schemas } from "../api/client";
+import { endOfList } from "../test/list";
 import { json, renderWithQueries, serve } from "../test/server";
 import {
   type FixedRow,
@@ -301,19 +302,7 @@ describe("GitRevisionPicker", () => {
   });
 
   it("leads from All to the commits, loading older ones on scrolling to the end", async () => {
-    let scrolledToEnd = () => {};
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        constructor(seen: IntersectionObserverCallback) {
-          scrolledToEnd = () =>
-            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
-        }
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
+    const scrolledToEnd = endOfList();
     const next = { start: null, path: null, skip: 1 };
     serveHistory((url) =>
       url.searchParams.has("skip") ? json(page([commit(2)])) : json(page([commit(3)], next)),

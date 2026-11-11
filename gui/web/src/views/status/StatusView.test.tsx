@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "../../App";
+import { exactRequests } from "../../test/fuzz";
 import { saveViews } from "../../test/layout";
 import { lastSocket } from "../../test/live";
 import { daemon, info, json, renderWithQueries, serve, status } from "../../test/server";
@@ -43,6 +44,7 @@ function open(): void {
 
 describe("the Status View", () => {
   it("lists the checks, with what to do; Refresh checks again and asks for a pass", async () => {
+    exactRequests(); // counts what it asks
     open();
     const requests = serve(routes());
     renderWithQueries(<App />);
@@ -180,7 +182,7 @@ describe("the Status View", () => {
     serve({ ...routes(), "GET /api/status": () => new Response(null, { status: 404 }) });
     renderWithQueries(<App />);
     expect(await screen.findAllByText("Not loaded; see Setup")).toHaveLength(2);
-    expect(screen.getByText(/^running, pid 4242/)).toBeInTheDocument(); // from /api/daemon
+    expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument(); // /api/daemon
   });
 
   it("shows Running from one answer only", async () => {
@@ -194,6 +196,7 @@ describe("the Status View", () => {
   });
 
   it("checks again only while shown", async () => {
+    exactRequests(); // counts what it asks
     open();
     saveViews("status", "log");
     const requests = serve(routes());

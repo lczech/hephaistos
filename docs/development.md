@@ -164,6 +164,10 @@ Vitest passes a run in which one project finds no tests, so `gui/vitest.config.t
 Those tests guard what we rely on that the renderer does not promise, and looks once wrong and seen only there, e.g. the Explorer's tree.
 GUI tests reach no Server: each test answers the requests it expects (`serve`); any other fails, and so does the test, or the next one once it ended.
 A View in a test's Panel (`test/view.tsx`) counts how often it draws, so that a test checks it stops once what it shows came (`expectSettled`): a value new on each draw and fed back into what it draws would draw on and on, which nothing else would notice.
+They run in a fixed order of answers by default; fuzzed, the same tests run with the stand-in for the Server answering after random delays, so in any order, and every query refetched at random moments, as live hints do (`gui/web/src/test/fuzz.ts`).
+`scripts/test_gui_fuzzed.sh [rounds [vitest arguments]]` runs them so, each round with a seed of its own, 5 rounds of the jsdom tests by default; a failure names its seed, and `TEST_FUZZ_SEED=<seed>` runs it again, with the same delays as far as the order of the requests does not depend on time.
+More rounds give more coverage; CI runs 3 of the jsdom tests and 1 of those in real browsers on every push.
+A test that counts what it asks calls `exactRequests()`, which turns refetches at random off for it; one that reads a request finds it by what it asks, not as the last one; one that reads what another answer brings, e.g. a path written with `~`, waits for it.
 The Vite dev server proxies `/api` to the Server, but not for Vitest: to the one on `HEPHAISTOS_SERVER_PORT` if set, e.g. 8299 for a scratch Daemon, so that a change shows there without a build.
 
 While working, run the tests of the files changed and the linters; run the whole `npm run check` once, right before a commit, since it starts many workers and real browsers.

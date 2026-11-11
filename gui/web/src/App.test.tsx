@@ -52,8 +52,8 @@ describe("the GUI", () => {
     expect(screen.getByText(/^every 60 s; next pass in/)).toBeInTheDocument();
     const { major, minor } = builtFor();
     expect(
-      screen.getByText(`laptop · hephaistos 0.1.0 (abc1234) · API ${major}.${minor}`),
-    ).toBeInTheDocument();
+      await screen.findByText(`laptop · hephaistos 0.1.0 (abc1234) · API ${major}.${minor}`),
+    ).toBeInTheDocument(); // from /api/info, which may answer after /api/daemon
     expect(screen.getByText("connecting…")).toBeInTheDocument();
     act(() => lastSocket().open());
     expect(screen.getByText("live")).toBeInTheDocument();

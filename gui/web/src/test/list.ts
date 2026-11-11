@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
 
 /** A list's row: its own cells, without its details below them. */
 export function ownRow(item: HTMLElement): HTMLElement {
@@ -54,3 +55,41 @@ export const findListRows = () =>
     if (rows.length === 0) throw new Error("no rows listed yet");
     return rows;
   });
+
+/**
+ * Stands in for IntersectionObserver in a list whose end comes into view by hand, and stays
+ * there, as at the end of a short list: as in a browser, an observer set up meanwhile, e.g.
+ * once a page loaded or a load was given up, says so at once. Returns what scrolls to the end.
+ */
+export function endOfList(): () => void {
+  let atEnd = false;
+  const observers = new Set<EndObserver>();
+  class EndObserver {
+    readonly targets = new Set<Element>();
+    constructor(private readonly seen: IntersectionObserverCallback) {}
+    observe(target: Element) {
+      this.targets.add(target);
+      observers.add(this);
+      if (atEnd) this.report([target]);
+    }
+    unobserve(target: Element) {
+      this.targets.delete(target);
+    }
+    disconnect() {
+      this.targets.clear();
+      observers.delete(this);
+    }
+    takeRecords() {
+      return [];
+    }
+    report(targets: Iterable<Element>) {
+      const entries = [...targets].map((target) => ({ isIntersecting: true, target }));
+      this.seen(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver);
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", EndObserver);
+  return () => {
+    atEnd = true;
+    for (const observer of [...observers]) observer.report(observer.targets);
+  };
+}

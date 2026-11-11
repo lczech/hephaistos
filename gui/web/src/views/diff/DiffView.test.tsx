@@ -180,9 +180,9 @@ describe("the Diff View", () => {
       'versions: {"old":"a\\n","new":"b\\n"}',
     );
     const asked = requests.map((request) => new URL(request.url));
-    expect(asked.map((url) => url.pathname).filter((path) => path.startsWith("/api/diff"))).toEqual(
-      ["/api/diff", "/api/diff/files"],
-    );
+    // Which, not how often: refetches may ask again.
+    const paths = asked.map((url) => url.pathname).filter((path) => path.startsWith("/api/diff"));
+    expect([...new Set(paths)]).toEqual(["/api/diff", "/api/diff/files"]);
     expect(asked.find((url) => url.pathname === "/api/diff")?.search).toBe(
       "?clone=clone-proj&from=HEAD&to=index&path=src%2Fmain.py&context=5",
     );
@@ -254,20 +254,24 @@ describe("the Diff View", () => {
   });
 
   it("shows a diff first with its versions, so that it does not grow once they come", async () => {
-    let answer: ((response: Response) => void) | undefined;
+    const versions = () => json({ old: "a\n", new: "b\n" });
+    const answers: ((response: Response) => void)[] = []; // each request, also when asked again
+    let answering = false;
     serve({
       ...ASIDE,
       "GET /api/diff": () => json({ change: change(), patch: PATCH }),
-      "GET /api/diff/files": () => new Promise((resolve) => (answer = resolve)),
+      "GET /api/diff/files": () =>
+        answering ? versions() : new Promise((resolve) => answers.push(resolve)),
       "GET /api/config": () =>
         json({ host: "laptop", settings: [], sources: [], other_hosts: [], unknown_variables: [] }),
     });
     renderWithQueries(<Diff initial={STAGED} />);
     expect(await screen.findByText("src/main.py", { exact: false })).toBeInTheDocument();
-    await waitFor(() => expect(answer).toBeDefined());
+    await waitFor(() => expect(answers.length).toBeGreaterThan(0));
     expect(screen.queryByRole("figure")).toBeNull();
     expect(screen.getByText("Loading the diff…")).toBeInTheDocument();
-    answer?.(json({ old: "a\n", new: "b\n" }));
+    answering = true;
+    for (const answer of answers) answer(versions());
     expect(await screen.findByText(/^versions:/)).toBeInTheDocument();
   });
 
@@ -361,7 +365,7 @@ describe("the Diff View", () => {
     expect(await screen.findByText(/12 lines changed/)).toBeInTheDocument();
     expect(screen.queryByRole("figure")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Show" }));
-    expect(screen.getByRole("figure")).toBeInTheDocument();
+    expect(await screen.findByRole("figure")).toBeInTheDocument(); // with its versions
   });
 
   it("says why it shows no patch", async () => {
@@ -786,7 +790,7 @@ describe("the Diff View", () => {
       expect(files[0]).toContainElement(files[1] as HTMLElement);
       expect(files[0]).toHaveTextContent("1 file");
       await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
-      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      expect([...new Set(asked.diffs)].sort()).toEqual(["README.md", "src/b.py"]); // which
       const first = files[1] as HTMLElement;
       expect(
         within(first).getByRole("button", { name: "Diff of src/b.py alone" }),
@@ -797,7 +801,8 @@ describe("the Diff View", () => {
       const chevron = within(first).getByRole("button", { name: "Diff of src/b.py" });
       expect(chevron).toHaveAttribute("aria-expanded", "false");
       await userEvent.click(chevron);
-      expect(within(first).getByRole("figure")).toBeInTheDocument();
+      // At once, or once versions asked for again, e.g. by a refetch meanwhile, are in.
+      expect(await within(first).findByRole("figure")).toBeInTheDocument();
       // Untracked: listed, each diff asked for once opened, or all at once.
       const untracked = screen.getByRole("region", { name: "Untracked" });
       expect(untracked).toHaveTextContent("Untracked: 1 file, 1 new folder");
@@ -806,7 +811,7 @@ describe("the Diff View", () => {
       expect(asked.diffs).toContain("notes.txt");
       await userEvent.click(within(untracked).getByRole("button", { name: "Show all" }));
       await waitFor(() => expect(within(untracked).getAllByRole("figure")).toHaveLength(2));
-      expect(asked.within).toEqual(["tmp/"]);
+      expect([...new Set(asked.within)]).toEqual(["tmp/"]); // which
       expect(asked.diffs).toContain("tmp/a.log");
       // One closed after all were shown: it alone.
       await userEvent.click(within(untracked).getByText("notes.txt"));

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/list/kept";
-import { cells, findListRows, listRows } from "../../test/list";
+import { cells, endOfList, findListRows, listRows } from "../../test/list";
 import {
   clone,
   event,
@@ -25,14 +25,15 @@ const PROJECT = "0199e000-0000-7000-8000-00000000dddd";
 const KINDS = ["machine.registered", "clone.registered", "clone.committed", "clone.missing"];
 
 /** A Server with these Events and as many Machines. */
-function serveEvents(listed: Event[] | (() => Event[]), machines = 1): Request[] {
+function serveEvents(listed: Event[] | ((url: URL) => Event[]), machines = 1): Request[] {
   const machine = { id: "01", name: "laptop" };
   return serve({
     "GET /api/info": () => json(info()),
     "GET /api/machines": () => json(Array.from({ length: machines }, () => machine)),
     "GET /api/repositories": () => json([{ id: PROJECT, name: "project" }]),
     "GET /api/events/kinds": () => json(KINDS.map((kind) => ({ kind, priority: 20 }))),
-    "GET /api/events": () => json(typeof listed === "function" ? listed() : listed),
+    "GET /api/events": (request) =>
+      json(typeof listed === "function" ? listed(new URL(request.url)) : listed),
   });
 }
 
@@ -74,6 +75,8 @@ describe("the Events View", () => {
     serveEvents([event(3, { priority: 30 }), added, committed]);
     renderWithQueries(<Events />);
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
+    // Paths short once the home directory is known, which may answer after the Events.
+    expect(await screen.findAllByText("~/project")).toHaveLength(2);
     await expectSettled();
     const rows = listRows();
     expect(rows.map(cells).map((row) => row.slice(1))).toEqual([
@@ -103,7 +106,8 @@ describe("the Events View", () => {
     expect(row).toHaveAttribute("aria-controls", details.id);
     expect(within(details).getByText(committed.id)).toBeInTheDocument();
     expect(within(details).getByText("aaaaaaa → abc1")).toBeInTheDocument();
-    expect(within(details).getByText("~/project")).toBeInTheDocument();
+    // Short once the home directory is known, which may answer after the Events.
+    expect(await within(details).findByText("~/project")).toBeInTheDocument();
     await userEvent.click(row);
     expect(screen.queryByText(committed.id)).not.toBeInTheDocument();
   });
@@ -151,30 +155,46 @@ describe("the Events View", () => {
   });
 
   it("loads older Events on scrolling to the end, from the oldest shown", async () => {
-    let scrolledToEnd = () => {};
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        constructor(seen: IntersectionObserverCallback) {
-          scrolledToEnd = () =>
-            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+    const scrolledToEnd = endOfList();
     const newest = Array.from({ length: EVENTS_PAGE }, (_, i) => event(EVENTS_PAGE + 1 - i));
-    const requests = serveEvents(() =>
-      requests.at(-1)?.url.includes("before=") ? [event(1)] : newest,
-    );
+    const requests = serveEvents((url) => (url.searchParams.has("before") ? [event(1)] : newest));
     renderWithQueries(<Events />);
     expect(await screen.findByText("Older events load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
-    const older = new URL(requests.at(-1)?.url ?? "").searchParams;
+    // The last request for older ones: a refetch may come after it.
+    const older = new URL(requests.findLast((r) => r.url.includes("before="))?.url ?? "")
+      .searchParams;
     expect(older.get("before")).toBe(event(2).id);
     expect(older.get("limit")).toBe(String(EVENTS_PAGE));
     expect(screen.queryByText(/Older events/)).not.toBeInTheDocument();
+  });
+
+  it("loads older Events also when they are asked for again meanwhile", async () => {
+    const scrolledToEnd = endOfList();
+    const newest = Array.from({ length: EVENTS_PAGE }, (_, i) => event(EVENTS_PAGE + 1 - i));
+    let answer = () => {};
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/machines": () => json([{ id: "01", name: "laptop" }]),
+      "GET /api/repositories": () => json([{ id: PROJECT, name: "project" }]),
+      "GET /api/events/kinds": () => json(KINDS.map((kind) => ({ kind, priority: 20 }))),
+      "GET /api/events": async (request) => {
+        if (!new URL(request.url).searchParams.has("before")) return json(newest);
+        await held; // the first ask for older ones, still open as all are asked for again
+        return json([event(1)]);
+      },
+    });
+    const { client } = renderWithQueries(<Events />);
+    expect(await screen.findByText("Older events load as you scroll.")).toBeInTheDocument();
+    act(() => scrolledToEnd());
+    expect(await screen.findByText("Loading older events…")).toBeInTheDocument();
+    await act(() => client.invalidateQueries()); // e.g. a live hint: cancels that ask
+    act(() => answer());
+    expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
   });
 
   it("says when there are none", async () => {

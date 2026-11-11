@@ -1,8 +1,9 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, vi } from "vitest";
 import { forgetKept } from "../kept";
 import { forgetToken } from "../token";
+import { beginFuzzing, endFuzzing, FUZZ_SEED, FUZZED_WAIT } from "./fuzz";
 import { FakeSocket } from "./live";
 import { noteUnanswered, takeUnanswered } from "./server";
 
@@ -78,8 +79,15 @@ function failUnanswered(when: string) {
   if (named.length > 0) throw new Error(`requests no test answered ${when}: ${named.join(", ")}`);
 }
 
-beforeEach(() => {
+// Fuzzed, answers come later, so finding what they bring waits longer.
+if (FUZZ_SEED !== "") configure({ asyncUtilTimeout: FUZZED_WAIT });
+
+beforeEach((context) => {
   FakeSocket.opened = [];
+  beginFuzzing(expect.getState().currentTestName ?? context.task.name);
+  if (FUZZ_SEED !== "") {
+    context.onTestFailed(() => console.error(`fuzzed: replay with TEST_FUZZ_SEED=${FUZZ_SEED}`));
+  }
   if (before !== undefined) failUnanswered(ended(before));
 });
 
@@ -87,6 +95,7 @@ afterEach(() => {
   // First, so that a cleanup that throws still leaves the next test naming this one.
   const earlier = before;
   before = expect.getState().currentTestName;
+  endFuzzing();
   cleanup();
   forgetToken();
   localStorage.clear();

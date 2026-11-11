@@ -46,12 +46,14 @@ function Repositories({ open = () => {} }: { open?: OpenView }) {
 }
 
 const names = () => listRows().map((row) => cells(row)[1]); // after the link
+/** Waits for the list, its paths short: the home directory may answer after the Repositories. */
+const listed = () => screen.findByText("~/recent");
 
 describe("the Repositories View", () => {
   it("lists the most recently active first, each with its Clones and their Worktrees", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
-    await screen.findByText("recent");
+    await listed();
     await expectSettled();
     expect(names()).toEqual([
       "recent",
@@ -96,7 +98,7 @@ describe("the Repositories View", () => {
   it("sorts by name when asked, keeping the order in its fragment", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
-    await screen.findByText("recent");
+    await listed();
     await userEvent.click(screen.getByRole("button", { name: "name" }));
     expect(screen.getByRole("status")).toHaveTextContent("repositories#sort=name");
     expect(names().filter((name) => !name?.includes("/"))).toEqual(["idle", "old", "recent"]);
@@ -126,7 +128,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
-    await screen.findByText("recent");
+    await listed();
     await userEvent.click(screen.getByRole("button", { name: "Events of recent" }));
     await userEvent.click(screen.getByRole("button", { name: "Events of ~/recent" }));
     await userEvent.click(screen.getByRole("button", { name: "Events of .worktrees/feature" }));
@@ -141,7 +143,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
-    await screen.findByText("recent");
+    await listed();
     expect(screen.queryByRole("button", { name: "Commit history of recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Commit history of ~/recent" }));
     await userEvent.pointer({
@@ -235,7 +237,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
-    await screen.findByText("recent");
+    await listed();
     expect(screen.queryByRole("button", { name: "Changes in recent" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Changes in ~/recent" }));
     await userEvent.click(screen.getByRole("button", { name: "Diff of the changes in ~/recent" }));
@@ -262,7 +264,7 @@ describe("the Repositories View", () => {
   it("links a Repository to its page on its forge, in a new tab", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
-    await screen.findByText("recent");
+    await listed();
     const [link] = screen.getAllByRole("link", { name: "https://github.com/me/recent on GitHub" });
     expect(link).toHaveAttribute("href", "https://github.com/me/recent");
     expect(link).toHaveAttribute("target", "_blank");
@@ -277,7 +279,7 @@ describe("the Repositories View", () => {
   it("shows the details of a Clone without the empty ones", async () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
-    await screen.findByText("recent");
+    await listed();
     const [, row] = listRows();
     await userEvent.click(within(row as HTMLElement).getAllByRole("button")[0] as HTMLElement);
     const details = within(screen.getByRole("region", { name: "Details" }));

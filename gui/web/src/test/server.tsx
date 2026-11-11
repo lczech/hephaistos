@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import type { Schemas } from "../api/client";
 import { QUERY_DEFAULTS } from "../api/queries";
 import { builtFor } from "../version";
+import { delayed, refetching } from "./fuzz";
 
 type Route = (request: Request) => Response | Promise<Response>;
 
@@ -31,13 +32,14 @@ export function takeUnanswered(): string[] {
 }
 
 /**
- * Answers requests by `METHOD /path`; returns those asked so far.
+ * Answers requests by `METHOD /path`, after random delays if fuzzed; returns those asked so far.
  * Any other gets a 404, and fails the test (`takeUnanswered` in the setup).
  */
 export function serve(routes: Record<string, Route>): Request[] {
   const requests: Request[] = [];
   vi.stubGlobal("fetch", async (request: Request) => {
     requests.push(request);
+    await delayed();
     const route = routes[`${request.method} ${new URL(request.url).pathname}`];
     if (route) return route(request);
     noteUnanswered(request.method, request.url);
@@ -46,9 +48,11 @@ export function serve(routes: Record<string, Route>): Request[] {
   return requests;
 }
 
-/** Renders with a fresh query client, which it also returns, to refresh by hand. */
+/** Renders with a fresh query client, which it also returns, to refresh by hand; if fuzzed, its
+ * queries are refetched at random moments too. */
 export function renderWithQueries(ui: ReactNode) {
   const client = new QueryClient(QUERY_DEFAULTS);
+  refetching(client);
   return { ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>), client };
 }
 

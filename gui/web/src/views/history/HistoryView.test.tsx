@@ -2,7 +2,8 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
-import { cells, listRows } from "../../test/list";
+import { exactRequests } from "../../test/fuzz";
+import { cells, endOfList, listRows } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
@@ -91,7 +92,7 @@ describe("the History View", () => {
     ]);
     expect(screen.getByLabelText("merge")).toBeInTheDocument();
     // Named once the repositories are in, which may answer after the commits.
-    expect(await screen.findByRole("heading")).toHaveTextContent("History: proj");
+    await waitFor(() => expect(screen.getByRole("heading")).toHaveTextContent("History: proj"));
     expect(
       screen.getByRole("button", { name: "Branch, tag or commit: HEAD (main)" }),
     ).toBeInTheDocument();
@@ -202,9 +203,9 @@ describe("the History View", () => {
       "history?clone=clone-proj&ref=refs%2Fremotes%2Forigin%2Fmain",
     );
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj, origin/main");
-    expect(new URL(requests.at(-1)?.url ?? "").searchParams.get("ref")).toBe(
-      "refs/remotes/origin/main",
-    );
+    // Its own: the picker asks for commits too, and refetches may come after it.
+    const walked = requests.map((request) => new URL(request.url).searchParams.get("ref"));
+    expect(walked).toContain("refs/remotes/origin/main");
     await pick("HEAD (main)");
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
   });
@@ -235,18 +236,7 @@ describe("the History View", () => {
   });
 
   it("loads older commits on scrolling to the end, going on where the page ended", async () => {
-    let scrolledToEnd = () => {};
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        constructor(seen: IntersectionObserverCallback) {
-          scrolledToEnd = () =>
-            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+    const scrolledToEnd = endOfList();
     const next = { start: HEAD.hash, path: "old.ts", skip: 0 };
     const requests = serveHistory((url) =>
       url.searchParams.has("start") ? json(page([commit(1)])) : json(page([HEAD], next)),
@@ -255,7 +245,9 @@ describe("the History View", () => {
     expect(await screen.findByText("Older commits load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
     expect(await screen.findByText("Commit 1")).toBeInTheDocument();
-    const older = new URL(requests.at(-1)?.url ?? "").searchParams;
+    // The last request for older ones: a refetch may come after it.
+    const older = new URL(requests.findLast((r) => r.url.includes("start="))?.url ?? "")
+      .searchParams;
     expect([older.get("start"), older.get("path"), older.get("skip")]).toEqual([
       HEAD.hash,
       "old.ts",
@@ -328,6 +320,7 @@ describe("the History View", () => {
   });
 
   it("searches the messages for all words typed, without what is not committed", async () => {
+    exactRequests(); // counts what it asks
     const found = commit(2, { subject: "Mark rows whose view is shown" });
     const requests = serve({
       "GET /api/info": () => json(info()),

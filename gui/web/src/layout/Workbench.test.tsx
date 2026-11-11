@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { KEYS } from "../api/queries";
 import { SearchField } from "../components/SearchField";
 import { saveViews as save, saveGrid } from "../test/layout";
 import { daemon, info, json, renderWithQueries, serve, setting, status } from "../test/server";
@@ -134,14 +135,13 @@ const ROUTES = {
 
 /** With `gui.keep_empty_groups` on; rendered once the GUI knows it. */
 async function renderKeepingEmptyGroups() {
-  const requests = serve({
+  serve({
     ...ROUTES,
     "GET /api/config": () => json({ settings: [setting("gui.keep_empty_groups", true)] }),
   });
   const rendered = await renderWorkbench();
-  await waitFor(() =>
-    expect(requests.map((request) => new URL(request.url).pathname)).toContain("/api/config"),
-  );
+  // Its answer, not only its request: it may come later.
+  await waitFor(() => expect(rendered.client.getQueryData(KEYS.config)).toBeDefined());
   await nextFrame();
   return rendered;
 }
@@ -212,6 +212,30 @@ describe("the Workbench", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close this group" }));
     expect(groups()).toEqual([["Repositories"]]);
     expect(screen.queryByRole("button", { name: "Close this group" })).toBeNull();
+  });
+
+  it("keeps a Group emptied when restored before the settings are in", async () => {
+    const { unmount } = await renderKeepingEmptyGroups();
+    const [, events] = screen.getAllByRole("tab");
+    await userEvent.click(within(events as HTMLElement).getByRole("button", { name: "Close tab" }));
+    await waitFor(() => expect(savedViews()).toHaveLength(1));
+    unmount();
+    let answer = () => {};
+    const held = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    serve({
+      ...ROUTES,
+      "GET /api/config": async () => {
+        await held;
+        return json({ settings: [setting("gui.keep_empty_groups", true)] });
+      },
+    });
+    await renderWorkbench();
+    expect(groups()).toEqual([["Repositories"], []]);
+    answer();
+    await nextFrame();
+    expect(groups()).toEqual([["Repositories"], []]);
   });
 
   it('shows each View\'s icon in its tab and in the "+" menu', async () => {

@@ -89,3 +89,17 @@ jobs:
       - run: command -v tmux || (sudo apt-get update && sudo apt-get install --yes tmux)
       - run: uv sync --locked
       - run: scripts/test_under_load.sh
+
+  # The GUI fuzzed: answers in any order, and refetches at random (docs/development.md#tests).
+  gui-fuzzed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv sync --locked
+      - run: uv run npm --prefix gui ci
+      - run: uv run npm --prefix gui run fetch-browsers -- --with-deps
+      - run: uv run npm --prefix gui run types
+      - run: scripts/test_gui_fuzzed.sh 3 --project web
+      - run: scripts/test_gui_fuzzed.sh 1 --project browser

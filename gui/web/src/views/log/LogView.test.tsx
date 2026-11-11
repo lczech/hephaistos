@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOG_PAGE } from "../../api/queries";
-import { cells, listRows } from "../../test/list";
+import { cells, endOfList, listRows } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
@@ -26,9 +26,13 @@ function entry(n: number, record: Partial<LogEntry["record"]> = {}): LogEntry {
 }
 
 /** A Server with this log, its pages as `/api/log` answers them. */
-function serveLog(pages: LogEntry[] | (() => LogEntry[]), skipped = 0): Request[] {
+function serveLog(pages: LogEntry[] | ((url: URL) => LogEntry[]), skipped = 0): Request[] {
   return serve({
-    "GET /api/log": () => json({ entries: typeof pages === "function" ? pages() : pages, skipped }),
+    "GET /api/log": (request) =>
+      json({
+        entries: typeof pages === "function" ? pages(new URL(request.url)) : pages,
+        skipped,
+      }),
   });
 }
 
@@ -94,22 +98,9 @@ describe("the Log View", () => {
   });
 
   it("loads older records on scrolling to the end, from the oldest shown", async () => {
-    let scrolledToEnd = () => {};
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        constructor(seen: IntersectionObserverCallback) {
-          scrolledToEnd = () =>
-            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+    const scrolledToEnd = endOfList();
     const newest = Array.from({ length: LOG_PAGE }, (_, i) => entry(LOG_PAGE + 1 - i));
-    const requests = serveLog(() =>
-      requests.at(-1)?.url.includes("before=") ? [entry(1)] : newest,
-    );
+    const requests = serveLog((url) => (url.searchParams.has("before") ? [entry(1)] : newest));
     renderWithQueries(<Log />);
     expect(await screen.findByText("Older records load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());

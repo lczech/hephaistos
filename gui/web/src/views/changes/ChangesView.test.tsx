@@ -146,7 +146,8 @@ describe("the Changes View", () => {
       "Untracked new folder 1 +0 −0",
       "new folder new/ 2 files, 30 B",
     ]);
-    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj");
+    // Named once the repositories are in, which may answer after the changes.
+    await waitFor(() => expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj"));
     expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Compare from: HEAD (main)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Compare to: Working tree" })).toBeInTheDocument();
@@ -216,7 +217,9 @@ describe("the Changes View", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "changes?clone=clone-proj&from=working-tree&to=refs%2Ftags%2Fv1",
     );
-    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, working tree → v1");
+    await waitFor(() =>
+      expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, working tree → v1"),
+    );
     const asked = requests.filter((request) => new URL(request.url).pathname === "/api/changes");
     expect(new URL(asked.at(-1)?.url ?? "").searchParams.get("to")).toBe("refs/tags/v1");
   });
@@ -377,12 +380,14 @@ describe("the Changes View", () => {
       kind: "diff",
       params: { clone: "clone-proj", commit: hash, path: "a.txt" },
     });
+    await waitFor(() =>
+      expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, ccccccc Fix it"),
+    );
     await userEvent.click(screen.getByRole("button", { name: "Diff of these changes" }));
     expect(opened.at(-1)?.[0]).toEqual({
       kind: "diff",
       params: { clone: "clone-proj", commit: hash },
     });
-    expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, ccccccc Fix it");
     expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
     expect(screen.getByText(/^Not on any branch or tag/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Changes in commit ddddddd" })).toBeInTheDocument();
