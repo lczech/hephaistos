@@ -8,7 +8,7 @@ Ideas that no step has planned yet are in [ideas](../ideas/).
 
 ## Done
 
-Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08).
+Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08); the Explorer View (2026-11-11).
 Git history, the ADRs and the design docs hold the details.
 
 ## Now
@@ -17,13 +17,14 @@ Git history, the ADRs and the design docs hold the details.
   Plan: in `docs/plans/` on that branch, until it moves there `.agents/scratch/terminals/DESIGN.md`.
   Done: 1a.1 to 1a.6, the Terminal in the Core and CLI.
   Next: 1b (attach), 1c (exit statuses), then the stream in the Server (step 2), the Terminal View (step 3), and Terminals on other Machines.
-- **The Explorer View**, in the worktree `~/orca/workspaces/hephaistos/file-exporer`, branch `lczech/file-explorer`.
-  Plan: in `docs/plans/` on that branch, until it moves there `.agents/scratch/explorer/PLAN.md`.
-  Done up to search by name, with tests and fixes; the user tries it before the merge, after which the View menu offers it (`offered: "menu"`).
 - **A review**, in the worktree `~/orca/workspaces/hephaistos/test-review`, branch `lczech/test-review`: a reminder of something the user wants to review there; no work yet, and rebased onto master before it starts.
 
 ## Owed
 
+- Flaky browser tests, seen only with all three browsers running (2026-11-09): `DiffView.browser.test.tsx` "brings a match it steps to into view, in a file not drawn yet" fails in Firefox in about half of the full runs of `npm run check`, and never recovers within 30 s; it passes alone, under CPU load, and with Firefox alone.
+  `ExplorerView.browser.test.tsx` "starts a row's icon where its parent's name does" failed once in WebKit inside `userEvent.click` (`e.includes` of undefined); it passed alone three times.
+- A match the Explorer's find found in a folder holding more entries than `files.max_entries` vanishes once that folder's listing comes, which stops at the limit, and stepping through the matches skips it (found by a review, 2026-11-11).
+- For the steps of xterm.js and Monaco: check their own controls against the rule that every button, field and text area takes the page's font (`theme.css`), which reaches theirs too.
 - `GitRevisionPicker` imports `views/history/rows`: untangle it on a branch of its own from master, after the Explorer merges (the user asked not to forget it).
 - Paths that are not UTF-8 crash Clones and Worktrees (`clone register`: `UnicodeEncodeError`), and `git.run` reads in text mode, which turns `\r` in paths into `\n`; the tests for Terminals found both (2026-11-07).
 - A sweep of ordinary possessives, which [style](../style.md) discourages (the user asked, 2026-11-08): about 1800 in 307 files, most in `src/hephaistos` and `gui/web/src`.
@@ -32,7 +33,8 @@ Git history, the ADRs and the design docs hold the details.
 
 ## Next
 
-In the order of AGENTS.md, each numbered when planned:
+First, lists virtual, reached by the keys, with ARIA, as decided after a prototype ([gui](../ideas/gui.md#keys-and-lists)).
+Then, in the order of AGENTS.md, each numbered when planned:
 
 1. The Watcher on change ([daemon](../ideas/daemon.md)).
 2. Other Machines and Sync, with the Machines View ([machines](../ideas/machines.md)).
