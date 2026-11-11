@@ -267,7 +267,7 @@ describe("the live connection", () => {
 
   it("asks again on focus for the settings and what editing a file changes, written out", () => {
     expect([...ON_FOCUS].sort()).toEqual(
-      ["changes", "config", "daemon", "diff", "files", "paths"].sort(),
+      ["changes", "config", "daemon", "diff", "files", "paths", "status"].sort(),
     );
     expect([...ON_FOCUS_GAP].sort()).toEqual(["graph", "history"]);
   });

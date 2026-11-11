@@ -63,18 +63,21 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const now = useNow(10_000);
 
   const first = history.data?.pages[0];
+  // The rows are of the query answered: while the next answer loads, the one before.
+  const answered = first?.query;
+  const answeredPath = answered?.path ?? undefined;
   // What is not committed shows above HEAD's commits, but has no message to search.
   const uncommitted = useUncommitted(
     checkout,
-    path,
-    ref === undefined && words.length === 0 && first !== undefined,
+    answeredPath,
+    answered !== undefined && answered.ref === undefined && answered.search === undefined,
   );
   const listed = [
     ...(uncommitted ? [{ type: "uncommitted" as const, text: uncommitted }] : []),
     ...searchedEntries(first?.found, history.data?.pages.flatMap((page) => page.commits) ?? []),
   ];
   // A commit searched for by its hash, not listed, shows on its branch, or among all files.
-  const walked = revisionText(ref ?? first?.branch ?? HEAD);
+  const walked = revisionText(answered?.ref ?? first?.branch ?? HEAD);
   const showOn = (other: string) => setParams({ ...params, ref: other });
   const allFiles = () => setParams(withParam(params, "path", []));
   const [layout, setLayout] = useListLayout("history");
@@ -91,9 +94,10 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
     message = "No checkout: open History from a clone or worktree in Repositories.";
   } else if (history.data === undefined && error === null) {
     message = "Loading commits…";
-  } else if (history.data !== undefined && listed.length === 0) {
-    if (words.length > 0) message = noneFoundText(words, path);
-    else message = path === undefined ? "No commits yet." : `No commits changed ${path}.`;
+  } else if (answered !== undefined && listed.length === 0) {
+    const [found, within] = [searchWords(answered.search ?? ""), answeredPath];
+    if (found.length > 0) message = noneFoundText(found, within);
+    else message = within === undefined ? "No commits yet." : `No commits changed ${within}.`;
   }
   if (isGone(error)) {
     return (
@@ -195,7 +199,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         checkout={checkout}
         entries={listed}
         head={first?.head}
-        actions={{ walked, path, showOn, allFiles }}
+        actions={{ walked, path: answeredPath, showOn, allFiles }}
         layout={layout}
         now={now}
         message={message}

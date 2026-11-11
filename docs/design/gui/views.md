@@ -68,7 +68,8 @@ The Status View shows the setup of this Machine, its Daemon and what runs, as `h
 - About lists the versions and the system; "Copy Setup and About" copies both as Markdown, every check included without what to do, the home directory as `~` where it starts a path.
 - Running shows the Daemon, its process, Watcher and Server, all from one answer: that of `/api/daemon`, which live hints keep current, else the one in the setup.
   What to check when the Server cannot be reached is shown above all sections.
-- Against a Daemon older than the GUI, what it lacks is left out, e.g. the problems of a pass before API 0.25; before API 0.23, which has no `/api/status`, About and Log say that they come with the setup.
+- Against a Daemon older than the GUI, the View still shows, so that it can say to restart the Daemon; that is all it promises of older APIs.
+  Where `/api/status` fails, e.g. before API 0.23, or a check raised, Setup says why, and About and Log say "Not loaded; see Setup".
 - Log links to the Log View, filtered to the warnings and errors of the last day, and says how many; without any, to the whole log.
 Their labels and values line up across the sections, in one grid.
 Its bar says at its end when the checks ran; Refresh runs them again and asks for a pass.

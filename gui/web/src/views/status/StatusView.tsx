@@ -151,9 +151,7 @@ function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
 
 /** What About and Log show while the setup is not there: checking, or why it failed. */
 function Waiting({ failed }: { failed: boolean }) {
-  return (
-    <p className={styles.quiet}>{failed ? "Not loaded: it comes with the setup" : "Loading…"}</p>
-  );
+  return <p className={styles.quiet}>{failed ? "Not loaded; see Setup" : "Loading…"}</p>;
 }
 
 const ADDRESS = { kind: "status", params: {} };

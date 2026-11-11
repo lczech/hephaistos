@@ -179,7 +179,7 @@ describe("the Status View", () => {
     open();
     serve({ ...routes(), "GET /api/status": () => new Response(null, { status: 404 }) });
     renderWithQueries(<App />);
-    expect(await screen.findAllByText("Not loaded: it comes with the setup")).toHaveLength(2);
+    expect(await screen.findAllByText("Not loaded; see Setup")).toHaveLength(2);
     expect(screen.getByText(/^running, pid 4242/)).toBeInTheDocument(); // from /api/daemon
   });
 

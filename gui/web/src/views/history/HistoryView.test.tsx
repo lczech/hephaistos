@@ -55,7 +55,7 @@ function page(
   };
 }
 
-function serveHistory(answer: (url: URL) => Response): Request[] {
+function serveHistory(answer: (url: URL) => Response | Promise<Response>): Request[] {
   return serve({
     "GET /api/info": () => json(info()),
     "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
@@ -90,7 +90,8 @@ describe("the History View", () => {
       "ccccccc Commit 2 Lucas 2h ago",
     ]);
     expect(screen.getByLabelText("merge")).toBeInTheDocument();
-    expect(screen.getByRole("heading")).toHaveTextContent("History: proj");
+    // Named once the repositories are in, which may answer after the commits.
+    expect(await screen.findByRole("heading")).toHaveTextContent("History: proj");
     expect(
       screen.getByRole("button", { name: "Branch, tag or commit: HEAD (main)" }),
     ).toBeInTheDocument();
@@ -322,7 +323,8 @@ describe("the History View", () => {
     ]);
     await userEvent.click(screen.getByRole("button", { name: /^Branch, tag or commit: / }));
     await userEvent.click(await screen.findByRole("option", { name: "feature" }));
-    expect(screen.queryByText(/^Uncommitted/)).toBeNull(); // not what is checked out
+    // Not what is checked out, once its commits are in: until then, those of HEAD stay, dimmed.
+    await waitFor(() => expect(screen.queryByText(/^Uncommitted/)).toBeNull());
   });
 
   it("searches the messages for all words typed, without what is not committed", async () => {
@@ -347,18 +349,17 @@ describe("the History View", () => {
     expect(screen.queryByText(/^Uncommitted/)).toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent("history?clone=clone-proj&search=row");
     expect(screen.getByRole("heading")).toHaveTextContent("History: proj, “row view”");
-    const asked = requests.map((request) => new URL(request.url));
-    expect(
-      asked
+    const searches = () =>
+      requests
+        .map((request) => new URL(request.url))
         .filter((url) => url.pathname === "/api/history")
-        .map((url) => url.searchParams.get("search")),
-    ).toEqual([null, "row", "row view"]); // each time typing paused
+        .map((url) => url.searchParams.get("search"));
+    expect(searches()).toEqual([null, "row", "row view"]); // each time typing paused
     await userEvent.clear(field);
     await userEvent.type(field, "zebra yak{Enter}");
     // Enter asks at once, without waiting for a pause.
-    expect(
-      await screen.findByText("No commits mention zebra and yak.", {}, { timeout: 200 }),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(searches()).toContain("zebra yak"), { timeout: 200 });
+    expect(await screen.findByText("No commits mention zebra and yak.")).toBeInTheDocument();
     await userEvent.type(field, "{Escape}");
     expect(await screen.findByText("Uncommitted: 1 changed")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/^history\?clone=clone-proj$/);
@@ -372,10 +373,15 @@ describe("the History View", () => {
       kind: "branch" as const,
       commit: aside.hash,
     };
-    serveHistory((url) => {
+    let answer = () => {};
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    serveHistory(async (url) => {
       const search = url.searchParams.get("search");
       if (search === null) return json(page([HEAD]));
       if (url.searchParams.get("ref") === "refs/heads/feature") {
+        await answered;
         return json(page([], null, { commit: aside, where: "listed", refs: [] }));
       }
       if (url.searchParams.get("path") !== null) {
@@ -390,6 +396,9 @@ describe("the History View", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "history?clone=clone-proj&ref=refs%2Fheads%2Ffeature&search=ccccccc7",
     );
+    // Until it answers, the rows before stay, saying what they said.
+    expect(screen.getByText("not on main, but on:")).toBeInTheDocument();
+    answer();
     // There, listed: as one of its commits.
     await waitFor(() => expect(screen.queryByText("not on main, but on:")).toBeNull());
     expect(rows()).toEqual(["ccccccc Aside Lucas 2h ago"]);

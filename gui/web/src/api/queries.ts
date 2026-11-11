@@ -403,21 +403,24 @@ type HistoryNext = Schemas["HistoryNextJson"];
 /**
  * A Checkout's commits, newest first, each further page going on where the one before ended:
  * after a rename, for the file's path before. Asked again as the Checkout's changes are.
+ * Each page holds the `query` it answers: while the next one loads, those of the one before show.
  */
 export function useHistory(query: HistoryQuery | undefined) {
   return useInfiniteQuery({
     queryKey: [...KEYS.history, query],
     queryFn: async ({ pageParam }) => {
+      const asked = query as HistoryQuery;
       const after = pageParam && {
         skip: pageParam.skip,
         ...(pageParam.start === null ? {} : { start: pageParam.start }), // none: everywhere
         ...(pageParam.path === null ? {} : { path: pageParam.path }),
       };
-      return unwrap(
+      const page = unwrap(
         await api.GET("/api/history", {
-          params: { query: { ...(query as HistoryQuery), ...after, limit: HISTORY_PAGE } },
+          params: { query: { ...asked, ...after, limit: HISTORY_PAGE } },
         }),
       );
+      return { ...page, query: asked };
     },
     initialPageParam: undefined as HistoryNext | undefined,
     getNextPageParam: (page) => page.next ?? undefined,
