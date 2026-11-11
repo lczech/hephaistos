@@ -44,6 +44,7 @@ uv run pyright
 uv run npm --prefix gui run fetch-browsers  # once per Playwright version: the browsers some GUI tests run in
 uv run npm --prefix gui run check   # the GUI's and the Desktop's types and tests; `run lint`, `run format`: Biome
 uv run npm --prefix gui run dev     # the GUI at http://127.0.0.1:5173/#token=…, reloading on changes
+HEPHAISTOS_SERVER_PORT=8299 uv run npm --prefix gui run dev  # the same, from a scratch Daemon
 ```
 
 The tool installed with `--editable` runs the current code, but keeps the dependencies it was installed with: after they change, `uv tool install --reinstall --editable .`. The Daemon keeps the code it started with: `hephaistos daemon restart` after changes (`daemon status` shows its version and commit).

@@ -148,7 +148,7 @@ What only a browser lays out, e.g. what the diff renderer draws, is tested in re
 Those tests guard what we rely on that the renderer does not promise, and looks once wrong and seen only there, e.g. the Explorer's tree.
 GUI tests reach no Server: each test answers the requests it expects, and any other fails, also after the test ended.
 A View in a test's Panel (`test/view.tsx`) counts how often it draws, so that a test checks it stops once what it shows came (`expectSettled`): a value new on each draw and fed back into what it draws would draw on and on, which nothing else would notice.
-The Vite dev server proxies `/api` to the Server, but not for Vitest.
+The Vite dev server proxies `/api` to the Server, but not for Vitest: to the one on `HEPHAISTOS_SERVER_PORT` if set, e.g. 8299 for a scratch Daemon, so that a change shows there without a build.
 
 While working, run the tests of the files changed and the linters; run the whole `npm run check` once, right before a commit, since it starts many workers and real browsers.
 A change to the GUI is checked where it shows: browser tests for what only a browser lays out, headless Chrome against a scratch Daemon for how a View looks and behaves, the Desktop for its window and keys, and a tour before and after for changes to styles.

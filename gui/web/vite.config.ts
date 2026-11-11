@@ -35,6 +35,8 @@ const compiler = reactCompilerPreset({
   },
 });
 
+const server = `http://127.0.0.1:${process.env.HEPHAISTOS_SERVER_PORT || 8264}`;
+
 export default defineConfig(({ mode }) => ({
   root: import.meta.dirname, // also when started from the package, as `vite web` or a project
   plugins: [react(), babel({ presets: [compiler] })],
@@ -46,7 +48,8 @@ export default defineConfig(({ mode }) => ({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
-    // The Daemon's Server; not for Vitest's (mode `test`), so that no test reaches a real one.
-    ...(mode !== "test" && { proxy: { "/api": { target: "http://127.0.0.1:8264", ws: true } } }),
+    // The Daemon's Server, or the one on HEPHAISTOS_SERVER_PORT (as the Daemon reads it), e.g. a
+    // scratch Daemon's; not for Vitest's (mode `test`), so that no test reaches a real one.
+    ...(mode !== "test" && { proxy: { "/api": { target: server, ws: true } } }),
   },
 }));
