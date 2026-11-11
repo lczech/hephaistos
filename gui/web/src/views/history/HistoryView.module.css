@@ -18,69 +18,6 @@
   font-size: var(--mono-size);
 }
 
-.icon {
-  margin-right: var(--space-1);
-  color: var(--text-muted);
-}
-
-/* Where a file was renamed: a line, then the path it had before, which the rows below are of. */
-.history [aria-level]:has(.renamed) {
-  border-top: 1px solid var(--line);
-}
-
-/* What is not committed, above the commits. */
-.uncommitted {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-/* A commit searched for by its hash that is not listed: where it is, and buttons to show it. */
-.found {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-2);
-}
-
-.where {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.renamed {
-  color: var(--text-muted);
-  font-size: var(--text-small);
-}
-
-.path {
-  composes: code from "../../components/text.module.css";
-}
-
-/* Why nothing shows, and what would. */
-.note {
-  composes: note from "../../components/text.module.css";
-}
-
 .action {
   composes: action from "../../components/controls.module.css";
-}
-
-/* In lines: the hash and subject on one line; below them, quieter, who wrote it, and when, at the
- * end, where times of any length line up. */
-.history[data-layout="lines"] [aria-level] [data-column="commit"] {
-  order: 1;
-}
-
-.history[data-layout="lines"] [aria-level] [data-column="subject"] {
-  flex: 1 1 0;
-  order: 2;
-}
-
-.history[data-layout="lines"] [aria-level] [data-column="author"] {
-  flex: 1 1 0;
-  order: 11;
-}
-
-.history[data-layout="lines"] [aria-level] [data-column="authored"] {
-  order: 12;
 }

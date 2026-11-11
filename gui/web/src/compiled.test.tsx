@@ -5,6 +5,7 @@ import { PanelView } from "./layout/PanelView";
 import { ViewOpener } from "./layout/ViewOpener";
 import { useDebounced } from "./useDebounced";
 import { ChangesView } from "./views/changes/ChangesView";
+import { CommitList } from "./views/commits/CommitList";
 import { useFolds } from "./views/comparison/folds";
 import { useChangesTable } from "./views/comparison/table";
 import { DbView } from "./views/db/DbView";
@@ -24,7 +25,7 @@ import { RepositoriesView } from "./views/repositories/RepositoriesView";
 it("has React's compiler memoize the components and hooks", () => {
   const compiled = [
     ...[PanelView, ViewOpener, ChangesView, DbView, DiffView, FileSection, FileBody, Diff],
-    ...[EventsView, ExplorerView, HistoryView, LogView, RepositoriesView],
+    ...[EventsView, ExplorerView, HistoryView, CommitList, LogView, RepositoriesView],
     ...[useDebounced, useFolds, useKeptSets, useChangesTable, useIsShown],
   ];
   for (const code of compiled) {

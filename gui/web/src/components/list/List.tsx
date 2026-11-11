@@ -57,7 +57,7 @@ export interface ListHandle {
 }
 
 /** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
-interface Paging {
+export interface Paging {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   fetchNextPage: () => unknown;

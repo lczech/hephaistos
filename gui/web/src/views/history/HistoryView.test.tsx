@@ -6,9 +6,9 @@ import { cells, listRows } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
+import type { Commit } from "../commits/rows";
 import { type Opening, OpenViewContext, ShownContext } from "../opening";
 import { HistoryView } from "./HistoryView";
-import type { Commit } from "./rows";
 
 const AT = new Date(Date.now() - 2 * 3600_000).toISOString();
 

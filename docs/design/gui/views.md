@@ -20,6 +20,7 @@ Below it, the View fills the rest of its Panel (`ViewPage`).
 A commit is named as its icon and short hash, as text, then a pair of links: its Changes, then its Diff (`CommitHash`).
 They line up in lists.
 Pickers' lists, which offer choices, show no links; nor does a commit's line in a bar, which already links to the other View.
+Lists of commits are one component (`views/commits/CommitList`), with the commit box and the line of a commit in a bar (`CommitBox`, `CommitHeader`).
 
 ### Changes and Diff as a pair
 

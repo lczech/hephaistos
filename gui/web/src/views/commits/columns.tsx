@@ -6,7 +6,7 @@ import { TextIcon } from "../../components/TextIcon";
 import { numberText } from "../../text";
 import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
-import styles from "./HistoryView.module.css";
+import styles from "./CommitList.module.css";
 import { type Entry, type Found, whereText } from "./rows";
 
 const column = listColumnHelper<Entry>();
@@ -22,11 +22,11 @@ export interface FoundActions {
 }
 
 /**
- * The History list's columns: a commit's hash, with its Changes and Diff; its subject after its
- * branches and tags; who wrote it, and when. The row of a rename
- * says only where the file was before.
+ * The columns of a list of commits: a commit's hash, with its Changes and Diff; its subject after
+ * its branches and tags; who wrote it, and when. The row of a rename says only where the file was
+ * before.
  */
-export function historyColumns(
+export function commitColumns(
   checkout: Checkout | undefined,
   head: string | null | undefined,
   actions: FoundActions,

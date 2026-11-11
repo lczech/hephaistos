@@ -11,8 +11,6 @@ import { GitRevisionPicker } from "../../components/GitRevisionPicker";
 import { IconButton } from "../../components/IconButton";
 import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
-import { List } from "../../components/list/List";
-import { useList } from "../../components/list/table";
 import { SearchField } from "../../components/SearchField";
 import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { HEAD, revisionText } from "../../revisions";
@@ -22,14 +20,12 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
-import { changesViews } from "../comparison/ChangesLinks";
+import { CommitList } from "../commits/CommitList";
+import { searchedEntries, uncommittedText } from "../commits/rows";
 import type { ViewProps } from "../index";
-import { useIsShown } from "../opening";
 import { useTitle } from "../title";
-import { CommitBox } from "./CommitBox";
-import { historyColumns } from "./columns";
 import styles from "./HistoryView.module.css";
-import { entryId, historyTitle, noneFoundText, searchedEntries, uncommittedText } from "./rows";
+import { historyTitle, noneFoundText } from "./text";
 
 const SEARCH_DELAY = 300; // ms after the last key typed
 
@@ -41,7 +37,6 @@ const SEARCH_DELAY = 300; // ms after the last key typed
  */
 export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
-  const isShown = useIsShown();
   const [ref] = paramValues(params.ref);
   const [path] = paramValues(params.path);
   const [search = ""] = paramValues(params.search);
@@ -78,14 +73,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const walked = revisionText(ref ?? first?.branch ?? HEAD);
   const showOn = (other: string) => setParams({ ...params, ref: other });
   const allFiles = () => setParams(withParam(params, "path", []));
-  const columns = historyColumns(checkout, first?.head, { walked, path, showOn, allFiles });
   const [layout, setLayout] = useListLayout("history");
-  const table = useList("history", layout, {
-    columns,
-    data: listed,
-    getRowId: entryId,
-    meta: { now },
-  });
 
   const without = (name: string): Params => withParam(params, name, []);
   let message: string | null = null;
@@ -180,27 +168,17 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
           )}
         </LoadNote>
       )}
-      <List
-        table={table}
-        label="Commits"
-        className={styles.history}
+      <CommitList
+        kind="history"
+        checkout={checkout}
+        entries={listed}
+        head={first?.head}
+        actions={{ walked, path, showOn, allFiles }}
         layout={layout}
-        choices={{}}
+        now={now}
         message={message}
         stale={error !== null || history.isPlaceholderData}
         paging={history}
-        older="commits"
-        detailsLabel="Commit details"
-        details={(entry) =>
-          entry.type === "commit" &&
-          checkout && <CommitBox commit={entry.commit} checkout={checkout} now={now} />
-        }
-        plain={(entry) => entry.type !== "commit"}
-        showing={(entry) =>
-          entry.type === "commit" &&
-          checkout !== undefined &&
-          changesViews(checkout, entry.commit.hash).some((address) => isShown(address))
-        }
       />
     </ViewPage>
   );

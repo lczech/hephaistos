@@ -10,6 +10,7 @@ import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { checkoutName, checkoutOf } from "../checkout";
+import { CommitBelow, CommitLine } from "../commits/CommitHeader";
 import { ComparedPickers } from "../comparison/ComparedPickers";
 import listStyles from "../comparison/changes.module.css";
 import { useFolds } from "../comparison/folds";
@@ -25,7 +26,6 @@ import {
   SORTS,
 } from "../comparison/rows";
 import { useChangesTable } from "../comparison/table";
-import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { clickOpening, useIsShown, useOpenView } from "../opening";
 import { sortingOf, withSorting } from "../sorting";

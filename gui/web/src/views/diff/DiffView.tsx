@@ -37,6 +37,7 @@ import { useNow } from "../../useNow";
 import { type Params, paramValues } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { checkoutName, checkoutOf } from "../checkout";
+import { CommitBelow, CommitLine } from "../commits/CommitHeader";
 import { ComparedPickers } from "../comparison/ComparedPickers";
 import { partFolded, useFolds, withPart } from "../comparison/folds";
 import { changesLook, NestedToggle } from "../comparison/look";
@@ -50,7 +51,6 @@ import {
   noChanges,
 } from "../comparison/rows";
 import { findOf, NOTHING_TYPED, withFind } from "../find";
-import { CommitBelow, CommitLine } from "../history/CommitHeader";
 import type { ViewProps } from "../index";
 import { useKeyTarget } from "../keys";
 import { useTitle } from "../title";

@@ -80,9 +80,13 @@ Each step its own commits, stopping for review.
 2. The Graph View: the walk of all local branches, `/api/graph`, the default branch, Worktrees (rings, badges, uncommitted rows, chips), ahead and behind, the branch filter, and the links from Repositories and History.
 3. Branch tips only, with dashed lines and their counts; compact.
 
+## Done
+
+- `GitRevisionPicker` no longer imports from History: `headText` is in `revisions.ts`, `searchWords` in `text.ts`; at the merge, the roadmap on master drops the item it owed.
+- 1.1: the list of commits, its columns, rows and styles, `CommitBox` and `CommitHeader` in `views/commits/`; History keeps its bar and its words (`views/history/text.ts`).
+
 ## Open
 
-- `GitRevisionPicker` imports `views/history/rows`, which the roadmap owes untangling on a branch of its own; step 1.1 moves those helpers, so ask the user whether to settle it there.
 - Live hints: check that a branch moved without a Checkout changing (`git branch -f`, a fetch) reaches the Views.
 - History with a path: whether git rewriting parents keeps the renames that History follows; until checked, the graph hides for a path, and while searching.
 

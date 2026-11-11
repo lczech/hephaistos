@@ -1,9 +1,7 @@
-// What the History list holds: commits, and where a file was renamed, the path it had before.
+// What a list of commits holds: commits, and where a file was renamed, the path it had before.
 
 import type { Schemas } from "../../api/client";
-import { pathParts } from "../../paths";
-import { revisionText } from "../../revisions";
-import { listText, numberText } from "../../text";
+import { numberText } from "../../text";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
@@ -67,25 +65,6 @@ export function uncommittedText(counts: {
     .filter(([count]) => count > 0)
     .map(([count, what]) => `${numberText(count)} ${what}`)
     .join(", ");
-}
-
-/** The tab's title: `History: proj`, `History: proj, origin/main`, `History: rows.ts`; refs and
- * hashes shortened. */
-export function historyTitle(
-  name: string | undefined,
-  ref: string | undefined,
-  path: string | undefined,
-  search: string[] = [],
-): string | undefined {
-  const shown = path === undefined ? name : pathParts(path)[1];
-  if (shown === undefined) return undefined;
-  const searched = search.length > 0 ? `, “${search.join(" ")}”` : "";
-  return `History: ${shown}${ref === undefined ? "" : `, ${revisionText(ref)}`}${searched}`;
-}
-
-/** That no commits have all the words searched for: `No commits mention row and view.` */
-export function noneFoundText(words: string[], path: string | undefined): string {
-  return `No commits ${path === undefined ? "" : `that changed ${path} `}mention ${listText(words)}.`;
 }
 
 /** Whether someone else committed it than wrote it: only then is the committer worth showing. */

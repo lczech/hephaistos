@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { linesOf, listRows } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
+import type { Commit } from "../commits/rows";
 import { HistoryView } from "./HistoryView";
-import type { Commit } from "./rows";
 
 // How the History View lays out its rows, as a browser draws it: its styles select the List's
 // rows, which only a browser applies.
