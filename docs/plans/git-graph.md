@@ -47,8 +47,17 @@ Decided with the user on 2026-11-11, after a prototype and research in `.agents/
 - A row of chips below the bar, one per Worktree, in the colour of its branch, with ahead and behind (`↑3 ↓12`, a part of zero left out, the tooltip saying "3 ahead of main, 12 behind"); a click scrolls to its HEAD.
 - Ahead and behind are against the default branch; for the default branch, against its upstream (`origin/…`, as last fetched).
   All counts in one call where git has it (`for-each-ref --format=%(ahead-behind:…)`, git 2.41), else a call per branch.
-- The branch filter keeps the hidden branches in the address (`hide=…`), so a new branch shows; solo hides all but one; show all clears it.
+- Where the Worktrees are: their HEADs from git when walking (`git worktree list --porcelain`, one call); their uncommitted changes from State, as Repositories and History take them.
+- A click on a chip whose HEAD is not loaded yet loads pages until it is, saying so ("Loading towards terminals: 1,200 commits so far"), with a button to stop, and Escape, as Find closes; no limit, as pages are quick with the commit-graph file.
+- A detached HEAD in git's words: on its row, the HEAD badge with the icon and name of its Worktree; on its chip, "terminals (detached at abc1234)", with ahead and behind against the default branch.
+- The branch filter, a button in the bar opening a menu, as the header's menu of columns:
+  - all local branches (default), less those hidden, kept in the address (`hide=…`), so a new branch shows;
+  - or Worktrees only (`branches=worktrees`): the branches checked out in Worktrees, their detached HEADs and the default branch, the answer in the fewest rows to where the Worktrees stand;
+  - below, each branch with a checkbox and "only this"; "show all" clears what is hidden.
+  A hidden branch still shows its commits where a shown one leads to them.
   The chip of a Worktree whose branch is hidden stays, greyed, and a click shows it again.
+- The tab is titled "Graph: hephaistos", and "Graph: hephaistos, 2 hidden" while branches are hidden; Repositories links to it from the rows of Clones and Worktrees, by Lucide `git-graph`, a Worktree scrolled to its HEAD.
+- The Graph View has a refresh button, as History; and the Watcher notices a branch moved without a checkout (`git branch -f`, `update-ref`, a fetch into a local branch): the call listing the branches in each pass also gives their commits, and a change of them changes State, so the Views are hinted, as for a commit.
 - Branch tips only keeps the tips, the HEADs of Worktrees, the default branch, the merge bases with it, and the commits where lines to different kept commits part or join; the others fold away, each line standing for the commits between.
   A line that leaves commits out is dashed, with their count beside it; each left-out commit lies on exactly one such line.
   Computed on the Daemon over the whole walk, as `--simplify-by-decoration` loses the merge bases.
@@ -77,7 +86,12 @@ Each step its own commits, stopping for review.
    2. the lane layout, the helper for hues and the column of the graph;
    3. the order: in the walk of the Core, `/api/history`, and the toggle;
    4. the commit-graph file, with ADR 004 and the design docs.
-2. The Graph View: the walk of all local branches, `/api/graph`, the default branch, Worktrees (rings, badges, uncommitted rows, chips), ahead and behind, the branch filter, and the links from Repositories and History.
+2. The Graph View:
+   1. the Watcher notices branches moving;
+   2. the walk from branches (all local, or those of Worktrees, less those hidden) in the Core and `/api/history`, and `/api/graph`: the Worktrees, the default branch, ahead and behind;
+   3. the Graph View: its list with the default branch pinned, its order and refresh, its title, the links from Repositories and History;
+   4. Worktrees: rings, badges, uncommitted rows, chips, and loading towards a HEAD;
+   5. the branch filter.
 3. Branch tips only, with dashed lines and their counts; compact.
 
 ## Done
@@ -95,7 +109,7 @@ Each step its own commits, stopping for review.
 
 ## Open
 
-- Live hints: check that a branch moved without a Checkout changing (`git branch -f`, a fetch) reaches the Views.
+- Live hints, checked (2026-11-12): commits, rebases and resets in any Worktree reach the Views, by the reflog of its HEAD; a branch moved without a checkout did not, until 2.1.
 - History with a path: whether git rewriting parents keeps the renames that History follows; until checked, the graph hides for a path, and while searching.
 
 ## Later
