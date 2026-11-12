@@ -335,6 +335,87 @@ describe("the Checkouts in the Graph View", () => {
   });
 });
 
+describe("the branch filter of the Graph View", () => {
+  const withOld = {
+    ...GRAPH,
+    branches: [
+      ...GRAPH.branches,
+      { name: "old", commit: hash("b"), ahead: 0, behind: 1, against: "main" },
+    ],
+  };
+  const status = () => document.querySelector("output"); // its role hidden while the dialog is open
+  const open = async () => {
+    await userEvent.click(
+      screen.getByRole("button", { name: /^All local branches|^Worktrees only/ }),
+    );
+    return screen.getByRole("dialog", { name: "Branches shown" });
+  };
+  const listed = (dialog: HTMLElement) =>
+    within(dialog)
+      .getAllByRole("checkbox")
+      .map((box) => [box.closest("label")?.textContent, (box as HTMLInputElement).checked]);
+
+  it("lists the local branches, the default one first, and hides one unticked", async () => {
+    const requests = serveGraph({ graph: withOld });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    const dialog = await open();
+    expect(within(dialog).getByRole("radio", { name: "All local branches" })).toBeChecked();
+    expect(listed(dialog)).toEqual([
+      ["main", true],
+      ["feature", true],
+      ["old", true],
+    ]);
+    expect(within(dialog).getByRole("button", { name: "Show all" })).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: "feature" }));
+    expect(status()).toHaveTextContent(/^graph\?clone=clone-proj&hide=feature$/);
+    await waitFor(() =>
+      expect(asked(requests, "/api/history").getAll("hide")).toEqual(["feature"]),
+    );
+    expect(screen.getByRole("heading", { hidden: true })).toHaveTextContent(
+      "Graph: proj, 1 hidden",
+    );
+    expect(listed(dialog)).toEqual([
+      ["main", true],
+      ["feature", false],
+      ["old", true],
+    ]);
+  });
+
+  it("shows only one branch, or all again", async () => {
+    serveGraph({ graph: withOld });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    const dialog = await open();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Only feature" }));
+    expect(status()).toHaveTextContent(/^graph\?clone=clone-proj&hide=main&hide=old$/);
+    expect(
+      screen.getByRole("button", { name: "All local branches, 2 hidden", hidden: true }),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Show all" }));
+    expect(status()).toHaveTextContent(/^graph\?clone=clone-proj$/);
+  });
+
+  it("walks only the branches of Checkouts and the default one, when asked", async () => {
+    const requests = serveGraph({ graph: withOld });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    const dialog = await open();
+    await userEvent.click(
+      within(dialog).getByRole("radio", { name: "Branches of worktrees, and the default branch" }),
+    );
+    expect(status()).toHaveTextContent(/^graph\?branches=worktrees&clone=clone-proj$/);
+    await waitFor(() => expect(asked(requests, "/api/history").get("branches")).toBe("worktrees"));
+    expect(screen.getByRole("heading", { hidden: true })).toHaveTextContent(
+      "Graph: proj, worktrees only",
+    );
+    expect(listed(dialog)).toEqual([
+      ["main", true],
+      ["feature", true],
+    ]); // not old, in no Checkout
+  });
+});
+
 describe("links to the Graph View", () => {
   it("from History's bar: of the Clone, at a Worktree's HEAD", async () => {
     serveGraph();

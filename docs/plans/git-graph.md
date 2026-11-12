@@ -110,6 +110,7 @@ Each step its own commits, stopping for review.
 - 2.1: the walk from branches (`branches`, `hide`) in the Core and `/api/history`, and `/api/graph` (API 0.27), from `core/utils/graph.py`: the HEADs of the Checkouts, the default branch, ahead and behind.
 - 2.2: the Graph View (`views/graph/`), its default branch pinned, its HEADs drawn as such, its order, refresh and title; links from Repositories and History; `Drawing` for how a list draws its graph.
 - 2.3: the Checkouts in the Graph View: where they are on badges, HEAD badges when detached, uncommitted rows, chips with ahead and behind, going to a HEAD with Stop and Escape; `/api/graph` counts detached HEADs too (API 0.28).
+- 2.4: the branch filter (`BranchFilter`): all local branches or Worktrees only, each branch ticked or not, "only", "Show all"; the checkboxes and "only" of the list filters, as ticked means shown here.
 
 ## Open
 

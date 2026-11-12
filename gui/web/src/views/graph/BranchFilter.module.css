@@ -1,0 +1,11 @@
+/* Where the walk starts: all local branches, or those of the Checkouts. */
+.walked {
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: none;
+}
+
+.legend {
+  padding: 0;
+  color: var(--text-muted);
+}

@@ -2,10 +2,15 @@
 
 import { numberText } from "../../text";
 
-/** The tab's title: `Graph: proj`, `Graph: proj, 2 hidden` while branches are hidden. */
-export function graphTitle(name: string | undefined, hidden: number): string | undefined {
+/** The tab's title: `Graph: proj`; `Graph: proj, worktrees only, 2 hidden` while filtered. */
+export function graphTitle(
+  name: string | undefined,
+  hidden: number,
+  walked: "local" | "worktrees" = "local",
+): string | undefined {
   if (name === undefined) return undefined;
-  return `Graph: ${name}${hidden > 0 ? `, ${numberText(hidden)} hidden` : ""}`;
+  const only = walked === "worktrees" ? ", worktrees only" : "";
+  return `Graph: ${name}${only}${hidden > 0 ? `, ${numberText(hidden)} hidden` : ""}`;
 }
 
 /** How far a Checkout is ahead of a branch and behind it, short: `↑3 ↓12`, zero parts left out;

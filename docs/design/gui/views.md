@@ -176,11 +176,14 @@ Words:
 
 The Graph View shows the commits of a whole Clone with their graph (`graph?clone=…`), as History shows them ([the graph](#the-graph)), from the same list (`views/commits/`).
 It walks all local branches and the HEAD of each Checkout of the Clone, detached ones too, less the branches hidden (`hide`): `/api/history` with `branches=local`.
+Or, Worktrees only (`branches=worktrees`), the branches checked out in its Checkouts and the default branch: where the Checkouts stand, in the fewest rows.
+The branch filter, a picker at the start of its bar, chooses which: it lists the branches walked, the default one first, each shown while ticked, with "only" to hide the others, and "Show all".
+Hidden branches are kept by name, so that a branch made later shows; a hidden branch still shows its commits where a shown one leads to them.
 It lists topologically by default, or by date (`order=date`).
 Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it; the HEAD of each Checkout is drawn as HEAD.
 Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
-The tab says `Graph: proj`, and how many branches are hidden.
+The tab says `Graph: proj`, whether it shows Worktrees only, and how many branches are hidden.
 
 Its Checkouts:
 - the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a HEAD badge of its own, so named; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;

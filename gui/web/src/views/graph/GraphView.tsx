@@ -17,6 +17,7 @@ import { OrderToggle, orderOf, withOrder } from "../commits/OrderToggle";
 import { type CheckedOut, type Entry, entries, uncommittedIn } from "../commits/rows";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
+import { BranchFilter, type Walked } from "./BranchFilter";
 import { type Chip, Chips } from "./Chips";
 import styles from "./GraphView.module.css";
 import { graphTitle } from "./text";
@@ -42,10 +43,11 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
   const order = orderOf(params, "topo");
   const hidden = paramValues(params.hide);
+  const walked: Walked = paramValues(params.branches)[0] === "worktrees" ? "worktrees" : "local";
   const [at] = paramValues(params.at);
   const query: HistoryQuery | undefined = checkout && {
     ...checkout,
-    branches: "local",
+    branches: walked,
     order,
     ...(hidden.length === 0 ? {} : { hide: hidden }),
   };
@@ -56,7 +58,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const repositories = useRepositories();
   useTitle(
     setTitle,
-    graphTitle(checkout && checkoutName(repositories.data, checkout), hidden.length),
+    graphTitle(checkout && checkoutName(repositories.data, checkout), hidden.length, walked),
   );
   const now = useNow(10_000);
   const [layout, setLayout] = useListLayout("graph");
@@ -127,6 +129,18 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     return () => document.removeEventListener("keydown", stop);
   }, [towards]);
 
+  // The branches the filter lists: those walked, the default one first.
+  const defaultBranch = known?.default_branch ?? null;
+  const out = new Set(placed.flatMap(({ head }) => (head.branch ? [head.branch] : [])));
+  const filtered = (known?.branches ?? [])
+    .map((each) => each.name)
+    .filter((name) => walked === "local" || out.has(name) || name === defaultBranch)
+    .sort((a, b) => Number(b === defaultBranch) - Number(a === defaultBranch));
+  const filter = (next: Walked, nextHidden: string[]) =>
+    setParams(
+      withParam(withParam(params, "branches", next === "local" ? [] : [next]), "hide", nextHidden),
+    );
+
   const pick = (chip: Chip) => {
     const head = placed.find((each) => each.head.path === chip.key);
     let next: Params = head?.head.worktree
@@ -164,6 +178,9 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   return (
     <ViewPage ref={page}>
       <ViewBar>
+        {checkout && (
+          <BranchFilter walked={walked} branches={filtered} hidden={hidden} onChange={filter} />
+        )}
         <BarEnd>
           <BarGroup>
             <OrderToggle
