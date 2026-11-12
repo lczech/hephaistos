@@ -1,5 +1,7 @@
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { cssVars } from "../../components/cssVars";
+import text from "../../components/text.module.css";
+import turning from "../../components/turning.module.css";
 import { entityIcon } from "../../icons";
 import styles from "./Chips.module.css";
 import { checkedOutText, standingText, standingWords } from "./text";
@@ -21,7 +23,9 @@ export interface Chip {
 interface Props {
   chips: Chip[];
   current: string | undefined; // the key of the chip marked
-  going?: { key: string; text: string } | undefined; // to the HEAD of a chip, and how far
+  // To the HEAD of a chip, once it takes a while, and how far it got: `Loading towards main`,
+  // `3 commits so far`; the first said to screen readers once, not again for each page.
+  going?: { key: string; what: string; far: string } | undefined;
   missed?: string | undefined; // the key of the chip whose HEAD no page listed
   onPick: (chip: Chip) => void;
 }
@@ -37,8 +41,8 @@ export function Chips({ chips, current, going, missed, onPick }: Props) {
   const said = chips.find((chip) => chip.key === missed);
   return (
     <nav className={styles.chips} aria-label="Checkouts">
-      <span className={styles.said} aria-live="polite">
-        {going?.text ?? (said && missedText(said.name))}
+      <span className={text.unseen} aria-live="polite">
+        {going?.what ?? (said && missedText(said.name))}
       </span>
       {chips.map((chip) => {
         const busy = chip.key === going?.key;
@@ -53,7 +57,7 @@ export function Chips({ chips, current, going, missed, onPick }: Props) {
         let action = chip.hidden
           ? "hidden by the filter; a click shows it"
           : "a click goes to its HEAD";
-        if (busy) action = `${going?.text}; a click or Escape stops`;
+        if (busy && going) action = `${going.what}: ${going.far}; a click or Escape stops`;
         else if (lost) action = `${missedText(chip.name)}; a click tries again`;
         const title = [`${kind} ${chip.name}: ${where}`, ...(words ? [words] : []), action].join(
           "; ",
@@ -72,7 +76,7 @@ export function Chips({ chips, current, going, missed, onPick }: Props) {
             style={cssVars(chip.colour === undefined ? {} : { "--chip-colour": chip.colour })}
             onClick={() => onPick(chip)}
           >
-            <Icon aria-hidden="true" />
+            <Icon className={busy ? turning.turning : undefined} aria-hidden="true" />
             <span className={styles.name}>{chip.name}</span>
             <span className={styles.where}>{where}</span>
             {standing && <span className={styles.standing}>{standing}</span>}

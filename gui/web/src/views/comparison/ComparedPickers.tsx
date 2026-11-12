@@ -16,7 +16,7 @@ interface Props {
   checkout: Checkout;
   compared: Compared;
   onChange: (compared: Compared) => void;
-  /** The refs as known already, e.g. HEAD's branch, to show them while the pickers are closed. */
+  /** The refs as known already, e.g. HEAD's branch, naming what is picked. */
   known?: KnownRefs;
 }
 

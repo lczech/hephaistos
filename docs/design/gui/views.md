@@ -178,6 +178,8 @@ The Graph View shows the commits of a whole Clone with their graph (`graph?clone
 It walks all local branches and the HEAD of each Checkout of the Clone, detached ones too, less the branches hidden (`hide`): `/api/history` with `branches=local`.
 Or, Worktrees only (`branches=worktrees`), the branches checked out in its Checkouts and the default branch: where the Checkouts stand, in the fewest rows.
 The branch filter, a picker at the start of its bar, chooses which: it lists the branches walked, the default one first, each shown while ticked, with "only" to hide the others, and "Show all".
+"Go to…", after it, goes to a local branch, tag or commit picked, as a chip goes to its HEAD (below): commits are searched for in the walk, and what git resolves typed (`main~3`); a hidden branch picked is shown again; the address keeps nothing of it.
+Where the lines laid out ahead have not reached it, `/api/graph/lines` until it says first whether it is on the walk at all, so that a tag elsewhere is said not to be shown at once, not after loading every page.
 Hidden branches are kept by name, so that a branch made later shows; a hidden branch still shows its commits where a shown one leads to them, as the filter says, but no badge, and names no lane.
 It lists topologically by default, or by date (`order=date`).
 Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it, unless hidden, when no line has the accent; the HEAD of each Checkout is drawn as HEAD.

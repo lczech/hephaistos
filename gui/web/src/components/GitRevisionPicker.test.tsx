@@ -53,7 +53,7 @@ function page(
   return { head: HEAD_HASH, branch: "main", refs: REFS, commits, next, found };
 }
 
-function serveHistory(answer: (url: URL) => Response): Request[] {
+function serveHistory(answer: (url: URL) => Response | Promise<Response>): Request[] {
   return serve({ "GET /api/history": (request) => answer(new URL(request.url)) });
 }
 
@@ -233,6 +233,29 @@ describe("GitRevisionPicker", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(commit(1).hash));
     // Without commits to offer, none searched for.
     expect(requests.some((request) => new URL(request.url).searchParams.has("search"))).toBe(false);
+  });
+
+  it("picks nothing git resolves after the list was closed", async () => {
+    let resolve = () => {};
+    const resolving = new Promise<void>((done) => {
+      resolve = done;
+    });
+    serveHistory(async (url) => {
+      if (url.searchParams.get("ref") === "HEAD~2") {
+        await resolving;
+        return json(page([commit(1)]));
+      }
+      return json(page([commit(3)]));
+    });
+    renderWithQueries(<Picker rows={[]} tabs={["branches", "tags"]} />);
+    const field = await openPicker();
+    await waitFor(() => expect(options()).toContain("main"));
+    await userEvent.type(field, "HEAD~2{Enter}");
+    await userEvent.keyboard("{Escape}{Escape}"); // the field cleared, then the list closed
+    await waitFor(() => expect(screen.queryByRole("searchbox")).toBeNull());
+    resolve();
+    await new Promise((done) => setTimeout(done, 50));
+    expect(document.querySelector("output")).toHaveTextContent(/^HEAD$/);
   });
 
   it("searches at once on Enter, never picking a commit of the search before", async () => {

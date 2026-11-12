@@ -130,6 +130,7 @@ export function DiffView({
       ? {}
       : { ...checkout, ...base, ...(path !== undefined && { path }) };
   const listed = useChanges(listQuery);
+  const branch = listed.data?.branch; // HEAD's, naming it in the pickers
   const error = useKeptError(listed, listQuery);
   // One file's diff, as its section asks for it: also says whether the Checkout is gone.
   const fileQuery = path === undefined ? undefined : query;
@@ -277,7 +278,12 @@ export function DiffView({
     <section ref={view} className={styles.view} data-stale={stale || undefined}>
       <ViewBar>
         {checkout && compared && (
-          <ComparedPickers checkout={checkout} compared={compared} onChange={compare} />
+          <ComparedPickers
+            checkout={checkout}
+            compared={compared}
+            onChange={compare}
+            known={branch ? { head: branch.head, branch: branch.branch, refs: [] } : undefined}
+          />
         )}
         {checkout && shown && (
           <CommitLine

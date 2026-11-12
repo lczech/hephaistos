@@ -1,0 +1,18 @@
+/* An icon turning while what it stands for is busy, e.g. loading towards a commit; still, but
+   dimmed, for those who would rather have less motion. */
+.turning {
+  animation: turn 1s linear infinite;
+}
+
+@keyframes turn {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turning {
+    animation: none;
+    opacity: var(--dimmed);
+  }
+}

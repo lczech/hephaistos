@@ -1,0 +1,4 @@
+/* What was picked last is not shown: the button's icon warns. */
+.missed {
+  color: var(--warning);
+}

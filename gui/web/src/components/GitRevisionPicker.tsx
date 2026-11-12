@@ -1,5 +1,13 @@
 import { ChevronDown, FolderPen, ListChecks, type LucideIcon } from "lucide-react";
-import { Fragment, type Key, type KeyboardEvent, type ReactNode, useState } from "react";
+import {
+  Fragment,
+  type Key,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Autocomplete,
   Button,
@@ -58,64 +66,135 @@ const ALL_SHOWS = { refs: 5, commits: 10 };
 const MORE = "more:"; // a row leading to a tab, `more:<tab>:<section>`: an ID no Revision has
 const SHORT_HASH = /^[0-9a-f]{4,40}$/i;
 
-interface GitRevisionPickerProps {
+/** Whose commits are offered: HEAD's, every branch's and tag's, or those of the walk of a graph,
+ * in its order, as it lists them. */
+export type CommitsFrom = "head" | "everywhere" | Pick<HistoryQuery, "branches" | "hide" | "order">;
+
+/** A Revision picked: as named to git, the commit it is at where known, and as shown. */
+export interface Picked {
+  revision: string; // `HEAD`, `index`, `working-tree`, a full ref name or a commit's hash
+  commit: string | undefined; // undefined for a fixed row
+  name: string; // `main`, `abc1234`, `HEAD (main)`, or what was typed
+}
+
+interface ListProps {
   checkout: Checkout;
   label: string;
+  /** The Revision picked, marked, its tab shown first; none for a picker that only goes to one. */
+  value?: string;
+  /** The Revisions offered first in each tab, in this order. */
+  rows: FixedRow[];
+  /** The kinds offered, each in a tab after All. */
+  tabs: PickerTab[];
+  commitsFrom: CommitsFrom;
+  /** Whether remote-tracking branches are offered with the branches; by default they are. */
+  withRemotes?: boolean;
+  /** The refs as known already, until the list's own come. */
+  known?: KnownRefs;
+  onPick: (picked: Picked) => void;
+}
+
+interface GitRevisionPickerProps extends Omit<ListProps, "value" | "onPick"> {
   title?: string;
   className?: string;
   /** A Revision: `HEAD`, `index`, `working-tree`, a full ref name or a commit's hash. */
   value: string;
   onChange: (revision: string) => void;
-  /** The Revisions offered first in each tab, in this order. */
-  rows: FixedRow[];
-  /** The kinds offered, each in a tab after All. */
-  tabs: PickerTab[];
-  /** Whose commits are offered: HEAD's, or every branch's and tag's. */
-  commitsFrom: "head" | "everywhere";
-  /** The refs as known already, to show the value while the picker is closed. */
-  known?: KnownRefs;
 }
 
-/**
- * A button showing a Revision, opening a list to pick another from: some fixed first, then
- * branches, tags or commits, a few of each in All, all of one kind in its tab. Typing filters
- * them, best matches first, and shows All: an exact name or a hash's commit on top; branches
- * and tags filtered here, commits by searching their messages and hashes. Enter on no match
- * resolves what is typed as git does: `HEAD~3`, `v1.0^`. Ctrl+←/→ switch tabs.
- */
+/** A button showing a Revision, named by the refs known (`known`), opening a list to pick
+ * another from (`RevisionList`). */
 export function GitRevisionPicker({
-  checkout,
-  label,
   title,
   className,
   value,
   onChange,
+  ...list
+}: GitRevisionPickerProps) {
+  const [open, setOpen] = useState(false);
+  const { label, known } = list;
+  return (
+    <DialogTrigger isOpen={open} onOpenChange={setOpen}>
+      <Button
+        className={[styles.trigger, className].filter(Boolean).join(" ")}
+        aria-label={`${label}: ${pickedText(value, known)}`}
+      >
+        <PickedIcon value={value} refs={known} />
+        <span className={styles.picked} title={title}>
+          {pickedText(value, known)}
+        </span>
+        <ChevronDown className={styles.chevron} aria-hidden="true" />
+      </Button>
+      <RevisionPopover
+        {...list}
+        value={value}
+        onPick={(picked) => {
+          onChange(picked.revision);
+          setOpen(false);
+        }}
+      />
+    </DialogTrigger>
+  );
+}
+
+/** The popover of a picker of Revisions, its list made only once it opens (`RevisionList`). */
+export function RevisionPopover(props: ListProps) {
+  return (
+    <Popover className={`${popover.popover} ${styles.popover}`} placement="bottom start">
+      <RevisionList {...props} />
+    </Popover>
+  );
+}
+
+/**
+ * The list a picker of Revisions opens, in its popover, to pick one from: some fixed first, then
+ * branches, tags or commits, a few of each in All, all of one kind in its tab. Typing filters
+ * them, best matches first, and shows All: an exact name or a hash's commit on top; branches
+ * and tags filtered here, commits by searching their messages and hashes. Enter on no match
+ * resolves what is typed as git does: `HEAD~3`, `v1.0^`. Ctrl+←/→ switch tabs. Made anew each
+ * time it opens, so it starts with nothing typed, on the tab of the Revision picked.
+ */
+function RevisionList({
+  checkout,
+  label,
+  value,
   rows,
   tabs,
   commitsFrom,
+  withRemotes = true,
   known,
-}: GitRevisionPickerProps) {
-  const [open, setOpen] = useState(false);
+  onPick,
+}: ListProps) {
   const [typed, setTyped] = useState("");
   const [chosen, setChosen] = useState<Shown | null>(null); // until then, the value's tab
   const [browsed, setBrowsed] = useState<Shown | null>(null); // before typing, to go back to
   const [lists, setLists] = useState(0); // a new list each time a tab is chosen
   const [error, setError] = useState<string | null>(null);
+  // Whether the list is still open: what git resolves after it closed, e.g. by Escape, is not
+  // picked.
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
   const [searched, searchNow] = useDebounced(typed, SEARCH_DELAY);
   const searching = tabs.includes("commits"); // else the history only for its refs
   const words = searching ? searchWords(searched) : [];
-  const query: HistoryQuery | undefined = open
-    ? {
-        ...checkout,
-        ...(commitsFrom === "everywhere" ? { everywhere: true } : {}),
-        ...(words.length === 0 ? {} : { search: words.join(" ") }),
-      }
-    : undefined;
+  let from: Pick<HistoryQuery, "everywhere" | "branches" | "hide" | "order"> = {};
+  if (commitsFrom === "everywhere") from = { everywhere: true };
+  else if (commitsFrom !== "head") from = commitsFrom;
+  const query: HistoryQuery = {
+    ...checkout,
+    ...from,
+    ...(words.length === 0 ? {} : { search: words.join(" ") }),
+  };
   const history = useHistory(query);
   const first = history.data?.pages[0];
   const refs = first ?? known;
   const shownTabs: Shown[] = ["all", ...tabs];
-  const tab = chosen ?? tabOf(value, refs, tabs) ?? "all";
+  const tab = chosen ?? (value === undefined ? undefined : tabOf(value, refs, tabs)) ?? "all";
 
   const text = typed.trim();
   const typedWords = searchWords(typed);
@@ -130,7 +209,7 @@ export function GitRevisionPicker({
       ? ranked(refs?.refs.filter((ref) => ref.kind === kind) ?? [], (ref) => ref.name, text)
       : [];
   const branches = matched("branch");
-  const remotes = matched("remote");
+  const remotes = withRemotes ? matched("remote") : [];
   const tags = matched("tag");
   const commits = searching
     ? foundFirst(first?.found?.commit, history.data?.pages.flatMap((page) => page.commits) ?? [])
@@ -150,18 +229,21 @@ export function GitRevisionPicker({
       history.data === undefined || stale ? "…" : atLeast(commits.length, history.hasNextPage),
   };
 
-  const openChanged = (opening: boolean) => {
-    if (opening) {
-      setTyped("");
-      setError(null);
-      setChosen(null);
-      setBrowsed(null);
+  // A Revision picked, with its commit and name where the list knows them.
+  const pick = (revision: string, typedName?: string) => {
+    const ref = refs?.refs.find((each) => each.full === revision);
+    let picked: Picked;
+    if (ref) picked = { revision, commit: ref.commit, name: ref.name };
+    else if (rows.includes(revision as FixedRow)) {
+      picked = { revision, commit: undefined, name: fixedText(revision as FixedRow, refs) };
+    } else {
+      picked = {
+        revision,
+        commit: revision,
+        name: typedName ?? shortHash(revision),
+      };
     }
-    setOpen(opening);
-  };
-  const pick = (revision: string) => {
-    onChange(revision);
-    setOpen(false);
+    onPick(picked);
   };
   // A tab chosen gets a new list, top first, nothing focused: the list kept would focus the row
   // where the one focused was, e.g. a commit where `… more commits` was.
@@ -205,7 +287,12 @@ export function GitRevisionPicker({
     const [firstRow] = pickable();
     if (firstRow !== undefined) pick(firstRow);
     else if (stale) searchNow();
-    else resolveRevision(checkout, text).then(pick, (failed: Error) => setError(failed.message));
+    else {
+      resolveRevision(checkout, text).then(
+        (commit) => open.current && pick(commit, text),
+        (failed: Error) => setError(failed.message),
+      );
+    }
   };
   const switchTab = (event: KeyboardEvent) => {
     if (!event.ctrlKey || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
@@ -364,74 +451,60 @@ export function GitRevisionPicker({
   };
 
   return (
-    <DialogTrigger isOpen={open} onOpenChange={openChanged}>
-      <Button
-        className={[styles.trigger, className].filter(Boolean).join(" ")}
-        aria-label={`${label}: ${pickedText(value, refs)}`}
-      >
-        <PickedIcon value={value} refs={refs} />
-        <span className={styles.picked} title={title}>
-          {pickedText(value, refs)}
-        </span>
-        <ChevronDown className={styles.chevron} aria-hidden="true" />
-      </Button>
-      <Popover className={`${popover.popover} ${styles.popover}`} placement="bottom start">
-        <Dialog className={styles.dialog} aria-label={label}>
-          <Autocomplete inputValue={typed} onInputChange={typedChanged}>
-            <SearchField
-              className={styles.search}
-              label={`Search ${label.toLowerCase()}`}
-              placeholder={tabs.includes("commits") ? "Name, hash or message" : "Name"}
-              value={typed}
-              onChange={typedChanged}
-              onSubmit={submit}
-              onKeyDown={switchTab}
-              autoFocus
-            />
-            {error !== null && (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            )}
-            <Tabs
-              className={styles.tabs}
-              selectedKey={tab}
-              onSelectionChange={(key) => {
-                if (key !== tab) browse(key as Shown);
-              }}
+    <Dialog className={styles.dialog} aria-label={label}>
+      <Autocomplete inputValue={typed} onInputChange={typedChanged}>
+        <SearchField
+          className={styles.search}
+          label={`Search ${label.toLowerCase()}`}
+          placeholder={tabs.includes("commits") ? "Name, hash or message" : "Name"}
+          value={typed}
+          onChange={typedChanged}
+          onSubmit={submit}
+          onKeyDown={switchTab}
+          autoFocus
+        />
+        {error !== null && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
+        <Tabs
+          className={styles.tabs}
+          selectedKey={tab}
+          onSelectionChange={(key) => {
+            if (key !== tab) browse(key as Shown);
+          }}
+        >
+          <TabList className={styles.tabList} aria-label="Kinds">
+            {shownTabs.map((shown) => (
+              <Tab key={shown} id={shown} className={styles.tab}>
+                {TAB_NAMES[shown]} <span className={styles.count}>{counts[shown]}</span>
+              </Tab>
+            ))}
+          </TabList>
+          {/* One panel, its list kept as typing shows All: Autocomplete then goes on focusing
+              the first row as typed, which a list swapped for another would lose. */}
+          <TabPanel id={tab} className={styles.panel}>
+            <Virtualizer
+              key={lists}
+              layout={ListLayout}
+              layoutOptions={{ estimatedRowSize: 26, estimatedHeadingSize: 22 }}
             >
-              <TabList className={styles.tabList} aria-label="Kinds">
-                {shownTabs.map((shown) => (
-                  <Tab key={shown} id={shown} className={styles.tab}>
-                    {TAB_NAMES[shown]} <span className={styles.count}>{counts[shown]}</span>
-                  </Tab>
-                ))}
-              </TabList>
-              {/* One panel, its list kept as typing shows All: Autocomplete then goes on focusing
-                  the first row as typed, which a list swapped for another would lose. */}
-              <TabPanel id={tab} className={styles.panel}>
-                <Virtualizer
-                  key={lists}
-                  layout={ListLayout}
-                  layoutOptions={{ estimatedRowSize: 26, estimatedHeadingSize: 22 }}
-                >
-                  <ListBox
-                    className={styles.list}
-                    aria-label={TAB_NAMES[tab]}
-                    onAction={act}
-                    renderEmptyState={() => (
-                      <p className={failed(tab) ? styles.failed : styles.empty}>{empty(tab)}</p>
-                    )}
-                  >
-                    <Fragment key={tab}>{panels[tab]()}</Fragment>
-                  </ListBox>
-                </Virtualizer>
-              </TabPanel>
-            </Tabs>
-          </Autocomplete>
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+              <ListBox
+                className={styles.list}
+                aria-label={TAB_NAMES[tab]}
+                onAction={act}
+                renderEmptyState={() => (
+                  <p className={failed(tab) ? styles.failed : styles.empty}>{empty(tab)}</p>
+                )}
+              >
+                <Fragment key={tab}>{panels[tab]()}</Fragment>
+              </ListBox>
+            </Virtualizer>
+          </TabPanel>
+        </Tabs>
+      </Autocomplete>
+    </Dialog>
   );
 }
 
@@ -518,6 +591,7 @@ function PickedIcon({ value, refs }: { value: string; refs: KnownRefs | undefine
     const ref = refs?.refs.find((known) => known.full === value || known.name === value);
     if (ref !== undefined) Icon = REF_ICONS[ref.kind];
     else if (value.startsWith("refs/tags/")) Icon = REF_ICONS.tag;
+    else if (value.startsWith("refs/remotes/")) Icon = REF_ICONS.remote;
     else if (SHORT_HASH.test(value)) Icon = COMMIT_ICON;
   }
   return <TextIcon icon={Icon} className={styles.icon} />;
@@ -525,7 +599,7 @@ function PickedIcon({ value, refs }: { value: string; refs: KnownRefs | undefine
 
 interface RowProps {
   id: string;
-  value: string;
+  value: string | undefined; // the Revision picked, marked
   icon: LucideIcon;
   text: string;
   hash?: string;

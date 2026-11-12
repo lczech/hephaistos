@@ -52,3 +52,15 @@
 .page {
   padding: var(--space-3) var(--space-4);
 }
+
+/* Said only to screen readers, e.g. a live region: shown, it would move what is below it. A pixel,
+   clipped, not none, which some screen readers would skip. */
+.unseen {
+  --unseen-size: 1px;
+  position: absolute;
+  inline-size: var(--unseen-size);
+  block-size: var(--unseen-size);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

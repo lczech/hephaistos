@@ -9,6 +9,8 @@ import {
   useHistory,
   useRepositories,
 } from "../../api/queries";
+import type { Picked } from "../../components/GitRevisionPicker";
+import { GoToRevision } from "../../components/GoToRevision";
 import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
 import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
@@ -44,6 +46,9 @@ type Repository = Schemas["RepositoryJson"];
 // (`/api/graph/lines`); most HEADs come long before, a stale Worktree's may never.
 const LINES_LIMIT = 10_000;
 
+const GO_TO = "go-to"; // the key of going to what was picked, as a chip's is its path
+const LOCAL = "refs/heads/";
+
 const SLOW = 300; // ms going to a HEAD before its chip says so: most are done by then
 
 /** A HEAD being gone to, by its chip. */
@@ -74,12 +79,10 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const hidden = paramValues(params.hide);
   const walked: Walked = paramValues(params.branches)[0] === "worktrees" ? "worktrees" : "local";
   const [at] = paramValues(params.at);
-  const query: HistoryQuery | undefined = checkout && {
-    ...checkout,
-    branches: walked,
-    order,
-    ...(hidden.length === 0 ? {} : { hide: hidden }),
-  };
+  // The walk: from which branches, less those hidden, in which order; of the Checkout's Clone.
+  const walking = { branches: walked, order, ...(hidden.length === 0 ? {} : { hide: hidden }) };
+  const walk = checkout && { ...checkout, ...walking };
+  const query: HistoryQuery | undefined = walk;
   const history = useHistory(query);
   const graph = useGraph(checkout);
   const error = useKeptError(history, query);
@@ -118,17 +121,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     ...(defaultBranch ? { first: defaultBranch } : {}),
   };
   // The lines of the HEADs, laid out as the list will be, before their pages are listed.
-  const lines = useGraphLines(
-    checkout &&
-      known && {
-        ...checkout,
-        branches: walked,
-        order,
-        ...(hidden.length === 0 ? {} : { hide: hidden }),
-        until: [...heads],
-        limit: LINES_LIMIT,
-      },
-  );
+  const lines = useGraphLines(walk && known && { ...walk, until: [...heads], limit: LINES_LIMIT });
   const laid =
     lines.data &&
     graphOf(
@@ -152,17 +145,32 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     hidden: head.branch !== null && hidden.includes(head.branch),
   }));
 
-  // Going to a HEAD: older pages load until its row is listed, then it is scrolled to the top,
-  // with what is not committed above it. Its chip says so, once it takes a while.
+  // Going to a commit, a chip's HEAD or one picked: older pages load until its row is listed,
+  // then it is scrolled to the top, with what is not committed above it. Its chip or the picker
+  // says so, once it takes a while. Whether it is on the walk at all, the lines say first, where
+  // those laid out ahead do not have it: a tag elsewhere is not looked for page after page.
   const [towards, setTowards] = useState<Towards | null>(null);
   const [slow, setSlow] = useState(false);
-  const [missed, setMissed] = useState<string | null>(null); // the key of the chip
+  const [missed, setMissed] = useState<Towards | null>(null);
   const [handled, setHandled] = useState<string | undefined>(undefined);
-  const go = (chip: { key: string; name: string; commit: string | null }) => {
+  const go = (target: { key: string; name: string; commit: string | null | undefined }) => {
     setMissed(null);
     setSlow(false);
-    setTowards(chip.commit ? { key: chip.key, name: chip.name, commit: chip.commit } : null);
+    setTowards(
+      target.commit ? { key: target.key, name: target.name, commit: target.commit } : null,
+    );
   };
+  const reach = useGraphLines(
+    walk && towards && !laid?.rows.has(towards.commit)
+      ? { ...walk, until: [towards.commit], limit: LINES_LIMIT }
+      : undefined,
+  );
+  const offWalk =
+    towards !== null &&
+    reach.data !== undefined &&
+    !reach.isPlaceholderData &&
+    reach.data.commits.length < LINES_LIMIT &&
+    !reach.data.commits.some((line) => line.hash === towards.commit);
   const atHead = placed.find(({ head }) => head.worktree !== null && head.worktree === at);
   if (at !== handled && atHead !== undefined) {
     setHandled(at); // once per address: the Worktree it was opened at
@@ -183,13 +191,13 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       const top = listed.get(`uncommitted:${towards.key}`) ?? row;
       top.closest("li")?.scrollIntoView({ block: "start" });
       setTowards(null);
-    } else if (!hasNextPage) {
-      setMissed(towards.key); // e.g. its branch hidden
+    } else if (!hasNextPage || offWalk) {
+      setMissed(towards); // e.g. its branch hidden, or a tag on none walked
       setTowards(null);
     } else if (!isFetchingNextPage) {
       void fetchNextPage();
     }
-  }, [towards, loaded, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [towards, loaded, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
   useEffect(() => {
     if (towards === null) return;
     const wait = setTimeout(() => setSlow(true), SLOW);
@@ -240,6 +248,27 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     go(chip);
   };
 
+  // A branch, tag or commit picked to go to; a hidden branch shown again.
+  const goTo = (picked: Picked) => {
+    const branch = picked.revision.startsWith(LOCAL)
+      ? picked.revision.slice(LOCAL.length)
+      : undefined;
+    if (branch !== undefined && hidden.includes(branch)) {
+      setParams(
+        withParam(
+          params,
+          "hide",
+          hidden.filter((name) => name !== branch),
+        ),
+      );
+    }
+    go({ key: GO_TO, name: picked.name, commit: picked.commit });
+  };
+  const going = towards && {
+    what: `Loading towards ${towards.name}`,
+    far: `${numberText(commits.length)} commits so far`,
+  };
+
   let message: string | null = null;
   if (checkout === undefined) {
     message = "No clone: open the Graph from a clone or worktree in Repositories.";
@@ -262,6 +291,19 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       <ViewBar>
         {checkout && (
           <BranchFilter walked={walked} branches={filtered} hidden={hidden} onChange={filter} />
+        )}
+        {checkout && (
+          <GoToRevision
+            checkout={checkout}
+            commitsFrom={walking}
+            known={history.data?.pages[0]}
+            onPick={goTo}
+            going={towards?.key === GO_TO && slow && going ? going : undefined}
+            missed={
+              missed?.key === GO_TO ? `${missed.name} is not among the commits shown` : undefined
+            }
+            onStop={() => setTowards(null)}
+          />
         )}
         <BarEnd>
           <BarGroup>
@@ -286,14 +328,11 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         chips={chips}
         current={current}
         going={
-          towards && slow
-            ? {
-                key: towards.key,
-                text: `Loading towards ${towards.name}: ${numberText(commits.length)} commits so far`,
-              }
+          towards && towards.key !== GO_TO && slow && going
+            ? { key: towards.key, ...going }
             : undefined
         }
-        missed={missed ?? undefined}
+        missed={missed?.key}
         onPick={pick}
       />
       {error && <LoadNote error={error} />}

@@ -62,33 +62,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Going to its HEAD, a while: its icon turns. */
-.chip[data-busy] svg {
-  animation: turn 1s linear infinite;
-}
-
-@keyframes turn {
-  to {
-    rotate: 360deg;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chip[data-busy] svg {
-    animation: none;
-    opacity: var(--dimmed);
-  }
-}
-
 .chip[data-missed] svg {
   color: var(--warning);
-}
-
-/* What the chips say of going to a HEAD, for screen readers only: shown, it would move the list. */
-.said {
-  position: absolute;
-  inline-size: 0;
-  block-size: 0;
-  overflow: hidden;
-  white-space: nowrap;
 }

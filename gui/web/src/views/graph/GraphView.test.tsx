@@ -120,16 +120,32 @@ function serveGraph({
         ]),
       ]),
     "GET /api/history": async (request) => {
-      const skip = Number(new URL(request.url).searchParams.get("skip") ?? 0);
+      const asked = new URL(request.url).searchParams;
+      const skip = Number(asked.get("skip") ?? 0);
+      const refs = pages.flat().flatMap((each) => each.refs);
+      const ref = asked.get("ref"); // a revision resolved: as if git knew any, as a commit
+      if (ref !== null) {
+        return json({
+          head: hash("m"),
+          branch: "main",
+          refs,
+          commits: [commit(ref, [])],
+          next: null,
+          found: null,
+        });
+      }
       if (skip > 0 && hold) await hold;
       let at = 0;
       let before = 0;
       while (at < pages.length - 1 && before < skip) before += pages[at++]?.length ?? 0;
-      const commits = pages[at] ?? [];
+      const search = asked.get("search")?.toLowerCase(); // in messages: here their subjects
+      const commits = (pages[at] ?? []).filter(
+        (each) => !search || each.subject.toLowerCase().includes(search),
+      );
       return json({
         head: hash("m"),
         branch: "main",
-        refs: [],
+        refs,
         commits,
         next:
           at === pages.length - 1 ? null : { start: null, path: null, skip: skip + commits.length },
@@ -360,10 +376,10 @@ describe("the Checkouts in the Graph View", () => {
     expect(scrolled.mock.contexts[0]).toHaveTextContent("Uncommitted in proj: 2 changed");
   });
 
-  it("says when no page shows the HEAD gone to, on its chip", async () => {
+  it("says on its chip when the HEAD gone to is not on the walk, as the lines show", async () => {
     const graph = { ...GRAPH, heads: [MAIN, elsewhere("lost", "q")] };
     const pages = [COMMITS, [commit("x", ["y"])], [commit("y", [])]];
-    serveGraph({ graph, pages, worktrees: ["lost"] });
+    const requests = serveGraph({ graph, pages, worktrees: ["lost"] });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Commit b");
     await userEvent.click(chip("Worktree lost"));
@@ -377,7 +393,9 @@ describe("the Checkouts in the Graph View", () => {
         /; The HEAD of lost is not among the commits shown; a click tries again$/,
       ),
     );
-    expect(screen.getByText("Commit y")).toBeInTheDocument(); // all pages loaded
+    // known from the lines, which walked all without it: no page after page to look in
+    expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("q")]);
+    expect(screen.queryByText("Commit y")).toBeNull();
     expect(scrolled).not.toHaveBeenCalled();
   });
 
@@ -391,7 +409,7 @@ describe("the Checkouts in the Graph View", () => {
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Commit b");
     await userEvent.click(chip("Worktree old"));
-    expect(await screen.findByText(/^Loading towards old: 3 commits so far$/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Loading towards old$/)).toBeInTheDocument(); // said once
     expect(chip("Worktree old")).toHaveAttribute("data-busy", "true");
     expect(chip("Worktree old")).toHaveAttribute(
       "title",
@@ -446,6 +464,92 @@ describe("the Checkouts in the Graph View", () => {
     await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
     expect(chip("Worktree feature")).toHaveAttribute("aria-current", "true");
     expect(chip("Clone proj")).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("going to a branch, tag or commit in the Graph View", () => {
+  // Named for what a click does: going, or stopping.
+  const goTo = () =>
+    screen.getByRole("button", { name: /^(Go to a branch, tag or commit|Stop loading towards)/ });
+  const picker = () => screen.getByRole("dialog", { name: "Branch, tag or commit to go to" });
+
+  it("goes to a branch picked, loading older pages until it shows", async () => {
+    const pages = [COMMITS, [commit("o", [], { refs: [branch("old", "o")] })]];
+    const graph = {
+      ...GRAPH,
+      branches: [
+        ...GRAPH.branches,
+        { name: "old", commit: hash("o"), ahead: 0, behind: 3, against: "main" },
+      ],
+    };
+    const requests = serveGraph({ graph, pages });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    expect(goTo()).toHaveTextContent("Go to…");
+    await userEvent.click(goTo());
+    await userEvent.click(await within(picker()).findByRole("option", { name: "old" }));
+    await screen.findByText("Commit o");
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    expect(scrolled.mock.contexts[0]).toHaveTextContent("Commit o");
+    expect(goTo()).toHaveTextContent("Go to…"); // holding nothing
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // nor kept
+    // Its commits are searched for in the Graph's walk; remote branches not offered.
+    const searched = requests
+      .map((request) => new URL(request.url))
+      .filter((url) => url.pathname === "/api/history" && url.searchParams.has("everywhere"));
+    expect(searched).toEqual([]);
+  });
+
+  it("shows a hidden branch picked again, then goes to it", async () => {
+    serveGraph();
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(goTo());
+    await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+  });
+
+  it("turns while going to what was picked, stopped by a click on it", async () => {
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pages = [COMMITS, [commit("o", [], { refs: [branch("old", "o")] })]];
+    serveGraph({ pages, hold });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(goTo());
+    await userEvent.click(await within(picker()).findByRole("option", { name: "old" }));
+    await waitFor(() => expect(goTo()).toHaveAttribute("data-busy", "true"));
+    expect(goTo()).toHaveAttribute(
+      "title",
+      "Loading towards old: 3 commits so far; a click or Escape stops",
+    );
+    expect(screen.getByText(/^Loading towards old$/)).toBeInTheDocument(); // to screen readers
+    expect(goTo()).toHaveAccessibleName("Stop loading towards old");
+    await userEvent.click(goTo());
+    expect(goTo()).not.toHaveAttribute("data-busy");
+    expect(screen.queryByRole("dialog", { name: "Branch, tag or commit to go to" })).toBeNull(); // stopped, not opened
+    release();
+    await screen.findByText("Commit o");
+    expect(scrolled).not.toHaveBeenCalled();
+  });
+
+  it("says on the button when what was picked is not on the walk", async () => {
+    const requests = serveGraph();
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(goTo());
+    const field = within(picker()).getByRole("searchbox");
+    await userEvent.type(field, "abc1234");
+    await within(picker()).findByText("Nothing matches."); // searched: no commit, so resolved
+    await userEvent.type(field, "{Enter}");
+    expect(await screen.findByText("abc1234 is not among the commits shown")).toBeInTheDocument();
+    expect(goTo()).toHaveAttribute("data-missed", "true");
+    expect(goTo()).toHaveAttribute("title", "abc1234 is not among the commits shown; pick another");
+    expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("abc1234")]);
+    expect(scrolled).not.toHaveBeenCalled();
   });
 });
 

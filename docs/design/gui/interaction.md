@@ -116,10 +116,11 @@ The View asks with it once typing pauses (`useDebounced`), or on Enter.
 ### Revision picker
 
 A Revision picker (`components/GitRevisionPicker`) has fixed rows (working tree, index, HEAD) and tabs of branches, tags and commits, as each use chooses.
+Its list (`RevisionPopover`) is made each time it opens; two buttons open it: one holding the Revision picked (`GitRevisionPicker`), and one that only goes to it, saying "Go to…" (`GoToRevision`, in the Graph View).
 All comes first: a few of each, with a row leading to their tab.
 Typing shows All, filtered.
 Refs are filtered in the browser and ranked: the same name, starting with it, at a word's start, within.
-Commits are searched by the Server, from HEAD or everywhere.
+Commits are searched by the Server, from HEAD, everywhere, or in a graph's walk.
 An exact name, or a hash's commit, comes on top.
 A kind's tab lists all of it, virtualized; commits load more on scrolling.
 Enter picks the first row; with none, it resolves the text as git does.
