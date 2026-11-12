@@ -557,6 +557,27 @@ def test_graph_of_a_clone_its_branches_and_heads(client: TestClient, repo: Path)
     assert client.get("/api/graph", params={"clone": clone["id"]}).json() == answer
 
 
+def test_lines_of_a_graph_as_its_history_lays_them_out(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    side = repo.parent / "side"
+    aside = _commit(side, "on side")
+    _commit(repo, "on main")
+    asked: dict[str, Any] = {"clone": clone["id"], "branches": "local", "order": "topo"}
+    listed = client.get("/api/history", params=asked).json()["commits"]
+    lines = client.get("/api/graph/lines", params={**asked, "limit": 100}).json()["commits"]
+    assert [(line["hash"], line["parents"]) for line in lines] == [
+        (commit["hash"], commit["parents"]) for commit in listed
+    ]
+    assert [line["refs"] for line in lines] == [commit["refs"] for commit in listed]
+    until = client.get("/api/graph/lines", params={**asked, "limit": 100, "until": [aside]})
+    assert until.json()["commits"][-1]["hash"] == aside
+    hidden = {**asked, "limit": 100, "hide": ["side"]}
+    assert aside not in {
+        line["hash"] for line in client.get("/api/graph/lines", params=hidden).json()["commits"]
+    }
+    assert client.get("/api/graph/lines", params=asked).status_code == 400  # no limit
+
+
 def test_history_in_an_order_writes_the_commit_graph_file(client: TestClient, repo: Path) -> None:
     [clone] = _cli("clone", "list")
     client.get("/api/history", params={"clone": clone["id"]})

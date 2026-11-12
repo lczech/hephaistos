@@ -1,3 +1,4 @@
+import contextlib
 import dataclasses
 import time
 from pathlib import Path
@@ -309,6 +310,33 @@ def test_run_bounded_times_out(tmp_path: Path) -> None:
     with pytest.raises(GitTimeoutError, match=r"timed out after 0\.2 s"):
         git_facts.run_bounded(repo, "-c", "alias.wait=!sleep 30", "wait", max_bytes=100)
     assert time.monotonic() - started < 5  # what git started was stopped too
+
+
+def test_read_lines_as_git_writes_them_and_stops_it_when_closed(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", commits=3)
+    lines = list(git_facts.read_lines(repo, "log", "--format=%s"))
+    assert lines == git_facts.read(repo, "log", "--format=%s").splitlines()
+    # Output without end: stopped once closed, rather than at the timeout.
+    started = time.monotonic()
+    endless = git_facts.read_lines(repo, "-c", "alias.forever=!yes", "forever")
+    with contextlib.closing(endless):
+        assert [next(endless) for _ in range(3)] == ["y", "y", "y"]
+    assert time.monotonic() - started < 5
+    with pytest.raises(GitError, match="failed"):
+        list(git_facts.read_lines(repo, "log", "gone"))
+
+
+def test_read_lines_times_out(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    config.activate(
+        dataclasses.replace(
+            config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=0.2)
+        )
+    )
+    started = time.monotonic()
+    with pytest.raises(GitTimeoutError, match=r"timed out after 0\.2 s"):
+        list(git_facts.read_lines(repo, "-c", "alias.wait=!sleep 30", "wait"))
+    assert time.monotonic() - started < 5
 
 
 def test_not_in_repository(tmp_path: Path) -> None:

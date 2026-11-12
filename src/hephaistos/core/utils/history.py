@@ -5,8 +5,9 @@ for having renamed it, and the walk continues with the path before. A search kee
 whose message has all of its words, in any order and case.
 """
 
+import contextlib
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
@@ -313,6 +314,54 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
         else:
             walk = None
     return History(tuple(found), walk)
+
+
+@dataclass(frozen=True)
+class Line:
+    """A commit as a graph lays it out: its parents and the refs pointing at it, nothing else."""
+
+    hash: str
+    parents: tuple[str, ...]
+    refs: tuple[Ref, ...] = ()
+
+
+def lines(
+    top: Path, starts: Sequence[str], *, order: Order, until: Collection[str], limit: int
+) -> tuple[Line, ...]:
+    """The commits of a walk from `starts` in `order`, as a graph lays them out, newest first.
+
+    Up to `limit`, and only until each commit of `until` has come, e.g. the HEADs of Checkouts
+    whose place in the graph is wanted: all of the walk if one of them is not on it. For many
+    commits at once: their hashes and parents only, from git's commit-graph file where written,
+    read as git writes them, so that git stops as soon as they have come.
+    """
+    if not starts:
+        return ()
+    known = refs(top)
+    at: dict[str, list[Ref]] = {}
+    for ref in known.refs:
+        at.setdefault(ref.commit, []).append(ref)
+    walk = git.read_lines(
+        top,
+        "log",
+        "--no-color",
+        "--no-show-signature",  # which `log.showSignature` would write among the commits
+        "--format=%H %P",
+        _ORDERS[order],
+        f"--max-count={limit}",
+        "--end-of-options",
+        *starts,
+    )
+    left = set(until)
+    found: list[Line] = []
+    with contextlib.closing(walk):  # git stopped once all have come, not walking on to `limit`
+        for line in walk:
+            hash_, *parents = line.split()
+            found.append(Line(hash_, tuple(parents), tuple(at.get(hash_, ()))))
+            left.discard(hash_)
+            if until and not left:
+                break
+    return tuple(found)
 
 
 @dataclass(frozen=True)

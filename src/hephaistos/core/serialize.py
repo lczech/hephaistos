@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 28)
+API_VERSION = ApiVersion(0, 29)
 
 
 class Ref(TypedDict):
@@ -932,6 +932,34 @@ def graph_json(  # noqa: PLR0913 - all that a graph shows
             )
         )
     return GraphJson(default_branch=default, branches=branches, heads=listed)
+
+
+class GraphLineJson(TypedDict):
+    """A commit as a graph lays it out: its parents and the refs pointing at it."""
+
+    hash: str
+    parents: list[str]
+    refs: list[RefJson]
+
+
+class GraphLinesJson(TypedDict):
+    """The commits of a graph's walk, newest first, as it lays them out."""
+
+    commits: list[GraphLineJson]
+
+
+def graph_lines_json(found: Iterable[history.Line]) -> GraphLinesJson:
+    """The commits of a graph's walk, as the API gives them."""
+    return GraphLinesJson(
+        commits=[
+            GraphLineJson(
+                hash=line.hash,
+                parents=list(line.parents),
+                refs=[_ref_json(ref) for ref in line.refs],
+            )
+            for line in found
+        ]
+    )
 
 
 def changes_json(found: changes.Changes, commit: ShownCommitJson | None = None) -> ChangesJson:

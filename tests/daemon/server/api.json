@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 28
+    "minor": 29
   },
   "shapes": {
     "components": {
@@ -1418,6 +1418,53 @@
             "heads"
           ],
           "title": "GraphJson",
+          "type": "object"
+        },
+        "GraphLineJson": {
+          "description": "A commit as a graph lays it out: its parents and the refs pointing at it.",
+          "properties": {
+            "hash": {
+              "title": "Hash",
+              "type": "string"
+            },
+            "parents": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Parents",
+              "type": "array"
+            },
+            "refs": {
+              "items": {
+                "$ref": "#/components/schemas/RefJson"
+              },
+              "title": "Refs",
+              "type": "array"
+            }
+          },
+          "required": [
+            "hash",
+            "parents",
+            "refs"
+          ],
+          "title": "GraphLineJson",
+          "type": "object"
+        },
+        "GraphLinesJson": {
+          "description": "The commits of a graph's walk, newest first, as it lays them out.",
+          "properties": {
+            "commits": {
+              "items": {
+                "$ref": "#/components/schemas/GraphLineJson"
+              },
+              "title": "Commits",
+              "type": "array"
+            }
+          },
+          "required": [
+            "commits"
+          ],
+          "title": "GraphLinesJson",
           "type": "object"
         },
         "GroupName": {
@@ -4060,6 +4107,145 @@
             }
           },
           "summary": "Graph Show"
+        }
+      },
+      "/api/graph/lines": {
+        "get": {
+          "description": "The commits of a graph's walk as it lays them out: hashes, parents and refs only.\n\nThe walk of `/api/history` with the same `branches`, `hide` and `order`, so that its graph is\nthe same; up to `limit` commits, and only until each commit of `until` has come, e.g. the\nHEADs of the Checkouts, to know their lines before their pages are listed.",
+          "operationId": "graph_lines_api_graph_lines_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "clone",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Clone"
+              }
+            },
+            {
+              "in": "query",
+              "name": "worktree",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Worktree"
+              }
+            },
+            {
+              "in": "query",
+              "name": "branches",
+              "required": true,
+              "schema": {
+                "enum": [
+                  "local",
+                  "worktrees"
+                ],
+                "title": "Branches",
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "hide",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Hide"
+              }
+            },
+            {
+              "in": "query",
+              "name": "order",
+              "required": true,
+              "schema": {
+                "enum": [
+                  "date",
+                  "topo"
+                ],
+                "title": "Order",
+                "type": "string"
+              }
+            },
+            {
+              "in": "query",
+              "name": "until",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Until"
+              }
+            },
+            {
+              "in": "query",
+              "name": "limit",
+              "required": true,
+              "schema": {
+                "minimum": 1,
+                "title": "Limit",
+                "type": "integer"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GraphLinesJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "default": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorJson"
+                  }
+                }
+              },
+              "description": "Not a success: the error"
+            }
+          },
+          "summary": "Graph Lines"
         }
       },
       "/api/history": {

@@ -36,6 +36,7 @@ from hephaistos.core.serialize import (
     EventKindJson,
     FilesJson,
     GraphJson,
+    GraphLinesJson,
     HistoryJson,
     LogJson,
     MachineJson,
@@ -101,6 +102,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/diffs": ("data", "focus"),
     "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
     "/api/graph": ("data", "focus"),  # focus: branches moved by hand, which change no State
+    "/api/graph/lines": ("data", "focus"),
     "/api/files": ("data", "focus"),  # focus: files made or edited, which change no State
     "/api/files/paths": ("focus",),  # not on hints: listing all below may take seconds
     "/api/events": ("data",),
@@ -559,6 +561,31 @@ def graph_show(
         standings=graph.standings(top, default, known),
         detached=graph.detached_standings(top, default, heads),
     )
+
+
+@router.get("/graph/lines")
+def graph_lines(  # noqa: PLR0913 - one parameter per choice
+    paths: PathsOf,
+    *,
+    clone: uuid.UUID | None = None,
+    worktree: uuid.UUID | None = None,
+    branches: graph.Branches,
+    hide: Annotated[list[str] | None, Query()] = None,
+    order: history.Order,
+    until: Annotated[list[str] | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1)],
+) -> GraphLinesJson:
+    """The commits of a graph's walk as it lays them out: hashes, parents and refs only.
+
+    The walk of `/api/history` with the same `branches`, `hide` and `order`, so that its graph is
+    the same; up to `limit` commits, and only until each commit of `until` has come, e.g. the
+    HEADs of the Checkouts, to know their lines before their pages are listed.
+    """
+    top = _working_tree(paths, clone, worktree, bare=True)
+    starts = graph.starts(top, branches, hide or (), history.refs(top))
+    commit_graph.refresh_soon(top)
+    found = history.lines(top, starts, order=order, until=until or (), limit=limit)
+    return serialize.graph_lines_json(found)
 
 
 def _checkout_ids(paths: Paths) -> dict[Path, tuple[uuid.UUID, uuid.UUID | None]]:

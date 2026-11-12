@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 import threading
 import time
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Generator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -145,13 +145,9 @@ def run_bounded(path: Path, *args: str, max_bytes: int) -> subprocess.CompletedP
     started = time.monotonic()
     expired = threading.Event()
 
-    def stop(process: subprocess.Popen[bytes]) -> None:
-        with contextlib.suppress(ProcessLookupError):  # ended meanwhile
-            os.killpg(process.pid, signal.SIGKILL)  # with what git started
-
     def expire(process: subprocess.Popen[bytes]) -> None:
         expired.set()
-        stop(process)
+        _stop(process)
 
     with (
         tempfile.TemporaryFile() as errors,
@@ -169,7 +165,7 @@ def run_bounded(path: Path, *args: str, max_bytes: int) -> subprocess.CompletedP
         try:
             output = process.stdout.read(max_bytes + 1) if process.stdout else b""
             if too_large := len(output) > max_bytes:
-                stop(process)
+                _stop(process)
         finally:
             timer.cancel()
         returncode = process.wait()
@@ -183,6 +179,57 @@ def run_bounded(path: Path, *args: str, max_bytes: int) -> subprocess.CompletedP
     return subprocess.CompletedProcess(
         command, returncode, output.decode("utf-8", "surrogateescape"), stderr
     )
+
+
+def read_lines(path: Path, *args: str) -> Generator[str]:
+    """The lines git writes, as it writes them; raises GitError if it fails.
+
+    Read only as far as needed, e.g. a walk until some commits have come: closing the iterator
+    early (`contextlib.closing`) stops git, with what it started. Within `git.timeout` overall.
+    """
+    command, env = _command(path, args)
+    timeout = config.settings().git.timeout
+    started = time.monotonic()
+    expired = threading.Event()
+
+    def expire(process: subprocess.Popen[bytes]) -> None:
+        expired.set()
+        _stop(process)
+
+    with (
+        tempfile.TemporaryFile() as errors,
+        subprocess.Popen(  # noqa: S603 - arguments are a list, never passed through a shell
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=errors,
+            env=env,
+            start_new_session=True,
+        ) as process,
+    ):
+        timer = threading.Timer(timeout, expire, (process,))
+        timer.start()
+        try:
+            for line in process.stdout or ():
+                yield line.decode("utf-8", "surrogateescape").removesuffix("\n")
+        finally:  # also when closed early: git is stopped, not left writing to no one
+            timer.cancel()
+            if process.poll() is None:
+                _stop(process)
+            returncode = process.wait()
+            errors.seek(0)
+            stderr = errors.read().decode("utf-8", "surrogateescape")
+    if expired.is_set():
+        raise _timed_out(path, args, started, timeout)
+    _log_call(path, args, started, returncode, stderr)
+    if returncode != 0:
+        raise GitError(f"`git {' '.join(args)}` failed in {path}: {stderr.strip()}")
+
+
+def _stop(process: subprocess.Popen[bytes]) -> None:
+    """Stops git, with what it started."""
+    with contextlib.suppress(ProcessLookupError):  # ended meanwhile
+        os.killpg(process.pid, signal.SIGKILL)
 
 
 def _log_call(

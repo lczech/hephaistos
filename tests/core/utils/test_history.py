@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -325,3 +326,61 @@ def test_pages_in_an_order_go_on_in_it(forked: Path) -> None:
     first = history(forked, order="topo", limit=2)
     rest = history(forked, order="topo", after=first.next, limit=100)
     assert [commit.subject for commit in (*first.commits, *rest.commits)] == whole
+
+
+def _hashes(repo: Path, order: history_module.Order) -> list[str]:
+    found = history(repo, starts=["refs/heads/main", "refs/heads/side"], order=order, limit=100)
+    return [commit.hash for commit in found.commits]
+
+
+def test_lines_walk_as_the_history_of_the_same_starts(forked: Path) -> None:
+    starts = ["refs/heads/main", "refs/heads/side"]
+    for order in ("date", "topo"):
+        found = history_module.lines(forked, starts, order=order, until=(), limit=100)
+        assert [line.hash for line in found] == _hashes(forked, order), order
+        whole = history(forked, starts=starts, order=order, limit=100).commits
+        assert [line.parents for line in found] == [commit.parents for commit in whole]
+    by_hash = {line.hash: line for line in found}
+    side = git(forked, "rev-parse", "side")
+    assert [ref.name for ref in by_hash[side].refs] == ["side"]
+
+
+def test_lines_without_signatures_whatever_git_is_set_to_show(forked: Path, tmp_path: Path) -> None:
+    if shutil.which("ssh-keygen") is None:
+        pytest.skip("ssh-keygen signs the commit")
+    key = tmp_path / "key"
+    subprocess.run(
+        ["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)],
+        check=True,
+    )
+    git(
+        forked,
+        "-c",
+        "gpg.format=ssh",
+        "-c",
+        f"user.signingkey={key}",
+        "commit",
+        "--quiet",
+        "--allow-empty",
+        "--gpg-sign",
+        "--message",
+        "signed",
+    )
+    git(forked, "config", "log.showSignature", "true")  # "No signature" among the commits
+    found = history_module.lines(forked, ["refs/heads/main"], order="date", until=(), limit=100)
+    assert [line.hash for line in found] == git(
+        forked, "log", "--no-show-signature", "--format=%H", "main"
+    ).split()
+
+
+def test_lines_end_once_each_commit_wanted_has_come_or_at_the_limit(forked: Path) -> None:
+    starts = ["refs/heads/main", "refs/heads/side"]
+    whole = _hashes(forked, "date")  # merge, s2, m2, s1, m1, base
+    until = (whole[3], whole[1])
+    found = history_module.lines(forked, starts, order="date", until=until, limit=100)
+    assert [line.hash for line in found] == whole[:4]
+    capped = history_module.lines(forked, starts, order="date", until=until, limit=2)
+    assert [line.hash for line in capped] == whole[:2]
+    elsewhere = history_module.lines(forked, starts, order="date", until=["0" * 40], limit=100)
+    assert [line.hash for line in elsewhere] == whole  # not on the walk: all of it
+    assert history_module.lines(forked, [], order="date", until=(), limit=100) == ()

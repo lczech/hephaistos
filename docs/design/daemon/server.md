@@ -97,6 +97,7 @@ Each Clone is tried at most once a day in a process, whether it worked or not, a
 A graph of a Clone walks its branches (`branches`): all local ones, or those of its Checkouts and the default branch, with the HEADs of all its Checkouts, detached ones too, which `--branches` misses; less those hidden (`hide`).
 Its pages go on by skipping, from the same branches, as everywhere does.
 `/api/graph` gives what else the graph shows (`core/utils/graph.py`): the default branch, how far each local branch is ahead of it and behind it, and where the HEAD of each Checkout is, by the IDs of the Clones and Worktrees there.
+`/api/graph/lines` gives the commits of the same walk as the graph lays them out, hashes, parents and refs only (`history.lines`): up to `limit`, and only until each commit of `until` has come, so that the GUI knows the lines of the HEADs of Checkouts before their pages are listed.
 The default branch is the one `origin/HEAD` names, else the one `init.defaultBranch` names, else main, else master, among the local branches.
 Branches are counted against it in one call where git can (`%(ahead-behind:…)`, git 2.41), else one by one; the default branch against its upstream.
 Where a file's history ends, its oldest commit is checked for having renamed it.
