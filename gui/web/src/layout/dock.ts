@@ -6,6 +6,7 @@ import {
   type IDockviewPanel,
   themeLight,
 } from "dockview-react";
+import { flash } from "../components/flash";
 import { type Address, asAddress, viewKey } from "../views/address";
 import type { KeyTarget } from "../views/keys";
 import { viewTitle } from "../views/kinds";
@@ -35,16 +36,6 @@ export function keep(panel: IDockviewPanel | undefined): void {
   if (isPreview(panel?.params)) panel?.api.updateParameters({ [PREVIEW]: undefined });
 }
 
-// The accent, held a moment, then fading to the tab's own colours.
-const MARKED = {
-  color: "var(--accent)",
-  backgroundColor: "color-mix(in srgb, var(--accent) 15%, transparent)",
-};
-const FLASH: Keyframe[] = [
-  { offset: 0, ...MARKED },
-  { offset: 0.4, ...MARKED },
-];
-
 // The tab of each Panel, ours within that of dockview, by Panel ID; see `ViewTab`.
 const tabs = new Map<string, HTMLElement>();
 
@@ -55,8 +46,8 @@ export function noteTab(panel: string, element: HTMLElement | null): void {
 }
 
 /** Marks a Panel's tab for a moment, to show where a View already open is. */
-function flash(panel: IDockviewPanel): void {
-  tabs.get(panel.id)?.animate(FLASH, { duration: 900, easing: "ease-out" });
+function flashTab(panel: IDockviewPanel): void {
+  flash(tabs.get(panel.id));
 }
 
 // Where keys go in each Panel's View, by the Panel's ID; see `views/keys.ts`.
@@ -150,7 +141,7 @@ export function openView(
   if (open !== undefined) {
     if (!opening.preview) keep(open);
     open.api.setActive();
-    flash(open);
+    flashTab(open);
     return open;
   }
   const { kind, params, fragment } = address;
