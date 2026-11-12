@@ -83,6 +83,35 @@ A double click on the edge of a column then fits it to the rows drawn only: said
 No screenshots kept as references, which every font, theme and browser would make anew: the scripts of the prototype (`look`, `nested`, `pitch`, `measure`), copied to `.agents/scratch/lists-keys/`, compare master and this branch once, in screenshots and times.
 All commits at once, then one `/code-review` and the measuring; the user tries it all once, and fixes go into the commits they belong to.
 
+## Done
+
+All commits, then one `/code-review` (high), whose ten findings are fixed in the commits they belong to (2026-11-12).
+Measured by `.agents/scratch/lists-keys/` against a scratch Daemon, master then this branch, the same steps (`results.jsonl` there):
+- An Explorer of 1,900 rows: opening a folder shows its rows after about 150 ms, not 850 ms; dragging the edge of a column runs no task over 50 ms, not 4.4 s of them; scrolling 80 steps drops no frame (the worst 17 ms), not 3 (the worst 183 ms); closing a folder runs no long task, not 0.4 s.
+- Scrolling does more on the main thread (about 1 s over 80 steps, not 0.3 s), within each frame.
+- No line between rows stuck in Chromium, Firefox or WebKit at device scales 1 and 1.25 (`look.mjs`, `seams.py`).
+  The line at the top edge of a list, above its header, at 1.25 in Chromium and WebKit, stays as on master: it lies outside the box of the list.
+
 ## Decided alone, for review
 
 Choices the plan left open, made while the user was away, reversible.
+- The component is `VirtualRows`; 12 rows drawn beyond the view each way; a row not measured yet guessed as high as the last one measured, at first 22 px.
+- Until measured, a list is taken as high as the window, so that its first draw shows rows rather than none.
+- Rows in view are kept in place by the List itself, by the key of the first, and only when the list was not scrolled since; at the top, new rows show.
+- A row sticks only once scrolled past the header, so that no copy lies over a row in its place; rows with details stick in every list, as the plan says, Events, History, Repositories and the database too.
+- A click on a copy scrolls, closes, and focuses the row itself; the copy takes no focus; its menu opens on the copy.
+- The copies of the Diff's List are moved as the page scrolls, not stuck by CSS, as the list scrolls sideways itself.
+- Tried and dropped: the header sticking a pixel past the edge, against the line above it at 1.25.
+- ARIA: the list item is the row, and its details a cell of it, so that Tab reaches them from the row; in two lines, one column header holds the buttons; the button that opens a row keeps `aria-expanded` too; columns say how they sort (`aria-sort`).
+- Biome's rules for tables are set aside where the roles are given (`Row`, `Cell`, `HeaderCell`), saying why.
+- Keys: → on an open folder goes to its first row, as in VS Code; → and ← also open and close details; Escape on a row closes its details; keys with Ctrl or Meta are left alone; a page is the rows in view below those stuck.
+- `opens` gets a click or a key alike (`Opening`: the button and Alt), so that Enter opens a View as a click does.
+- `seen` is told for the rows drawn whenever they or what the View asks change (a finding of the review); a test of the Explorer's find now waits for the search typed to settle before a click, a race this showed.
+- The tests of the Explorer's find no longer check `scrollIntoView` in jsdom; a browser test checks the match coming into view instead.
+- Each list is named by its View (`label`, required): `Files`, `Events`, `Untracked files`; the Database View's two `Tables` and `Rows`.
+- As axe found, rows and their group are `div`s with roles, as `li` and `ol` may not take them; a row's details are a region in a cell of it; the square's column is named `Open` for screen readers alone.
+- The ring shows also in Firefox once the keys are in use, which it would not on a row focused by script after a click (`data-keys`).
+- A key that does nothing on a row is left to the page; Alt with the arrows to the Group.
+- The Diff's find brings the file of each match into view only where it is not drawn, so that stepping within a long diff never jumps to its top.
+- More tests, as a second review proposed: 23 cases, of which 8 failed before their fixes (2026-11-12).
+  `DiffView.browser.test.tsx` "marks the matches drawn, the current one apart" timed out in two full runs, in Chromium and Firefox; it passes alone and with the three browsers at once, and touches no list.
