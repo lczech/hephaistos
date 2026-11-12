@@ -44,7 +44,8 @@ export function cloneOf(
     ?.id;
 }
 
-/** A Checkout's short name, for the tab: its folder's, or its Worktree's. */
+/** A Checkout's short name, for the tab: its folder's, as Repositories shows it. Not git's name
+ * for a Worktree, which tools may make an ID of. */
 export function checkoutName(
   repositories: Repository[] | undefined,
   checkout: Checkout,
@@ -54,7 +55,7 @@ export function checkoutName(
     const worktree = clone.worktrees.find(
       (found) => "worktree" in checkout && found.id === checkout.worktree,
     );
-    if (worktree !== undefined) return worktree.name;
+    if (worktree !== undefined) return pathParts(worktree.path)[1];
   }
   return undefined;
 }
