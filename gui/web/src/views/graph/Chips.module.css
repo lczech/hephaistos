@@ -8,14 +8,22 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* As the bar's buttons, marked at its start in the colour of its HEAD's line: the room for that
+   kept while it is not known, so that nothing moves once it is. */
 .chip {
+  --chip-mark: 0.25rem;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0 var(--space-1);
-  border: 1px solid var(--chip-colour);
+  padding: 0 var(--space-1) 0 calc(var(--chip-mark) + var(--space-1));
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: none;
+  background-color: transparent;
+  background-image: linear-gradient(
+    to right,
+    var(--chip-colour, transparent) var(--chip-mark),
+    transparent 0
+  );
   color: var(--text);
   font: inherit;
   font-size: var(--text-small);
@@ -23,21 +31,22 @@
 }
 
 .chip:is(:hover, :focus-visible) {
-  background: var(--fill-hover);
+  background-color: var(--fill-hover);
 }
 
 .chip svg {
   width: var(--icon-small);
   height: var(--icon-small);
-  color: var(--chip-colour);
 }
 
+/* The Checkout the Graph is at: as a toggle that is on, not in the accent, which the colours of
+   the lines would clash with. */
 .chip[aria-current="true"] {
-  background: var(--fill-marked);
+  background-color: var(--fill-on);
 }
 
 .chip[aria-current="true"]:is(:hover, :focus-visible) {
-  background: var(--fill-marked-hover);
+  background-color: var(--fill-on-hover);
 }
 
 .chip[data-hidden] {

@@ -16,6 +16,13 @@ export interface Uncommitted {
   of?: { checkout: Checkout; head: string; key: string }; // a Graph's: its Checkout and HEAD
 }
 
+/** A commit as a graph lays it out: listed, or only walked (`/api/graph/lines`). */
+export type Line = Pick<Commit, "hash" | "parents" | "refs">;
+
+/** The rows a graph lays out: commits, listed or only walked, and what is not committed; others
+ * have no row in it. */
+export type Laid = Uncommitted | { type: "commit"; commit: Line } | { type: "found" | "renamed" };
+
 export type Entry =
   | Uncommitted // above the commits, when HEAD's are shown
   | { type: "found"; found: Found } // a commit searched for by its hash, not among them
@@ -52,9 +59,14 @@ export function whereText(found: Found, walked: string, path: string | undefined
 }
 
 export function entryId(entry: Entry): string {
-  if (entry.type === "uncommitted") return entry.of ? `uncommitted:${entry.of.key}` : "uncommitted";
+  if (entry.type === "uncommitted") return uncommittedId(entry);
   if (entry.type === "found") return `found:${entry.found.commit.hash}`;
   return entry.type === "commit" ? entry.commit.hash : `renamed:${entry.commit}`;
+}
+
+/** The ID of the row of what is not committed: History's own, or a Graph's, by its Checkout. */
+function uncommittedId(entry: Uncommitted): string {
+  return entry.of ? `uncommitted:${entry.of.key}` : "uncommitted";
 }
 
 /** What a Checkout's State says is not committed, in words; empty for a bare Clone, or none. */
@@ -136,7 +148,7 @@ export interface CheckedOut {
  * committed. Other entries have no row in it.
  */
 export function graphOf(
-  entries: Entry[],
+  entries: readonly Laid[],
   head: string | null | undefined,
   drawing: Drawing,
 ): Drawn {
@@ -146,12 +158,13 @@ export function graphOf(
   for (const entry of entries) {
     if (entry.type === "commit") {
       const { hash, parents, refs } = entry.commit;
-      rows.set(entryId(entry), layout.rows.length);
+      rows.set(hash, layout.rows.length);
       layout.add({ hash, parents, branch: branchOf(shownRefs(refs, drawing)) });
     } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
-      rows.set(entryId(entry), layout.rows.length);
+      const id = uncommittedId(entry);
+      rows.set(id, layout.rows.length);
       const parent = (entry.of?.head ?? head) as string;
-      layout.add({ hash: entryId(entry), parents: [parent], uncommitted: true });
+      layout.add({ hash: id, parents: [parent], uncommitted: true });
     }
   }
   return { layout, rows, drawing };

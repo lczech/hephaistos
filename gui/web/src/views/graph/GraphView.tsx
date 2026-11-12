@@ -1,11 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
-import { type HistoryQuery, KEYS, useGraph, useHistory, useRepositories } from "../../api/queries";
+import {
+  type HistoryQuery,
+  KEYS,
+  useGraph,
+  useGraphLines,
+  useHistory,
+  useRepositories,
+} from "../../api/queries";
 import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
 import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
-import { hueColour, hueOf } from "../../hues";
 import { pathParts } from "../../paths";
 import { numberText } from "../../text";
 import { useNow } from "../../useNow";
@@ -13,8 +19,18 @@ import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
 import { CommitList } from "../commits/CommitList";
+import { colourOf } from "../commits/Graph";
 import { OrderToggle, orderOf, withOrder } from "../commits/OrderToggle";
-import { type CheckedOut, type Entry, entries, uncommittedIn } from "../commits/rows";
+import {
+  type CheckedOut,
+  type Drawing,
+  type Drawn,
+  entries,
+  graphOf,
+  type Laid,
+  type Uncommitted,
+  uncommittedIn,
+} from "../commits/rows";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { BranchFilter, type Walked } from "./BranchFilter";
@@ -23,6 +39,10 @@ import { graphTitle } from "./text";
 
 type Head = Schemas["GraphHeadJson"];
 type Repository = Schemas["RepositoryJson"];
+
+// How far ahead of the list to lay out the lines of the HEADs, at most: ~100-200 ms on git.git
+// (`/api/graph/lines`); most HEADs come long before, a stale Worktree's may never.
+const LINES_LIMIT = 10_000;
 
 const SLOW = 300; // ms going to a HEAD before its chip says so: most are done by then
 
@@ -43,9 +63,10 @@ interface Placed {
 /**
  * The commits of a whole Clone, with their graph: walked from all its local branches and the
  * HEAD of each of its Checkouts, topologically by default (`order`), less the branches hidden
- * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each Checkout is drawn
- * larger, named on its badge, with what is not committed above it. A chip per Checkout goes to
- * its HEAD, loading older commits until it shows (`at`, a Worktree's).
+ * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each
+ * Checkout is drawn larger, named on its badge, with what is not committed above it. A chip per
+ * Checkout, marked in the colour of its HEAD's line, goes to its HEAD, loading older commits
+ * until it shows (`at`, a Worktree's).
  */
 export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
@@ -75,7 +96,8 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const known = graph.data;
   const placed = (known?.heads ?? []).map((head) => place(head, repositories.data));
   const commits = history.data?.pages.flatMap((each) => each.commits) ?? [];
-  const listed = withUncommitted(entries(commits), placed, repositories.data);
+  const above = uncommittedAbove(placed, repositories.data);
+  const listed = withUncommitted(entries(commits), above);
   // The default branch keeps lane 0 and the accent, unless hidden.
   const defaultBranch =
     known?.default_branch && !hidden.includes(known.default_branch) ? known.default_branch : null;
@@ -87,6 +109,36 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     branch: head.branch,
     commit: head.commit,
   }));
+  const drawing: Drawing = {
+    heads,
+    accent: "pinned",
+    checkedOut,
+    hidden: new Set(hidden),
+    ...(pinned === undefined ? {} : { pinned }),
+    ...(defaultBranch ? { first: defaultBranch } : {}),
+  };
+  // The lines of the HEADs, laid out as the list will be, before their pages are listed.
+  const lines = useGraphLines(
+    checkout &&
+      known && {
+        ...checkout,
+        branches: walked,
+        order,
+        ...(hidden.length === 0 ? {} : { hide: hidden }),
+        until: [...heads],
+        limit: LINES_LIMIT,
+      },
+  );
+  const laid =
+    lines.data &&
+    graphOf(
+      withUncommitted(
+        lines.data.commits.map((commit): Laid => ({ type: "commit", commit })),
+        above,
+      ),
+      undefined,
+      drawing,
+    );
   const chips: Chip[] = placed.map(({ head, name }) => ({
     key: head.path,
     name,
@@ -96,7 +148,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     ahead: head.ahead,
     behind: head.behind,
     against: head.against,
-    colour: chipColour(head, defaultBranch),
+    colour: lineColour(head, laid, defaultBranch),
     hidden: head.branch !== null && hidden.includes(head.branch),
   }));
 
@@ -255,14 +307,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         message={message}
         stale={error !== null || history.isPlaceholderData}
         paging={history}
-        graph={{
-          heads,
-          accent: "pinned",
-          checkedOut,
-          hidden: new Set(hidden),
-          ...(pinned === undefined ? {} : { pinned }),
-          ...(defaultBranch ? { first: defaultBranch } : {}),
-        }}
+        graph={drawing}
       />
     </ViewPage>
   );
@@ -278,33 +323,46 @@ function place(head: Head, repositories: Repository[] | undefined): Placed {
   return { head, checkout, name };
 }
 
-/** The entries with, above each HEAD listed, what is not committed in its Checkout, if any. */
-function withUncommitted(
-  listed: Entry[],
+/** What is not committed in each Checkout, as rows above its HEAD, by the HEAD's commit. */
+function uncommittedAbove(
   placed: Placed[],
   repositories: Repository[] | undefined,
-): Entry[] {
-  const above = new Map<string, Entry[]>();
+): Map<string, Uncommitted[]> {
+  const above = new Map<string, Uncommitted[]>();
   for (const { head, checkout, name } of placed) {
     if (checkout === undefined || head.commit === null) continue;
     const text = uncommittedIn(checkoutState(repositories, checkout));
     if (!text) continue;
-    const row: Entry = {
+    const row: Uncommitted = {
       type: "uncommitted",
       text: `Uncommitted in ${name}: ${text}`,
       of: { checkout, head: head.commit, key: head.path },
     };
     above.set(head.commit, [...(above.get(head.commit) ?? []), row]);
   }
+  return above;
+}
+
+/** The rows with what is not committed above each HEAD listed: in the list, or laid out. */
+function withUncommitted<E extends Laid>(
+  listed: E[],
+  above: Map<string, Uncommitted[]>,
+): (E | Uncommitted)[] {
   return listed.flatMap((entry) =>
-    entry.type === "commit" ? [...(above.get(entry.commit.hash) ?? []), entry] : [entry],
+    entry.type === "commit"
+      ? [...(above.get((entry as Extract<Laid, { type: "commit" }>).commit.hash) ?? []), entry]
+      : [entry],
   );
 }
 
-/** The colour of a Checkout's chip: that of its branch's line, the default branch's accent
- * (`defaultBranch`, null while hidden). */
-function chipColour(head: Head, defaultBranch: string | null): string {
-  if (head.branch !== null && head.branch === defaultBranch) return "var(--accent)";
-  if (head.branch !== null) return hueColour(hueOf(head.branch));
-  return hueColour(hueOf(head.commit ?? head.path), true);
+/**
+ * The colour of the line a Checkout's HEAD is on, as the list draws it: from the lines laid out
+ * ahead of the list, which may not reach it; until they do, the accent if on the default branch
+ * (`defaultBranch`, null while hidden), else none.
+ */
+function lineColour(head: Head, laid: Drawn | undefined, defaultBranch: string | null) {
+  const row = head.commit === null ? undefined : laid?.rows.get(head.commit);
+  const line = row === undefined ? undefined : laid?.layout.rows[row];
+  if (line !== undefined) return colourOf(line.colour);
+  return head.branch !== null && head.branch === defaultBranch ? "var(--accent)" : undefined;
 }

@@ -100,6 +100,7 @@ interface Served {
   clone?: Partial<Schemas["CloneJson"]>;
   worktrees?: string[];
   hold?: Promise<void>; // pages after the first wait for it
+  holdLines?: Promise<void>; // the lines laid out ahead wait for it
 }
 
 function serveGraph({
@@ -108,6 +109,7 @@ function serveGraph({
   clone: fields = {},
   worktrees = ["feature"],
   hold,
+  holdLines,
 }: Served = {}): Request[] {
   return serve({
     "GET /api/info": () => json(info()),
@@ -135,12 +137,26 @@ function serveGraph({
       });
     },
     "GET /api/graph": () => json(graph),
+    "GET /api/graph/lines": async (request) => {
+      if (holdLines) await holdLines;
+      const left = new Set(new URL(request.url).searchParams.getAll("until"));
+      const lines = [];
+      for (const { hash: at, parents, refs } of pages.flat()) {
+        lines.push({ hash: at, parents, refs });
+        left.delete(at);
+        if (left.size === 0) break;
+      }
+      return json({ commits: lines });
+    },
   });
 }
 
+/** The parameters of the last request to a path. */
 const asked = (requests: Request[], path: string) =>
-  new URL(requests.filter((request) => request.url.includes(path)).at(-1)?.url ?? "http://none")
-    .searchParams;
+  new URL(
+    requests.filter((request) => new URL(request.url).pathname === path).at(-1)?.url ??
+      "http://none",
+  ).searchParams;
 
 const nodes = () =>
   [...document.querySelectorAll<SVGElement>("svg[data-node]")].map((node) => ({
@@ -149,6 +165,7 @@ const nodes = () =>
   }));
 
 const chip = (name: string) => screen.getByRole("button", { name });
+const colour = (element: HTMLElement) => element.style.getPropertyValue("--chip-colour");
 
 function Graph({ initial }: { initial: Params }) {
   return <InPanel view={GraphView} kind="graph" params={initial} />;
@@ -200,17 +217,19 @@ describe("the Graph View", () => {
     expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj, 2 hidden");
   });
 
-  it("asks again for both commits and branches on refresh", async () => {
+  it("asks again for commits, branches and lines on refresh", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Commit b");
     await expectSettled();
-    const count = (path: string) => requests.filter((request) => request.url.includes(path)).length;
-    const before = [count("/api/history"), count("/api/graph")];
+    const paths = ["/api/history", "/api/graph", "/api/graph/lines"];
+    const count = () =>
+      paths.map(
+        (path) => requests.filter((request) => new URL(request.url).pathname === path).length,
+      );
+    const before = count();
     await userEvent.click(screen.getByRole("button", { name: /^Refresh/ }));
-    await waitFor(() =>
-      expect([count("/api/history"), count("/api/graph")]).toEqual(before.map((n) => n + 1)),
-    );
+    await waitFor(() => expect(count()).toEqual(before.map((n) => n + 1)));
   });
 
   it("says where to open it from without a clone", async () => {
@@ -251,6 +270,55 @@ describe("the Checkouts in the Graph View", () => {
     expect(
       screen.getByTitle(`HEAD of worktree loose, detached at ${hash("b").slice(0, 7)}`),
     ).toHaveTextContent("detachedloose");
+  });
+
+  it("marks each chip in the colour of its HEAD's line, as its badge is framed", async () => {
+    const requests = serveGraph();
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["old"] }} />);
+    await screen.findByText("Commit b");
+    const feature = screen.getByTitle("branch, checked out in worktree feature");
+    await waitFor(() =>
+      expect(colour(chip("Worktree feature"))).toBe(feature.style.getPropertyValue("--ref-colour")),
+    );
+    expect(colour(chip("Worktree feature"))).not.toBe("");
+    expect(colour(chip("Clone proj"))).toBe("var(--accent)");
+    const lines = asked(requests, "/api/graph/lines");
+    expect(lines.getAll("until").sort()).toEqual([hash("f"), hash("m")]);
+    expect([lines.get("branches"), lines.get("order"), lines.get("limit")]).toEqual([
+      "local",
+      "topo",
+      "10000",
+    ]);
+    expect(lines.getAll("hide")).toEqual(["old"]);
+  });
+
+  it("marks the chip of a HEAD on another branch's line in that line's colour", async () => {
+    // old's HEAD is on main's line, below main's tip: in the accent, as its badge.
+    const old: Head = { ...FEATURE, path: "/home/me/proj/.worktrees/old", branch: "old" };
+    const graph = {
+      ...GRAPH,
+      heads: [MAIN, { ...old, commit: hash("b"), worktree: "wt-proj-old" }],
+    };
+    const pages = [
+      [COMMITS[0] as Commit, COMMITS[1] as Commit, commit("b", [], { refs: [branch("old", "b")] })],
+    ];
+    serveGraph({ graph, pages, worktrees: ["old"] });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await waitFor(() => expect(colour(chip("Worktree old"))).toBe("var(--accent)"));
+    expect(
+      screen
+        .getByTitle("branch, checked out in worktree old")
+        .style.getPropertyValue("--ref-colour"),
+    ).toBe("var(--accent)");
+  });
+
+  it("marks no chip but the default branch's until the lines are laid out", async () => {
+    serveGraph({ holdLines: new Promise(() => {}) });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    expect(colour(chip("Clone proj"))).toBe("var(--accent)");
+    expect(colour(chip("Worktree feature"))).toBe("");
   });
 
   it("shows what is not committed in a Checkout above its HEAD", async () => {

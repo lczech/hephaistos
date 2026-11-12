@@ -333,7 +333,23 @@ export function useGraph(checkout: GraphQuery | undefined) {
   });
 }
 
-/** The settings as the Daemon finds them; they change by hand, so asked again on focus. */
+/** The commits of a graph's walk as it lays them out: `/api/graph/lines`' parameters. */
+export type GraphLinesQuery = NonNullable<paths["/api/graph/lines"]["get"]["parameters"]["query"]>;
+
+/**
+ * The commits of a graph's walk as it lays them out, hashes, parents and refs only: up to
+ * `limit`, until each of `until` has come. Asked again with the graph's other queries.
+ */
+export function useGraphLines(query: GraphLinesQuery | undefined) {
+  return useQuery({
+    queryKey: [...KEYS.graph, "lines", query],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/graph/lines", { params: { query: query as GraphLinesQuery } })),
+    placeholderData: keepPreviousData, // a HEAD moved: the lines as they were, until these come
+    enabled: query !== undefined,
+  });
+}
+
 /** The commit a revision names in a Checkout, as git resolves it: `HEAD~3`, `v1.0^`, a hash. */
 export async function resolveRevision(checkout: HistoryQuery, revision: string): Promise<string> {
   const page = unwrap(
@@ -344,6 +360,7 @@ export async function resolveRevision(checkout: HistoryQuery, revision: string):
   return commit.hash;
 }
 
+/** The settings as the Daemon finds them; they change by hand, so asked again on focus. */
 export function useConfig() {
   return useQuery({
     queryKey: KEYS.config,
