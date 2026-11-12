@@ -35,6 +35,7 @@ from hephaistos.core.serialize import (
     EventJson,
     EventKindJson,
     FilesJson,
+    GraphJson,
     HistoryJson,
     LogJson,
     MachineJson,
@@ -46,7 +47,16 @@ from hephaistos.core.serialize import (
     WorktreeJson,
 )
 from hephaistos.core.state import worktrees
-from hephaistos.core.utils import changes, commit_graph, file_search, files, history, logs, times
+from hephaistos.core.utils import (
+    changes,
+    commit_graph,
+    file_search,
+    files,
+    graph,
+    history,
+    logs,
+    times,
+)
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon import report
@@ -90,6 +100,7 @@ KEPT_CURRENT: dict[str, tuple[Current, ...]] = {
     "/api/diff/files": ("data", "focus"),
     "/api/diffs": ("data", "focus"),
     "/api/history": ("data", "focus"),  # focus: commits by hand, between the Watcher's passes
+    "/api/graph": ("data", "focus"),  # focus: branches moved by hand, which change no State
     "/api/files": ("data", "focus"),  # focus: files made or edited, which change no State
     "/api/files/paths": ("focus",),  # not on hints: listing all below may take seconds
     "/api/events": ("data",),
@@ -480,6 +491,8 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     path: str | None = None,
     search: str | None = None,
     everywhere: bool = False,
+    branches: graph.Branches | None = None,
+    hide: Annotated[list[str] | None, Query()] = None,
     order: history.Order | None = None,
     start: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
@@ -487,19 +500,25 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
 ) -> HistoryJson:
     """The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.
 
-    Or from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there
-    are to walk from instead. In `order`, by date or topologically, each commit comes only after
-    all its children, as a graph needs; else in the order of `git log`. `path` keeps those that
-    changed a file or folder, following a file's renames; `search`, those whose message has all
-    of its words. A search for one hash (4 to 40 hex digits) also finds its commit, wherever it
-    is, on the first page. The `next` of a page gives `start`, `path` and `skip` to go on where it
-    ended, with the same `search`, `everywhere` and `order`.
+    Or from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of
+    the Clone walks: all local ones (`local`) or those of its Checkouts and the default branch
+    (`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With
+    HEAD and the refs there are to walk from instead. In `order`, by date or topologically, each
+    commit comes only after all its children, as a graph needs; else in the order of `git log`.
+    `path` keeps those that changed a file or folder, following a file's renames; `search`, those
+    whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds its
+    commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and
+    `skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and
+    `order`.
     """
     top = _working_tree(paths, clone, worktree, bare=True)
     first = start is None and skip == 0
-    if not first and start is None and not everywhere:
-        raise HTTPException(400, "give start to go on, unless everywhere")
+    if not first and start is None and not everywhere and branches is None:
+        raise HTTPException(400, "give start to go on, unless everywhere or branches")
     after = None if first else history.Next(start, path, skip)
+    starts = (
+        None if branches is None else graph.starts(top, branches, hide or (), history.refs(top))
+    )
     if order is not None:
         commit_graph.refresh_soon(top)  # in the background: this walk goes on without it
     found = history.history(
@@ -508,12 +527,50 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
         path,
         search=search,
         everywhere=everywhere,
+        starts=starts,
         order=order,
         after=after,
         limit=limit,
     )
+    everywhere = everywhere or starts is not None  # a hash searched for: where it is, anywhere
     named = history.by_hash(top, search, ref, path, everywhere=everywhere) if first else None
     return serialize.history_json(history.refs(top), found, named)
+
+
+@router.get("/graph")
+def graph_show(
+    paths: PathsOf, *, clone: uuid.UUID | None = None, worktree: uuid.UUID | None = None
+) -> GraphJson:
+    """What a graph of the Clone of a Checkout shows besides its commits.
+
+    Its commits come from `/api/history` with `branches`. This gives its default branch, how far
+    each local branch is ahead of it and behind it, and the HEAD of each of its Checkouts, by
+    their IDs where registered.
+    """
+    top = _working_tree(paths, clone, worktree, bare=True)
+    known = history.refs(top)
+    default = graph.default_branch(top, known)
+    return serialize.graph_json(
+        known,
+        default,
+        graph.standings(top, default, known),
+        graph.heads(top),
+        _checkout_ids(paths),
+    )
+
+
+def _checkout_ids(paths: Paths) -> dict[Path, tuple[uuid.UUID, uuid.UUID | None]]:
+    """The Clones and Worktrees on this Machine by their resolved paths: (Clone, Worktree)."""
+    with read_session(paths) as session:
+        local = {details.clone.id for details in clones.on_this_machine(session)}
+        found: dict[Path, tuple[uuid.UUID, uuid.UUID | None]] = {}
+        for details in clones.details(session):
+            if details.clone.id not in local:
+                continue
+            found[details.clone.resolved_path.resolve()] = (details.clone.id, None)
+            for each in details.worktrees:
+                found[each.path.resolve()] = (details.clone.id, each.id)
+    return found
 
 
 @router.get("/events")

@@ -94,6 +94,11 @@ In either order, git walks all commits before listing the first, unless the comm
 A walk in an order writes it in the background, where it is missing or a day old: `git commit-graph write --reachable --split`, which adds the commits new since as a layer.
 Each Clone is tried at most once a day in a process, whether it worked or not, and a failure is logged; walks never wait for it, and go on without it, only slower.
 `git.write_commit_graph = false` turns it off.
+A graph of a Clone walks its branches (`branches`): all local ones, or those of its Checkouts and the default branch, with the HEADs of all its Checkouts, detached ones too, which `--branches` misses; less those hidden (`hide`).
+Its pages go on by skipping, from the same branches, as everywhere does.
+`/api/graph` gives what else the graph shows (`core/utils/graph.py`): the default branch, how far each local branch is ahead of it and behind it, and where the HEAD of each Checkout is, by the IDs of the Clones and Worktrees there.
+The default branch is the one `origin/HEAD` names, else the one `init.defaultBranch` names, else main, else master, among the local branches.
+Branches are counted against it in one call where git can (`%(ahead-behind:…)`, git 2.41), else one by one; the default branch against its upstream.
 Where a file's history ends, its oldest commit is checked for having renamed it.
 `search=` keeps the commits whose message has all its words, as `git log --grep` with `--all-match` does.
 It also names the commit of a hash searched for, with where it is.

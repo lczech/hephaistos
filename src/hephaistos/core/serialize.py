@@ -31,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import changes, file_search, files, git, history, logs
+from hephaistos.core.utils import changes, file_search, files, git, graph, history, logs
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 26)
+API_VERSION = ApiVersion(0, 27)
 
 
 class Ref(TypedDict):
@@ -847,6 +847,77 @@ def history_json(
         if after is None
         else HistoryNextJson(start=after.start, path=after.path, skip=after.skip),
     )
+
+
+class GraphBranchJson(TypedDict):
+    """A local branch, and how far it is ahead of the default branch and behind it."""
+
+    name: str
+    commit: str
+    # Against the default branch; the default branch against its upstream; None without either.
+    ahead: int | None
+    behind: int | None
+    against: str | None  # what it is counted against: `main`, `origin/main`
+
+
+class GraphHeadJson(TypedDict):
+    """Where a Checkout of the Clone is: its main working tree or a Worktree."""
+
+    path: str
+    commit: str | None  # None before the first commit
+    branch: str | None  # None when detached
+    main: bool  # the main working tree
+    clone: str | None  # the Clone it is, or whose Worktree it is; None if not registered
+    worktree: str | None  # the Worktree it is, if registered
+
+
+class GraphJson(TypedDict):
+    """What a graph of a Clone shows besides its commits."""
+
+    default_branch: str | None  # None if none of those that may be is here
+    branches: list[GraphBranchJson]  # the local ones, the most recent first
+    heads: list[GraphHeadJson]  # the main working tree first, unless bare
+
+
+def graph_json(
+    known: history.Refs,
+    default: str | None,
+    standings: Mapping[str, graph.Standing],
+    heads: Iterable[graph.Head],
+    ids: Mapping[Path, tuple[uuid.UUID, uuid.UUID | None]],
+) -> GraphJson:
+    """What a graph of a Clone shows besides its commits, as the API gives it.
+
+    The Checkouts by the IDs of the Clones and Worktrees at their paths (`ids`, by resolved path).
+    """
+    branches: list[GraphBranchJson] = []
+    for ref in known.refs:
+        if ref.kind != "branch":
+            continue
+        standing = standings.get(ref.name)
+        branches.append(
+            GraphBranchJson(
+                name=ref.name,
+                commit=ref.commit,
+                ahead=None if standing is None else standing.ahead,
+                behind=None if standing is None else standing.behind,
+                against=None if standing is None else standing.against,
+            )
+        )
+    listed: list[GraphHeadJson] = []
+    for head in heads:
+        clone, worktree = ids.get(head.path.resolve(), (None, None))
+        listed.append(
+            GraphHeadJson(
+                path=str(head.path),
+                commit=head.commit,
+                branch=head.branch,
+                main=head.main,
+                clone=None if clone is None else str(clone),
+                worktree=None if worktree is None else str(worktree),
+            )
+        )
+    return GraphJson(default_branch=default, branches=branches, heads=listed)
 
 
 def changes_json(found: changes.Changes, commit: ShownCommitJson | None = None) -> ChangesJson:

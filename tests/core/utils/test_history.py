@@ -155,7 +155,7 @@ def test_everywhere_walks_all_branches_and_tags(repo: Path) -> None:
     assert first.next == Next(None, None, 1)
     rest = history(repo, everywhere=True, search="a", after=first.next, limit=10)
     assert {commit.subject for commit in first.commits + rest.commits} == {"aside", "detached"}
-    with pytest.raises(HistoryError, match="give a ref or everywhere, not both"):
+    with pytest.raises(HistoryError, match="give a ref, everywhere or starts, not more than one"):
         history(repo, "main", everywhere=True, limit=10)
     assert history(create(repo.parent / "empty", commits=0), everywhere=True, limit=10) == History(
         (), None

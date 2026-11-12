@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 26
+    "minor": 27
   },
   "shapes": {
     "components": {
@@ -93,6 +93,13 @@
           ],
           "title": "BranchJson",
           "type": "object"
+        },
+        "Branches": {
+          "enum": [
+            "local",
+            "worktrees"
+          ],
+          "type": "string"
         },
         "ChangeGroupJson": {
           "properties": {
@@ -1216,6 +1223,165 @@
             "refs"
           ],
           "title": "FoundCommitJson",
+          "type": "object"
+        },
+        "GraphBranchJson": {
+          "description": "A local branch, and how far it is ahead of the default branch and behind it.",
+          "properties": {
+            "against": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Against"
+            },
+            "ahead": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ahead"
+            },
+            "behind": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Behind"
+            },
+            "commit": {
+              "title": "Commit",
+              "type": "string"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "commit",
+            "ahead",
+            "behind",
+            "against"
+          ],
+          "title": "GraphBranchJson",
+          "type": "object"
+        },
+        "GraphHeadJson": {
+          "description": "Where a Checkout of the Clone is: its main working tree or a Worktree.",
+          "properties": {
+            "branch": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch"
+            },
+            "clone": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clone"
+            },
+            "commit": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Commit"
+            },
+            "main": {
+              "title": "Main",
+              "type": "boolean"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "worktree": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Worktree"
+            }
+          },
+          "required": [
+            "path",
+            "commit",
+            "branch",
+            "main",
+            "clone",
+            "worktree"
+          ],
+          "title": "GraphHeadJson",
+          "type": "object"
+        },
+        "GraphJson": {
+          "description": "What a graph of a Clone shows besides its commits.",
+          "properties": {
+            "branches": {
+              "items": {
+                "$ref": "#/components/schemas/GraphBranchJson"
+              },
+              "title": "Branches",
+              "type": "array"
+            },
+            "default_branch": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Default Branch"
+            },
+            "heads": {
+              "items": {
+                "$ref": "#/components/schemas/GraphHeadJson"
+              },
+              "title": "Heads",
+              "type": "array"
+            }
+          },
+          "required": [
+            "default_branch",
+            "branches",
+            "heads"
+          ],
+          "title": "GraphJson",
           "type": "object"
         },
         "GroupName": {
@@ -3795,9 +3961,74 @@
           "summary": "Files Paths"
         }
       },
+      "/api/graph": {
+        "get": {
+          "description": "What a graph of the Clone of a Checkout shows besides its commits.\n\nIts commits come from `/api/history` with `branches`. This gives its default branch, how far\neach local branch is ahead of it and behind it, and the HEAD of each of its Checkouts, by\ntheir IDs where registered.",
+          "operationId": "graph_show_api_graph_get",
+          "parameters": [
+            {
+              "in": "query",
+              "name": "clone",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Clone"
+              }
+            },
+            {
+              "in": "query",
+              "name": "worktree",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Worktree"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/GraphJson"
+                  }
+                }
+              },
+              "description": "Successful Response"
+            },
+            "default": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ErrorJson"
+                  }
+                }
+              },
+              "description": "Not a success: the error"
+            }
+          },
+          "summary": "Graph Show"
+        }
+      },
       "/api/history": {
         "get": {
-          "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; with HEAD and the refs there\nare to walk from instead. In `order`, by date or topologically, each commit comes only after\nall its children, as a graph needs; else in the order of `git log`. `path` keeps those that\nchanged a file or folder, following a file's renames; `search`, those whose message has all\nof its words. A search for one hash (4 to 40 hex digits) also finds its commit, wherever it\nis, on the first page. The `next` of a page gives `start`, `path` and `skip` to go on where it\nended, with the same `search`, `everywhere` and `order`.",
+          "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of\nthe Clone walks: all local ones (`local`) or those of its Checkouts and the default branch\n(`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With\nHEAD and the refs there are to walk from instead. In `order`, by date or topologically, each\ncommit comes only after all its children, as a graph needs; else in the order of `git log`.\n`path` keeps those that changed a file or folder, following a file's renames; `search`, those\nwhose message has all of its words. A search for one hash (4 to 40 hex digits) also finds its\ncommit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and\n`skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and\n`order`.",
           "operationId": "history_show_api_history_get",
           "parameters": [
             {
@@ -3890,6 +4121,41 @@
                 "default": false,
                 "title": "Everywhere",
                 "type": "boolean"
+              }
+            },
+            {
+              "in": "query",
+              "name": "branches",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Branches"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Branches"
+              }
+            },
+            {
+              "in": "query",
+              "name": "hide",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Hide"
               }
             },
             {

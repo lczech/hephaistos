@@ -107,6 +107,8 @@ Each step its own commits, stopping for review.
 - 1.4: the commit-graph file (`core/utils/commit_graph.py`), written in the background by a walk in an order, the setting `git.write_commit_graph`, ADR 004 and the design docs of the Daemon.
   Simpler than planned: no check whether the branches moved, as `--split` adds nothing where nothing is new, and each Clone is tried at most once a day.
 
+- 2.1: the walk from branches (`branches`, `hide`) in the Core and `/api/history`, and `/api/graph` (API 0.27), from `core/utils/graph.py`: the HEADs of the Checkouts, the default branch, ahead and behind.
+
 ## Open
 
 - Live hints, checked (2026-11-12): commits, rebases and resets in any Worktree reach the Views, by the reflog of its HEAD; a branch moved without a checkout shows on focus or refresh.
@@ -114,4 +116,4 @@ Each step its own commits, stopping for review.
 
 ## Later
 
-To move into the [ideas](../ideas/views.md#history) at the merge: search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.
+To move into the [ideas](../ideas/views.md#history) at the merge: branches moved without a checkout reaching the Views, once the Watcher acts on changes to files (the roadmap), by a digest of the branch tips in State; search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.

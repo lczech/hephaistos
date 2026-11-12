@@ -6,6 +6,7 @@ whose message has all of its words, in any order and case.
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
@@ -169,15 +170,24 @@ def _matching(search: str | None) -> list[str]:
     return options + [f"--grep={word}" for word in words]
 
 
-def _starts(walk: Next, known: Refs) -> list[str]:
-    """Where `git log` walks from: a commit, or all branches and tags, and HEAD."""
+def _starts(walk: Next, known: Refs, starts: Sequence[str] | None = None) -> list[str]:
+    """Where `git log` walks from: a commit; or `starts`; or all branches and tags, and HEAD."""
     if walk.start is not None:
         return ["--end-of-options", walk.start]
+    if starts is not None:
+        return ["--end-of-options", *starts]
     return [*_EVERYWHERE, "--end-of-options", *([known.head] if known.head else [])]
 
 
 def _log(  # noqa: PLR0913 - all of a walk's choices
-    top: Path, walk: Next, count: int, known: Refs, matching: list[str], *, order: Order | None
+    top: Path,
+    walk: Next,
+    count: int,
+    known: Refs,
+    matching: list[str],
+    *,
+    order: Order | None,
+    starts: Sequence[str] | None,
 ) -> list[Commit]:
     """Up to `count` commits of a walk, of those `matching` keeps, in `order` if given."""
     output = git.read(
@@ -188,14 +198,20 @@ def _log(  # noqa: PLR0913 - all of a walk's choices
         *matching,
         f"--skip={walk.skip}",
         f"--max-count={count}",
-        *_starts(walk, known),
+        *_starts(walk, known, starts),
         *changes.pathspec_for(walk.path),
     )
     return _commits(output, known)
 
 
-def _oldest(
-    top: Path, walk: Next, page: list[Commit], matching: list[str], known: Refs
+def _oldest(  # noqa: PLR0913 - all of a walk's choices
+    top: Path,
+    walk: Next,
+    page: list[Commit],
+    matching: list[str],
+    known: Refs,
+    *,
+    starts: Sequence[str] | None,
 ) -> tuple[str, ...]:
     """The oldest commit of a path's walk, with its parents; () if none.
 
@@ -208,7 +224,7 @@ def _oldest(
         "--literal-pathspecs",
         "log",
         "--format=%H %P",  # its own parents, which `rev-list --parents` would rewrite
-        *_starts(walk, known),
+        *_starts(walk, known, starts),
         *changes.pathspec_for(walk.path),
     )
     return tuple(listed.splitlines()[-1].split()) if listed else ()
@@ -230,6 +246,24 @@ def _start(top: Path, ref: str | None) -> str | None:
     raise HistoryError(git.missing_revision_text(top, ref))
 
 
+def _first(  # noqa: PLR0913 - all of a walk's choices
+    top: Path,
+    ref: str | None,
+    path: str | None,
+    known: Refs,
+    *,
+    everywhere: bool,
+    starts: Sequence[str] | None,
+) -> Next | None:
+    """Where a walk's first page starts; None if it has no commits."""
+    if starts is not None:
+        return Next(None, path, 0) if starts else None
+    if everywhere:
+        return Next(None, path, 0) if known.head is not None or known.refs else None
+    start = _start(top, ref)
+    return None if start is None else Next(start, path, 0)
+
+
 def history(  # noqa: PLR0913 - the optional ones are keyword-only
     top: Path,
     ref: str | None = None,
@@ -237,43 +271,40 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
     *,
     search: str | None = None,
     everywhere: bool = False,
+    starts: Sequence[str] | None = None,
     order: Order | None = None,
     after: Next | None = None,
     limit: int,
 ) -> History:
     """Up to `limit` commits of the Checkout at `top`, from `ref` (or HEAD) back.
 
-    Or, `everywhere`, from all branches, remote-tracking branches and tags. In `git log`'s
+    Or, `everywhere`, from all branches, remote-tracking branches and tags; or from `starts`,
+    full ref names and commits, e.g. the branches a graph shows (`graph.starts`). In `git log`'s
     order, or `order`: by date or topologically, each commit only after all its children; only
     those that changed `path`, if given, following a file's renames, and whose message has the
     words of `search`. `after` goes on where a page ended, for the same search and order.
     """
-    if everywhere and ref is not None:
-        raise HistoryError("give a ref or everywhere, not both")
+    if sum((ref is not None, everywhere, starts is not None)) > 1:
+        raise HistoryError("give a ref, everywhere or starts, not more than one")
+    if starts is not None and not starts:
+        return History((), None)  # nothing to walk from: on any page, not walking HEAD instead
     known = refs(top)
+    after = after or _first(top, ref, path, known, everywhere=everywhere, starts=starts)
     if after is None:
-        if everywhere:
-            if known.head is None and not known.refs:
-                return History((), None)
-            after = Next(None, path, 0)
-        else:
-            start = _start(top, ref)
-            if start is None:
-                return History((), None)
-            after = Next(start, path, 0)
+        return History((), None)
     changes.pathspec_for(after.path)  # checked before git runs
     matching = _matching(search)
     found: list[Commit] = []
     walk: Next | None = after
     while walk is not None and len(found) < limit:
         wanted = limit - len(found)
-        page = _log(top, walk, wanted + 1, known, matching, order=order)
+        page = _log(top, walk, wanted + 1, known, matching, order=order, starts=starts)
         found += page[:wanted]
         if len(page) > wanted:
             walk = replace(walk, skip=walk.skip + wanted)
         elif (
             walk.path is not None
-            and (oldest := _oldest(top, walk, page, matching, known))
+            and (oldest := _oldest(top, walk, page, matching, known, starts=starts))
             and (old := _renamed_from(top, oldest, walk.path))
         ):
             if page and page[-1].hash == oldest[0]:

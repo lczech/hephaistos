@@ -496,7 +496,7 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     refused = client.get("/api/history", params={"clone": clone["id"], "skip": 1})
     assert (refused.status_code, refused.json()["error"]) == (
         400,
-        "give start to go on, unless everywhere",
+        "give start to go on, unless everywhere or branches",
     )
     ordered = {"clone": clone["id"], "everywhere": True, "order": "topo"}
     topological = client.get("/api/history", params=ordered).json()["commits"]
@@ -504,6 +504,55 @@ def test_history_in_pages_with_the_refs(client: TestClient, repo: Path) -> None:
     assert listed.index(aside) < listed.index(git(repo, "rev-parse", "main~1"))  # its parent
     unknown = client.get("/api/history", params={**ordered, "order": "author"})
     assert unknown.status_code == 400
+
+
+def test_history_of_the_branches_a_graph_shows(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    side = repo.parent / "side"
+    aside = _commit(side, "on side")
+    git(repo, "branch", "parked")
+    _commit(repo, "on main")
+    git(repo, "worktree", "add", "--quiet", "--detach", str(repo.parent / "loose"), "parked")
+    loose = _commit(repo.parent / "loose", "detached")
+    asked: dict[str, Any] = {"clone": clone["id"], "branches": "local", "order": "topo"}
+    listed = client.get("/api/history", params=asked).json()["commits"]
+    hashes = [commit["hash"] for commit in listed]
+    assert {aside, loose} <= set(hashes)  # the side branch, and the detached HEAD
+    hidden = client.get("/api/history", params={**asked, "hide": ["side"]}).json()["commits"]
+    assert aside not in {commit["hash"] for commit in hidden}
+    worktrees = {**asked, "branches": "worktrees"}
+    only = client.get("/api/history", params=worktrees).json()["commits"]
+    assert {aside, loose} <= {commit["hash"] for commit in only}
+    pages = [client.get("/api/history", params={**asked, "limit": 2}).json()]
+    while (after := pages[-1]["next"]) is not None:
+        assert after["start"] is None  # going on from the same branches, by skipping
+        more = {**asked, "skip": after["skip"], "limit": 2}
+        pages.append(client.get("/api/history", params=more).json())
+    assert [commit["hash"] for page in pages for commit in page["commits"]] == hashes
+    refused = client.get("/api/history", params={**asked, "branches": "remote"})
+    assert refused.status_code == 400
+
+
+def test_graph_of_a_clone_its_branches_and_heads(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    [worktree] = _cli("worktree", "list")
+    side = repo.parent / "side"
+    _commit(side, "on side")
+    _commit(repo, "on main 1")
+    _commit(repo, "on main 2")
+    answer = client.get("/api/graph", params={"worktree": worktree["id"]}).json()
+    assert answer["default_branch"] == "main"
+    by_name = {branch["name"]: branch for branch in answer["branches"]}
+    assert (by_name["side"]["ahead"], by_name["side"]["behind"]) == (1, 2)
+    assert by_name["side"]["against"] == "main"
+    assert by_name["main"]["against"] == "origin/main"
+    assert by_name["main"]["ahead"] == 2
+    heads = answer["heads"]
+    assert [(head["main"], head["branch"]) for head in heads] == [(True, "main"), (False, "side")]
+    assert (heads[0]["clone"], heads[0]["worktree"]) == (clone["id"], None)
+    assert (heads[1]["clone"], heads[1]["worktree"]) == (clone["id"], worktree["id"])
+    assert heads[1]["commit"] == git(side, "rev-parse", "HEAD")
+    assert client.get("/api/graph", params={"clone": clone["id"]}).json() == answer
 
 
 def test_history_in_an_order_writes_the_commit_graph_file(client: TestClient, repo: Path) -> None:
