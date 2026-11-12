@@ -88,6 +88,9 @@ interface BodyProps {
   unchanged?: ReactNode; // what to say if the file has no changes so; by default that
   estimate?: CssVars; // as one of many: its height, guessed, until it is drawn
   find?: FileFind; // matches to mark in it
+  // Whether it was told to show though large, kept by what holds it where it is drawn anew, as a
+  // row of a list drawn again once scrolled back; else kept here.
+  large?: { shown: boolean; show: () => void };
 }
 
 /**
@@ -96,11 +99,17 @@ interface BodyProps {
  * its versions, which say how much of the file follows its last change: a new patch, asked for
  * again, e.g. on focus, once they come too, so that the diff changes at most once.
  */
-export function FileBody({ query, known, show, unchanged, estimate, find }: BodyProps) {
+export function FileBody({ query, known, show, unchanged, estimate, find, large }: BodyProps) {
   const diff = useDiff(query);
-  const [shownLarge, setShownLarge] = useState(false);
+  const [shownHere, setShownHere] = useState(false);
+  const kept = large?.shown ?? shownHere;
+  const showLarge = large?.show ?? (() => setShownHere(true));
   // A large diff shows for good once a match found in it is stepped to, as if asked to.
-  if (find?.revealed && !shownLarge) setShownLarge(true);
+  const revealed = Boolean(find?.revealed);
+  const shownLarge = kept || revealed;
+  useEffect(() => {
+    if (revealed && !kept) showLarge();
+  }, [revealed, kept, showLarge]);
   const change = diff.data ? diff.data.change : known;
   const patch = diff.data?.patch;
   const waiting =
@@ -139,7 +148,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find }: Body
       <p className={styles.note}>
         {counted(changedLines(change) ?? 0, "line")} changed: more than the setting{" "}
         <code>gui.diff.large_lines</code>.{" "}
-        <button type="button" className={styles.action} onClick={() => setShownLarge(true)}>
+        <button type="button" className={styles.action} onClick={showLarge}>
           Show
         </button>
       </p>

@@ -62,6 +62,10 @@ export interface DiffFind {
   /** Which marks are on the diff's lines, by their place, told as that changes: e.g. once
    * collapsed lines are expanded; undefined once the diff is gone, e.g. folded. */
   onShown: (shown: readonly number[] | undefined) => void;
+  /** Whether the current match was brought into view already, as said by `onSeen`: not again
+   * where its diff is drawn anew, e.g. as a list's row scrolled back into view. */
+  seen?: boolean;
+  onSeen?: () => void;
 }
 
 interface Props {
@@ -332,7 +336,10 @@ function useFound(find: DiffFind | undefined) {
     if (drawn.current.node.shadowRoot?.querySelector("[data-line]")) {
       tellShown(drawn.current.diff, find);
     }
-    if (scrollTo.current !== undefined && show(scrollTo.current)) scrollTo.current = undefined;
+    if (scrollTo.current !== undefined && show(scrollTo.current)) {
+      scrollTo.current = undefined;
+      find.onSeen?.();
+    }
   };
 
   // After each render: the matches as now, and another current one to bring into view.
@@ -340,7 +347,7 @@ function useFound(find: DiffFind | undefined) {
     latest.current = find;
     if (find?.current !== lastCurrent.current) {
       lastCurrent.current = find?.current;
-      scrollTo.current = find?.current;
+      scrollTo.current = find?.seen ? undefined : find?.current;
     }
     update();
   });

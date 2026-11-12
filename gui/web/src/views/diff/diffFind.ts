@@ -141,6 +141,8 @@ export function useDiffFind(
     stepTo(by);
   };
   const currentMark = at(current);
+  // The current match once brought into view: kept here, as its file's diff may be drawn anew.
+  const [seen, setSeen] = useState<FileMark>();
   const finding =
     query && files === undefined && query.text !== "" ? { busy: true as const } : found;
   return {
@@ -153,6 +155,8 @@ export function useDiffFind(
         marks: marks.byFile.get(path) ?? NONE,
         current: currentMark?.path === path ? currentMark.mark : undefined,
         revealed: currentMark?.path === path && currentMark === stepped,
+        seen: currentMark?.path === path && currentMark === seen,
+        onSeen: () => setSeen(currentMark),
         onShown: (inFile) =>
           setTold((told) => {
             const next = new Map(told);

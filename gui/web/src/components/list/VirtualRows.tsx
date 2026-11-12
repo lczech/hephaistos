@@ -47,6 +47,10 @@ interface Props {
   // where the header ends in what scrolls them (`below`); none stick without it.
   shape?: Shape;
   below?: () => number;
+  // Whether the rows stuck stay by CSS's sticking, as in a list that scrolls itself; else, as in
+  // one part of a page whose frame scrolls sideways, the box sticking would hold to, they are
+  // moved as the page scrolls.
+  sticky?: boolean;
   drawnNow?: (indexes: number[]) => void; // after each draw, the rows drawn
   handle?: RefObject<RowsHandle | null>;
   onPointerOver?: (event: PointerEvent) => void;
@@ -73,6 +77,7 @@ export function VirtualRows({
   draw,
   shape,
   below,
+  sticky = true,
   drawnNow,
   handle,
   onPointerOver,
@@ -84,6 +89,7 @@ export function VirtualRows({
   // measured after each draw, as the header changes its height, e.g. its buttons wrapping.
   const [place, setPlace] = useState({ margin: 0, below: 0, pad: 0 });
   const guess = useRef(FIRST_GUESS);
+  const stuckMoved = useRef<(() => void) | null>(null);
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => (list.current ? scroller(list.current) : null),
@@ -108,20 +114,39 @@ export function VirtualRows({
     // as text moved by `transform` to a fraction of a pixel, as rows of 18.84 px are, is blurred.
     directDomUpdates: true,
     directDomUpdatesMode: "position",
+    // Rows measured anew, e.g. details growing after drawing: the rows stuck may move.
+    onChange: () => stuckMoved.current?.(),
   });
   const items = virtualizer.getVirtualItems();
 
-  useLayoutEffect(() => {
+  // Measured anew after each draw, and as what scrolls them scrolls or changes its height, as
+  // what lies before the rows in a page may, e.g. diffs drawn.
+  /** Measures where the list lies, and says whether that moved. */
+  const measurePlace = (sync = false): boolean => {
     const at = list.current;
     const box = at && scroller(at);
-    if (!box || !at) return;
+    if (!box || !at) return false;
     const top = at.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
-    const pad = Number.parseFloat(getComputedStyle(box).paddingTop) || 0;
+    const pad = sticky ? Number.parseFloat(getComputedStyle(box).paddingTop) || 0 : 0;
     const next = { margin: top, below: below?.() ?? 0, pad };
     const moved = (["margin", "below", "pad"] as const).some(
       (key) => Math.abs(next[key] - place[key]) > 0.01,
     );
-    if (moved) setPlace(next);
+    if (moved && sync) flushSync(() => setPlace(next));
+    else if (moved) setPlace(next);
+    return moved;
+  };
+  useLayoutEffect(() => {
+    measurePlace();
+  });
+  useEffect(() => {
+    const box = virtualizer.scrollElement;
+    const around = list.current?.parentElement; // the header too, which may wrap, narrowed
+    if (box === null || !around) return;
+    const observer = new ResizeObserver(() => measurePlace());
+    observer.observe(around);
+    if (!sticky) for (const child of box.children) observer.observe(child);
+    return () => observer.disconnect();
   });
 
   // The height of each row itself, without its details, by its key: as drawn, else as measured;
@@ -140,29 +165,42 @@ export function VirtualRows({
   });
   const offsetOf = (index: number) =>
     ownTop.current.get(String(virtualizer.measurementsCache[index]?.key)) ?? 0;
+  // Where the rows scroll by below the header, in what scrolls them.
+  const stuckLine = () => {
+    const scrolled = virtualizer.scrollElement?.scrollTop ?? 0;
+    return Math.max(place.margin, scrolled + place.pad + place.below);
+  };
   const stuckNow = (): Stuck[] => {
     if (shape === undefined || shape.depth.length !== count) return [];
     const measures = virtualizer.measurementsCache;
-    const scrolled = virtualizer.scrollElement?.scrollTop ?? 0;
-    const line = Math.max(place.margin, scrolled + place.pad + place.below);
     const height = (index: number) => {
       const item = measures[index];
       return own.current.get(String(item?.key)) ?? item?.size ?? guess.current;
     };
-    return stuckRows(measures, shape, line, height, offsetOf);
+    return stuckRows(measures, shape, stuckLine(), height, offsetOf);
   };
   const stuck = stuckNow();
   // The rows stuck move as the list scrolls, within the rows drawn too, of which the virtualizer
   // says nothing: drawn anew, before the list is painted, as they change.
   const [, setStuckKey] = useState("");
+  const stuckKey = () =>
+    stuckNow()
+      .map((at) => `${at.index}@${at.top}`)
+      .join(" ");
+  // Where they do not stick by CSS, moved to the line as the page scrolls: by hand, as each
+  // scroll moves it, not by drawing the rows anew.
+  const placeStrip = () => {
+    if (!sticky) strip.current?.style.setProperty("--stuck-top", `${stuckLine() - place.margin}px`);
+  };
+  useLayoutEffect(placeStrip);
   useEffect(() => {
+    stuckMoved.current = shape === undefined ? null : () => setStuckKey(stuckKey());
     const box = virtualizer.scrollElement;
     if (box === null || shape === undefined) return;
     const scrolled = () => {
-      const now = stuckNow()
-        .map((at) => `${at.index}@${at.top}`)
-        .join(" ");
-      flushSync(() => setStuckKey(now));
+      const moved = !sticky && measurePlace(true); // then placed as drawn anew, by its effect
+      flushSync(() => setStuckKey(stuckKey()));
+      if (!moved) placeStrip();
     };
     box.addEventListener("scroll", scrolled, { passive: true });
     return () => box.removeEventListener("scroll", scrolled);
@@ -247,8 +285,13 @@ export function VirtualRows({
           className={styles.stuck}
           aria-hidden="true"
           onMouseDown={(event) => event.preventDefault()} // the focus stays where it is
-          style={cssVars({ "--stuck-top": `${place.below}px`, "--stuck-end": `${end}px` })}
+          style={cssVars({
+            // Sticking, below where the header ends; else moved to the line (`placeStrip`).
+            ...(sticky ? { "--stuck-top": `${place.below}px` } : {}),
+            "--stuck-end": `${end}px`,
+          })}
           data-empty={stuck.length === 0 || undefined}
+          data-placed={!sticky || undefined}
           onPointerOver={onPointerOver}
         >
           {stuck.map((at) =>

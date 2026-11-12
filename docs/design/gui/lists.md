@@ -14,7 +14,7 @@ Each is measured as drawn, not rounded to pixels, and placed by `top`, so that i
 Rows in view stay where they are as rows come or go before them, put back by their key, as the browser keeps them only where it lays them out itself; at the very top, new rows show.
 Until measured, a list is taken as high as the window, so that its first draw shows rows.
 A tree's rows are flat, each after the row holding it.
-A list that is part of a page draws all its rows, a tree's within the rows holding them; those out of view are not painted, keeping their room, as guessed until painted once (`content-visibility`).
+A list that is part of a page, the Diff's untracked files, draws the rows near the view of what scrolls the page.
 
 ## Rows
 
@@ -42,12 +42,15 @@ What is folded or opened is kept per browser as named sets of strings (`hephaist
 A row is a step further in for each level, its chevron moved as far, before what it is, so that its icon starts where its parent's name does.
 A tree's square holds only its chevron, a little in from the list's edge and reaching into the gap after it, so that what the row is starts just after it (`tree`).
 A list may set its rows closer together (`compact`): the Explorer does, as a sidebar's list will.
-A row whose content is open, the rows within it or its details, stays in view below the header and below the rows holding it while that content scrolls past, as VS Code's sticky scroll does; not yet where the list is part of a page.
+A row whose content is open, the rows within it or its details, stays in view below the header and below the rows holding it while that content scrolls past, as VS Code's sticky scroll does; part of a page, at the top of what scrolls the page.
 The rows stuck are copies, drawn apart above the rows (`stuck.ts`, `VirtualRows`), as the rows they stand for may be far out of view, not drawn; hidden from screen readers and out of the order of Tab.
 A row sticks once scrolled past the header's end, not while in its place, by where it starts itself, not the line above it starting a group; the end of its content pushes it up, sliding out below the rows holding it.
 A click on a copy leaves the focus where it is.
 The copies lie on one block of the background, from a pixel above the header's end to the end of the lowest: each lies at a fraction of a pixel, drawn at whole pixels on its own, so that the rows passing below would show between two.
 A click on a copy scrolls its row to where the copy is, at the top, then closes it; its menu opens there too.
+The copies stay by CSS's sticking where the list scrolls itself; part of a page, they are moved as it scrolls, as the list scrolls sideways itself, which makes it the box sticking would hold to.
+They move as the list scrolls, as rows are measured anew, e.g. details growing once drawn, and as the header changes its height, e.g. its buttons wrapping.
+What a row was told to show is kept outside it, as a row scrolled far away is drawn anew: the large diffs shown in the Diff's List.
 What is focused or scrolled to in a row, or in its details, comes into view below those rows, not under them.
 The header covers the pixel above itself with the background, at its scroll edge, where a row passing below may show when zoomed.
 A row's tone is its own, not that of the rows within it.

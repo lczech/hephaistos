@@ -1,6 +1,6 @@
 /* A list as a table: its header and each row lay out the same columns, sized by TanStack Table
- * (`--columns`), each on its own, so that a change in one row leaves the others as they are; rows
- * out of view are not drawn, but keep their room. */
+ * (`--columns`), each on its own, so that a change in one row leaves the others as they are; only
+ * the rows near the view are drawn (`VirtualRows`). */
 .frame {
   composes: dims from "../text.module.css";
   --square: calc(1lh + var(--space-1)); /* as wide as a row is high */
@@ -12,7 +12,6 @@
   /* A row's height, and the header's: a line, and their room above and below; the header's as
      drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. */
   --row-height: calc(1lh + 2 * var(--row-space));
-  --row-guess: var(--row-height); /* the room of a row not yet drawn, until it is */
   --head-height: calc(1lh + 2 * var(--space-half));
   container: list / inline-size; /* sizes by the list's width, not the window's */
   padding: var(--space-2) 0;
@@ -77,16 +76,15 @@
   height: 0;
 }
 
-.rows,
-.within {
+.rows {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 /* Only the rows near the view, each placed by TanStack Virtual (`VirtualRows`), the list as high
- * as all of them; drawn in full, as only those near the view are drawn at all. They stay where
- * they are as rows come before them by its own measure, not the browser's (`overflow-anchor`). */
+ * as all of them. They stay where they are as rows come before them by its own measure, not the
+ * browser's (`overflow-anchor`). */
 .virtual {
   position: relative;
   overflow-anchor: none;
@@ -146,18 +144,11 @@
 
 .row {
   position: relative; /* for its button's outline */
-  content-visibility: auto; /* drawn only near the view */
-  contain-intrinsic-size: auto var(--row-guess);
   align-items: center;
   padding: var(--row-space) var(--space-3) var(--row-space) 0;
   color: var(--text);
   cursor: pointer;
   --view-icon: currentColor; /* links to Views grey, until hovered (below) */
-}
-
-/* Drawn in full: only those near the view are drawn at all (`VirtualRows`). */
-.virtual .row {
-  content-visibility: visible;
 }
 
 .item[data-tone="muted"] > .row {
@@ -635,10 +626,6 @@
  * each line take the room left (`flex: 1 1 0`). The header is a line of buttons for the filters
  * and the sort, wrapping where narrow. A list whose rows stay in one line keeps its rows' height.
  */
-.frame[data-layout="lines"] {
-  --row-guess: calc(2lh + 2 * var(--space-1));
-}
-
 .frame[data-layout="lines"] .row {
   display: flex;
   flex-wrap: wrap;
@@ -688,10 +675,6 @@
   display: none;
 }
 
-.frame[data-layout="lines"][data-one-line] {
-  --row-guess: var(--row-height);
-}
-
 .frame[data-layout="lines"][data-one-line] .row {
   padding-block: var(--row-space); /* as in columns, compact too */
 }
@@ -731,6 +714,11 @@
   content: "";
 }
 
+/* Of a list part of a page, which scrolls sideways itself: moved as the page scrolls. */
+.stuck[data-placed] {
+  position: relative;
+}
+
 .stuck[data-empty]::before {
   display: none;
 }
@@ -749,13 +737,20 @@
   display: none;
 }
 
-.frame:not([data-embedded]) .stuck .row {
-  content-visibility: visible;
-  background-color: var(--background); /* under the hover's fill, which is translucent */
+/* Opaque, over the rows passing below, under the hover's fill, which is translucent; toned, the
+ * square tinted as on its row, where the item holds the tint (not in trees). */
+.frame[data-layout] .stuck .row {
+  background-color: var(--background);
+  background-image: var(--copy-tint, none);
 }
 
-.frame:not([data-embedded]) .stuck .row:hover {
-  background-image: linear-gradient(var(--fill-hover-row), var(--fill-hover-row));
+.stuck .item:is([data-tone="warning"], [data-tone="danger"], [data-tone="alarm"]) {
+  --copy-tint: linear-gradient(to right, var(--tinted) var(--square), transparent 0);
+}
+
+.frame[data-layout] .stuck .row:hover {
+  background-image:
+    linear-gradient(var(--fill-hover-row), var(--fill-hover-row)), var(--copy-tint, none);
 }
 
 /* What is focused or scrolled to in a row comes into view below the header and the rows stuck
@@ -773,10 +768,11 @@
 }
 
 /* Marked as its View is shown, stuck too (above). */
-.frame:not([data-embedded]) .stuck .row[data-showing] {
-  background-image: linear-gradient(var(--fill-marked), var(--fill-marked));
+.frame[data-layout] .stuck .row[data-showing] {
+  background-image: linear-gradient(var(--fill-marked), var(--fill-marked)), var(--copy-tint, none);
 }
 
-.frame:not([data-embedded]) .stuck .row[data-showing]:hover {
-  background-image: linear-gradient(var(--fill-marked-hover), var(--fill-marked-hover));
+.frame[data-layout] .stuck .row[data-showing]:hover {
+  background-image:
+    linear-gradient(var(--fill-marked-hover), var(--fill-marked-hover)), var(--copy-tint, none);
 }

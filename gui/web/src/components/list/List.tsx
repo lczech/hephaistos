@@ -95,12 +95,13 @@ interface Props<TData extends RowData> {
  * shows and moves them, or resets their look; a double click on a column's edge fits it to its
  * cells, at most as wide as the list.
  *
- * As a `tree`, a row's rows are drawn within it, its square as narrow as its chevrons, and a row
- * holding rows stays in view below the header and those holding it while they scroll past,
- * unless it is part of a page. A row may have actions after what names it, shown while it is
- * pointed at or focused, and a menu (the right button, or the menu key: its first item focused
- * then); `ahead` is called as a row is pointed at or focused, to ask for what opening it shows,
- * `seen` as it comes into view or near it, to ask for what it shows.
+ * Only the rows near the view are drawn (`VirtualRows`). A row whose content is open, its
+ * details or, as a `tree`, the rows within it, stays in view below the header and the rows
+ * holding it while that content scrolls past; part of a page, at the top of what scrolls it. As
+ * a `tree`, its square is as narrow as its chevrons. A row may have actions after what names it,
+ * shown while it is pointed at or focused, and a menu (the right button, or the menu key: its
+ * first item focused then); `ahead` is called as a row is pointed at or focused, to ask for what
+ * opening it shows, `seen` as it is drawn, near the view, to ask for what it shows.
  * `compact` rows stand closer together.
  */
 export function List<TData extends RowData>({
@@ -254,9 +255,6 @@ export function List<TData extends RowData>({
     table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
   };
   const rows = table.getRowModel().rows;
-  // Only the rows near the view are drawn, of a list that scrolls itself, flat; those of a list
-  // part of a page, all of them, a tree's within the rows holding them.
-  const virtual = !embedded;
   // The rows drawn, near the view, said as they are drawn, and again as the rows or what the
   // View asks change, e.g. a search starting (`VirtualRows` tells as either does).
   const drawnNow = (indexes: number[]) => {
@@ -265,56 +263,26 @@ export function List<TData extends RowData>({
       if (row !== undefined) seen?.(row.original);
     }
   };
-  // Of the others: rows that come into view, or near it, said once each time they are drawn; all
-  // of them where nothing tells, as in jsdom.
-  useEffect(() => {
-    if (seen === undefined || virtual) return;
-    const drawn = rows.flatMap((row, index) => {
-      const element = document.getElementById(`${list}-${index}`);
-      return element ? [[element, row.original] as const] : [];
-    });
-    if (typeof IntersectionObserver === "undefined") {
-      for (const [, row] of drawn) seen(row);
-      return;
-    }
-    const byElement = new Map<Element, TData>(drawn);
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const row = byElement.get(entry.target);
-          if (entry.isIntersecting && row !== undefined) seen(row);
-        }
-      },
-      { rootMargin: "200px 0px" },
-    );
-    for (const [element] of drawn) observer.observe(element);
-    return () => observer.disconnect();
-  });
   const filtered = table.state.columnFilters.length > 0;
   const columns = { "--columns": gridColumns(table.getVisibleLeafColumns()) };
-  // A tree's rows by the row they are within, in order: those of rows open.
-  const childrenOf = new Map<string, typeof rows>();
-  for (const row of rows) {
-    if (row.parentId === undefined) continue;
-    const siblings = childrenOf.get(row.parentId);
-    if (siblings) siblings.push(row);
-    else childrenOf.set(row.parentId, [row]);
-  }
+  // The rows that rows shown are within: those open, of a tree.
+  const holding = new Set(
+    rows.flatMap((row) => (row.parentId === undefined ? [] : [row.parentId])),
+  );
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
   // Whether a row's content is open: in a tree, the rows within it; else its details.
   const holds = (row: (typeof rows)[number]) =>
     folds?.(row.original)
-      ? tree === true && row.getIsExpanded() && childrenOf.has(row.id)
+      ? tree === true && row.getIsExpanded() && holding.has(row.id)
       : open.has(row.id) && opens?.(row.original) === undefined && !plain?.(row.original);
   // Which rows stick while their content scrolls past: of a tree by its levels, else each alone.
-  const shape = virtual
-    ? shapeOf(rows.map((row) => ({ depth: tree ? row.depth : 0, holds: holds(row) })))
-    : undefined;
+  const shape = shapeOf(rows.map((row) => ({ depth: tree ? row.depth : 0, holds: holds(row) })));
   // Where the header ends while it stays at the top as the list scrolls, from where it sticks
-  // (within the list's padding): for the rows stuck below it.
+  // (within the list's padding): for the rows stuck below it. Part of a page, the list sticks
+  // nothing above them: they stay at the top of what scrolls the page.
   const below = () => {
     const at = head.current;
-    if (at === null) return 0;
+    if (at === null || embedded) return 0;
     return at.getBoundingClientRect().height + (Number.parseFloat(getComputedStyle(at).top) || 0);
   };
   const drawRow = (row: (typeof rows)[number], drawn?: Drawn) => {
@@ -339,8 +307,6 @@ export function List<TData extends RowData>({
     }
     const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
     const [first, ...others] = row.getVisibleCells();
-    // Of a list part of a page, a tree's rows within this one, drawn inside it.
-    const within = (tree && !virtual && childrenOf.get(row.id)) || [];
     return (
       <li
         key={row.id}
@@ -350,7 +316,7 @@ export function List<TData extends RowData>({
         className={styles.item}
         data-tone={tone?.(row.original)}
         data-depth={row.depth || undefined}
-        data-holding={(virtual ? holds(row) : within.length > 0) || undefined}
+        data-holding={holds(row) || undefined}
         style={cssVars({
           ...(tree ? { "--depth": row.depth } : {}),
           ...(copy ? { "--top": `${copy.top}px` } : {}),
@@ -423,9 +389,6 @@ export function List<TData extends RowData>({
           >
             {details(row.original)}
           </section>
-        )}
-        {within.length > 0 && (
-          <ol className={styles.within}>{within.map((inner) => drawRow(inner))}</ol>
         )}
       </li>
     );
@@ -514,12 +477,16 @@ export function List<TData extends RowData>({
             </>
           )}
         </div>
-        {rows.length > 0 && virtual && (
+        {rows.length > 0 && (
           <VirtualRows
             source={table}
             count={rows.length}
             keyOf={(index) => rows[index]?.id ?? String(index)}
-            scroller={(rows) => rows.closest("[data-layout]")}
+            scroller={(rows) => {
+              const list = rows.closest<HTMLElement>("[data-layout]");
+              return embedded ? scrollerOf(list?.parentElement ?? null) : list;
+            }}
+            sticky={!embedded}
             draw={(index, drawn) => {
               const row = rows[index];
               return row && drawRow(row, drawn);
@@ -529,11 +496,6 @@ export function List<TData extends RowData>({
             drawnNow={drawnNow}
             onPointerOver={showWholeText}
           />
-        )}
-        {rows.length > 0 && !virtual && (
-          <ol className={styles.rows} onPointerOver={showWholeText}>
-            {(tree ? rows.filter((row) => row.depth === 0) : rows).map((row) => drawRow(row))}
-          </ol>
         )}
       </div>
       {message !== null && <p className={problem ? styles.problem : styles.quiet}>{message}</p>}
@@ -587,6 +549,14 @@ function cellData(column: { id: string; columnDef: { meta?: ColumnLook } }) {
     "data-figures": meta?.figures || undefined,
     "data-align": meta?.align,
   };
+}
+
+/** The element that scrolls `element`: the nearest around it that scrolls up and down. */
+function scrollerOf(element: HTMLElement | null): HTMLElement | null {
+  for (let at = element; at !== null; at = at.parentElement) {
+    if (/auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
+  }
+  return null;
 }
 
 function within(box: DOMRect, x: number, y: number): boolean {

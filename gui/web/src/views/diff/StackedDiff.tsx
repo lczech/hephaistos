@@ -173,6 +173,8 @@ function Untracked(props: UntrackedProps) {
   const files = filesOf(listed);
   const ids = files.map(entryId);
   const open = all ? new Set(ids.filter((id) => !closed.has(id))) : opened;
+  // The large diffs told to show, by path: kept here, as a row scrolled far away is drawn anew.
+  const [large, setLarge] = useState<ReadonlySet<string>>(new Set());
   // Told as the files open change, e.g. to find in them; none once gone.
   const openFiles = files.flatMap((row) => (open.has(entryId(row)) ? [row.change.path] : []));
   const said = openFiles.join("\0");
@@ -216,6 +218,10 @@ function Untracked(props: UntrackedProps) {
               known={entry.change}
               show={show}
               find={findIn?.(entry.change.path)}
+              large={{
+                shown: large.has(entry.change.path),
+                show: () => setLarge((was) => new Set([...was, entry.change.path])),
+              }}
             />
           )
         }

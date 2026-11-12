@@ -342,6 +342,86 @@ describe("a list as a tree", () => {
   });
 });
 
+/** A tree part of a page that scrolls, below and above other content, as the Diff's. */
+function PageTree() {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true });
+  const columns = node.columns([
+    node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
+    node.accessor("name", { header: "name" }),
+  ]);
+  const table = useList("page-tree", "columns", {
+    columns,
+    data: [FOLDER, { name: "after", subRows: [] }],
+    getRowId: (row) => row.name,
+    getSubRows: (row) => row.subRows,
+    getRowCanExpand: (row) => row.original.subRows.length > 0,
+    state: { expanded },
+    onExpandedChange: (change) =>
+      setExpanded((was) => (typeof change === "function" ? change(was) : change) as typeof was),
+  });
+  return (
+    <div data-testid="page" style={{ height: 200, overflowY: "auto" }}>
+      <p style={{ height: 100, margin: 0 }}>Above</p>
+      <List
+        table={table}
+        layout="columns"
+        tree
+        embedded
+        choices={{}}
+        message={null}
+        older="files"
+        detailsLabel="Details"
+        details={() => null}
+        folds={(row) => row.subRows.length > 0}
+      />
+      <p style={{ height: 400, margin: 0 }}>Below</p>
+    </div>
+  );
+}
+
+describe("a tree part of a page", () => {
+  it("draws only its rows near the view of the page", async () => {
+    render(<PageTree />);
+    expect(screen.getByText("file 1")).toBeVisible();
+    expect(screen.queryByText("file 30")).toBeNull();
+    screen.getByTestId("page").scrollTop = 600;
+    expect(await screen.findByText("file 30")).toBeVisible();
+  });
+
+  it("keeps an open row at the top of the page as it scrolls, its rows passing below", async () => {
+    render(<PageTree />);
+    const page = screen.getByTestId("page");
+    const top = page.getBoundingClientRect().top;
+    for (const by of [300, 310, 320, 330]) {
+      page.scrollTop = by;
+      await drawn();
+      expect(seenAt(top + 1)?.box.top).toBeCloseTo(top, 0);
+    }
+  });
+
+  it("sticks an open row at the top of the page, pushed up by the end of its rows", async () => {
+    render(<PageTree />);
+    const page = screen.getByTestId("page");
+    const top = page.getBoundingClientRect().top;
+    page.scrollTop = 300;
+    await drawn();
+    const src = seenAt(top + 1);
+    expect(src?.name).toBe("src");
+    expect(src?.box.top).toBeCloseTo(top, 0);
+    // Scrolled until the last of its rows reaches it: it is pushed up, out of the page.
+    while (screen.queryAllByText("file 30").length === 0) {
+      page.scrollTop += 100;
+      await drawn();
+    }
+    const last = ownRowOf("file 30").getBoundingClientRect();
+    page.scrollTop += last.bottom - top - (src?.box.height ?? 0) / 2;
+    await drawn();
+    const pushed = seenAt(top + 1);
+    expect(pushed?.name).toBe("src");
+    expect(pushed?.box.bottom).toBeCloseTo(ownRowOf("file 30").getBoundingClientRect().bottom, 0);
+  });
+});
+
 const nested = (count: number, name: string): Node[] =>
   Array.from({ length: count }, (_, at) => ({ name: `${name} ${at + 1}`, subRows: [] }));
 
