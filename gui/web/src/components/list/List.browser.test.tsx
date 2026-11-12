@@ -960,6 +960,7 @@ interface Fruity {
   tall?: number | ((name: string) => number); // how high their details are
   handle?: RefObject<ListHandle | null>;
   tone?: (name: string) => Tone | undefined;
+  band?: boolean; // a band below the header, naming the row at the top
 }
 
 const FORTY = Array.from({ length: 40 }, (_, at) => `fruit ${at + 1}`);
@@ -973,6 +974,7 @@ function Fruity({
   tall = 60,
   handle,
   tone,
+  band,
 }: Fruity) {
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set(open));
   const columns = column.columns([
@@ -1000,6 +1002,13 @@ function Fruity({
         onOpenedChange={setOpened}
         handle={handle}
         tone={tone && ((fruit) => tone(fruit.name))}
+        band={
+          band
+            ? (fruit, next) => ({
+                name: `below ${fruit.name}${next ? `, ${next.row.name} at ${next.at.toFixed(1)} of ${next.height.toFixed(1)}` : ""}`,
+              })
+            : undefined
+        }
       />
     </div>
   );
@@ -1209,6 +1218,78 @@ describe("a list's row gone to", () => {
     const frame = frameOf();
     await waitFor(() =>
       expect(frame.scrollTop).toBeCloseTo(frame.scrollHeight - frame.clientHeight, 0),
+    );
+  });
+});
+
+describe("a list's band, below its header", () => {
+  const bandOf = () => document.querySelector("[data-shown]") as HTMLElement | null;
+  const boxOf = (element: Element | null | undefined) =>
+    element?.firstElementChild?.getBoundingClientRect();
+
+  it("shows once the rows scroll under the header, from the row at the top, a row high", async () => {
+    render(<Fruity band />);
+    await drawn();
+    expect(bandOf()).toBeNull(); // at the top: the first row itself shows
+    frameOf().scrollTop = 20; // past the list's room above the header, which scrolls first
+    await waitFor(() => expect(bandOf()).toHaveTextContent("below fruit 1"));
+    const head = headOf().getBoundingClientRect();
+    const row = ownRowOf("fruit 1").getBoundingClientRect();
+    expect(boxOf(bandOf())?.top).toBeCloseTo(head.bottom, 0);
+    expect(boxOf(bandOf())?.height).toBeCloseTo(row.height, 0);
+    frameOf().scrollTop = 0;
+    await waitFor(() => expect(bandOf()).toBeNull());
+  });
+
+  it("is told of the row coming in below it, how far down it starts, as it scrolls", async () => {
+    render(<Fruity band />);
+    const frame = frameOf();
+    for (const by of [12, 18, 24]) {
+      frame.scrollTop = by;
+      await drawn();
+      const band = boxOf(bandOf());
+      const next = ownRowOf("fruit 2").getBoundingClientRect().top - (band?.top ?? 0);
+      const said = Number(/fruit 2 at ([\d.]+)/.exec(bandOf()?.textContent ?? "")?.[1]);
+      expect(bandOf()).toHaveTextContent(/^below fruit 1, fruit 2 at/);
+      expect(said).toBeCloseTo(next, 0);
+      const of = Number(/ of ([\d.]+)/.exec(bandOf()?.textContent ?? "")?.[1]);
+      expect(of).toBeCloseTo(band?.height ?? 0, 0);
+    }
+  });
+
+  it("hides with the Panel it is in, as dockview hides those not shown", async () => {
+    render(
+      <div style={{ visibility: "hidden" }}>
+        <Fruity band />
+      </div>,
+    );
+    frameOf().scrollTop = 20;
+    await waitFor(() => expect(bandOf()).toHaveTextContent("below fruit 1"));
+    const banded = bandOf()?.firstElementChild as HTMLElement;
+    expect(getComputedStyle(banded).visibility).toBe("hidden");
+  });
+
+  it("follows the row at the top, and has rows gone to come below it", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    render(<Fruity band handle={handle} />);
+    handle.current?.goTo("fruit 20");
+    await waitFor(() => expect(focusedText()).toBe("fruit 20"));
+    await waitFor(() => expect(bandOf()).toHaveTextContent(/^below fruit 19$/));
+    const end = boxOf(bandOf())?.bottom ?? 0;
+    expect(ownRowOf("fruit 20").getBoundingClientRect().top).toBeCloseTo(end, 0);
+  });
+
+  it("has the rows stuck come below it", async () => {
+    render(<Fruity band open={["fruit 2"]} tall={400} />);
+    await drawn();
+    frameOf().scrollTop = 150; // in fruit 2's details
+    await waitFor(() => expect(bandOf()).toHaveTextContent("below fruit 2"));
+    const copy = screen
+      .getAllByText("fruit 2")
+      .find((text) => text.closest("[aria-hidden]") !== null && !bandOf()?.contains(text));
+    const end = boxOf(bandOf())?.bottom ?? 0;
+    await waitFor(() =>
+      expect(copy?.closest("[role=row] > div")?.getBoundingClientRect().top).toBeCloseTo(end, 0),
     );
   });
 });

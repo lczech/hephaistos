@@ -102,6 +102,14 @@ interface Props<TData extends RowData> {
   menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
   ahead?: (row: TData) => void; // pointed at or focused: to ask for what opening it shows
   seen?: (row: TData) => void; // come into view, or near it: to ask for what it shows
+  // A row of the View's own, below the header once the rows scroll under it, from the row at
+  // the top, and the row below while it comes in under it, `at` down from the band's top, of
+  // its `height`: its cells by column, e.g. a graph's tips above; none if null. Not part of a
+  // page.
+  band?: (
+    top: TData,
+    next?: { row: TData; at: number; height: number },
+  ) => Partial<Record<string, ReactNode>> | null;
   handle?: RefObject<ListHandle | null>;
 }
 
@@ -127,7 +135,8 @@ interface Props<TData extends RowData> {
  * shown while it is pointed at or focused, and a menu (the right button, or the menu key: its
  * first item focused then); `ahead` is called as a row is pointed at or focused, to ask for what
  * opening it shows, `seen` as it is drawn, near the view, to ask for what it shows.
- * `compact` rows stand closer together.
+ * `compact` rows stand closer together. A `band` of the View's stays below the header once the
+ * rows scroll under it, drawn from the row at the top; rows stuck and gone to come below it.
  */
 export function List<TData extends RowData>({
   table,
@@ -161,6 +170,7 @@ export function List<TData extends RowData>({
   menu: rowMenu,
   ahead,
   seen,
+  band,
   handle,
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
@@ -702,6 +712,25 @@ export function List<TData extends RowData>({
             }}
             shape={shape}
             below={below}
+            band={
+              band &&
+              ((index, next) => {
+                const row = rows[index];
+                const below = next && rows[next.index];
+                const coming = below && next && { ...next, row: below.original };
+                const cells = row && band(row.original, coming);
+                if (!cells) return null;
+                return (
+                  <div className={styles.row}>
+                    {table.getVisibleLeafColumns().map((column) => (
+                      <span key={column.id} {...cellData(column)}>
+                        {cells[column.id]}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })
+            }
             drawnNow={drawnNow}
             handle={rowsHandle}
             focus={focusIndex}

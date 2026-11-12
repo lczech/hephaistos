@@ -57,10 +57,23 @@ interface Props {
   // one part of a page whose frame scrolls sideways, the box sticking would hold to, they are
   // moved as the page scrolls.
   sticky?: boolean;
+  // A row of the View's own, below the header once the rows scroll under it, from the row at the
+  // top, if it gives one: drawn over the rows, those stuck and those gone to coming below it.
+  // Only where the rows stick by CSS.
+  // With the row below, `next`, while it comes in under it: how far down the band it starts.
+  band?: (index: number, next?: Next) => ReactNode;
   drawnNow?: (indexes: number[]) => void; // after each draw, the rows drawn
   handle?: RefObject<RowsHandle | null>;
   focus?: number; // the row focused, kept drawn while scrolled away, so as to keep the focus
   onPointerOver?: (event: PointerEvent) => void;
+}
+
+/** The row below the band's, coming in under it: where it starts, down from the band's top, and
+ * how high the band is, out of which it pushes what it ends as it rises. */
+export interface Next {
+  index: number;
+  at: number;
+  height: number;
 }
 
 /** Of rows not measured yet, the height guessed: the last measured, at first a row's. */
@@ -85,6 +98,7 @@ export function VirtualRows({
   shape,
   below,
   sticky = true,
+  band,
   drawnNow,
   handle,
   focus,
@@ -92,6 +106,7 @@ export function VirtualRows({
 }: Props) {
   const list = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
+  const banded = useRef<HTMLDivElement>(null);
   // Where the rows start in what scrolls them, below the header; where the header ends once it
   // stays, from where what scrolls them starts sticking, within its padding at the top (`pad`):
   // measured after each draw, as the header changes its height, e.g. its buttons wrapping.
@@ -178,11 +193,36 @@ export function VirtualRows({
   });
   const offsetOf = (index: number) =>
     ownTop.current.get(String(virtualizer.measurementsCache[index]?.key)) ?? 0;
-  // Where the rows scroll by below the header, in what scrolls them.
-  const stuckLine = () => {
-    const scrolled = virtualizer.scrollElement?.scrollTop ?? 0;
-    return Math.max(place.margin, scrolled + place.pad + place.below);
+  // The band's height, as drawn, also while it is not shown: for the rows gone to below it.
+  const bandHeight = useRef(0);
+  useLayoutEffect(() => {
+    bandHeight.current = banded.current?.getBoundingClientRect().height ?? 0;
+  });
+  const banding = band !== undefined && sticky;
+  // Where the header ends, in what scrolls them; the band's row: the one there, once the rows
+  // scroll under the header, if it gives a band.
+  const headerLine = () => (virtualizer.scrollElement?.scrollTop ?? 0) + place.pad + place.below;
+  const bandIndex = () => {
+    const line = headerLine();
+    if (!banding || line <= place.margin + 0.5) return undefined;
+    // A pixel down, as scrolling goes by whole pixels: not the row above, a fraction showing.
+    return rowAt(virtualizer.measurementsCache, line + 1);
   };
+  // With the row below, while it starts within the band, as it comes in under it.
+  const bandPlace = (): { index: number; next?: Next } | undefined => {
+    const index = bandIndex();
+    const below = index === undefined ? undefined : virtualizer.measurementsCache[index + 1];
+    if (index === undefined || below === undefined)
+      return index === undefined ? undefined : { index };
+    const at = below.start + offsetOf(index + 1) - headerLine();
+    const height = bandHeight.current;
+    return at > 0 && at < height ? { index, next: { index: index + 1, at, height } } : { index };
+  };
+  const bandAt = bandIndex();
+  const bandShown = bandAt === undefined ? null : band?.(bandAt);
+  const shownBand = bandShown !== null && bandShown !== undefined ? bandHeight.current : 0;
+  // Where the rows scroll by below the header and the band, in what scrolls them.
+  const stuckLine = () => Math.max(place.margin, headerLine() + shownBand);
   const stuckNow = (): Stuck[] => {
     if (shape === undefined || shape.depth.length !== count) return [];
     const measures = virtualizer.measurementsCache;
@@ -198,9 +238,9 @@ export function VirtualRows({
   // says nothing: drawn anew, before the list is painted, as they change.
   const [, setStuckKey] = useState("");
   const stuckKey = () =>
-    stuckNow()
+    `${stuckNow()
       .map((at) => `${at.index}@${at.top}`)
-      .join(" ");
+      .join(" ")} ${bandIndex() ?? ""}`;
   // Where they do not stick by CSS, moved to the line as the page scrolls: by hand, as each
   // scroll moves it, not by drawing the rows anew.
   const placeStrip = () => {
@@ -221,17 +261,20 @@ export function VirtualRows({
   });
   // A copy is seen, not reached: neither by Tab nor by screen readers.
   useLayoutEffect(() => {
-    for (const element of strip.current?.querySelectorAll<HTMLElement>(
-      "a[href], button, input, select, textarea, [tabindex]",
-    ) ?? []) {
-      element.tabIndex = -1;
+    for (const copies of [strip.current, banded.current]) {
+      for (const element of copies?.querySelectorAll<HTMLElement>(
+        "a[href], button, input, select, textarea, [tabindex]",
+      ) ?? []) {
+        element.tabIndex = -1;
+      }
     }
   });
   // A copy clicked: its row scrolled to where the copy is, at the top, for the List to close it.
   const placeOf = (at: Stuck) => () => {
     const [box, item] = [virtualizer.scrollElement, virtualizer.measurementsCache[at.index]];
     if (box && item)
-      box.scrollTop = item.start + offsetOf(at.index) - place.pad - place.below - at.top;
+      box.scrollTop =
+        item.start + offsetOf(at.index) - place.pad - place.below - shownBand - at.top;
   };
 
   // The row first in view, by its key, and how far it is scrolled past: found again after a draw
@@ -293,7 +336,8 @@ export function VirtualRows({
       const measure = measures[index];
       return own.current.get(String(measure?.key)) ?? measure?.size ?? guess.current;
     };
-    let above = place.pad + place.below;
+    // Below the band too, but at the very top, where it is not shown.
+    let above = place.pad + place.below + (banding && at.index > 0 ? bandHeight.current : 0);
     for (let up = shape?.parent[at.index] ?? -1; up >= 0; up = shape?.parent[up] ?? -1) {
       if (shape?.holds[up]) above += height(up);
     }
@@ -301,17 +345,18 @@ export function VirtualRows({
     const bottom = box.scrollTop + box.clientHeight;
     // The row itself, below what stands above it in its room, e.g. a group's line.
     const end = item.start + offsetOf(at.index) + height(at.index);
+    // Rounded so that the whole row shows where scrolling goes by whole pixels, as in WebKit:
+    // down to its top, up to its bottom.
     let to: number | undefined;
     if (at.index === 0)
       to = 0; // the first, at the very top
-    else if (at.start || item.start < top) to = item.start - above;
-    else if (end > bottom) to = end - box.clientHeight;
+    else if (at.start || item.start < top) to = Math.floor(item.start - above);
+    else if (end > bottom) to = Math.ceil(end - box.clientHeight);
     if (to === undefined || Math.abs(to - box.scrollTop) < 0.5) {
       asked.current = null;
       return;
     }
-    // Rounded so that the whole row shows where scrolling goes by whole pixels, as in WebKit.
-    box.scrollTop = to > box.scrollTop ? Math.ceil(to) : Math.floor(to);
+    box.scrollTop = to;
     // Again once drawn there, as rows drawn on the way are measured: drawn anew by React only as
     // the range drawn changes.
     requestAnimationFrame(bringIntoView);
@@ -323,7 +368,10 @@ export function VirtualRows({
     const item = measures[index];
     if (box === null || item === undefined) return index;
     // From the row's own top: the details below it count as the rows do. At least a row on.
-    const room = Math.max(box.clientHeight - place.pad - place.below - stuckEnd, guess.current);
+    const room = Math.max(
+      box.clientHeight - place.pad - place.below - shownBand - stuckEnd,
+      guess.current,
+    );
     const at = rowAt(measures, item.start + by * room) ?? (by > 0 ? count - 1 : 0);
     const moved = by > 0 ? at > index : at < index;
     return moved ? at : Math.min(Math.max(index + by, 0), count - 1);
@@ -408,6 +456,25 @@ export function VirtualRows({
   const end = stuckEnd;
   return (
     <>
+      {banding && (
+        <div
+          className={styles.band}
+          aria-hidden="true"
+          style={cssVars({ "--stuck-top": `${place.below}px` })}
+          data-shown={shownBand > 0 || undefined}
+          onPointerOver={onPointerOver}
+        >
+          <div ref={banded} className={styles.banded}>
+            {shownBand > 0 && (
+              <BandRow
+                place={bandPlace}
+                draw={(at) => band?.(at.index, at.next)}
+                scroller={virtualizer.scrollElement}
+              />
+            )}
+          </div>
+        </div>
+      )}
       {shape && (
         <div
           ref={strip}
@@ -415,8 +482,9 @@ export function VirtualRows({
           aria-hidden="true"
           onMouseDown={(event) => event.preventDefault()} // the focus stays where it is
           style={cssVars({
-            // Sticking, below where the header ends; else moved to the line (`placeStrip`).
-            ...(sticky ? { "--stuck-top": `${place.below}px` } : {}),
+            // Sticking, below where the header and the band end; else moved to the line
+            // (`placeStrip`).
+            ...(sticky ? { "--stuck-top": `${place.below + shownBand}px` } : {}),
             "--stuck-end": `${end}px`,
           })}
           data-empty={stuck.length === 0 || undefined}
@@ -445,6 +513,37 @@ export function VirtualRows({
       </div>
     </>
   );
+}
+
+/**
+ * The band's row, drawn anew as the list scrolls while the row below comes in under it, so that
+ * what it brings, e.g. a tip, slides in: apart from the rows, which are drawn anew only as the
+ * row at the top changes.
+ */
+function BandRow({
+  place,
+  draw,
+  scroller,
+}: {
+  place: () => { index: number; next?: Next } | undefined;
+  draw: (at: { index: number; next?: Next }) => ReactNode;
+  scroller: Element | null;
+}) {
+  const [, setKey] = useState("");
+  // Where the band is, as the list now says: looked up on each scroll, listened to once.
+  const placed = useRef(place);
+  placed.current = place;
+  useEffect(() => {
+    if (scroller === null) return;
+    const scrolled = () => {
+      const at = placed.current();
+      flushSync(() => setKey(at ? `${at.index} ${at.next?.at ?? ""}` : ""));
+    };
+    scroller.addEventListener("scroll", scrolled, { passive: true });
+    return () => scroller.removeEventListener("scroll", scrolled);
+  }, [scroller]);
+  const at = place();
+  return at ? draw(at) : null;
 }
 
 /** What may take the focus by Tab, or did before it was left out (`data-untabbed`). */

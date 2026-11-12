@@ -735,6 +735,52 @@
   content: "";
 }
 
+/* A row of the View's own below the header once the rows scroll under it (`band`), as high as a
+ * row's first line, and what the View's rows may have more (`--band-more`), e.g. framed labels:
+ * on the background, over the rows, as the rows stuck are; drawn while hidden too, so that its
+ * height is known for the rows gone to below it. */
+.band {
+  position: sticky;
+  top: var(--stuck-top);
+  z-index: 100;
+  height: 0;
+}
+
+.banded {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: calc(var(--row-height) + var(--band-more, 0rem));
+  overflow: clip; /* what comes in with the row below shows only within it */
+  background: var(--background);
+  visibility: hidden;
+}
+
+.frame[data-layout="lines"] .banded {
+  height: calc(1lh + 2 * var(--space-1) + var(--band-more, 0rem));
+}
+
+/* Inherited, not `visible`: hidden with the Panel it is in, as dockview hides those not shown. */
+.band[data-shown] > .banded {
+  visibility: inherit;
+}
+
+/* Its row: one line, as the row it stands for, pointed at as the rows are not. */
+.frame[data-layout] .banded > .row {
+  height: 100%;
+  cursor: default;
+}
+
+.frame[data-layout] .banded > .row:hover {
+  background: none;
+}
+
+.frame[data-layout="lines"] .banded > .row::before,
+.frame[data-layout="lines"] .banded > .row::after {
+  display: none;
+}
+
 /* Of a list part of a page, which scrolls sideways itself: moved as the page scrolls. */
 .stuck[data-placed] {
   position: relative;
