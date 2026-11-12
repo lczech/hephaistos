@@ -306,6 +306,98 @@ describe("finding in untracked files' diffs", () => {
   });
 });
 
+describe("finding in an untracked file's diff, stepped through", () => {
+  it("brings each match into view, also after the file was scrolled far away", async () => {
+    const untracked = Array.from({ length: 30 }, (_, at) => `u${String(at).padStart(2, "0")}.txt`);
+    // Its matches far apart: the second below the first by more than the Panel.
+    const twice = `diff --git a/u29.txt b/u29.txt\nnew file mode 100644\n--- /dev/null\n+++ b/u29.txt\n@@ -0,0 +1,80 @@\n${Array.from({ length: 80 }, (_, at) => `+${at === 5 || at === 70 ? "MATCH" : `line ${at}`}`).join("\n")}`;
+    serveFiles({
+      "a.txt": changed("a.txt", 10, [5]),
+      ...Object.fromEntries(
+        untracked.map((path) => [
+          path,
+          {
+            status: "?",
+            patch: path === "u29.txt" ? twice : added(path, 10),
+            old: null,
+            new: text(10),
+          },
+        ]),
+      ),
+    });
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "MATCH", case: "1" });
+    await drawn("a.txt");
+    await userEvent.click(await screen.findByRole("button", { name: "Show all" }));
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 2"), { timeout: 10_000 });
+    const scroller = screen
+      .getByRole("region", { name: "a.txt" })
+      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const current = () => [...(CSS.highlights.get("hephaistos-found-current") ?? [])][0] as Range;
+    const inView = () => {
+      const line = current()?.getBoundingClientRect();
+      const view = scroller.getBoundingClientRect();
+      expect(line?.top).toBeGreaterThan(view.top);
+      expect(line?.bottom).toBeLessThan(view.bottom);
+    };
+    await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
+    await userEvent.keyboard("{Enter}{Enter}"); // round to the first again, as found
+    await waitFor(inView, { timeout: 10_000 });
+    scroller.scrollTop = 0; // far from it: its file no longer drawn
+    await waitFor(() => expect(screen.queryByText("u29.txt")).toBeNull());
+    await userEvent.keyboard("{Enter}");
+    expect(count()).toHaveTextContent("2 of 2");
+    await waitFor(inView, { timeout: 10_000 });
+  });
+});
+
+describe("finding in an untracked file's diff, scrolled away and back", () => {
+  it("leaves the page where it is scrolled to as the file is drawn again", async () => {
+    const untracked = Array.from({ length: 30 }, (_, at) => `u${String(at).padStart(2, "0")}.txt`);
+    const match = `diff --git a/u29.txt b/u29.txt\nnew file mode 100644\n--- /dev/null\n+++ b/u29.txt\n@@ -0,0 +1,40 @@\n${Array.from({ length: 40 }, (_, at) => `+${at === 10 ? "MATCH" : `line ${at}`}`).join("\n")}`;
+    serveFiles({
+      "a.txt": changed("a.txt", 10, [5]),
+      ...Object.fromEntries(
+        untracked.map((path) => [
+          path,
+          {
+            status: "?",
+            patch: path === "u29.txt" ? match : added(path, 10),
+            old: null,
+            new: text(10),
+          },
+        ]),
+      ),
+    });
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "MATCH", case: "1" });
+    await drawn("a.txt");
+    await userEvent.click(await screen.findByRole("button", { name: "Show all" }));
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 1"), { timeout: 10_000 });
+    const scroller = screen
+      .getByRole("region", { name: "a.txt" })
+      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const current = () => [...(CSS.highlights.get("hephaistos-found-current") ?? [])][0] as Range;
+    await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
+    await userEvent.keyboard("{Enter}"); // stepped to, in a file not drawn yet: brought into view
+    await waitFor(
+      () => {
+        const line = current()?.getBoundingClientRect();
+        expect(line?.top).toBeGreaterThan(scroller.getBoundingClientRect().top);
+        expect(line?.bottom).toBeLessThan(scroller.getBoundingClientRect().bottom);
+      },
+      { timeout: 10_000 },
+    );
+    const found = scroller.scrollTop;
+    scroller.scrollTop = 0; // far from it: its file no longer drawn
+    await waitFor(() => expect(screen.queryByText("u29.txt")).toBeNull());
+    // Back to where its file is drawn again, the match below the view.
+    const back = found - scroller.clientHeight * 0.8;
+    scroller.scrollTop = back;
+    await waitFor(() => expect(screen.queryByText("u29.txt")).not.toBeNull());
+    for (let frame = 0; frame < 20; frame++) await new Promise(requestAnimationFrame);
+    expect(Math.abs(scroller.scrollTop - back)).toBeLessThan(2);
+  });
+});
+
 describe("finding in all files' diffs, counted", () => {
   it("the same wherever it is scrolled to", async () => {
     // Changes every 20 lines, longer than the Panel: each with `line` in 7 of the lines of

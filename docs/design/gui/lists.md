@@ -46,6 +46,7 @@ A row's details are a region in a cell of the row, named by the View (`detailsLa
 Its rows stuck are hidden from screen readers.
 Each row lays out its columns on its own, so the elements are `div`s with roles, not a table's: a list's `ol` and `li` may not take them.
 A View's styles find its rows by their level (`[aria-level]`, its value for one level of a tree), which the header row has not.
+axe checks the ARIA of lists in the browser tests (`axe-core`): in columns and two lines, with details open, rows stuck, and as part of a page.
 
 ## Trees
 

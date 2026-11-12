@@ -55,6 +55,16 @@ describe("the Database View", () => {
     expect(await screen.findByText("two")).toBeInTheDocument();
   });
 
+  it("shows a table's rows by Enter on its row, as by a click", async () => {
+    serveDb();
+    renderWithQueries(<Db />);
+    await expectSettled();
+    const [first] = await findListRows();
+    (first as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("status").textContent).toMatch(/^db\?table=/);
+  });
+
   it("shows every column of the rows, by type, and a row's details", async () => {
     serveDb();
     renderWithQueries(<Db at={{ table: "registry_repositories" }} />);

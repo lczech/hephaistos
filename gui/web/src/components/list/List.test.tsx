@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Copy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { listRows } from "../../test/list";
 import { Chevron, List } from "./List";
@@ -385,4 +385,86 @@ describe("a list, by the keys", () => {
     rerender(<Basket fruits={["apple", "pear", "plum"]} />);
     expect(document.body).toHaveFocus();
   });
+
+  it("leaves the arrows with Alt to the Group, back and forward, the row as it is", async () => {
+    render(<Basket fruits={["apple", "pear"]} />);
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+    expect(fireEvent.keyDown(itemOf("apple"), { key: "ArrowLeft", altKey: true })).toBe(true);
+    expect(itemOf("apple")).toHaveAttribute("aria-expanded", "true");
+    expect(fireEvent.keyDown(itemOf("apple"), { key: "ArrowDown", altKey: true })).toBe(true);
+    expect(itemOf("apple")).toHaveFocus();
+  });
+
+  it("leaves to the page the keys that do nothing on the row", async () => {
+    render(<Basket fruits={["apple"]} />);
+    await userEvent.tab();
+    for (const key of ["Escape", "ArrowLeft", "ArrowUp", "Home", "End"]) {
+      expect(fireEvent.keyDown(itemOf("apple"), { key }), key).toBe(true); // not prevented
+    }
+    expect(fireEvent.keyDown(itemOf("apple"), { key: "ArrowRight" })).toBe(false); // it opens
+  });
+
+  it("keeps the row focused as sorting moves it, the keys following the new order", async () => {
+    const { rerender } = render(<Basket fruits={["apple", "fig", "pear"]} />);
+    await userEvent.click(screen.getByText("fig"));
+    rerender(<Basket fruits={["pear", "fig", "apple"]} />); // as sorted the other way
+    expect(itemOf("fig")).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{ArrowDown}");
+    expect(itemOf("apple")).toHaveFocus();
+  });
+
+  it("enters at the first row once rows come back, all of them gone before", async () => {
+    const { rerender } = render(<Basket fruits={["apple", "pear"]} />);
+    await userEvent.click(screen.getByText("pear"));
+    rerender(<Basket fruits={[]} />);
+    rerender(<Basket fruits={["fig", "kiwi"]} />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    await userEvent.tab();
+    expect(itemOf("fig")).toHaveFocus();
+  });
+
+  it("leaves out of Tab what comes into another row later, e.g. a diff once drawn", async () => {
+    render(<Late />);
+    await userEvent.click(screen.getByText("pear")); // its details open, and the row focused
+    await userEvent.keyboard("{ArrowUp}");
+    await screen.findByRole("button", { name: "Show the pear" }); // come in later
+    await new Promise((done) => requestAnimationFrame(() => done(null)));
+    await userEvent.tab();
+    expect(document.body).toHaveFocus(); // apple holds nothing, pear's left out
+  });
 });
+
+/** Two fruits whose details show a button only a while after they open, as a diff does. */
+function Late() {
+  const columns = column.columns([
+    column.display({ id: "square", cell: Chevron }),
+    column.accessor("name", { header: "name" }),
+  ]);
+  const table = useList("late", "columns", {
+    columns,
+    data: [{ name: "apple" }, { name: "pear" }],
+    getRowId: (fruit) => fruit.name,
+  });
+  return (
+    <List
+      table={table}
+      label="Fruits"
+      layout="columns"
+      choices={{}}
+      message={null}
+      older="fruits"
+      detailsLabel="Fruit details"
+      details={(fruit) => <Later name={fruit.name} />}
+    />
+  );
+}
+
+function Later({ name }: { name: string }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+  return shown ? <button type="button">Show the {name}</button> : null;
+}

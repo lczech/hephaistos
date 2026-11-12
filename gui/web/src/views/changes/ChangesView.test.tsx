@@ -240,7 +240,10 @@ describe("the Changes View", () => {
       params: { clone: "clone-proj", from: "HEAD", to: "index", path: "src/app/main.py" },
     };
     await userEvent.pointer({ keys: "[MouseMiddle]", target: name });
+    await userEvent.keyboard("{Enter}{Alt>}{Enter}{/Alt}"); // its row focused by the click
     expect(opened).toEqual([
+      [diff, { beside: false, preview: true }],
+      [diff, { beside: true, preview: true }],
       [diff, { beside: false, preview: true }],
       [diff, { beside: true, preview: true }],
     ]);
