@@ -349,6 +349,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         paging={history}
         graph={drawing}
         handle={list}
+        onTip={(id) => list.current?.goTo(id)}
       />
     </ViewPage>
   );

@@ -72,6 +72,87 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
   );
 }
 
+/**
+ * The tips of the lines going on below the row at the top, as a graph's band shows them, in a
+ * row's first line: a node where a tip with badges is, its line going down from it; the other
+ * lines passing. While the row below comes in, `at` down the band, the lines end there, and that
+ * row's own part is drawn from there, as it is below: its node, the lines ending in it, those
+ * leaving it; a tip whose line ends in it is pushed out, higher by `by`.
+ */
+export function GraphTips({
+  layout,
+  lines,
+  tips,
+  next,
+}: {
+  layout: Layout;
+  lines: Line[];
+  tips: {
+    lane: number;
+    node: NodeKind;
+    colour: LaneColour;
+    by: number;
+    coming?: boolean;
+    leaving?: boolean;
+  }[];
+  next?: { row: number; at: number };
+}) {
+  const width = layout.columns * LANE;
+  const tipOf = new Map(tips.map((tip) => [tip.lane, tip]));
+  return (
+    <span className={styles.rail} data-graph="tips">
+      {next && (
+        <span className={styles.next} style={cssVars({ "--at": `${next.at}px` })}>
+          <GraphCell layout={layout} row={next.row} />
+        </span>
+      )}
+      {lines.map((line) => {
+        const tip = tipOf.get(line.lane);
+        return (
+          <span
+            key={line.lane}
+            className={styles.segment}
+            style={cssVars({
+              "--from": tip ? `calc(var(--graph-node-y) + ${tip.by}px)` : "0px",
+              "--to": next ? `calc(100% - ${next.at}px)` : "0px",
+            })}
+          >
+            <Below lines={[line]} width={width} className={styles.fill} />
+          </span>
+        );
+      })}
+      {next &&
+        // Above a tip that stays, nothing: the row coming in is drawn up to its top, its tip's
+        // line too, which here goes down from the tip.
+        tips
+          .filter((tip) => !tip.coming && !tip.leaving)
+          .map((tip) => (
+            <span
+              key={`c${tip.lane}`}
+              className={styles.cap}
+              style={cssVars({ "--lane-x": `${x(tip.lane)}px` })}
+            />
+          ))}
+      {tips
+        .filter((tip) => !tip.coming) // drawn with its row's part
+        .map((tip) => (
+          <svg
+            key={tip.lane}
+            aria-hidden="true"
+            className={styles.node}
+            width={SIZE}
+            height={SIZE}
+            viewBox={`0 0 ${SIZE} ${SIZE}`}
+            style={cssVars({ "--node-x": `${x(tip.lane) - SIZE / 2}px`, "--by": `${tip.by}px` })}
+            data-node={tip.node}
+          >
+            <Node kind={tip.node} colour={colourOf(tip.colour)} />
+          </svg>
+        ))}
+    </span>
+  );
+}
+
 /** The lanes going on below a row, beside what opens under it, e.g. a commit's details. */
 export function GraphBeside({ layout, row }: { layout: Layout; row: number }) {
   return (

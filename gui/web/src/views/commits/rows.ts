@@ -3,7 +3,7 @@
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";
 import type { Checkout } from "../checkout";
-import { Layout } from "./lanes";
+import { type Line as Lane, type LaneColour, Layout, type NodeKind } from "./lanes";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
@@ -113,10 +113,12 @@ export function committedApart(author: Commit["author"], committer: Commit["auth
   return author.name !== committer.name || author.email !== committer.email;
 }
 
-/** The graph of the commits listed, and the row of each entry in it, by its ID. */
+/** The graph of the commits listed, the row of each entry in it, by its ID, and the entry and
+ * ID of each row. */
 export interface Drawn {
   layout: Layout;
   rows: Map<string, number>;
+  laid: { entry: Laid; id: string }[];
   drawing: Drawing;
 }
 
@@ -155,19 +157,85 @@ export function graphOf(
   const { heads, pinned, accent = pinned === undefined ? "first" : "pinned" } = drawing;
   const layout = new Layout({ heads, pinned, accent });
   const rows = new Map<string, number>();
+  const laid: Drawn["laid"] = [];
   for (const entry of entries) {
     if (entry.type === "commit") {
       const { hash, parents, refs } = entry.commit;
       rows.set(hash, layout.rows.length);
+      laid.push({ entry, id: hash });
       layout.add({ hash, parents, branch: branchOf(shownRefs(refs, drawing)) });
     } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
       const id = uncommittedId(entry);
       rows.set(id, layout.rows.length);
+      laid.push({ entry, id });
       const parent = (entry.of?.head ?? head) as string;
       layout.add({ hash: id, parents: [parent], uncommitted: true });
     }
   }
-  return { layout, rows, drawing };
+  return { layout, rows, laid, drawing };
+}
+
+/** The tip of a line, where it starts: its row and ID, its node, the commit its badges are of
+ * (HEAD's, for what is not committed above it), and its line's lane and colour below a row. */
+export interface Tip {
+  row: number;
+  id: string;
+  node: NodeKind;
+  commit: Line;
+  lane: number;
+  colour: LaneColour;
+  coming?: boolean; // of the row below, coming in: its line not among those going on yet
+  leaving?: boolean; // its line ends in the row below, coming in, which pushes it out
+}
+
+/**
+ * The lines going on below row `row`, and the tips of those that start in it or above it, by
+ * lane: each with badges, its commit's refs or a Checkout's HEAD detached there. The others, and
+ * those a merge opened, pass as lines alone. With `next`, the row below, coming in, its tip too,
+ * if it starts a line with badges; and those whose lines end in it are marked as leaving.
+ */
+export function tipsAt(
+  drawn: Drawn,
+  row: number,
+  head: string | null | undefined,
+  next?: number,
+): { lines: Lane[]; tips: Tip[] } {
+  const lines = drawn.layout.below(row);
+  const commitOf = (at: number): Line | undefined => {
+    const laid = drawn.laid[at]?.entry;
+    if (laid?.type === "commit") return laid.commit;
+    if (laid?.type !== "uncommitted") return undefined;
+    const parent = drawn.rows.get(laid.of?.head ?? head ?? "");
+    const below = parent === undefined ? undefined : drawn.laid[parent]?.entry;
+    return below?.type === "commit" ? below.commit : undefined;
+  };
+  const labelled = (commit: Line) =>
+    shownRefs(commit.refs, drawn.drawing).length > 0 ||
+    commit.hash === head ||
+    (drawn.drawing.checkedOut ?? []).some(
+      (each) => each.branch === null && each.commit === commit.hash,
+    );
+  const seen = new Set<number>();
+  const tips = lines.flatMap(({ lane, colour, start }): Tip[] => {
+    if (start === null || start > row || seen.has(start)) return [];
+    seen.add(start);
+    const commit = commitOf(start);
+    const [graph, laid] = [drawn.layout.rows[start], drawn.laid[start]];
+    if (commit === undefined || graph === undefined || laid === undefined) return [];
+    if (!labelled(commit)) return [];
+    return [{ row: start, id: laid.id, node: graph.node, commit, lane, colour }];
+  });
+  if (next !== undefined) {
+    const going = new Set(drawn.layout.below(next).map((line) => line.start));
+    for (const tip of tips) if (!going.has(tip.row)) tip.leaving = true;
+    const [graph, laid, commit] = [drawn.layout.rows[next], drawn.laid[next], commitOf(next)];
+    if (graph && graph.start === next && laid && commit && labelled(commit)) {
+      const { lane, colour, node } = graph;
+      tips.push({ row: next, id: laid.id, node, commit, lane, colour, coming: true });
+      tips.sort((a, b) => a.lane - b.lane);
+    }
+  }
+  return { lines, tips };
 }
 
 /** The refs a graph labels a commit with: all but the local branches hidden. */

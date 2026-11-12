@@ -42,6 +42,23 @@
   top: calc(2 * var(--graph-node-y));
 }
 
+/* In a graph's band (`GraphTips`): a line, from a node or the top, to the row coming in or the
+ * end; and that row's own part, from where it starts, as it is below. */
+.segment {
+  position: absolute;
+  top: var(--from);
+  bottom: var(--to);
+  left: 0;
+}
+
+.next {
+  position: absolute;
+  top: var(--at);
+  right: 0;
+  left: 0;
+  height: 100%;
+}
+
 .fill {
   top: 0;
 }
@@ -52,9 +69,20 @@
   stroke-width: var(--graph-stroke);
 }
 
+/* In a graph's band, while a row comes in: the background in a tip's lane, from the top to its
+ * node, over that row's line from its top. */
+.cap {
+  position: absolute;
+  top: 0;
+  left: calc(var(--lane-x) - var(--graph-stroke));
+  width: calc(2 * var(--graph-stroke));
+  height: var(--graph-node-y);
+  background: var(--background);
+}
+
 .node {
   position: absolute;
-  top: calc(var(--graph-node-y) - var(--graph-node-half));
+  top: calc(var(--graph-node-y) - var(--graph-node-half) + var(--by, 0rem));
   left: var(--node-x);
 }
 

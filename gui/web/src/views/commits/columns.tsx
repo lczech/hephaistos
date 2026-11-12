@@ -8,12 +8,14 @@ import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitList.module.css";
 import { colourOf, fittedWidth, GraphCell } from "./Graph";
+import type { LaneColour } from "./lanes";
 import {
   branchOf,
   type Drawn,
   type Entry,
   entryId,
   type Found,
+  type Line,
   shownRefs,
   whereText,
 } from "./rows";
@@ -115,19 +117,13 @@ export function commitColumns(
         const { commit } = entry;
         const at = graph?.rows.get(entryId(entry));
         const lane = at === undefined ? undefined : graph?.layout.rows[at];
-        const refs = shownRefs(commit.refs, graph?.drawing);
-        const named = branchOf(refs);
-        const lead =
-          lane && named !== undefined ? { name: named, colour: colourOf(lane.colour) } : undefined;
-        const checkedOut = graph?.drawing.checkedOut?.filter((each) => each.commit === commit.hash);
         return (
           <span title={commit.subject} data-entry={entryId(entry)}>
-            <RefLabels
-              refs={refs}
+            <CommitRefs
+              commit={commit}
               head={commit.hash === head}
-              lead={lead}
-              {...(checkedOut ? { checkedOut } : {})}
-              {...(graph?.drawing.first ? { first: graph.drawing.first } : {})}
+              graph={graph}
+              colour={lane?.colour}
             />
             {commit.parents.length > 1 && (
               <span title="Merge commit: changes shown against its first parent">
@@ -168,6 +164,35 @@ export function commitColumns(
       },
     }),
   ]);
+}
+
+/** A commit's branches and tags, as its row labels them: its branch framed in the colour of its
+ * line, if drawn, and where the Checkouts are. */
+export function CommitRefs({
+  commit,
+  head,
+  graph,
+  colour,
+}: {
+  commit: Line;
+  head: boolean;
+  graph: Drawn | undefined;
+  colour: LaneColour | undefined;
+}) {
+  const refs = shownRefs(commit.refs, graph?.drawing);
+  const named = branchOf(refs);
+  const lead =
+    colour && named !== undefined ? { name: named, colour: colourOf(colour) } : undefined;
+  const checkedOut = graph?.drawing.checkedOut?.filter((each) => each.commit === commit.hash);
+  return (
+    <RefLabels
+      refs={refs}
+      head={head}
+      lead={lead}
+      {...(checkedOut ? { checkedOut } : {})}
+      {...(graph?.drawing.first ? { first: graph.drawing.first } : {})}
+    />
+  );
 }
 
 /** A commit searched for by its hash that is not listed: where it is, and ways to show it. */

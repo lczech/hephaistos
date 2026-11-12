@@ -71,6 +71,19 @@ describe("lanes", () => {
     expect(tos(rows[2])).toEqual([0, 2]);
   });
 
+  it("keeps the row of the tip each line starts at, none for a line a merge opened", () => {
+    // f and m are tips; m merges x, whose line m opened; b takes f's lane, the leftmost.
+    const { rows, layout } = lay([n("f", "b"), n("m", "b", "x"), n("x", "b"), n("b", "a"), n("a")]);
+    expect(rows.map((row) => row.start)).toEqual([0, 1, null, 0, 0]);
+    expect(rows[1]?.out.map((bend) => bend.start)).toEqual([1, null]);
+    expect(layout.below(2).map((line) => [line.lane, line.start])).toEqual([
+      [0, 0],
+      [1, 1],
+      [2, null],
+    ]);
+    expect(rows[3]?.into.map((bend) => bend.start)).toEqual([1, null]); // ending in b
+  });
+
   it("reuses the leftmost free column for a new lane", () => {
     const { rows } = lay([n("x", "a"), n("y", "a"), n("a"), n("z", "w"), n("w")]);
     expect(lanesOf(rows)).toEqual([0, 1, 0, 0, 0]);

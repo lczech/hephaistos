@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { hueOf } from "../../hues";
-import { branchOf, type Commit, type Entry, entries, graphOf, type Ref, shownRefs } from "./rows";
+import {
+  branchOf,
+  type Commit,
+  type Entry,
+  entries,
+  graphOf,
+  type Ref,
+  shownRefs,
+  tipsAt,
+} from "./rows";
 
 const person = { name: "L", email: "l@example.org", at: "2026-01-01T00:00:00Z" };
 const ref = (name: string, kind: Ref["kind"]): Ref => ({ name, full: name, kind, commit: "" });
@@ -102,5 +111,72 @@ describe("a graph with a pinned branch", () => {
     expect(layout.rows[0]?.colour).toEqual({ kind: "hue", hue: hueOf("up"), muted: false });
     expect(shownRefs(refs, drawing).map((each) => each.name)).toEqual(["origin/up"]);
     expect(shownRefs(refs, undefined)).toBe(refs);
+  });
+});
+
+describe("the tips of a graph's lines above a row", () => {
+  // A Worktree's uncommitted changes above f, on feature; main pinned at m, which merged x.
+  const checkout = { worktree: "wt-f" };
+  const listed: Entry[] = [
+    { type: "uncommitted", text: "Uncommitted in f", of: { checkout, head: "f", key: "wt" } },
+    ...entries([
+      commit("f", ["b"], [ref("feature", "branch")]),
+      commit("m", ["b", "x"], [ref("main", "branch")]),
+      commit("x", ["b"]),
+      commit("b", ["a"]),
+      commit("a", []),
+    ]),
+  ];
+  const drawn = graphOf(listed, undefined, { heads: new Set(["f", "m"]), pinned: "m" });
+
+  it("gives those with badges by lane, what is not committed by its HEAD's", () => {
+    const { lines, tips } = tipsAt(drawn, 3, undefined); // x's row
+    expect(lines.map((line) => [line.lane, line.start])).toEqual([
+      [0, 2],
+      [1, 0],
+      [2, null], // opened by m's merge: a line alone
+    ]);
+    expect(tips.map(({ lane, row, id, node }) => ({ lane, row, id, node }))).toEqual([
+      { lane: 0, row: 2, id: "m", node: "head" },
+      { lane: 1, row: 0, id: "uncommitted:wt", node: "uncommitted" },
+    ]);
+    expect(tips.map((tip) => tip.commit.hash)).toEqual(["m", "f"]);
+    expect(tips[0]?.colour).toEqual(drawn.layout.rows[2]?.colour);
+  });
+
+  it("adds the tip of the row coming in below, by its lane, if it starts a line", () => {
+    // m's row below the uncommitted changes and f: m starts main's line.
+    const { tips } = tipsAt(drawn, 1, undefined, 2);
+    expect(tips.map(({ id, lane, coming }) => [id, lane, coming ?? false])).toEqual([
+      ["m", 0, true],
+      ["uncommitted:wt", 1, false],
+    ]);
+    // x's line was opened by m's merge: no tip of its own.
+    expect(tipsAt(drawn, 2, undefined, 3).tips.map((tip) => tip.id)).toEqual([
+      "m",
+      "uncommitted:wt",
+    ]);
+  });
+
+  it("marks those whose lines end in the row coming in below, which pushes them out", () => {
+    // b, below x's row, takes main's line; feature's, from the uncommitted changes, ends there.
+    const { tips } = tipsAt(drawn, 3, undefined, 4);
+    expect(tips.map(({ id, leaving }) => [id, leaving ?? false])).toEqual([
+      ["m", false],
+      ["uncommitted:wt", true],
+    ]);
+    expect(tipsAt(drawn, 3, undefined).tips.some((tip) => tip.leaving)).toBe(false);
+  });
+
+  it("counts a tip once it is the row itself, and leaves out a line without badges", () => {
+    expect(tipsAt(drawn, 0, undefined).tips.map((tip) => tip.id)).toEqual(["uncommitted:wt"]);
+    const bare = graphOf(entries([commit("z", ["a"]), commit("a", [])]), undefined, {
+      heads: new Set(),
+    });
+    const { lines, tips } = tipsAt(bare, 0, undefined);
+    expect(lines.map((line) => line.lane)).toEqual([0]);
+    expect(tips).toEqual([]);
+    // History's HEAD, though without refs, has its badge.
+    expect(tipsAt(bare, 0, "z").tips.map((tip) => tip.id)).toEqual(["z"]);
   });
 });

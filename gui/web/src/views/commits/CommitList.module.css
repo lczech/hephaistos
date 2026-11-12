@@ -3,6 +3,7 @@
 /* The middle of a node of the graph: of a row's first line, as high in both layouts. */
 .list {
   --graph-node-y: calc(var(--row-space) + 0.5lh);
+  --band-more: 2px; /* the frames of the badges, which make a row with them higher */
 }
 
 .list[data-layout="lines"] {
@@ -34,8 +35,38 @@
   width: calc(100cqw - var(--graph-end) - var(--column-gap) - var(--space-3));
 }
 
-.list.graphed[data-layout="lines"] [role="row"] [data-column="graph"] {
+.list.graphed[data-layout="lines"] [data-column="graph"] {
   width: var(--graph-width);
+}
+
+/* The tips in the band below the header (`Tips.tsx`): each a button of its badges, in one line,
+ * cut off at the end of the column, as the band is a row high. */
+.tips {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.tip {
+  display: inline-flex;
+  flex: none;
+  translate: 0 var(--by, 0rem); /* coming in with the row below (`Tips.tsx`) */
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tip > * {
+  flex-wrap: nowrap;
+  margin-right: 0;
+}
+
+.tip:hover {
+  border-radius: var(--radius);
+  background: var(--fill-hover);
 }
 
 .icon {

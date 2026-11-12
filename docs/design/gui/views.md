@@ -186,6 +186,7 @@ Its default branch keeps lane 0 and the accent, pinned to the left from the top,
 Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, whether it shows Worktrees only, and how many branches are hidden.
+Once its rows scroll under the header, a row stays below it, as sticky headers do: the tips of the lines going on below the row at the top that start in it or above it, their nodes in their lanes, their badges by lane, in one line cut off at the end of the column; a tip slides into it with its row, its node and badges, and stays as its row passes under; while a row comes in under it, that row's part of the graph is drawn in it as it is, but not above a tip that stays, and a tip whose line ends in that row is pushed out by it; lines without a badge, or opened by a merge, pass; a click on a tip's badges goes to it, and rows gone to come below the row (`tipsBand`).
 
 Its Checkouts:
 - the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a badge of its own, `detached`, with the HEAD icon and where; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;
