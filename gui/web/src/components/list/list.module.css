@@ -84,6 +84,21 @@
   list-style: none;
 }
 
+/* Only the rows near the view, each placed by TanStack Virtual (`VirtualRows`), the list as high
+ * as all of them; drawn in full, as only those near the view are drawn at all. They stay where
+ * they are as rows come before them by its own measure, not the browser's (`overflow-anchor`). */
+.virtual {
+  position: relative;
+  overflow-anchor: none;
+}
+
+.virtual > .item {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
 .clear {
   position: absolute;
   top: 0;
@@ -140,6 +155,11 @@
   --view-icon: currentColor; /* links to Views grey, until hovered (below) */
 }
 
+/* Drawn in full: only those near the view are drawn at all (`VirtualRows`). */
+.virtual .row {
+  content-visibility: visible;
+}
+
 .item[data-tone="muted"] > .row {
   color: var(--text-muted);
 }
@@ -191,11 +211,14 @@
   background: var(--fill-marked-hover);
 }
 
-/* Rows in groups: each starts with a line, with some room, above all but the first. */
-.frame[data-grouped] .item:not([data-depth], :first-child) {
+/* Rows in groups: each starts with a line, with some room, above all but the first; within the
+ * row, which is measured as drawn (`VirtualRows`), margins aside. */
+.frame[data-grouped] .item:not([data-depth], [data-first])::before {
+  display: block;
+  height: var(--space-1);
   margin-top: var(--space-1);
-  padding-top: var(--space-1);
   border-top: 1px solid var(--line);
+  content: "";
 }
 
 .row > [data-figures] {

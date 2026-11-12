@@ -24,6 +24,18 @@ globalThis.IntersectionObserver ??= class {
   }
 } as unknown as typeof IntersectionObserver;
 
+// Nor has a list a height, so it would draw none of its rows (`VirtualRows`): one tall enough
+// for all a test shows, which measure nothing either.
+const clientHeight = Object.getOwnPropertyDescriptor(Element.prototype, "clientHeight");
+if (navigator.userAgent.includes("jsdom")) {
+  Object.defineProperty(Element.prototype, "clientHeight", {
+    configurable: true,
+    get(this: Element) {
+      return this.matches("[data-layout]") ? 100_000 : (clientHeight?.get?.call(this) ?? 0);
+    },
+  });
+}
+
 // Nor does it animate.
 Element.prototype.animate ??= () => ({}) as Animation;
 

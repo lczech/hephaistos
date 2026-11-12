@@ -15,6 +15,10 @@ const schema = JSON.parse(readFileSync(new URL("openapi.json", import.meta.url),
 // count). Through Babel 7: the compiler misreads Babel 8's syntax trees ("Todo: …
 // AssignmentPattern" for default values).
 const compiler = reactCompilerPreset({
+  // But for the List's virtual rows: it refuses TanStack Virtual's `useVirtualizer`, whose
+  // virtualizer stays the same object as what it shows changes ("incompatible library"), and
+  // would skip them anyway; they are drawn anew each time, as TanStack Virtual expects.
+  sources: (filename) => !filename.endsWith("/components/list/VirtualRows.tsx"),
   panicThreshold: "all_errors",
   logger: {
     logEvent(filename, event) {

@@ -86,12 +86,15 @@ describe("a column's edge, double-clicked", () => {
     expect(nameWidth()).toBeLessThan(cell.scrollWidth + 2);
   });
 
-  it("fits it to a cell out of view too, never drawn", async () => {
+  it("fits it to the rows drawn, near the view, not to those far from it", async () => {
     render(<Long name="a rather long name for a fruit" width={800} after={300} />);
-    const cell = screen.getByText("a rather long name for a fruit");
+    expect(screen.queryByText("a rather long name for a fruit")).toBeNull();
     fitName();
-    await waitFor(() => expect(nameWidth()).toBeGreaterThan(100));
-    cell.scrollIntoView();
+    await waitFor(() => expect(nameWidth()).toBeLessThan(100));
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    frame.scrollTop = frame.scrollHeight;
+    const cell = await screen.findByText("a rather long name for a fruit");
+    fitName();
     await waitFor(() => expect(nameWidth()).toBeGreaterThanOrEqual(cell.scrollWidth));
   });
 
@@ -130,12 +133,12 @@ function Coloured() {
 describe("a list's rows", () => {
   it("are drawn only near the view, as it scrolls", async () => {
     render(<Long name="last" width={800} after={300} />);
-    const drawn = (name: string) =>
-      screen.getByText(name).checkVisibility({ contentVisibilityAuto: true });
-    await waitFor(() => expect(drawn("fruit 1")).toBe(true));
-    expect(drawn("last")).toBe(false);
-    screen.getByText("last").scrollIntoView();
-    await waitFor(() => expect(drawn("last")).toBe(true));
+    expect(screen.getByText("fruit 1")).toBeVisible();
+    expect(screen.queryByText("last")).toBeNull();
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    frame.scrollTop = frame.scrollHeight;
+    expect(await screen.findByText("last")).toBeVisible();
+    await waitFor(() => expect(screen.queryByText("fruit 1")).toBeNull());
   });
 
   it("line up their cells below the headers, as they are set", async () => {

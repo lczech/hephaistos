@@ -21,6 +21,7 @@ import { LinesHead } from "./LinesHead";
 import styles from "./list.module.css";
 import { type RowAction, RowMenu } from "./RowMenu";
 import type { ListFeatures } from "./table";
+import { type Drawn, VirtualRows } from "./VirtualRows";
 
 /** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
 export type Tone = "warning" | "danger" | "alarm" | "muted";
@@ -213,8 +214,10 @@ export function List<TData extends RowData>({
       keyboard,
     });
   };
-  // A row's menu where it was clicked or long pressed; from the keyboard, below its start.
-  const showRowMenu = (event: MouseEvent<HTMLDivElement>, id: string) => {
+  // A row's menu where it was clicked or long pressed; from the keyboard, below its start. Made
+  // only then: a row without one leaves the browser's own.
+  const showRowMenu = (event: MouseEvent<HTMLDivElement>, row: TData, id: string) => {
+    if (rowMenu?.(row) === undefined) return;
     event.preventDefault();
     const box = event.currentTarget.getBoundingClientRect();
     const keyboard = event.clientX === 0 && event.clientY === 0;
@@ -244,10 +247,21 @@ export function List<TData extends RowData>({
     table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
   };
   const rows = table.getRowModel().rows;
-  // Rows that come into view, or near it, said once each time they are drawn; all of them where
-  // nothing tells, as in jsdom.
+  // Only the rows near the view are drawn, of a list that scrolls itself; a tree's still within
+  // the rows holding them, and those of a list part of a page, all of them.
+  const virtual = !tree && !embedded;
+  // The rows drawn, near the view, said as they are drawn, and again as the rows or what the
+  // View asks change, e.g. a search starting (`VirtualRows` tells as either does).
+  const drawnNow = (indexes: number[]) => {
+    for (const index of indexes) {
+      const row = rows[index];
+      if (row !== undefined) seen?.(row.original);
+    }
+  };
+  // Of the others: rows that come into view, or near it, said once each time they are drawn; all
+  // of them where nothing tells, as in jsdom.
   useEffect(() => {
-    if (seen === undefined) return;
+    if (seen === undefined || virtual) return;
     const drawn = rows.flatMap((row, index) => {
       const element = document.getElementById(`${list}-${index}`);
       return element ? [[element, row.original] as const] : [];
@@ -280,7 +294,7 @@ export function List<TData extends RowData>({
     else childrenOf.set(row.parentId, [row]);
   }
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
-  const drawRow = (row: (typeof rows)[number]) => {
+  const drawRow = (row: (typeof rows)[number], drawn?: Drawn) => {
     const index = indexOf.get(row.id) ?? 0;
     const view = opens?.(row.original);
     const still = view === undefined && (plain?.(row.original) ?? false);
@@ -298,6 +312,9 @@ export function List<TData extends RowData>({
     return (
       <li
         key={row.id}
+        ref={drawn?.measure}
+        data-index={drawn?.index}
+        data-first={index === 0 || undefined}
         className={styles.item}
         data-tone={tone?.(row.original)}
         data-depth={row.depth || undefined}
@@ -312,9 +329,7 @@ export function List<TData extends RowData>({
           data-showing={showing?.(row.original) || undefined}
           onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
           onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
-          onContextMenu={
-            rowMenu?.(row.original) ? (event) => showRowMenu(event, row.id) : undefined
-          }
+          onContextMenu={rowMenu && ((event) => showRowMenu(event, row.original, row.id))}
           onPointerEnter={ahead && (() => ahead(row.original))}
           onFocus={ahead && (() => ahead(row.original))}
         >
@@ -373,7 +388,9 @@ export function List<TData extends RowData>({
             {details(row.original)}
           </section>
         )}
-        {within.length > 0 && <ol className={styles.within}>{within.map(drawRow)}</ol>}
+        {within.length > 0 && (
+          <ol className={styles.within}>{within.map((inner) => drawRow(inner))}</ol>
+        )}
       </li>
     );
   };
@@ -461,9 +478,23 @@ export function List<TData extends RowData>({
             </>
           )}
         </div>
-        {rows.length > 0 && (
+        {rows.length > 0 && virtual && (
+          <VirtualRows
+            source={table}
+            count={rows.length}
+            keyOf={(index) => rows[index]?.id ?? String(index)}
+            scroller={(rows) => rows.closest("[data-layout]")}
+            draw={(index, drawn) => {
+              const row = rows[index];
+              return row && drawRow(row, drawn);
+            }}
+            drawnNow={drawnNow}
+            onPointerOver={showWholeText}
+          />
+        )}
+        {rows.length > 0 && !virtual && (
           <ol className={styles.rows} onPointerOver={showWholeText}>
-            {(tree ? rows.filter((row) => row.depth === 0) : rows).map(drawRow)}
+            {(tree ? rows.filter((row) => row.depth === 0) : rows).map((row) => drawRow(row))}
           </ol>
         )}
       </div>

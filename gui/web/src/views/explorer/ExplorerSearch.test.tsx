@@ -185,6 +185,7 @@ describe("finding in the Explorer", () => {
     await userEvent.clear(field());
     await userEvent.type(field(), "proj");
     await waitFor(() => expect(names()).toEqual(["proj"]));
+    await expectSettled(); // the search typed done, which would fold what it opens
     await userEvent.click(screen.getByText("proj"));
     await waitFor(() => expect(names()).toEqual(["proj", "main.py", "old"]));
   });

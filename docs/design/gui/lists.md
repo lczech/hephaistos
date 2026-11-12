@@ -9,7 +9,11 @@ Views render them as CSS grids of their own markup.
 Widths reach the grid as CSS variables.
 The header and each row lay out the same columns, each on its own, not as subgrids of one grid: so that a change in one row, even its actions shown on hover, does not lay out all the others again.
 So a column's width is the same in every row, never sized by its cells (`max-content`); one sized by what it shows is set by its View, as the Changes list's lines (`vars`).
-Rows out of view are not drawn, keeping their room, as guessed until drawn once (`content-visibility`).
+Only the rows near the view are drawn, by TanStack Virtual (`VirtualRows`), in a file that React's compiler leaves out, as it refuses `useVirtualizer`.
+Each is measured as drawn, not rounded to pixels, and placed by `top`, so that its text lands on whole pixels, as text moved by `transform` to a fraction of a pixel is blurred.
+Rows in view stay where they are as rows come or go before them, put back by their key, as the browser keeps them only where it lays them out itself; at the very top, new rows show.
+Until measured, a list is taken as high as the window, so that its first draw shows rows.
+Trees, and a list that is part of a page, draw all their rows; those out of view are not painted, keeping their room, as guessed until painted once (`content-visibility`).
 
 ## Rows
 
@@ -21,7 +25,7 @@ What a row opens, and how it shows that, is in [interaction](interaction.md#rows
 - nothing, where it shows all it has, e.g. a note.
 
 A row may have actions: icons after what names it, shown while it is pointed at or holds the focus of the keyboard, its name then making room, cut off, so that its other cells stay as they are (`actions`).
-A View may ask for what a row opens as it is pointed at or focused (`ahead`), and for what it shows as it comes into view, or near it (`seen`).
+A View may ask for what a row opens as it is pointed at or focused (`ahead`), and for what it shows as it comes into view, or near it (`seen`): as it is drawn, and again as the rows or what the View asks change.
 It may have a menu, by the right button, a long press, or the menu key or Shift+F10 on the row (`menu`, `RowMenu`): what can be done with it, in groups, each by its icon, a View's in its family's colour.
 A row that opens a View is marked while that View is shown in any Group, focused or not, as VS Code marks the file of the editor shown (`useIsShown`, from `layout/`).
 A commit in History is marked so while its Changes are shown.
@@ -95,7 +99,7 @@ One that is part of a page, the Diff's untracked files, scrolls only sideways.
 ## Arranging columns
 
 Column widths can be dragged.
-A double click on a column's edge fits it to its loaded cells, at most as wide as the list.
+A double click on a column's edge fits it to the cells drawn, those near the view, at most as wide as the list.
 A column may be hidden until shown, e.g. one whose values cost to ask for; a View then asks only for the shown columns' (`useHidden`).
 In columns, the header's context menu (the right button; a long press on Android) shows or hides columns, moves the one clicked left or right past those shown, and resets the list's look, its layout too.
 Dragging a header with a mouse moves its column too (React Aria's `useDrag`, the header row its `useDrop`).
