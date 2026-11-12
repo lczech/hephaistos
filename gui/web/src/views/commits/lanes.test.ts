@@ -81,7 +81,9 @@ describe("lanes", () => {
     const { rows } = lay([n("f", "m"), wt, n("m", "a"), n("a")], { pinned: "m" });
     expect(lanesOf(rows)).toEqual([1, 0, 0, 0]);
     expect(rows[1]?.node).toBe("uncommitted");
-    expect(rows[1]?.out).toEqual([{ from: 0, to: 0, colour: rows[1]?.colour, dashed: true }]);
+    expect(rows[1]?.out).toEqual([
+      { from: 0, to: 0, colour: rows[1]?.colour, dashed: true, start: 1 }, // its line starts here
+    ]);
     expect(rows[2]?.above?.dashed).toBe(true);
     expect(rows[3]?.above?.dashed).toBe(false);
   });

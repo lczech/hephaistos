@@ -29,20 +29,23 @@ export interface Line {
   lane: number;
   colour: LaneColour;
   dashed: boolean;
+  start: number | null; // the row of the tip its line starts at; null for a line a merge opened
 }
 
-/** A line bending in a row's half: from a column to another; dashed as `Line`. */
+/** A line bending in a row's half: from a column to another; dashed and started as `Line`. */
 export interface Bend {
   from: number;
   to: number;
   colour: LaneColour;
   dashed: boolean;
+  start: number | null; // that of the line it is part of: the one coming in, or going on
 }
 
 export interface RowGraph {
   lane: number;
   colour: LaneColour;
   node: NodeKind;
+  start: number | null; // the row of the tip of its line: its own if it starts one; as `Line`
   above: Line | null; // its own lane, coming down into the node
   into: Bend[]; // in the top half: other lanes that end in the node
   out: Bend[]; // in the bottom half: from the node to each parent's lane, the first one's own
@@ -61,6 +64,7 @@ interface Lane {
   dashed: boolean;
   hidden: boolean; // reserved for the pinned commit, not drawn until it comes
   from: number; // the row it starts below
+  start: number | null; // as `Line`
 }
 
 /** A lane's room: below row `from` down to above row `to`; open lanes have no `to` yet. */
@@ -68,6 +72,7 @@ interface Span {
   lane: number;
   colour: LaneColour;
   dashed: boolean;
+  start: number | null;
   from: number;
   to: number;
 }
@@ -99,7 +104,14 @@ export class Layout {
     if (options.pinned) {
       const colour: LaneColour =
         options.accent === "pinned" ? { kind: "accent" } : mutedFor(options.pinned);
-      this.set(0, { expects: options.pinned, colour, dashed: false, hidden: true, from: -1 });
+      this.set(0, {
+        expects: options.pinned,
+        colour,
+        dashed: false,
+        hidden: true,
+        from: -1,
+        start: null, // its line starts where the pinned commit comes
+      });
     }
   }
 
@@ -122,6 +134,7 @@ export class Layout {
 
     let lane: number;
     let colour: LaneColour;
+    let start: number | null = row; // a tip, unless a line comes down into it
     let above: Line | null = null;
     const first = matched[0];
     const reserved = lanes[0];
@@ -129,7 +142,10 @@ export class Layout {
       const own = lanes[first] as Lane;
       lane = first;
       colour = own.colour;
-      if (!own.hidden) above = { lane, colour, dashed: own.dashed };
+      if (!own.hidden) {
+        start = own.start;
+        above = { lane, colour, dashed: own.dashed, start };
+      }
     } else if (
       node.uncommitted &&
       reserved?.hidden &&
@@ -145,7 +161,7 @@ export class Layout {
     }
     const into = matched.slice(1).map((from): Bend => {
       const other = lanes[from] as Lane;
-      return { from, to: lane, colour: other.colour, dashed: other.dashed };
+      return { from, to: lane, colour: other.colour, dashed: other.dashed, start: other.start };
     });
     for (const i of matched) this.end(i, row);
 
@@ -156,8 +172,8 @@ export class Layout {
     const parents = node.parents.filter((parent) => !this.seen.has(parent));
     const [firstParent, ...others] = parents;
     if (firstParent !== undefined && firstParent === node.parents[0]) {
-      this.set(lane, { expects: firstParent, colour, dashed, hidden: false, from: row });
-      out.push({ from: lane, to: lane, colour, dashed });
+      this.set(lane, { expects: firstParent, colour, dashed, hidden: false, from: row, start });
+      out.push({ from: lane, to: lane, colour, dashed, start });
     } else if (firstParent !== undefined) {
       others.unshift(firstParent); // the first parent was listed already: the rest open lanes
     }
@@ -177,10 +193,17 @@ export class Layout {
           dashed: false,
           hidden: false,
           from: row,
+          start: null, // opened by a merge, not by a tip
         });
       }
       const target = lanes[to] as Lane;
-      out.push({ from: lane, to, colour: target.colour, dashed: target.dashed });
+      out.push({
+        from: lane,
+        to,
+        colour: target.colour,
+        dashed: target.dashed,
+        start: target.start,
+      });
     }
 
     while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
@@ -194,6 +217,7 @@ export class Layout {
       lane,
       colour,
       node: this.kindOf(node),
+      start,
       above,
       into,
       out,
@@ -213,19 +237,28 @@ export class Layout {
     );
     const open = this.lanes.flatMap((lane, i): Line[] =>
       lane && !lane.hidden && lane.from < row
-        ? [{ lane: i, colour: lane.colour, dashed: lane.dashed }]
+        ? [{ lane: i, colour: lane.colour, dashed: lane.dashed, start: lane.start }]
         : [],
     );
-    return [...found.map(({ lane, colour, dashed }) => ({ lane, colour, dashed })), ...open].sort(
-      (a, b) => a.lane - b.lane,
-    );
+    const spanned = found.map(({ lane, colour, dashed, start }) => ({
+      lane,
+      colour,
+      dashed,
+      start,
+    }));
+    return [...spanned, ...open].sort((a, b) => a.lane - b.lane);
   }
 
   /** The lanes going on below row `row`, through what is shown under it: passing or leaving. */
   below(row: number): Line[] {
     const graph = this.rows[row];
     if (graph === undefined) return [];
-    const leaving = graph.out.map(({ to, colour, dashed }) => ({ lane: to, colour, dashed }));
+    const leaving = graph.out.map(({ to, colour, dashed, start }) => ({
+      lane: to,
+      colour,
+      dashed,
+      start,
+    }));
     const lines = [...this.passing(row), ...leaving];
     const seen = new Set<number>();
     return lines
@@ -271,6 +304,7 @@ export class Layout {
         lane: index,
         colour: lane.colour,
         dashed: lane.dashed,
+        start: lane.start,
         from: lane.from,
         to: row,
       });
