@@ -150,12 +150,12 @@ function Tree({ embedded = false, act }: { embedded?: boolean; act?: (name: stri
 const itemOf = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
 
 describe("a list as a tree", () => {
-  it("draws a row's rows within its item, in order, holding them only while open", async () => {
+  it("draws a row's rows after it, in order, holding them only while open", async () => {
     render(<Tree />);
     expect(itemOf("src")).not.toHaveAttribute("data-holding");
     await userEvent.click(screen.getByText("src"));
-    const inner = within(itemOf("src")).getAllByRole("listitem");
-    expect(inner.map((item) => item.textContent)).toEqual(["b.py", "a.py"]); // as given
+    const items = screen.getAllByRole("listitem").map((item) => item.textContent);
+    expect(items.slice(items.indexOf("src"), -1)).toEqual(["src", "b.py", "a.py"]); // as given
     expect(itemOf("src")).toHaveAttribute("data-holding");
     expect(itemOf("a.py")).toHaveAttribute("data-depth", "1");
     await userEvent.click(screen.getByText("src"));

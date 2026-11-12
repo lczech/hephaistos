@@ -287,14 +287,17 @@ describe("a list as a tree", () => {
   it("brings a row focused into view below the rows stuck above it", async () => {
     render(<Tree />);
     const frame = document.querySelector("[data-tree]") as HTMLElement;
-    frame.scrollTop = frame.scrollHeight; // its last rows in view, "src" stuck above them
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    frame.scrollTop = 300; // "file 5" above the view, still drawn, "src" stuck
     await waitFor(() => expect(rowOf("file 5").getBoundingClientRect().bottom).toBeLessThan(0));
     within(rowOf("file 5")).getByRole("button").focus(); // as Shift+Tab moves up to it
-    await waitFor(() =>
+    await waitFor(() => {
+      const src = seenAt(head.getBoundingClientRect().bottom + 1);
+      expect(src?.name).toBe("src");
       expect(rowOf("file 5").getBoundingClientRect().top).toBeGreaterThanOrEqual(
-        rowOf("src").getBoundingClientRect().bottom - 1,
-      ),
-    );
+        (src?.box.bottom ?? 0) - 1,
+      );
+    });
   });
 
   it("lines up the rows within a row below the headers too", () => {
@@ -305,14 +308,37 @@ describe("a list as a tree", () => {
     for (const cell of cells) expect(left(cell)).toBeCloseTo(left(header), 1);
   });
 
-  it("sticks an open row, still marked as shown, unless part of a page", () => {
-    const { unmount } = render(<Tree />);
-    const stuck = getComputedStyle(rowOf("src"));
-    expect(stuck.position).toBe("sticky");
-    expect(stuck.backgroundImage).toMatch(/gradient/); // its mark, over the page's colour
-    unmount();
-    render(<Tree embedded />);
-    expect(getComputedStyle(rowOf("src")).position).not.toBe("sticky");
+  it("sticks an open row, still marked as shown", async () => {
+    render(<Tree />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    frame.scrollTop = 200;
+    await drawn();
+    const stuck = document.elementFromPoint(
+      head.getBoundingClientRect().left + 100,
+      head.getBoundingClientRect().bottom + 2,
+    );
+    const row = stuck?.closest("li > div") as HTMLElement;
+    expect(row.textContent).toContain("src");
+    expect(getComputedStyle(row).backgroundImage).toMatch(/gradient/); // its mark, over the page's colour
+  });
+
+  it("scrolls a row stuck, once clicked, to its place at the top, then closes it", async () => {
+    render(<Tree />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    frame.scrollTop = 200;
+    await drawn();
+    const y = head.getBoundingClientRect().bottom + 2;
+    expect(seenAt(y)?.name).toBe("src");
+    fireEvent.click(
+      document.elementFromPoint(head.getBoundingClientRect().left + 100, y) as Element,
+    );
+    await waitFor(() => expect(screen.queryByText("file 1")).toBeNull()); // closed
+    expect(ownRowOf("src").getBoundingClientRect().top).toBeCloseTo(
+      head.getBoundingClientRect().bottom,
+      0,
+    );
   });
 });
 
@@ -363,30 +389,30 @@ describe("a tree's rows stuck below its header", () => {
     frame.scrollTop = frame.scrollHeight;
     const head = frame.firstElementChild?.firstElementChild as HTMLElement; // in the grid
     await waitFor(() => {
-      const [src, inner] = [rowOf("src"), rowOf("inner")].map((row) => row.getBoundingClientRect());
-      expect(src?.top).toBeCloseTo(head.getBoundingClientRect().bottom, 0);
-      expect(inner?.top).toBeCloseTo(src?.bottom ?? 0, 0);
+      const src = seenAt(head.getBoundingClientRect().bottom + 1);
+      const inner = seenAt((src?.box.bottom ?? 0) + 1);
+      expect([src?.name, inner?.name]).toEqual(["src", "inner"]);
+      expect(src?.box.top).toBeCloseTo(head.getBoundingClientRect().bottom, 0);
+      expect(inner?.box.top).toBeCloseTo(src?.box.bottom ?? 0, 0);
     });
   });
 
-  // Firefox and WebKit cannot tell yet whether a row is stuck: they show no seam at all.
-  it.skipIf(!CSS.supports("container-type", "scroll-state"))(
-    "cover the pixel above each with the background, only once stuck",
-    async () => {
-      render(<Deep layout="columns" />);
-      const frame = document.querySelector("[data-tree]") as HTMLElement;
-      const seam = (name: string) => rowOf(name).lastElementChild as HTMLElement;
-      expect(getComputedStyle(seam("inner")).display).toBe("none");
-      frame.scrollTop = frame.scrollHeight;
-      await waitFor(() => expect(getComputedStyle(seam("inner")).display).toBe("block"));
-      const row = rowOf("inner").getBoundingClientRect();
-      expect(seam("inner").getBoundingClientRect()).toMatchObject({
-        top: row.top - 1,
-        height: 1,
-        width: row.width,
-      });
-    },
-  );
+  it("lie on the background, from the header to the lowest, no row passing below between", async () => {
+    render(<Deep layout="columns" />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    frame.scrollTop = frame.scrollHeight;
+    await drawn();
+    const top = head.getBoundingClientRect().bottom;
+    const src = seenAt(top + 1);
+    const inner = seenAt((src?.box.bottom ?? 0) + 1);
+    expect(inner?.name).toBe("inner");
+    const x = head.getBoundingClientRect().right - 10; // past the names
+    for (let y = top - 1; y < (inner?.box.bottom ?? 0) - 0.5; y += 0.25) {
+      const at = document.elementFromPoint(x, y) as Element;
+      expect(head.contains(at) || at.closest("[aria-hidden]") !== null).toBe(true);
+    }
+  });
 });
 
 /** Two frames: drawn after a scroll, wherever the List places its rows. */
@@ -464,8 +490,15 @@ describe("a tree's rows stuck, as seen", () => {
     render(<Layered />);
     const frame = document.querySelector("[data-tree]") as HTMLElement;
     const head = frame.firstElementChild?.firstElementChild as HTMLElement;
-    const end = ownRowOf(last);
-    const at = end.getBoundingClientRect().bottom - frame.getBoundingClientRect().top;
+    // Scrolled to `last`, drawn only near the view, to know where it ends.
+    while (screen.queryAllByText(last).length === 0) {
+      frame.scrollTop += 100;
+      await drawn();
+    }
+    const at =
+      ownRowOf(last).getBoundingClientRect().bottom -
+      frame.getBoundingClientRect().top +
+      frame.scrollTop;
     let slid = 0;
     for (let by = Math.round(at) - 90; by < at; by += 1) {
       frame.scrollTop = by;
@@ -492,7 +525,7 @@ describe("a tree's rows stuck, as seen", () => {
       .filter((box) => box.height > 0)
       .map((box) => box.top)
       .sort((a, b) => a - b);
-    const height = ownRowOf("top 1").getBoundingClientRect().height;
+    const height = ownRowOf("deep 1").getBoundingClientRect().height;
     expect(tops.length).toBeGreaterThan(5);
     for (const [at, top] of tops.slice(1).entries()) {
       expect(top - (tops[at] ?? 0)).toBeCloseTo(height, 2);

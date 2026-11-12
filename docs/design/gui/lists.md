@@ -13,7 +13,8 @@ Only the rows near the view are drawn, by TanStack Virtual (`VirtualRows`), in a
 Each is measured as drawn, not rounded to pixels, and placed by `top`, so that its text lands on whole pixels, as text moved by `transform` to a fraction of a pixel is blurred.
 Rows in view stay where they are as rows come or go before them, put back by their key, as the browser keeps them only where it lays them out itself; at the very top, new rows show.
 Until measured, a list is taken as high as the window, so that its first draw shows rows.
-Trees, and a list that is part of a page, draw all their rows; those out of view are not painted, keeping their room, as guessed until painted once (`content-visibility`).
+A tree's rows are flat, each after the row holding it.
+A list that is part of a page draws all its rows, a tree's within the rows holding them; those out of view are not painted, keeping their room, as guessed until painted once (`content-visibility`).
 
 ## Rows
 
@@ -41,9 +42,14 @@ What is folded or opened is kept per browser as named sets of strings (`hephaist
 A row is a step further in for each level, its chevron moved as far, before what it is, so that its icon starts where its parent's name does.
 A tree's square holds only its chevron, a little in from the list's edge and reaching into the gap after it, so that what the row is starts just after it (`tree`).
 A list may set its rows closer together (`compact`): the Explorer does, as a sidebar's list will.
-A tree draws a row's rows within it, so that a row holding rows stays in view below the header and those holding it while its rows scroll past, as VS Code's trees do; not where the list is part of a page.
-What is focused or scrolled to in a row comes into view below those rows, not under them.
-Rows stuck so lie at fractions of a pixel and are each drawn at whole pixels, so that a pixel of the rows passing below may show between two: once stuck, a row covers the pixel above it with the background, as the header covers the one above itself; only once stuck, which only Chromium can tell yet (`@container scroll-state(stuck: top)`).
+A row whose content is open, the rows within it or its details, stays in view below the header and below the rows holding it while that content scrolls past, as VS Code's sticky scroll does; not yet where the list is part of a page.
+The rows stuck are copies, drawn apart above the rows (`stuck.ts`, `VirtualRows`), as the rows they stand for may be far out of view, not drawn; hidden from screen readers and out of the order of Tab.
+A row sticks once scrolled past the header's end, not while in its place, by where it starts itself, not the line above it starting a group; the end of its content pushes it up, sliding out below the rows holding it.
+A click on a copy leaves the focus where it is.
+The copies lie on one block of the background, from a pixel above the header's end to the end of the lowest: each lies at a fraction of a pixel, drawn at whole pixels on its own, so that the rows passing below would show between two.
+A click on a copy scrolls its row to where the copy is, at the top, then closes it; its menu opens there too.
+What is focused or scrolled to in a row, or in its details, comes into view below those rows, not under them.
+The header covers the pixel above itself with the background, at its scroll edge, where a row passing below may show when zoomed.
 A row's tone is its own, not that of the rows within it.
 While the list is pointed at, a thin line runs below each open row's chevron, through the rows within it.
 

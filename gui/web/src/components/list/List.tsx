@@ -20,6 +20,7 @@ import type { ListLayout } from "./kept";
 import { LinesHead } from "./LinesHead";
 import styles from "./list.module.css";
 import { type RowAction, RowMenu } from "./RowMenu";
+import { shapeOf } from "./stuck";
 import type { ListFeatures } from "./table";
 import { type Drawn, VirtualRows } from "./VirtualRows";
 
@@ -148,6 +149,7 @@ export function List<TData extends RowData>({
     x: number;
     y: number;
     keyboard: boolean;
+    copy: boolean; // asked for on its copy stuck, not on the row itself
   } | null>(null);
   const rowAnchor = useRef<HTMLSpanElement>(null);
   const list = useId();
@@ -216,13 +218,18 @@ export function List<TData extends RowData>({
   };
   // A row's menu where it was clicked or long pressed; from the keyboard, below its start. Made
   // only then: a row without one leaves the browser's own.
-  const showRowMenu = (event: MouseEvent<HTMLDivElement>, row: TData, id: string) => {
+  const showRowMenu = (
+    event: MouseEvent<HTMLDivElement>,
+    row: TData,
+    id: string,
+    copy: boolean,
+  ) => {
     if (rowMenu?.(row) === undefined) return;
     event.preventDefault();
     const box = event.currentTarget.getBoundingClientRect();
     const keyboard = event.clientX === 0 && event.clientY === 0;
     const [x, y] = keyboard ? [0, box.height] : [event.clientX - box.left, event.clientY - box.top];
-    setRowMenuAt({ id, x, y, keyboard });
+    setRowMenuAt({ id, x, y, keyboard, copy });
   };
   const { dropProps, line, carried } = useColumnDrop(table, head, layout);
   useEffect(() => {
@@ -247,9 +254,9 @@ export function List<TData extends RowData>({
     table.setColumnSizing((sizes) => ({ ...sizes, [id]: Math.ceil(Math.min(width, room)) }));
   };
   const rows = table.getRowModel().rows;
-  // Only the rows near the view are drawn, of a list that scrolls itself; a tree's still within
-  // the rows holding them, and those of a list part of a page, all of them.
-  const virtual = !tree && !embedded;
+  // Only the rows near the view are drawn, of a list that scrolls itself, flat; those of a list
+  // part of a page, all of them, a tree's within the rows holding them.
+  const virtual = !embedded;
   // The rows drawn, near the view, said as they are drawn, and again as the rows or what the
   // View asks change, e.g. a search starting (`VirtualRows` tells as either does).
   const drawnNow = (indexes: number[]) => {
@@ -294,6 +301,22 @@ export function List<TData extends RowData>({
     else childrenOf.set(row.parentId, [row]);
   }
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
+  // Whether a row's content is open: in a tree, the rows within it; else its details.
+  const holds = (row: (typeof rows)[number]) =>
+    folds?.(row.original)
+      ? tree === true && row.getIsExpanded() && childrenOf.has(row.id)
+      : open.has(row.id) && opens?.(row.original) === undefined && !plain?.(row.original);
+  // Which rows stick while their content scrolls past: of a tree by its levels, else each alone.
+  const shape = virtual
+    ? shapeOf(rows.map((row) => ({ depth: tree ? row.depth : 0, holds: holds(row) })))
+    : undefined;
+  // Where the header ends while it stays at the top as the list scrolls, from where it sticks
+  // (within the list's padding): for the rows stuck below it.
+  const below = () => {
+    const at = head.current;
+    if (at === null) return 0;
+    return at.getBoundingClientRect().height + (Number.parseFloat(getComputedStyle(at).top) || 0);
+  };
   const drawRow = (row: (typeof rows)[number], drawn?: Drawn) => {
     const index = indexOf.get(row.id) ?? 0;
     const view = opens?.(row.original);
@@ -305,31 +328,45 @@ export function List<TData extends RowData>({
       : () => toggle(row.id);
     if (view !== undefined) opening = view;
     const middle = (click: MouseEvent) => click.button === 1 && view?.(click);
+    // A copy stuck, clicked, scrolls its row to where it is, then closes it, as its row would.
+    const copy = drawn?.copy;
+    if (copy) {
+      const closing = opening;
+      opening = (click) => {
+        copy.place();
+        closing(click);
+      };
+    }
     const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
     const [first, ...others] = row.getVisibleCells();
-    // A tree's rows within this one, drawn inside it, so that an open row sticks while they scroll.
-    const within = (tree && childrenOf.get(row.id)) || [];
+    // Of a list part of a page, a tree's rows within this one, drawn inside it.
+    const within = (tree && !virtual && childrenOf.get(row.id)) || [];
     return (
       <li
         key={row.id}
         ref={drawn?.measure}
-        data-index={drawn?.index}
+        data-index={copy ? undefined : drawn?.index}
         data-first={index === 0 || undefined}
         className={styles.item}
         data-tone={tone?.(row.original)}
         data-depth={row.depth || undefined}
-        data-holding={within.length > 0 || undefined}
-        style={cssVars(tree ? { "--depth": row.depth } : {})}
+        data-holding={(virtual ? holds(row) : within.length > 0) || undefined}
+        style={cssVars({
+          ...(tree ? { "--depth": row.depth } : {}),
+          ...(copy ? { "--top": `${copy.top}px` } : {}),
+        })}
       >
         {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: a shortcut for the mouse; its button opens it by keyboard */}
         <div
-          id={id}
+          id={copy ? undefined : id}
           className={styles.row}
           data-plain={still || undefined}
           data-showing={showing?.(row.original) || undefined}
           onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
           onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
-          onContextMenu={rowMenu && ((event) => showRowMenu(event, row.original, row.id))}
+          onContextMenu={
+            rowMenu && ((event) => showRowMenu(event, row.original, row.id, copy !== undefined))
+          }
           onPointerEnter={ahead && (() => ahead(row.original))}
           onFocus={ahead && (() => ahead(row.original))}
         >
@@ -344,8 +381,8 @@ export function List<TData extends RowData>({
                 type="button"
                 className={styles.open}
                 aria-expanded={view ? undefined : shown}
-                aria-controls={shown && !folding && !view ? `${id}-details` : undefined}
-                aria-labelledby={id}
+                aria-controls={shown && !folding && !view && !copy ? `${id}-details` : undefined}
+                aria-labelledby={copy ? undefined : id}
                 title={squareTitle?.(row.original)}
                 onClick={opening}
                 onAuxClick={view && middle}
@@ -368,7 +405,7 @@ export function List<TData extends RowData>({
               )}
             </span>
           ))}
-          {rowMenuAt?.id === row.id && (
+          {rowMenuAt?.id === row.id && rowMenuAt.copy === (copy !== undefined) && (
             <RowMenuAt
               at={rowMenuAt}
               anchor={rowAnchor}
@@ -376,9 +413,8 @@ export function List<TData extends RowData>({
               onClose={() => setRowMenuAt(null)}
             />
           )}
-          {within.length > 0 && <span className={styles.seam} aria-hidden="true" />}
         </div>
-        {shown && !folding && !still && !view && (
+        {shown && !folding && !still && !view && !copy && (
           <section
             id={`${id}-details`}
             className={styles.details}
@@ -488,6 +524,8 @@ export function List<TData extends RowData>({
               const row = rows[index];
               return row && drawRow(row, drawn);
             }}
+            shape={shape}
+            below={below}
             drawnNow={drawnNow}
             onPointerOver={showWholeText}
           />

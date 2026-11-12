@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { Schemas } from "../../api/client";
@@ -140,7 +140,7 @@ describe("the Explorer's tree, as drawn", () => {
     await explorer();
     await userEvent.click(screen.getByText("a"));
     await userEvent.click(await screen.findByText("b"));
-    await screen.findByText("f39.txt");
+    await screen.findByText("f00.txt");
     const head = document.querySelector("[data-column]")?.parentElement as HTMLElement;
     let scroller: HTMLElement | null = head;
     while (scroller && getComputedStyle(scroller).overflowY === "visible") {
@@ -148,11 +148,17 @@ describe("the Explorer's tree, as drawn", () => {
     }
     (scroller as HTMLElement).scrollTop = 10_000;
     await waitFor(() => expect(box(rowOf("f39.txt")).bottom).toBeLessThan(box(scroller).bottom));
-    const [a, b] = [rowOf("a"), rowOf("b")];
+    // As seen: the rows stuck are copies, drawn apart above the rows, far above, not drawn.
+    const stuck = (name: string) =>
+      within(document.querySelector("[aria-hidden] li")?.parentElement as HTMLElement)
+        .getByText(name)
+        .closest("li") as HTMLElement;
+    const [a, b] = [stuck("a"), stuck("b")];
     expect(box(a).top).toBeCloseTo(box(head).bottom, 0);
     expect(box(b).top).toBeCloseTo(box(a).bottom, 0);
     const z = (element: Element) => Number(getComputedStyle(element).zIndex);
-    expect(z(head)).toBeGreaterThan(z(a));
+    const strip = a.parentElement as HTMLElement;
+    expect(z(head)).toBeGreaterThan(z(strip));
     expect(z(a)).toBeGreaterThan(z(b));
   });
 

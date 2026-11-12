@@ -598,7 +598,6 @@
 .frame:not([data-embedded]) .head {
   position: sticky;
   top: calc(-1 * var(--space-2)); /* at the list's edge: it sticks within the frame's padding */
-  z-index: 1;
   background: var(--background);
 }
 
@@ -697,60 +696,87 @@
   padding-block: var(--row-space); /* as in columns, compact too */
 }
 
-/* In a tree, a row holding rows stays in view below the header and those holding it while its
- * rows scroll past, as they are drawn within it; on the background, so that they pass below. */
-.frame[data-tree]:not([data-embedded]) .head {
-  z-index: 100; /* above all rows stuck below it */
-  box-shadow: 0 -1px var(--background); /* its seam (below) */
-}
-
-.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row {
-  position: sticky;
-  top: calc(-1 * var(--space-2) + var(--head-height) + var(--depth) * var(--row-height));
-  /* Deeper ones lower: one leaving slides below those holding it, not over them. */
-  z-index: calc(99 - var(--depth));
-  background-color: var(--background); /* under the hover's fill, which is translucent */
-  container-type: scroll-state; /* whether it is stuck, for its seam (below) */
-  content-visibility: visible; /* drawn in full, as its seam lies outside it */
-}
-
 /*
- * Stuck rows lie at fractions of a pixel, a row being 1.45 lines high, and each is drawn at whole
- * pixels on its own: a pixel of the rows passing below may show between two. So, once stuck, a
- * row covers the pixel above it with the background, below the row above it or the header, and
- * the header the one above itself. Only once stuck, so that it covers nothing of the row above it
- * in the list. Where a browser cannot tell, the pixel may show.
+ * A row whose content is open (the rows within it, its details) stays in view below the header,
+ * and below the rows holding it, while that content scrolls past: a copy, drawn apart above the
+ * rows (`VirtualRows`), sliding out below those holding it as the end of its content pushes it
+ * up. The copies lie on one block of the background, from a pixel below the header's edge to the
+ * end of the lowest, so that no row passing below shows between two: each lies at a fraction of a
+ * pixel and is drawn at whole pixels on its own.
  */
-.seam {
+.frame:not([data-embedded]) .head {
+  z-index: 101; /* above the rows stuck below it */
+  /* The pixel above it, at its scroll edge, where a row passing below may show when zoomed. */
+  box-shadow: 0 -1px var(--background);
+}
+
+.stuck {
+  position: sticky;
+  top: var(--stuck-top); /* where the header ends (`VirtualRows`) */
+  z-index: 100;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stuck::before {
+  position: absolute;
+  top: calc(-1 * var(--space-hair));
+  right: 0;
+  left: 0;
+  z-index: 0;
+  height: calc(var(--stuck-end) + var(--space-hair));
+  background: var(--background);
+  content: "";
+}
+
+.stuck[data-empty]::before {
   display: none;
 }
 
-@container scroll-state(stuck: top) {
-  .frame[data-tree]:not([data-embedded]) .row > .seam {
-    display: block;
-    position: absolute;
-    inset: calc(-1 * var(--space-hair)) 0 auto;
-    height: var(--space-hair);
-    background: var(--background);
-  }
+.stuck > .item {
+  position: absolute;
+  top: var(--top);
+  right: 0;
+  left: 0;
+  /* Deeper ones lower: one leaving slides below those holding it, not over them. */
+  z-index: calc(99 - var(--depth, 0));
 }
 
-.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row:hover {
+/* Without the line that starts a group: a copy is the row alone. */
+.stuck > .item::before {
+  display: none;
+}
+
+.frame:not([data-embedded]) .stuck .row {
+  content-visibility: visible;
+  background-color: var(--background); /* under the hover's fill, which is translucent */
+}
+
+.frame:not([data-embedded]) .stuck .row:hover {
   background-image: linear-gradient(var(--fill-hover-row), var(--fill-hover-row));
 }
 
 /* What is focused or scrolled to in a row comes into view below the header and the rows stuck
- * above it, those holding it, not under them; one row's room below. */
-.frame[data-tree]:not([data-embedded]) .row :where(*) {
+ * above it, those holding it, not under them; in its details, below the row too, stuck. One
+ * row's room below. */
+.frame:not([data-embedded]) .item,
+.frame:not([data-embedded]) .row :where(*) {
   scroll-margin-block: calc(var(--head-height) + var(--depth, 0) * var(--row-height))
     var(--row-height);
 }
 
-/* Marked as its View is shown, stuck or not (above). */
-.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row[data-showing] {
+.frame:not([data-embedded]) .details :where(*) {
+  scroll-margin-block: calc(var(--head-height) + (var(--depth, 0) + 1) * var(--row-height))
+    var(--row-height);
+}
+
+/* Marked as its View is shown, stuck too (above). */
+.frame:not([data-embedded]) .stuck .row[data-showing] {
   background-image: linear-gradient(var(--fill-marked), var(--fill-marked));
 }
 
-.frame[data-tree]:not([data-embedded]) .item[data-holding] > .row[data-showing]:hover {
+.frame:not([data-embedded]) .stuck .row[data-showing]:hover {
   background-image: linear-gradient(var(--fill-marked-hover), var(--fill-marked-hover));
 }
