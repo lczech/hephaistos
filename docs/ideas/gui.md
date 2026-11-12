@@ -10,21 +10,7 @@ Ideas for the GUI as a whole; those for single Views are in [Views](views.md).
 
 ## Keys and lists
 
-The first step after the Explorer merged (decided with the user, 2026-11-11, after a prototype, branch `proto/explorer-virtual`, kept until this step merges): lists virtual, reached by the keys, with ARIA, in one branch, merged together; virtualization first, then the keys and ARIA, as Tab reaches only the rows drawn.
-
-- In the List, for all lists, as flat rows: only those near the view drawn, by TanStack Virtual's `useVirtualizer`, as documented; rows measured exactly, not rounded to pixels, and placed by `top`, as text at a fraction of a pixel moved by `transform` is drawn blurred.
-  Its component in a file of its own, which React's compiler leaves out (`sources` in `vite.config.ts`): the compiler refuses `useVirtualizer` ("incompatible library"), whose virtualizer stays the same object as what it shows changes.
-- One rule for what sticks: a row whose content is open (a folder's rows, a file's diff, an event's details) stays below the header, and below the rows holding it, while that content scrolls past; drawn apart from the rows, above them, sliding out as now, pushed up by the next.
-  In the Explorer, and in the trees of Changes and the Diff's List, below what stays at the top of their page; flat paths hold no folders, so nothing sticks there.
-  A click on a row stuck scrolls it to its place, at the top, then closes it.
-  Drawn apart, the rows stuck could be one block, without seams: now each lies at a fraction of a pixel and is drawn at whole pixels on its own, so a pixel of the rows passing below may show between two; a row covers it once stuck, but only Chromium can tell that (`scroll-state`), so in Firefox and WebKit it may still show (found 2026-11-11, scripts in `.agents/scratch/sticky-folders/` of the main checkout).
-  At a device scale of 1.25 (the Desktop zoomed), a pixel of a row passing below sometimes shows just above a list's header, at its scroll edge.
-- A treegrid, with `aria-level` and `aria-expanded`, by VS Code's keys: up and down between rows, also PageUp and PageDown, Home and End; left and right fold and unfold, and left on a row within one goes to it; Enter and Space open a row as a click does; Escape closes details and returns to the row; the menu key and Shift+F10 open the row's menu, or the header's.
-  The row focused is the only selection, kept when rows change (live updates), with a visible focus ring.
-  Later: typing jumps to the next row starting so (typeahead).
-- Done with it, as the List then draws only the rows near the view: it watches every row for `seen` anew on each draw, and builds every row's menu only to know whether it has one (found by a review, 2026-11-11).
-- Why (measured 2026-11-11 by scripts in `.agents/scratch/explorer-perf/` and `explorer-virtual/` of the main checkout): in an Explorer of 1,900 rows, all drawn, opening a folder shows its rows after about 860 ms, and dragging a column's edge blocks the page for about 4.4 s in all; virtual, about 160 ms, no task over 50 ms, and scrolling smoothly.
-  Skipping the rows that did not change was ruled out: TanStack Table makes every row anew when the data changes, in a tree whenever a folder opens, so it would need comparing rows by hand, which lint rejects ([development](../development.md)), or drawing cells around TanStack.
+- Typing jumps to the next row starting so (typeahead).
 - Later: the page's own find (Ctrl+F, in a browser) finds only the rows drawn; a find of their own for the lists without one (Events, Repositories, History, the database).
 - In TanStack Table, for when needed (2026-10-24): a quick text filter over the loaded rows of a list (global filtering), counts per value in header filters (faceting), rows grouped by a column (grouping), several rows selected for one action (row selection).
 - Density for all lists: how close their rows stand, as a setting.
