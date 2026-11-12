@@ -552,6 +552,8 @@ def test_graph_of_a_clone_its_branches_and_heads(client: TestClient, repo: Path)
     assert (heads[0]["clone"], heads[0]["worktree"]) == (clone["id"], None)
     assert (heads[1]["clone"], heads[1]["worktree"]) == (clone["id"], worktree["id"])
     assert heads[1]["commit"] == git(side, "rev-parse", "HEAD")
+    assert (heads[1]["ahead"], heads[1]["behind"], heads[1]["against"]) == (1, 2, "main")
+    assert heads[0]["against"] == "origin/main"  # the default branch, against its upstream
     assert client.get("/api/graph", params={"clone": clone["id"]}).json() == answer
 
 

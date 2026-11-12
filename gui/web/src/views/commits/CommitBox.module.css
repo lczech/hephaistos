@@ -57,6 +57,15 @@
   color: var(--text-muted);
 }
 
+/* Where a branch is checked out, or whose HEAD a label is: after its name, quieter. */
+.where {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-half);
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+}
+
 .ref svg {
   width: var(--icon-small);
   height: var(--icon-small);

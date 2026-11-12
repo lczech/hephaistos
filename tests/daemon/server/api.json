@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 27
+    "minor": 28
   },
   "shapes": {
     "components": {
@@ -1283,6 +1283,39 @@
         "GraphHeadJson": {
           "description": "Where a Checkout of the Clone is: its main working tree or a Worktree.",
           "properties": {
+            "against": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Against"
+            },
+            "ahead": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ahead"
+            },
+            "behind": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Behind"
+            },
             "branch": {
               "anyOf": [
                 {
@@ -1342,7 +1375,10 @@
             "branch",
             "main",
             "clone",
-            "worktree"
+            "worktree",
+            "ahead",
+            "behind",
+            "against"
           ],
           "title": "GraphHeadJson",
           "type": "object"

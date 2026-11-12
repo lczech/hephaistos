@@ -5,7 +5,7 @@ ahead of it and behind it, and where a walk of its branches starts: all local br
 every HEAD, or only the branches of Checkouts, less those hidden.
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -111,6 +111,19 @@ def standings(top: Path, default: str | None, known: Refs) -> dict[str, Standing
         against = full.removeprefix("refs/remotes/").removeprefix("refs/heads/")
         standings_[default] = Standing(ahead, behind, against)
     return standings_
+
+
+def detached_standings(
+    top: Path, default: str | None, found: Iterable[Head]
+) -> dict[str, Standing]:
+    """How far each detached HEAD is ahead of the default branch and behind it, by its commit."""
+    if default is None:
+        return {}
+    return {
+        head.commit: Standing(*_counted(top, f"refs/heads/{default}", head.commit), default)
+        for head in found
+        if head.branch is None and head.commit is not None
+    }
 
 
 def _ahead_behind(top: Path, default: str) -> dict[str, tuple[int, int]] | None:

@@ -550,12 +550,14 @@ def graph_show(
     top = _working_tree(paths, clone, worktree, bare=True)
     known = history.refs(top)
     default = graph.default_branch(top, known)
+    heads = graph.heads(top)
     return serialize.graph_json(
         known,
         default,
-        graph.standings(top, default, known),
-        graph.heads(top),
+        heads,
         _checkout_ids(paths),
+        standings=graph.standings(top, default, known),
+        detached=graph.detached_standings(top, default, heads),
     )
 
 

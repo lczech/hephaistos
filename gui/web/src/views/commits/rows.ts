@@ -2,14 +2,22 @@
 
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";
+import type { Checkout } from "../checkout";
 import { Layout } from "./lanes";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
 export type Found = Schemas["FoundCommitJson"];
 
+/** What is not committed in a Checkout, above its HEAD: History's own, or one of a Graph's. */
+export interface Uncommitted {
+  type: "uncommitted";
+  text: string;
+  of?: { checkout: Checkout; head: string; key: string }; // a Graph's: its Checkout and HEAD
+}
+
 export type Entry =
-  | { type: "uncommitted"; text: string } // above the commits, when HEAD's are shown
+  | Uncommitted // above the commits, when HEAD's are shown
   | { type: "found"; found: Found } // a commit searched for by its hash, not among them
   | { type: "commit"; commit: Commit }
   | { type: "renamed"; commit: string; from: string }; // below the commit that renamed it
@@ -44,9 +52,29 @@ export function whereText(found: Found, walked: string, path: string | undefined
 }
 
 export function entryId(entry: Entry): string {
-  if (entry.type === "uncommitted") return "uncommitted";
+  if (entry.type === "uncommitted") return entry.of ? `uncommitted:${entry.of.key}` : "uncommitted";
   if (entry.type === "found") return `found:${entry.found.commit.hash}`;
   return entry.type === "commit" ? entry.commit.hash : `renamed:${entry.commit}`;
+}
+
+/** What a Checkout's State says is not committed, in words; empty for a bare Clone, or none. */
+export function uncommittedIn(
+  state:
+    | {
+        conflicted: number | null;
+        staged: number | null;
+        changed: number | null;
+        untracked: number | null;
+      }
+    | undefined,
+): string {
+  if (state === undefined || state.staged === null) return ""; // bare: no working tree
+  return uncommittedText({
+    conflicted: state.conflicted ?? 0,
+    staged: state.staged,
+    changed: state.changed ?? 0,
+    untracked: state.untracked ?? 0,
+  });
 }
 
 /** How many files of each kind are not committed: `2 staged, 5 changed, 3 untracked`. */
@@ -77,6 +105,7 @@ export function committedApart(author: Commit["author"], committer: Commit["auth
 export interface Drawn {
   layout: Layout;
   rows: Map<string, number>;
+  drawing: Drawing;
 }
 
 /**
@@ -87,6 +116,17 @@ export interface Drawn {
 export interface Drawing {
   heads: ReadonlySet<string>;
   pinned?: string;
+  checkedOut?: CheckedOut[]; // where the Checkouts are, marked on the badges
+  first?: string; // the default branch, the first of the badges
+}
+
+/** A Checkout of a Clone, as a Graph marks where it is: on its branch's badge, or by a HEAD badge
+ * of its own when detached. */
+export interface CheckedOut {
+  name: string; // the folder of the Clone, or the name of the Worktree
+  worktree: boolean; // a Worktree, else the main working tree of the Clone
+  branch: string | null; // null when detached
+  commit: string | null; // null before the first commit
 }
 
 /**
@@ -106,12 +146,13 @@ export function graphOf(
       const { hash, parents, refs } = entry.commit;
       rows.set(entryId(entry), layout.rows.length);
       layout.add({ hash, parents, branch: branchOf(refs) });
-    } else if (entry.type === "uncommitted" && head) {
+    } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
       rows.set(entryId(entry), layout.rows.length);
-      layout.add({ hash: entryId(entry), parents: [head], uncommitted: true });
+      const parent = (entry.of?.head ?? head) as string;
+      layout.add({ hash: entryId(entry), parents: [parent], uncommitted: true });
     }
   }
-  return { layout, rows };
+  return { layout, rows, drawing };
 }
 
 /** The branch a commit's lane is named by: a local one, else a remote one by its own name. */

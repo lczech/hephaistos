@@ -65,7 +65,7 @@ export function commitColumns(
       cell: ({ row }) => {
         if (checkout === undefined) return "";
         if (row.original.type === "uncommitted") {
-          return <CommitHash hash={undefined} checkout={checkout} />;
+          return <CommitHash hash={undefined} checkout={row.original.of?.checkout ?? checkout} />;
         }
         if (row.original.type === "found") {
           return <CommitHash hash={row.original.found.commit.hash} checkout={checkout} />;
@@ -85,7 +85,11 @@ export function commitColumns(
       cell: ({ row }) => {
         const entry = row.original;
         if (entry.type === "uncommitted")
-          return <span className={styles.uncommitted}>{entry.text}</span>;
+          return (
+            <span className={styles.uncommitted} data-entry={entryId(entry)}>
+              {entry.text}
+            </span>
+          );
         if (entry.type === "found") {
           return actions ? (
             <FoundWhere found={entry.found} actions={actions} />
@@ -106,9 +110,16 @@ export function commitColumns(
         const named = branchOf(commit.refs);
         const lead =
           lane && named !== undefined ? { name: named, colour: colourOf(lane.colour) } : undefined;
+        const checkedOut = graph?.drawing.checkedOut?.filter((each) => each.commit === commit.hash);
         return (
-          <span title={commit.subject}>
-            <RefLabels refs={commit.refs} head={commit.hash === head} lead={lead} />
+          <span title={commit.subject} data-entry={entryId(entry)}>
+            <RefLabels
+              refs={commit.refs}
+              head={commit.hash === head}
+              lead={lead}
+              {...(checkedOut ? { checkedOut } : {})}
+              {...(graph?.drawing.first ? { first: graph.drawing.first } : {})}
+            />
             {commit.parents.length > 1 && (
               <span title="Merge commit: changes shown against its first parent">
                 <TextIcon icon={GitMerge} className={styles.icon} label="merge" />

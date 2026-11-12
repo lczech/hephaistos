@@ -170,3 +170,12 @@ def test_a_walk_from_starts_goes_on_in_pages(repo: Path) -> None:
     assert first.next.start is None
     rest = history(repo, starts=starts, order="topo", after=first.next, limit=100)
     assert (*first.commits, *rest.commits) == whole
+
+
+def test_detached_heads_against_the_default_branch(repo: Path, tmp_path: Path) -> None:
+    git(repo, "worktree", "add", "--quiet", "--detach", str(tmp_path / "loose"), "main~2")
+    _commit(tmp_path / "loose", "aside")
+    found = graph.detached_standings(repo, "main", graph.heads(repo))
+    loose = git(tmp_path / "loose", "rev-parse", "HEAD")
+    assert found == {loose: Standing(1, 2, "main")}
+    assert graph.detached_standings(repo, None, graph.heads(repo)) == {}

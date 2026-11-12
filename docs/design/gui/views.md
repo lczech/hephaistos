@@ -181,6 +181,14 @@ Its default branch keeps lane 0 and the accent, pinned to the left from the top,
 Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, and how many branches are hidden.
+
+Its Checkouts:
+- the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a HEAD badge of its own, so named; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;
+- what is not committed in a Checkout, from its State, has a row above its HEAD, with links to its Changes and Diff;
+- below the bar, a chip per Checkout, in the colour of its branch (the accent for the default one): its name, its branch or `detached at abc1234` in the words of git, and how far it is ahead of the default branch and behind it (`↑3 ↓12`, zero parts left out; the default branch against its upstream), said in words in its tooltip;
+- a click on a chip goes to its HEAD: older pages load until its row is listed, a note saying so with a button to stop, as Escape in the View does; then it is scrolled to; a note says if no page lists it;
+- the chip of the Checkout the Graph is at is marked: the Clone, or a Worktree (`at`), as opened from its row in Repositories; a click keeps the one it went to in the address;
+- the chip of a Checkout whose branch is hidden is faint; a click shows the branch again.
 It opens from the rows of Clones and Worktrees in Repositories, and from the bar of History.
 
 ## Explorer

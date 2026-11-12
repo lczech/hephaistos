@@ -22,7 +22,7 @@ import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState, cloneOf } from "../checkout";
 import { CommitList } from "../commits/CommitList";
 import { OrderToggle, orderOf, withOrder } from "../commits/OrderToggle";
-import { searchedEntries, uncommittedText } from "../commits/rows";
+import { searchedEntries, uncommittedIn, uncommittedText } from "../commits/rows";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
@@ -225,24 +225,18 @@ function useUncommitted(
   const asked = shown && checkout !== undefined && path !== undefined;
   const changes = useChanges(asked ? { ...checkout, path } : {});
   if (!shown || checkout === undefined) return undefined;
-  let counts = { conflicted: 0, staged: 0, changed: 0, untracked: 0 };
+  let text: string;
   if (path === undefined) {
-    const state = checkoutState(repositories.data, checkout);
-    if (state === undefined || state.staged === null) return undefined; // bare: no working tree
-    counts = {
-      conflicted: state.conflicted ?? 0,
-      staged: state.staged,
-      changed: state.changed ?? 0,
-      untracked: state.untracked ?? 0,
-    };
+    text = uncommittedIn(checkoutState(repositories.data, checkout));
   } else {
+    const counts = { conflicted: 0, staged: 0, changed: 0, untracked: 0 };
     const names = { unmerged: "conflicted", staged: "staged", unstaged: "changed" } as const;
     for (const group of changes.data?.groups ?? []) {
       const name =
         group.name === "untracked" ? "untracked" : names[group.name as keyof typeof names];
       if (name !== undefined) counts[name] += group.count;
     }
+    text = uncommittedText(counts);
   }
-  const text = uncommittedText(counts);
   return text ? `Uncommitted: ${text}` : undefined;
 }

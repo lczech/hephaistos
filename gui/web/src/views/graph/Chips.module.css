@@ -1,0 +1,53 @@
+/* The chips of the Checkouts, below the bar, wrapping where narrow. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--chip-colour);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.chip:is(:hover, :focus-visible) {
+  background: var(--fill-hover);
+}
+
+.chip svg {
+  width: var(--icon-small);
+  height: var(--icon-small);
+  color: var(--chip-colour);
+}
+
+.chip[aria-current="true"] {
+  background: var(--fill-marked);
+}
+
+.chip[aria-current="true"]:is(:hover, :focus-visible) {
+  background: var(--fill-marked-hover);
+}
+
+.chip[data-hidden] {
+  opacity: var(--faint);
+}
+
+.where,
+.standing {
+  color: var(--text-muted);
+}
+
+.standing {
+  font-variant-numeric: tabular-nums;
+}

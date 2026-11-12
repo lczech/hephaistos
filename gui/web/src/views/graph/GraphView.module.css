@@ -1,0 +1,11 @@
+/* Going to a HEAD, and how far it got; the button to stop it. */
+.note {
+  composes: note from "../../components/text.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.action {
+  composes: action from "../../components/controls.module.css";
+}

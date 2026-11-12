@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 27)
+API_VERSION = ApiVersion(0, 28)
 
 
 class Ref(TypedDict):
@@ -869,6 +869,11 @@ class GraphHeadJson(TypedDict):
     main: bool  # the main working tree
     clone: str | None  # the Clone it is, or whose Worktree it is; None if not registered
     worktree: str | None  # the Worktree it is, if registered
+    # Against the default branch, as its branch is, or when detached from its commit; None if
+    # neither can be counted.
+    ahead: int | None
+    behind: int | None
+    against: str | None
 
 
 class GraphJson(TypedDict):
@@ -879,12 +884,14 @@ class GraphJson(TypedDict):
     heads: list[GraphHeadJson]  # the main working tree first, unless bare
 
 
-def graph_json(
+def graph_json(  # noqa: PLR0913 - all that a graph shows
     known: history.Refs,
     default: str | None,
-    standings: Mapping[str, graph.Standing],
     heads: Iterable[graph.Head],
     ids: Mapping[Path, tuple[uuid.UUID, uuid.UUID | None]],
+    *,
+    standings: Mapping[str, graph.Standing],
+    detached: Mapping[str, graph.Standing],
 ) -> GraphJson:
     """What a graph of a Clone shows besides its commits, as the API gives it.
 
@@ -907,6 +914,10 @@ def graph_json(
     listed: list[GraphHeadJson] = []
     for head in heads:
         clone, worktree = ids.get(head.path.resolve(), (None, None))
+        if head.branch is not None:
+            standing = standings.get(head.branch)
+        else:
+            standing = None if head.commit is None else detached.get(head.commit)
         listed.append(
             GraphHeadJson(
                 path=str(head.path),
@@ -915,6 +926,9 @@ def graph_json(
                 main=head.main,
                 clone=None if clone is None else str(clone),
                 worktree=None if worktree is None else str(worktree),
+                ahead=None if standing is None else standing.ahead,
+                behind=None if standing is None else standing.behind,
+                against=None if standing is None else standing.against,
             )
         )
     return GraphJson(default_branch=default, branches=branches, heads=listed)

@@ -1278,6 +1278,39 @@
       "GraphHeadJson": {
         "description": "Where a Checkout of the Clone is: its main working tree or a Worktree.",
         "properties": {
+          "against": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Against"
+          },
+          "ahead": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ahead"
+          },
+          "behind": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Behind"
+          },
           "branch": {
             "anyOf": [
               {
@@ -1337,7 +1370,10 @@
           "branch",
           "main",
           "clone",
-          "worktree"
+          "worktree",
+          "ahead",
+          "behind",
+          "against"
         ],
         "title": "GraphHeadJson",
         "type": "object"
@@ -2780,7 +2816,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.27"
+    "version": "0.28"
   },
   "openapi": "3.1.0",
   "paths": {
