@@ -385,3 +385,182 @@ describe("a tree's rows stuck below its header", () => {
     },
   );
 });
+
+/** Two frames: drawn after a scroll, wherever the List places its rows. */
+const drawn = () =>
+  new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
+
+/** The name of the row seen at `y`, in the middle of its name, and its box; none outside rows. */
+function seenAt(y: number): { name: string; box: DOMRect } | undefined {
+  const cell = document.querySelector('[data-column="name"]') as HTMLElement; // its header
+  const { left, width } = cell.getBoundingClientRect();
+  const row = document.elementFromPoint(left + width / 2, y)?.closest("li > div");
+  const name = row?.querySelector(':scope > [data-column="name"]')?.textContent;
+  return row && name ? { name, box: row.getBoundingClientRect() } : undefined;
+}
+
+/** A row of the list itself, not a copy of it stuck (hidden from screen readers). */
+const ownRowOf = (name: string) =>
+  screen
+    .getAllByText(name)
+    .map((text) => text.closest("li > div") as HTMLElement)
+    .find((row) => row.closest("[aria-hidden]") === null) as HTMLElement;
+
+/**
+ * A tree three levels deep: `src` holding `inner` (a few files) and files of its own, then files
+ * of the top level; all open, so that scrolling down slides `inner` out, then `src`.
+ */
+function Layered() {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true, inner: true });
+  const columns = node.columns([
+    node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
+    node.accessor("name", { header: "name" }),
+  ]);
+  const table = useList("layered", "columns", {
+    columns,
+    data: [
+      {
+        name: "src",
+        subRows: [{ name: "inner", subRows: nested(12, "deep") }, ...nested(12, "own")],
+      },
+      ...nested(20, "top"),
+    ],
+    getRowId: (row) => row.name,
+    getSubRows: (row) => row.subRows,
+    getRowCanExpand: (row) => row.original.subRows.length > 0,
+    state: { expanded },
+    onExpandedChange: (change) =>
+      setExpanded((was) => (typeof change === "function" ? change(was) : change) as typeof was),
+  });
+  return (
+    <div style={{ height: 240, display: "flex", flexDirection: "column" }}>
+      <List
+        table={table}
+        layout="columns"
+        tree
+        compact
+        oneLine
+        choices={{}}
+        message={null}
+        older="files"
+        detailsLabel="Details"
+        details={() => null}
+        folds={(row) => row.subRows.length > 0}
+      />
+    </div>
+  );
+}
+
+describe("a tree's rows stuck, as seen", () => {
+  // Scrolled a pixel at a time past the end of what a row holds: it is seen below the one holding
+  // it, until the end of what it holds pushes it up, out of view, below the one holding it.
+  it.each([
+    ["inner", "deep 12", "src"],
+    ["src", "own 12", undefined],
+  ])("slide out as the end of what they hold reaches them: %s", async (name, last, holder) => {
+    render(<Layered />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    const end = ownRowOf(last);
+    const at = end.getBoundingClientRect().bottom - frame.getBoundingClientRect().top;
+    let slid = 0;
+    for (let by = Math.round(at) - 90; by < at; by += 1) {
+      frame.scrollTop = by;
+      await drawn();
+      const top = holder
+        ? (seenAt(head.getBoundingClientRect().bottom + 1)?.box.bottom ?? 0)
+        : head.getBoundingClientRect().bottom;
+      const bottom = ownRowOf(last).getBoundingClientRect().bottom;
+      const seen = seenAt(top + 0.5);
+      if (bottom <= top + 0.5) continue; // gone below the one holding it
+      expect(seen?.name).toBe(name);
+      const height = seen?.box.height ?? 0;
+      expect(seen?.box.bottom).toBeCloseTo(Math.min(top + height, bottom), 0);
+      if (bottom < top + height - 0.5) slid += 1;
+    }
+    expect(slid).toBeGreaterThan(5); // seen sliding, not only stuck
+  });
+
+  it("lie evenly apart, each at the height of a row", async () => {
+    render(<Layered />);
+    const tops = [...document.querySelectorAll("li > div")]
+      .filter((row) => row.closest("[aria-hidden]") === null)
+      .map((row) => row.getBoundingClientRect())
+      .filter((box) => box.height > 0)
+      .map((box) => box.top)
+      .sort((a, b) => a - b);
+    const height = ownRowOf("top 1").getBoundingClientRect().height;
+    expect(tops.length).toBeGreaterThan(5);
+    for (const [at, top] of tops.slice(1).entries()) {
+      expect(top - (tops[at] ?? 0)).toBeCloseTo(height, 2);
+    }
+  });
+});
+
+/** Fruits in a Panel, more of them coming before them as `ahead` grows. */
+function Growing({ ahead }: { ahead: number }) {
+  const columns = column.columns([
+    column.display({ id: "square", cell: Chevron }),
+    column.accessor("name", { header: "name" }),
+  ]);
+  const data = [
+    ...Array.from({ length: ahead }, (_, at) => ({ name: `new ${at + 1}` })),
+    ...FRUITS,
+  ];
+  const table = useList("growing", "columns", { columns, data, getRowId: (row) => row.name });
+  return (
+    <div style={{ height: 200, display: "flex", flexDirection: "column" }}>
+      <List
+        table={table}
+        layout="columns"
+        choices={{}}
+        message={null}
+        older="fruits"
+        detailsLabel="Fruit details"
+        details={(fruit) => fruit.name}
+      />
+    </div>
+  );
+}
+
+describe("a list's rows in view", () => {
+  it("stay where they are as rows come before them", async () => {
+    const { rerender } = render(<Growing ahead={0} />);
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    frame.scrollTop = 200;
+    await drawn();
+    const before = ownRowOf("fruit 20").getBoundingClientRect().top;
+    rerender(<Growing ahead={5} />);
+    await drawn();
+    expect(ownRowOf("fruit 20").getBoundingClientRect().top).toBeCloseTo(before, 0);
+  });
+
+  it("but at the very top, the rows come into view", async () => {
+    const { rerender } = render(<Growing ahead={0} />);
+    await drawn();
+    rerender(<Growing ahead={5} />);
+    await drawn();
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    expect(frame.scrollTop).toBe(0);
+    expect(ownRowOf("new 1").getBoundingClientRect().top).toBeLessThan(
+      ownRowOf("fruit 1").getBoundingClientRect().top,
+    );
+  });
+
+  it("are the same once a Panel hidden is shown again", async () => {
+    render(<Growing ahead={0} />);
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    frame.scrollTop = 200;
+    await drawn();
+    const [scrolled, before] = [frame.scrollTop, ownRowOf("fruit 20").getBoundingClientRect().top];
+    expect(scrolled).toBeGreaterThan(100);
+    // As dockview hides a Panel drawn while hidden.
+    const panel = frame.parentElement as HTMLElement;
+    panel.style.visibility = "hidden";
+    await drawn();
+    panel.style.visibility = "";
+    await drawn();
+    expect(frame.scrollTop).toBe(scrolled);
+    expect(ownRowOf("fruit 20").getBoundingClientRect().top).toBeCloseTo(before, 0);
+  });
+});
