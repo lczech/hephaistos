@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { Schemas } from "../../api/client";
+import { listRows } from "../../test/list";
 import {
   clone,
   info,
@@ -187,12 +188,15 @@ function Graph({ initial }: { initial: Params }) {
   return <InPanel view={GraphView} kind="graph" params={initial} />;
 }
 
-const scrolled = vi.fn();
+// Where the Graph went: the rows it marked for a moment (`flash`), as the List goes to them.
+let went: MockInstance<Element["animate"]>;
 beforeEach(() => {
-  scrolled.mockClear();
-  Element.prototype.scrollIntoView = scrolled; // jsdom has none
+  went = vi.spyOn(Element.prototype, "animate");
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  went.mockRestore();
+});
 
 describe("the Graph View", () => {
   it("walks all local branches topologically, the default branch pinned in lane 0", async () => {
@@ -341,7 +345,7 @@ describe("the Checkouts in the Graph View", () => {
     serveGraph({ clone: { changed: 2, untracked: 1 } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     const text = await screen.findByText("Uncommitted in proj: 2 changed, 1 untracked");
-    const items = screen.getAllByRole("listitem");
+    const items = listRows();
     const at = items.findIndex((item) => item.contains(text));
     expect(items[at + 1]).toHaveTextContent("Commit m");
     expect(
@@ -358,9 +362,9 @@ describe("the Checkouts in the Graph View", () => {
     expect(screen.queryByText("Commit o")).toBeNull();
     await userEvent.click(chip("Worktree old"));
     await screen.findByText("Commit o");
-    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
-    expect(scrolled).toHaveBeenCalledWith({ block: "start" });
-    expect(scrolled.mock.contexts[0]).toHaveTextContent("Commit o");
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
+    expect(document.activeElement).toHaveTextContent("Commit o"); // the row, focused
     expect(asked(requests, "/api/history").get("skip")).toBe("3");
     expect(screen.getByRole("status")).toHaveTextContent("graph?at=wt-proj-old&clone=clone-proj");
     expect(screen.queryByText(/^Loading towards/)).toBeNull(); // done before its chip said so
@@ -372,8 +376,8 @@ describe("the Checkouts in the Graph View", () => {
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Uncommitted in proj: 2 changed");
     await userEvent.click(chip("Clone proj"));
-    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
-    expect(scrolled.mock.contexts[0]).toHaveTextContent("Uncommitted in proj: 2 changed");
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Uncommitted in proj: 2 changed");
   });
 
   it("says on its chip when the HEAD gone to is not on the walk, as the lines show", async () => {
@@ -396,7 +400,7 @@ describe("the Checkouts in the Graph View", () => {
     // known from the lines, which walked all without it: no page after page to look in
     expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("q")]);
     expect(screen.queryByText("Commit y")).toBeNull();
-    expect(scrolled).not.toHaveBeenCalled();
+    expect(went).not.toHaveBeenCalled();
   });
 
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
@@ -428,7 +432,7 @@ describe("the Checkouts in the Graph View", () => {
     expect(screen.queryByText(/^Loading towards/)).toBeNull();
     release();
     await screen.findByText("Commit o");
-    expect(scrolled).not.toHaveBeenCalled(); // stopped: the page that came does not scroll
+    expect(went).not.toHaveBeenCalled(); // stopped: the page that came is not gone to
   });
 
   it("shows a hidden branch's chip faint, and shows the branch again on a click", async () => {
@@ -461,7 +465,7 @@ describe("the Checkouts in the Graph View", () => {
     serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", at: "wt-proj-feature" }} />);
     await screen.findByText("Commit b");
-    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(chip("Worktree feature")).toHaveAttribute("aria-current", "true");
     expect(chip("Clone proj")).not.toHaveAttribute("aria-current");
   });
@@ -489,8 +493,8 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "old" }));
     await screen.findByText("Commit o");
-    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
-    expect(scrolled.mock.contexts[0]).toHaveTextContent("Commit o");
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
     expect(goTo()).toHaveTextContent("Go to…"); // holding nothing
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // nor kept
     // Its commits are searched for in the Graph's walk; remote branches not offered.
@@ -507,7 +511,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
-    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
   });
 
   it("turns while going to what was picked, stopped by a click on it", async () => {
@@ -533,7 +537,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     expect(screen.queryByRole("dialog", { name: "Branch, tag or commit to go to" })).toBeNull(); // stopped, not opened
     release();
     await screen.findByText("Commit o");
-    expect(scrolled).not.toHaveBeenCalled();
+    expect(went).not.toHaveBeenCalled();
   });
 
   it("says on the button when what was picked is not on the walk", async () => {
@@ -549,7 +553,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     expect(goTo()).toHaveAttribute("data-missed", "true");
     expect(goTo()).toHaveAttribute("title", "abc1234 is not among the commits shown; pick another");
     expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("abc1234")]);
-    expect(scrolled).not.toHaveBeenCalled();
+    expect(went).not.toHaveBeenCalled();
   });
 });
 

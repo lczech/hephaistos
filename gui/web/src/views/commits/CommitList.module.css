@@ -25,22 +25,16 @@
   --narrow-indent: calc(var(--graph-end) + var(--column-gap));
 }
 
-.list.graphed li > section {
+.list.graphed [role="row"] > [role="gridcell"] {
   position: relative; /* for the lanes beside */
   margin-left: calc(var(--graph-end) + var(--column-gap));
 }
 
-.list.graphed[data-layout="columns"] li > section {
+.list.graphed[data-layout="columns"] [role="row"] > [role="gridcell"] {
   width: calc(100cqw - var(--graph-end) - var(--column-gap) - var(--space-3));
 }
 
-/* WebKit lays out nothing positioned in a row laid out as flex that is drawn only near the view
- * (`content-visibility: auto`), so the graph would not show in two lines: such rows are drawn. */
-.list.graphed[data-layout="lines"] li > div {
-  content-visibility: visible;
-}
-
-.list.graphed[data-layout="lines"] li [data-column="graph"] {
+.list.graphed[data-layout="lines"] [role="row"] [data-column="graph"] {
   width: var(--graph-width);
 }
 

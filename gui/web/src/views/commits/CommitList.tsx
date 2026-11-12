@@ -1,5 +1,6 @@
+import type { RefObject } from "react";
 import type { ListLayout } from "../../components/list/kept";
-import { List, type Paging } from "../../components/list/List";
+import { List, type ListHandle, type Paging } from "../../components/list/List";
 import { useList } from "../../components/list/table";
 import type { Checkout } from "../checkout";
 import { changesViews } from "../comparison/ChangesLinks";
@@ -23,6 +24,7 @@ interface Props {
   paging: Paging;
   graph: Drawing | undefined; // how to draw the graph, if at all: only for commits listed in an
   // order with every child above its parents, and none left out between
+  handle?: RefObject<ListHandle | null>; // to go to a row, by its ID (`entryId`)
 }
 
 /**
@@ -42,6 +44,7 @@ export function CommitList({
   stale,
   paging,
   graph,
+  handle,
 }: Props) {
   const isShown = useIsShown();
   const drawn = graph && graphOf(entries, head, graph);
@@ -57,6 +60,7 @@ export function CommitList({
     <List
       table={table}
       label="Commits"
+      handle={handle}
       className={`${styles.list} ${lanes ? styles.graphed : ""}`}
       vars={column ? { "--graph-width": `${column.getSize()}px` } : undefined}
       layout={layout}

@@ -13,6 +13,7 @@ import type { Picked } from "../../components/GitRevisionPicker";
 import { GoToRevision } from "../../components/GoToRevision";
 import { useListLayout } from "../../components/list/kept";
 import { LayoutToggle } from "../../components/list/LayoutToggle";
+import type { ListHandle } from "../../components/list/List";
 import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
 import { pathParts } from "../../paths";
 import { numberText } from "../../text";
@@ -28,6 +29,7 @@ import {
   type Drawing,
   type Drawn,
   entries,
+  entryId,
   graphOf,
   type Laid,
   type Uncommitted,
@@ -95,6 +97,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const now = useNow(10_000);
   const [layout, setLayout] = useListLayout("graph");
   const page = useRef<HTMLElement>(null);
+  const list = useRef<ListHandle>(null);
 
   const known = graph.data;
   const placed = (known?.heads ?? []).map((head) => place(head, repositories.data));
@@ -178,18 +181,18 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   }
   const loaded = history.data;
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = history;
+  // The row gone to, once listed: what is not committed above its commit, if any, else that.
+  const ids = new Set(listed.map(entryId));
+  const reached =
+    towards === null || !ids.has(towards.commit)
+      ? undefined
+      : ids.has(`uncommitted:${towards.key}`)
+        ? `uncommitted:${towards.key}`
+        : towards.commit;
   useEffect(() => {
     if (towards === null || loaded === undefined) return;
-    const listed = new Map(
-      [...(page.current?.querySelectorAll("[data-entry]") ?? [])].map((each) => [
-        each.getAttribute("data-entry"),
-        each,
-      ]),
-    );
-    const row = listed.get(towards.commit);
-    if (row) {
-      const top = listed.get(`uncommitted:${towards.key}`) ?? row;
-      top.closest("li")?.scrollIntoView({ block: "start" });
+    if (reached !== undefined) {
+      list.current?.goTo(reached);
       setTowards(null);
     } else if (!hasNextPage || offWalk) {
       setMissed(towards); // e.g. its branch hidden, or a tag on none walked
@@ -197,7 +200,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     } else if (!isFetchingNextPage) {
       void fetchNextPage();
     }
-  }, [towards, loaded, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
+  }, [towards, loaded, reached, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
   useEffect(() => {
     if (towards === null) return;
     const wait = setTimeout(() => setSlow(true), SLOW);
@@ -347,6 +350,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         stale={error !== null || history.isPlaceholderData}
         paging={history}
         graph={drawing}
+        handle={list}
       />
     </ViewPage>
   );

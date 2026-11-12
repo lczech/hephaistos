@@ -174,6 +174,7 @@ describe("the Repositories View", () => {
       "Events of ~/recent",
       "Files of ~/recent",
       "Commit history of ~/recent",
+      "Graph of the branches of ~/recent",
       "Changes in ~/recent",
       "Diff of the changes in ~/recent",
     ]);

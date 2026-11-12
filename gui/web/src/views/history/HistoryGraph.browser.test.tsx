@@ -65,7 +65,7 @@ async function history(layout: "columns" | "lines") {
     await userEvent.click(screen.getByTitle("Each row in two lines, as narrow panels need"));
   }
   await expect.poll(() => document.querySelectorAll("svg[data-node]").length).toBe(7);
-  // Rows are drawn only near the view (`content-visibility`): wait until all are, in the layout.
+  // Wait until all rows are drawn and measured, in the layout.
   const drawn = () =>
     items().filter((item) => {
       const rail = item.querySelector('[data-graph="row"]')?.getBoundingClientRect();
@@ -80,7 +80,8 @@ const box = (element: Element | null | undefined) => {
   if (!element) throw new Error("missing element");
   return element.getBoundingClientRect();
 };
-const items = () => [...document.querySelectorAll("li")];
+// The rows listed, drawn: not the header's, nor copies of rows stuck, which have no index.
+const items = () => [...document.querySelectorAll<HTMLElement>("[role=row][data-index]")];
 const rowOf = (item: Element) => item.querySelector(":scope > div");
 const middle = (rect: DOMRect) => rect.top + rect.height / 2;
 
@@ -138,12 +139,13 @@ describe.each(["columns", "lines"] as const)("the graph of History in %s", (layo
     await history(layout);
     await userEvent.click(screen.getByText("Commit c"));
     const details = await screen.findByRole("region", { name: "Commit details" });
-    const opened = details.closest("li") as Element;
+    const opened = details.closest("[role=row]") as HTMLElement;
     const beside = details.querySelector('[data-graph="beside"]');
-    const below = items()[items().indexOf(opened as HTMLLIElement) + 1];
-    // From the row's bottom to the next row's top, where the same lanes go on.
+    const below = items()[items().indexOf(opened) + 1];
+    // From the row's bottom to the next row's top, where the same lanes go on: once the rows
+    // below are placed anew, the opened one measured.
+    await expect.poll(() => Math.abs(box(beside).bottom - box(below).top)).toBeLessThan(0.5);
     expect(Math.abs(box(beside).top - box(rowOf(opened)).bottom)).toBeLessThan(0.5);
-    expect(Math.abs(box(beside).bottom - box(below).top)).toBeLessThan(0.5);
     // HEAD's line, and f's going on to b, where the row's own lanes leave it.
     const own = opened.querySelector('[data-graph="row"] > span:has(svg)') as Element;
     expect(linesX(beside as Element)).toHaveLength(2);
