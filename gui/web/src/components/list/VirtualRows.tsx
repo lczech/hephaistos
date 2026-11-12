@@ -30,11 +30,11 @@ export interface Drawn {
 }
 
 /**
- * What the List may ask of its rows: to bring one into view, drawn first if it is not; the row
- * a page away from one, up or down; whether one is drawn.
+ * What the List may ask of its rows: to bring one into view, drawn first if it is not, at the
+ * nearest edge or at the top; the row a page away from one, up or down; whether one is drawn.
  */
 export interface RowsHandle {
-  scrollTo: (index: number) => void;
+  scrollTo: (index: number, at?: "nearest" | "start") => void;
   page: (index: number, by: 1 | -1) => number;
   drawn: (index: number) => boolean;
 }
@@ -279,7 +279,7 @@ export function VirtualRows({
   // A row asked for comes into view, by as little as it takes: below the header and the rows
   // that would stick above it, those holding it. Tried again after each draw for a while, as rows
   // drawn on the way are measured, and move it.
-  const asked = useRef<{ index: number; tries: number } | null>(null);
+  const asked = useRef<{ index: number; tries: number; start: boolean } | null>(null);
   const bringIntoView = () => {
     const [box, at] = [virtualizer.scrollElement, asked.current];
     if (box === null || at === null) return;
@@ -301,14 +301,11 @@ export function VirtualRows({
     const bottom = box.scrollTop + box.clientHeight;
     // The row itself, below what stands above it in its room, e.g. a group's line.
     const end = item.start + offsetOf(at.index) + height(at.index);
-    const to =
-      at.index === 0
-        ? 0 // the first, at the very top
-        : item.start < top
-          ? item.start - above
-          : end > bottom
-            ? end - box.clientHeight
-            : undefined;
+    let to: number | undefined;
+    if (at.index === 0)
+      to = 0; // the first, at the very top
+    else if (at.start || item.start < top) to = item.start - above;
+    else if (end > bottom) to = end - box.clientHeight;
     if (to === undefined || Math.abs(to - box.scrollTop) < 0.5) {
       asked.current = null;
       return;
@@ -333,8 +330,8 @@ export function VirtualRows({
   };
   if (handle) {
     handle.current = {
-      scrollTo: (index) => {
-        asked.current = { index, tries: 5 };
+      scrollTo: (index, where = "nearest") => {
+        asked.current = { index, tries: 5, start: where === "start" };
         bringIntoView();
       },
       page,

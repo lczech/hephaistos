@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 import { type CssVars, cssVars } from "../cssVars";
+import { flash } from "../flash";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
 import { useColumnDrop } from "./columnDrop";
@@ -54,6 +55,12 @@ export interface ListHandle {
   scrollTo: (id: string) => boolean;
   /** Whether the row of this ID is drawn, near the view. */
   drawn: (id: string) => boolean;
+  /**
+   * Goes to the row of this ID, as where a click led: brings it to the top, below the header
+   * and the rows holding it, drawn first if it is not; focuses it, as a click on it does; and
+   * marks it for a moment (`flash`). False if it has none.
+   */
+  goTo: (id: string) => boolean;
 }
 
 /** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
@@ -312,6 +319,7 @@ export function List<TData extends RowData>({
   // Whether the focus of the page is in the list, to bring it to the row focusing anew.
   const focusIn = useRef(false);
   const refocus = useRef<string | undefined>(undefined);
+  const flashing = useRef<string | undefined>(undefined); // the row gone to, marked once focused
   let focusIndex = focused && indexOf.get(focused.id);
   if (focused && focusIndex === undefined) {
     const holder = focused.holders.find((id) => indexOf.has(id));
@@ -329,17 +337,22 @@ export function List<TData extends RowData>({
     const id = refocus.current ?? (lost ? focused?.id : undefined);
     const index = id === undefined ? undefined : indexOf.get(id);
     if (index === undefined) return;
-    const row = document.getElementById(`${list}-${index}`)?.parentElement;
+    const own = document.getElementById(`${list}-${index}`);
+    const row = own?.parentElement;
     if (!row) return;
     row.focus({ preventScroll: true });
     refocus.current = undefined;
+    if (flashing.current === id) {
+      flash(own);
+      flashing.current = undefined;
+    }
   });
-  const focusRow = (index: number) => {
+  const focusRow = (index: number, at: "nearest" | "start" = "nearest") => {
     const row = rows[index];
     if (row === undefined) return;
     setFocused(focusOf(row.id));
     refocus.current = row.id;
-    rowsHandle.current?.scrollTo(index);
+    rowsHandle.current?.scrollTo(index, at);
   };
   useImperativeHandle(handle, () => ({
     scrollTo: (id) => {
@@ -351,6 +364,13 @@ export function List<TData extends RowData>({
     drawn: (id) => {
       const index = indexOf.get(id);
       return index !== undefined && (rowsHandle.current?.drawn(index) ?? false);
+    },
+    goTo: (id) => {
+      const index = indexOf.get(id);
+      if (index === undefined) return false;
+      flashing.current = id;
+      focusRow(index, "start");
+      return true;
     },
   }));
   // Whether a row's content is open: in a tree, the rows within it; else its details.

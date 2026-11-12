@@ -1184,6 +1184,35 @@ describe("a list's rows of many heights", () => {
   });
 });
 
+describe("a list's row gone to", () => {
+  it("comes to the top, below the header, focused and marked for a moment", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    const flashed = vi.spyOn(Element.prototype, "animate");
+    const many = Array.from({ length: 300 }, (_, at) => `fruit ${at + 1}`);
+    render(<Fruity names={many} handle={handle} />);
+    expect(handle.current?.goTo("fruit 250")).toBe(true);
+    await waitFor(() => {
+      const row = ownRowOf("fruit 250").getBoundingClientRect();
+      expect(Math.abs(row.top - headOf().getBoundingClientRect().bottom)).toBeLessThan(1);
+    });
+    await waitFor(() => expect(focusedText()).toBe("fruit 250"));
+    expect(flashed.mock.contexts.at(-1)).toBe(ownRowOf("fruit 250"));
+    expect(handle.current?.goTo("no fruit")).toBe(false);
+    flashed.mockRestore();
+  });
+
+  it("near the end, comes as far up as the list goes", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    render(<Fruity handle={handle} />);
+    handle.current?.goTo("fruit 39");
+    await waitFor(() => expect(focusedText()).toBe("fruit 39"));
+    const frame = frameOf();
+    await waitFor(() =>
+      expect(frame.scrollTop).toBeCloseTo(frame.scrollHeight - frame.clientHeight, 0),
+    );
+  });
+});
+
 describe("a list's rows as the list changes, as seen", () => {
   it("stay in place as rows above them go, the first in view too", async () => {
     const { rerender } = render(<Fruity />);
