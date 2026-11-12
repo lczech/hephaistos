@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LOG_PAGE } from "../../api/queries";
-import { cells } from "../../test/list";
+import { cells, listRows } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
@@ -60,7 +60,7 @@ describe("the Log View", () => {
     renderWithQueries(<Log />);
     expect(await screen.findByText("pass 1")).toBeInTheDocument();
     await expectSettled();
-    const rows = screen.getAllByRole("listitem");
+    const rows = listRows();
     expect(rows.map(cells).map(([, ...others]) => others)).toEqual([
       ["daemon[4242]", "pass 3 observed=7"],
       [

@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
-import { cells } from "../../test/list";
+import { cells, listRows } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
@@ -67,8 +67,7 @@ function History({ initial }: { initial: Params }) {
   return <InPanel view={HistoryView} kind="history" params={initial} />;
 }
 
-const rows = () =>
-  screen.getAllByRole("listitem").map((row) => cells(row).join(" ").replace(/\s+/g, " ").trim());
+const rows = () => listRows().map((row) => cells(row).join(" ").replace(/\s+/g, " ").trim());
 
 afterEach(() => vi.unstubAllGlobals());
 

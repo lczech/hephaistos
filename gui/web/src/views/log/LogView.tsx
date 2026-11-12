@@ -72,6 +72,7 @@ export function LogView({ params, setParams, setTitle }: ViewProps) {
       </ViewBar>
       <List
         table={table}
+        label="Records"
         className={styles.log}
         layout={layout}
         choices={choices}

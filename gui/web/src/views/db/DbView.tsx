@@ -126,6 +126,7 @@ function Tables({ show }: { show: (table: string) => void }) {
       <Warnings warnings={tables.data?.warnings ?? []} />
       <List
         table={listTable}
+        label="Tables"
         layout="columns"
         choices={{}}
         message={message}
@@ -198,6 +199,7 @@ function Rows({ table, show }: RowsProps) {
       </ViewBar>
       <List
         table={listTable}
+        label="Rows"
         layout="columns" // no two lines for a table's rows, which may have any columns
         choices={{}}
         message={message}

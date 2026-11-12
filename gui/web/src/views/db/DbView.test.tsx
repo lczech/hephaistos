@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { cells } from "../../test/list";
+import { cells, findListRows } from "../../test/list";
 import { json, renderWithQueries, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import { preciseTime } from "../../time";
@@ -58,7 +58,7 @@ describe("the Database View", () => {
   it("shows every column of the rows, by type, and a row's details", async () => {
     serveDb();
     renderWithQueries(<Db at={{ table: "registry_repositories" }} />);
-    const [newest] = await screen.findAllByRole("listitem");
+    const [newest] = await findListRows();
     expect(cells(newest as HTMLElement)).toEqual(["01a2", "two", `${preciseTime(AT)} #2`, "NULL"]);
     expect(within(newest as HTMLElement).getByTitle(`${AT} #2`)).toBeInTheDocument();
     expect(screen.getByText("modified_at")).toHaveAttribute("title", "Type: clock");

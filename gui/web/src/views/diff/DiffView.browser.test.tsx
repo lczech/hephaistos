@@ -295,7 +295,7 @@ describe("finding in untracked files' diffs", () => {
         expect(range?.toString()).toBe("line 7");
         const root = range?.startContainer.getRootNode();
         const host = root instanceof ShadowRoot ? root.host : range?.startContainer;
-        expect(host?.parentElement?.closest("li")?.textContent).toContain("u29.txt");
+        expect(host?.parentElement?.closest("[role=row]")?.textContent).toContain("u29.txt");
         const line = range?.getBoundingClientRect();
         const view = scroller.getBoundingClientRect();
         expect(line?.top).toBeGreaterThan(view.top);

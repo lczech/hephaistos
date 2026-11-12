@@ -24,16 +24,16 @@ pre.traceback {
 }
 
 /* In lines: the message on one line, its time and process below it, quieter. */
-.log[data-layout="lines"] li [data-column="message"] {
+.log[data-layout="lines"] [aria-level] [data-column="message"] {
   flex: 1 1 0;
   order: 1;
 }
 
-.log[data-layout="lines"] li [data-column="time"] {
+.log[data-layout="lines"] [aria-level] [data-column="time"] {
   order: 11;
 }
 
-.log[data-layout="lines"] li [data-column="process"] {
+.log[data-layout="lines"] [aria-level] [data-column="process"] {
   flex: 1 1 0;
   order: 12;
 }

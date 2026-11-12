@@ -215,6 +215,7 @@ function Untracked(props: UntrackedProps) {
       </p>
       <List
         table={table}
+        label="Untracked files"
         className={changesStyles.columns}
         vars={vars}
         tree

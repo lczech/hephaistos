@@ -508,6 +508,7 @@ export function ExplorerView({
       )}
       <List
         table={table}
+        label="Files"
         layout={layout}
         oneLine
         tree

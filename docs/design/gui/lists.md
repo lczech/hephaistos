@@ -32,6 +32,15 @@ A row that opens a View is marked while that View is shown in any Group, focused
 A commit in History is marked so while its Changes are shown.
 Rows may be grouped, a line above each group but the first.
 
+## For screen readers
+
+A list is a treegrid, named by its View (`label`: `Files`, `Events`), as only the rows near the view are drawn: it tells how many rows it has (`aria-rowcount`), and each row its place (`aria-rowindex`), its level (`aria-level`), its place among the rows beside it and how many they are (`aria-posinset`, `aria-setsize`), and whether it is open (`aria-expanded`).
+Its header is a row of column headers, saying how the list is sorted (`aria-sort`); a column without a label, as the square, is named for screen readers alone; in two lines, one header cell holds its buttons.
+A row's details are a region in a cell of the row, named by the View (`detailsLabel`).
+Its rows stuck are hidden from screen readers.
+Each row lays out its columns on its own, so the elements are `div`s with roles, not a table's: a list's `ol` and `li` may not take them.
+A View's styles find its rows by their level (`[aria-level]`, its value for one level of a tree), which the header row has not.
+
 ## Trees
 
 A list's tree knows its rows only as rows holding rows (`tree.ts`, `TreeCells.tsx`), whatever they are.

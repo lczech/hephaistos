@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { forgetKept } from "../../kept";
 import { noticeAtom } from "../../notice";
-import { ownRow } from "../../test/list";
+import { listRows, ownRow } from "../../test/list";
 import {
   clone,
   fileEntry,
@@ -51,10 +51,7 @@ const sizeCell = (text: string) =>
   [...document.querySelectorAll("[data-column=size]")].find((cell) => cell.textContent === text) ??
   null;
 
-const names = () =>
-  screen
-    .getAllByRole("listitem")
-    .map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim());
+const names = () => listRows().map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim());
 
 describe("the Explorer View", () => {
   it("shows the home directory, folders first, hidden entries in italics", async () => {
@@ -79,7 +76,7 @@ describe("the Explorer View", () => {
       },
     });
     renderWithQueries(<Explorer initial={{ path: "/e" }} />);
-    const cell = () => screen.getByText("void").closest("li") as HTMLElement;
+    const cell = () => screen.getByText("void").closest("[role=row]") as HTMLElement;
     await waitFor(() => expect(cell().querySelector(".lucide-chevron-right")).not.toBeNull());
     await userEvent.click(screen.getByText("void"));
     await waitFor(() => expect(cell().querySelector(".lucide-chevron-right")).toBeNull());
@@ -101,7 +98,7 @@ describe("the Explorer View", () => {
     });
     const { client } = renderWithQueries(<Explorer initial={{ path: "/e" }} />);
     const chevron = () =>
-      screen.getByText("void").closest("li")?.querySelector(".lucide-chevron-right");
+      screen.getByText("void").closest("[role=row]")?.querySelector(".lucide-chevron-right");
     await waitFor(() => expect(chevron()).not.toBeNull());
     await userEvent.hover(screen.getByText("void"));
     await waitFor(() => expect(chevron()).toBeNull()); // asked for ahead: nothing, not opened

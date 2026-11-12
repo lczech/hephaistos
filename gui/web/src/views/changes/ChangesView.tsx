@@ -203,6 +203,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
       )}
       <List
         table={table}
+        label="Changes"
         className={listStyles.columns}
         vars={vars}
         grouped

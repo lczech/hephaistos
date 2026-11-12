@@ -36,6 +36,9 @@ interface Props {
 /** What a header dragged carries: its list's kind and its column, as JSON. */
 export const COLUMN_DRAG = "application/x-hephaistos-column";
 
+/** What columns without a header are for, as screen readers say it. */
+const HEADERLESS: Record<string, string> = { square: "Open" };
+
 /**
  * A column's header: its label, saying what its filter is set to, which sorts by the column if it
  * can; at its end a funnel opening the filter's choices, if it has one; its edge resizes it.
@@ -66,9 +69,12 @@ export function ColumnHeader({
   const text = values.length > 0 ? filterText(values, choices, filter?.many) : undefined;
   const description = column.columnDef.meta?.description;
   return (
+    // biome-ignore lint/a11y/useFocusableInteractive lint/a11y/useSemanticElements: a treegrid's header cell, as the header lays out its columns on its own, not as a table's; its buttons take the focus
     <span
       {...dragProps}
       ref={own}
+      role="columnheader"
+      aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
       className={styles.header}
       data-dragging={isDragging || undefined}
       data-column={column.id}
@@ -106,6 +112,11 @@ export function ColumnHeader({
             <Funnel aria-hidden="true" />
           </button>
         </Filter>
+      )}
+      {children === undefined && (
+        // Named where it says nothing, as the square's, by what it is for: for screen readers;
+        // after the funnel, which is then the header's first, in its middle (`.filter:first-child`).
+        <span className={styles.unseen}>{description ?? HEADERLESS[column.id] ?? column.id}</span>
       )}
       {column.getCanResize() && <Resizer header={header} resizing={resizing} fit={onFit} />}
     </span>

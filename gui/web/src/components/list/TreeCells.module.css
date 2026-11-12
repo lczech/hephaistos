@@ -37,6 +37,6 @@
   transition: opacity 0.15s;
 }
 
-ol:hover .guides {
+[role="treegrid"]:hover .guides {
   opacity: 1;
 }

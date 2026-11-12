@@ -63,6 +63,16 @@
   pointer-events: none;
 }
 
+/* Read by screen readers, not seen: what a header without a label is for. */
+.unseen {
+  position: absolute;
+  width: var(--space-hair);
+  height: var(--space-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .header[data-dragging] {
   opacity: var(--dimmed);
 }
@@ -95,6 +105,11 @@
   top: 0;
   right: 0;
   left: 0;
+}
+
+/* A header cell around what lays out as the header's own, e.g. its buttons in two lines. */
+.contents {
+  display: contents;
 }
 
 .clear {
@@ -671,7 +686,7 @@
 }
 
 /* Without filters or a sort, e.g. History's. */
-.frame[data-layout="lines"] .head:empty {
+.frame[data-layout="lines"] .head:has(> .contents:empty) {
   display: none;
 }
 

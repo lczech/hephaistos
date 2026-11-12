@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Schemas } from "../../api/client";
-import { ownRow } from "../../test/list";
+import { listRows, ownRow, queryListRows } from "../../test/list";
 import { fileEntry, info, json, renderWithQueries, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
@@ -83,9 +83,7 @@ function watchNames(): { seen: string[][]; stop: () => void } {
   const seen: string[][] = [];
   const observer = new MutationObserver(() =>
     seen.push(
-      screen
-        .queryAllByRole("listitem")
-        .map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim() ?? ""),
+      queryListRows().map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim() ?? ""),
     ),
   );
   observer.observe(document.body, { subtree: true, childList: true, characterData: true });
@@ -103,10 +101,7 @@ function addToHome(added: FileEntry, entries?: FileEntry[]) {
   }); // also once timed out, before the next test
 }
 
-const names = () =>
-  screen
-    .getAllByRole("listitem")
-    .map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim());
+const names = () => listRows().map((row) => ownRow(row).textContent?.replace(/\s+/g, " ").trim());
 
 const field = () => screen.getByRole("textbox", { name: "Find files and folders by name" });
 
@@ -123,7 +118,7 @@ async function opened(initial: Params, then?: () => Promise<void>, fragment?: Pa
   const shown = renderWithQueries(
     <InPanel view={ExplorerView} kind="explorer" params={initial} fragment={fragment} />,
   );
-  await waitFor(() => expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0));
+  await waitFor(() => expect(listRows().length).toBeGreaterThan(0));
   await then?.();
   return shown;
 }

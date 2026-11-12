@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { Copy } from "lucide-react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { listRows } from "../../test/list";
 import { Chevron, List } from "./List";
 import { listColumnHelper, useList } from "./table";
 
@@ -33,6 +34,7 @@ function Fruits({ act }: { act: (fruit: Fruit) => void }) {
   return (
     <List
       table={table}
+      label="Fruits"
       layout="columns"
       choices={{}}
       message={null}
@@ -123,6 +125,7 @@ function Tree({ embedded = false, act }: { embedded?: boolean; act?: (name: stri
   return (
     <List
       table={table}
+      label="Files"
       layout="columns"
       tree
       embedded={embedded}
@@ -147,14 +150,14 @@ function Tree({ embedded = false, act }: { embedded?: boolean; act?: (name: stri
 }
 
 /** A row's own item: the `li` whose row says `name`. */
-const itemOf = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
+const itemOf = (name: string) => screen.getByText(name).closest("[role=row]") as HTMLElement;
 
 describe("a list as a tree", () => {
   it("draws a row's rows after it, in order, holding them only while open", async () => {
     render(<Tree />);
     expect(itemOf("src")).not.toHaveAttribute("data-holding");
     await userEvent.click(screen.getByText("src"));
-    const items = screen.getAllByRole("listitem").map((item) => item.textContent);
+    const items = listRows().map((item) => item.textContent);
     expect(items.slice(items.indexOf("src"), -1)).toEqual(["src", "b.py", "a.py"]); // as given
     expect(itemOf("src")).toHaveAttribute("data-holding");
     expect(itemOf("a.py")).toHaveAttribute("data-depth", "1");
@@ -173,5 +176,34 @@ describe("a list as a tree", () => {
     await userEvent.click(within(menu).getByRole("menuitem", { name: "Copy" }));
     expect(act).toHaveBeenCalledWith("src");
     expect(screen.queryByText("a.py")).toBeNull(); // not opened by the click
+  });
+});
+
+describe("a list, for screen readers", () => {
+  it("is a treegrid: its header a row of column headers, its rows by level and place", async () => {
+    render(<Tree />);
+    const grid = screen.getByRole("treegrid", { name: "Files" }); // named by its View
+    expect(grid).toHaveAttribute("aria-rowcount", "3"); // the header, src and README
+    const [head, src, readme] = screen.getAllByRole("row");
+    expect(head).toHaveAttribute("aria-rowindex", "1");
+    expect(within(head as HTMLElement).getByRole("columnheader", { name: "name" })).toBeVisible();
+    expect(src).toHaveAttribute("aria-expanded", "false");
+    expect(readme).not.toHaveAttribute("aria-expanded"); // it opens nothing
+    expect(readme).toHaveAttribute("aria-posinset", "2");
+    await userEvent.click(screen.getByText("src"));
+    expect(grid).toHaveAttribute("aria-rowcount", "5");
+    const a = itemOf("a.py");
+    expect(itemOf("src")).toHaveAttribute("aria-expanded", "true");
+    expect(a).toHaveAttribute("aria-level", "2");
+    expect(a).toHaveAttribute("aria-rowindex", "4");
+    expect(a).toHaveAttribute("aria-posinset", "2");
+    expect(a).toHaveAttribute("aria-setsize", "2");
+  });
+
+  it("names a row's details, in a cell below its own", async () => {
+    render(<Fruits act={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /pear$/ }));
+    const details = screen.getByRole("region", { name: "Fruit details" });
+    expect(details.closest("[role=gridcell]")?.closest("[role=row]")).toHaveTextContent("pear");
   });
 });

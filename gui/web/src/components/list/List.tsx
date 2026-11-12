@@ -1,9 +1,11 @@
 import { FlexRender, type ReactTable, type RowData } from "@tanstack/react-table";
 import { ChevronRight, FunnelX } from "lucide-react";
 import {
+  type HTMLAttributes,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
+  type Ref,
   type RefObject,
   useEffect,
   useId,
@@ -58,6 +60,7 @@ interface Paging {
 
 interface Props<TData extends RowData> {
   table: ReactTable<ListFeatures, TData>;
+  label: string; // what screen readers call it: `Files`, `Events`
   className?: string; // the View's, e.g. for its look in two lines per row
   vars?: CssVars; // the View's, for its stylesheet: e.g. a column's width, from what it shows
   layout: ListLayout;
@@ -116,6 +119,7 @@ interface Props<TData extends RowData> {
  */
 export function List<TData extends RowData>({
   table,
+  label,
   className,
   vars,
   layout,
@@ -281,6 +285,14 @@ export function List<TData extends RowData>({
     rows.flatMap((row) => (row.parentId === undefined ? [] : [row.parentId])),
   );
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
+  // Of each row, where it stands among the rows beside it, those within the same row, and how
+  // many they are: for screen readers, as only the rows near the view are drawn.
+  const siblings = new Map<string, number>();
+  const placeAmong = rows.map((row) => {
+    const at = (siblings.get(row.parentId ?? "") ?? 0) + 1;
+    siblings.set(row.parentId ?? "", at);
+    return at;
+  });
   const rowsHandle = useRef<RowsHandle>(null);
   useImperativeHandle(handle, () => ({
     scrollTo: (id) => {
@@ -332,9 +344,14 @@ export function List<TData extends RowData>({
     const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
     const [first, ...others] = row.getVisibleCells();
     return (
-      <li
+      <Row
         key={row.id}
         ref={drawn?.measure}
+        aria-rowindex={index + 2} // after the header's
+        aria-level={row.depth + 1}
+        aria-posinset={placeAmong[index]}
+        aria-setsize={siblings.get(row.parentId ?? "")}
+        aria-expanded={still || view ? undefined : shown}
         data-index={copy ? undefined : drawn?.index}
         data-first={index === 0 || undefined}
         className={styles.item}
@@ -361,16 +378,16 @@ export function List<TData extends RowData>({
           onFocus={ahead && (() => ahead(row.original))}
         >
           {first && still && (
-            <span {...cellData(first.column)}>
+            <Cell {...cellData(first.column)}>
               <FlexRender cell={first} />
-            </span>
+            </Cell>
           )}
           {first && !still && (
-            <span {...cellData(first.column)}>
+            <Cell {...cellData(first.column)}>
               <button
                 type="button"
                 className={styles.open}
-                aria-expanded={view ? undefined : shown}
+                aria-expanded={view ? undefined : shown} // as the row's, as a button that opens it
                 aria-controls={shown && !folding && !view && !copy ? `${id}-details` : undefined}
                 aria-labelledby={copy ? undefined : id}
                 title={squareTitle?.(row.original)}
@@ -379,10 +396,10 @@ export function List<TData extends RowData>({
               >
                 <FlexRender cell={first} />
               </button>
-            </span>
+            </Cell>
           )}
           {others.map((cell) => (
-            <span key={cell.id} {...cellData(cell.column)}>
+            <Cell key={cell.id} {...cellData(cell.column)}>
               {actions && cell.column.columnDef.meta?.identifies ? (
                 <span className={styles.withActions}>
                   <span className={styles.named}>
@@ -393,7 +410,7 @@ export function List<TData extends RowData>({
               ) : (
                 <FlexRender cell={cell} />
               )}
-            </span>
+            </Cell>
           ))}
           {rowMenuAt?.id === row.id && rowMenuAt.copy === (copy !== undefined) && (
             <RowMenuAt
@@ -405,16 +422,13 @@ export function List<TData extends RowData>({
           )}
         </div>
         {shown && !folding && !still && !view && !copy && (
-          <section
-            id={`${id}-details`}
-            className={styles.details}
-            aria-label={detailsLabel}
-            data-bare={bareDetails || undefined}
-          >
-            {details(row.original)}
-          </section>
+          <Cell block className={styles.details} data-bare={bareDetails || undefined}>
+            <section id={`${id}-details`} aria-label={detailsLabel}>
+              {details(row.original)}
+            </section>
+          </Cell>
         )}
-      </li>
+      </Row>
     );
   };
   return (
@@ -430,21 +444,32 @@ export function List<TData extends RowData>({
       data-tree={tree || undefined}
       data-compact={compact || undefined}
     >
-      <div ref={grid} className={styles.grid} style={cssVars(columns)}>
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: a context menu, which the menu key opens from a header's buttons too */}
+      <div
+        ref={grid}
+        role="treegrid"
+        aria-label={label}
+        aria-rowcount={rows.length + 1} // the header too
+        className={styles.grid}
+        style={cssVars(columns)}
+      >
+        {/* biome-ignore lint/a11y/useSemanticElements lint/a11y/useFocusableInteractive: a treegrid's header row, laying out its columns on its own, not as a table's; its buttons take the focus */}
         <div
           {...dropProps}
           ref={head}
+          role="row"
+          aria-rowindex={1}
           className={styles.head}
           onContextMenu={layout === "columns" ? showMenu : undefined}
         >
           {layout === "lines" ? (
-            <LinesHead
-              table={table}
-              filters={table.state.columnFilters}
-              sorting={table.state.sorting}
-              choices={choices}
-            />
+            <HeaderCell>
+              <LinesHead
+                table={table}
+                filters={table.state.columnFilters}
+                sorting={table.state.sorting}
+                choices={choices}
+              />
+            </HeaderCell>
           ) : (
             table
               .getHeaderGroups()
@@ -470,15 +495,17 @@ export function List<TData extends RowData>({
               })
           )}
           {filtered && layout === "columns" && (
-            <button
-              type="button"
-              className={styles.clear}
-              onClick={() => table.resetColumnFilters(true)}
-              title="Clear all filters"
-              aria-label="Clear all filters"
-            >
-              <FunnelX aria-hidden="true" />
-            </button>
+            <HeaderCell>
+              <button
+                type="button"
+                className={styles.clear}
+                onClick={() => table.resetColumnFilters(true)}
+                title="Clear all filters"
+                aria-label="Clear all filters"
+              >
+                <FunnelX aria-hidden="true" />
+              </button>
+            </HeaderCell>
           )}
           {line !== null && (
             <span className={styles.dropLine} style={cssVars({ "--x": `${line}px` })} />
@@ -562,6 +589,31 @@ function RowMenuAt({
         onClose={onClose}
       />
     </>
+  );
+}
+
+/** A treegrid's row: its own cells, and below them its details. */
+function Row(props: HTMLAttributes<HTMLDivElement> & { ref?: Ref<HTMLDivElement> }) {
+  // biome-ignore lint/a11y/useSemanticElements lint/a11y/useFocusableInteractive: a treegrid's row, as each row lays out its columns on its own, not as a table's
+  return <div role="row" {...props} />;
+}
+
+/**
+ * A treegrid's cell: a row's, or below it, its details (`block`). Not focusable itself: the keys
+ * move between rows, and Tab through what a row holds.
+ */
+function Cell({ block, ...props }: { block?: boolean } & HTMLAttributes<HTMLElement>) {
+  // biome-ignore lint/a11y/useFocusableInteractive lint/a11y/useSemanticElements: a treegrid's cell, as each row lays out its columns on its own, not as a table's
+  return block ? <div role="gridcell" {...props} /> : <span role="gridcell" {...props} />;
+}
+
+/** A cell of the header around what lays out as the header's own, e.g. its buttons in lines. */
+function HeaderCell({ children }: { children: ReactNode }) {
+  return (
+    // biome-ignore lint/a11y/useFocusableInteractive lint/a11y/useSemanticElements: a treegrid's header cell, as the header lays out its columns on its own, not as a table's
+    <span role="columnheader" className={styles.contents}>
+      {children}
+    </span>
   );
 }
 

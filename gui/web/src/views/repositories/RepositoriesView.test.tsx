@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { cells } from "../../test/list";
+import { cells, listRows } from "../../test/list";
 import {
   clone,
   info,
@@ -45,7 +45,7 @@ function Repositories({ open = () => {} }: { open?: OpenView }) {
   );
 }
 
-const names = () => screen.getAllByRole("listitem").map((row) => cells(row)[1]); // after the link
+const names = () => listRows().map((row) => cells(row)[1]); // after the link
 
 describe("the Repositories View", () => {
   it("lists the most recently active first, each with its Clones and their Worktrees", async () => {
@@ -62,7 +62,7 @@ describe("the Repositories View", () => {
       "idle",
       "~/idle",
     ]);
-    const rows = screen.getAllByRole("listitem");
+    const rows = listRows();
     expect(rows.map((row) => row.dataset.depth)).toEqual([
       undefined,
       "1",
@@ -201,7 +201,7 @@ describe("the Repositories View", () => {
     expect(link).toHaveAttribute("href", "https://github.com/me/recent");
     expect(link).toHaveAttribute("target", "_blank");
     expect(screen.getAllByRole("link")).toHaveLength(1); // the others' remotes are on no forge
-    const [row] = screen.getAllByRole("listitem");
+    const [row] = listRows();
     await userEvent.click(within(row as HTMLElement).getAllByRole("button")[0] as HTMLElement);
     const details = within(screen.getByRole("region", { name: "Details" }));
     expect(details.getByText("/home/me/mirror", { exact: false })).toBeInTheDocument();
@@ -212,7 +212,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     renderWithQueries(<Repositories />);
     await screen.findByText("recent");
-    const [, row] = screen.getAllByRole("listitem");
+    const [, row] = listRows();
     await userEvent.click(within(row as HTMLElement).getAllByRole("button")[0] as HTMLElement);
     const details = within(screen.getByRole("region", { name: "Details" }));
     expect(details.getByText("remote origin")).toBeInTheDocument();

@@ -30,6 +30,7 @@ function Fruits({ layout = "columns", taste }: { layout?: ListLayout; taste?: st
   return (
     <List
       table={table}
+      label="Fruits"
       layout={layout}
       choices={{}}
       message={null}
@@ -42,7 +43,7 @@ function Fruits({ layout = "columns", taste }: { layout?: ListLayout; taste?: st
 
 const headers = () =>
   [...document.querySelectorAll("[data-column]")]
-    .filter((cell) => cell.closest("ol") === null)
+    .filter((cell) => cell.closest("[role=rowgroup]") === null)
     .map((cell) => cell.getAttribute("data-column"));
 
 const openMenu = (label: string) =>

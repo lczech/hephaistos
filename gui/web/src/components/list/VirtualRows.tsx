@@ -86,8 +86,8 @@ export function VirtualRows({
   handle,
   onPointerOver,
 }: Props) {
-  const list = useRef<HTMLOListElement>(null);
-  const strip = useRef<HTMLOListElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const strip = useRef<HTMLDivElement>(null);
   // Where the rows start in what scrolls them, below the header; where the header ends once it
   // stays, from where what scrolls them starts sticking, within its padding at the top (`pad`):
   // measured after each draw, as the header changes its height, e.g. its buttons wrapping.
@@ -321,7 +321,7 @@ export function VirtualRows({
   }
 
   // Once, not anew on each draw, which would size and place all rows drawn again.
-  const [containerRef] = useState(() => (element: HTMLOListElement | null) => {
+  const [containerRef] = useState(() => (element: HTMLDivElement | null) => {
     list.current = element;
     virtualizer.containerRef(element);
   });
@@ -332,7 +332,7 @@ export function VirtualRows({
   return (
     <>
       {shape && (
-        <ol
+        <div
           ref={strip}
           className={styles.stuck}
           aria-hidden="true"
@@ -349,17 +349,19 @@ export function VirtualRows({
           {stuck.map((at) =>
             draw(at.index, { index: at.index, copy: { top: at.top, place: placeOf(at) } }),
           )}
-        </ol>
+        </div>
       )}
-      <ol
+      {/* biome-ignore lint/a11y/useSemanticElements: a treegrid's rows, each laying out its columns on its own, not as a table's */}
+      <div
         ref={containerRef}
+        role="rowgroup"
         className={`${styles.rows} ${styles.virtual}`}
         onPointerOver={onPointerOver}
       >
         {items.map((item) =>
           draw(item.index, { index: item.index, measure: virtualizer.measureElement }),
         )}
-      </ol>
+      </div>
     </>
   );
 }

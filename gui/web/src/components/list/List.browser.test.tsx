@@ -23,6 +23,7 @@ function Fruits({ fetchNextPage }: { fetchNextPage: () => void }) {
     <div style={{ height: 200, overflow: "auto" }}>
       <List
         table={table}
+        label="Fruits"
         layout="columns"
         choices={{}}
         message={null}
@@ -61,6 +62,7 @@ function Long({ name, width, after = 0 }: { name: string; width: number; after?:
     <div style={{ width, height: 200, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Fruits"
         layout="columns"
         choices={{}}
         message={null}
@@ -119,6 +121,7 @@ function Coloured() {
     <div style={{ width: 600, height: 200, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Fruits"
         layout="columns"
         choices={{}}
         message={null}
@@ -206,7 +209,7 @@ function drag(from: Element, to: Element, x: number) {
 describe("a header dragged", () => {
   const headers = () =>
     [...document.querySelectorAll("[data-column]")]
-      .filter((cell) => cell.closest("ol") === null)
+      .filter((cell) => cell.closest("[role=rowgroup]") === null)
       .map((cell) => cell.getAttribute("data-column"));
   const header = (id: string) => document.querySelector(`[data-column="${id}"]`) as Element;
 
@@ -258,6 +261,7 @@ function Tree({ embedded = false }: { embedded?: boolean }) {
     <div style={{ height: 160, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Files"
         layout="columns"
         tree
         embedded={embedded}
@@ -318,7 +322,7 @@ describe("a list as a tree", () => {
       head.getBoundingClientRect().left + 100,
       head.getBoundingClientRect().bottom + 2,
     );
-    const row = stuck?.closest("li > div") as HTMLElement;
+    const row = stuck?.closest("[role=row] > div") as HTMLElement;
     expect(row.textContent).toContain("src");
     expect(getComputedStyle(row).backgroundImage).toMatch(/gradient/); // its mark, over the page's colour
   });
@@ -364,6 +368,7 @@ function PageTree() {
       <p style={{ height: 100, margin: 0 }}>Above</p>
       <List
         table={table}
+        label="Files"
         layout="columns"
         tree
         embedded
@@ -447,6 +452,7 @@ function Deep({ layout }: { layout: ListLayout }) {
     <div style={{ height: 300, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Files"
         layout={layout}
         tree
         compact
@@ -503,7 +509,7 @@ const drawn = () =>
 function seenAt(y: number): { name: string; box: DOMRect } | undefined {
   const cell = document.querySelector('[data-column="name"]') as HTMLElement; // its header
   const { left, width } = cell.getBoundingClientRect();
-  const row = document.elementFromPoint(left + width / 2, y)?.closest("li > div");
+  const row = document.elementFromPoint(left + width / 2, y)?.closest("[role=row] > div");
   const name = row?.querySelector(':scope > [data-column="name"]')?.textContent;
   return row && name ? { name, box: row.getBoundingClientRect() } : undefined;
 }
@@ -512,7 +518,7 @@ function seenAt(y: number): { name: string; box: DOMRect } | undefined {
 const ownRowOf = (name: string) =>
   screen
     .getAllByText(name)
-    .map((text) => text.closest("li > div") as HTMLElement)
+    .map((text) => text.closest("[role=row] > div") as HTMLElement)
     .find((row) => row.closest("[aria-hidden]") === null) as HTMLElement;
 
 /**
@@ -545,6 +551,7 @@ function Layered() {
     <div style={{ height: 240, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Files"
         layout="columns"
         tree
         compact
@@ -599,7 +606,7 @@ describe("a tree's rows stuck, as seen", () => {
 
   it("lie evenly apart, each at the height of a row", async () => {
     render(<Layered />);
-    const tops = [...document.querySelectorAll("li > div")]
+    const tops = [...document.querySelectorAll("[role=row] > div")]
       .filter((row) => row.closest("[aria-hidden]") === null)
       .map((row) => row.getBoundingClientRect())
       .filter((box) => box.height > 0)
@@ -628,6 +635,7 @@ function Growing({ ahead }: { ahead: number }) {
     <div style={{ height: 200, display: "flex", flexDirection: "column" }}>
       <List
         table={table}
+        label="Fruits"
         layout="columns"
         choices={{}}
         message={null}

@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
-import { cells, ownRow } from "../../test/list";
+import { cells, listRows, ownRow } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import { type Address, addressText, type Params } from "../address";
@@ -105,7 +105,7 @@ function rowText(row: HTMLElement): string {
   return cells(copy).join(" ").replace(/\s+/g, " ").trim();
 }
 
-const rows = () => screen.getAllByRole("listitem").map(rowText);
+const rows = () => listRows().map(rowText);
 
 describe("the Changes View", () => {
   it("lists the changes in git's groups, with the branch and totals", async () => {
@@ -250,7 +250,7 @@ describe("the Changes View", () => {
       kind: "diff",
       params: { clone: "clone-proj", from: "HEAD", to: "working-tree" },
     });
-    const row = name.closest("li") as HTMLElement;
+    const row = name.closest("[role=row]") as HTMLElement;
     expect(within(row).getByRole("button")).not.toHaveAttribute("aria-expanded");
     expect(screen.queryByRole("region")).toBeNull();
     expect(screen.getByTitle("binary, modified")).toBeInTheDocument();
@@ -414,7 +414,7 @@ describe("the Changes View", () => {
     // Each level a step further in, a directory's chevron with it.
     const main = screen.getByText("main.py").closest("[style]");
     expect(main).toHaveStyle({ "--indent": "2" });
-    const app = screen.getByText("app/").closest("li") as HTMLElement;
+    const app = screen.getByText("app/").closest("[role=row]") as HTMLElement;
     expect(app.querySelector("[data-column=square] [style]")).toHaveStyle({ "--indent": "1" });
     expect(JSON.parse(localStorage.getItem("hephaistos.changes") ?? "")).toMatchObject({
       nested: true,
@@ -443,7 +443,7 @@ describe("the Changes View", () => {
     );
     await userEvent.click(await screen.findByText("new/"));
     const meter = async (name: string) =>
-      ((await screen.findByText(name)).closest("li") as HTMLElement).querySelector(
+      ((await screen.findByText(name)).closest("[role=row]") as HTMLElement).querySelector(
         '[style*="--added"]',
       );
     expect(await meter("a.txt")).toHaveStyle({ "--added": "1" });
@@ -461,7 +461,9 @@ describe("the Changes View", () => {
     renderWithQueries(
       <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
     );
-    const header = ownRow((await screen.findByText("Changes")).closest("li") as HTMLElement);
+    const header = ownRow(
+      (await screen.findByText("Changes")).closest("[role=row]") as HTMLElement,
+    );
     expect(within(header).queryByRole("button")).toBeNull();
     await userEvent.click(header);
     expect(rows()).toEqual([

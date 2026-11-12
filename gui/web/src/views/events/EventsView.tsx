@@ -72,6 +72,7 @@ export function EventsView({ params, setParams, setTitle }: ViewProps) {
       </ViewBar>
       <List
         table={table}
+        label="Events"
         className={styles.events}
         layout={layout}
         choices={choices}

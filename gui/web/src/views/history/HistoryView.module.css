@@ -24,7 +24,7 @@
 }
 
 /* Where a file was renamed: a line, then the path it had before, which the rows below are of. */
-.history li:has(.renamed) {
+.history [aria-level]:has(.renamed) {
   border-top: 1px solid var(--line);
 }
 
@@ -67,20 +67,20 @@
 
 /* In lines: the hash and subject on one line; below them, quieter, who wrote it, and when, at the
  * end, where times of any length line up. */
-.history[data-layout="lines"] li [data-column="commit"] {
+.history[data-layout="lines"] [aria-level] [data-column="commit"] {
   order: 1;
 }
 
-.history[data-layout="lines"] li [data-column="subject"] {
+.history[data-layout="lines"] [aria-level] [data-column="subject"] {
   flex: 1 1 0;
   order: 2;
 }
 
-.history[data-layout="lines"] li [data-column="author"] {
+.history[data-layout="lines"] [aria-level] [data-column="author"] {
   flex: 1 1 0;
   order: 11;
 }
 
-.history[data-layout="lines"] li [data-column="authored"] {
+.history[data-layout="lines"] [aria-level] [data-column="authored"] {
   order: 12;
 }

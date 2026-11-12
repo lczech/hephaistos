@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { EVENTS_PAGE } from "../../api/queries";
 import { columnWidths } from "../../components/list/kept";
-import { cells } from "../../test/list";
+import { cells, findListRows, listRows } from "../../test/list";
 import { clone, event, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import type { Params } from "../address";
@@ -66,7 +66,7 @@ describe("the Events View", () => {
     renderWithQueries(<Events />);
     expect(await screen.findByText("Commit number 1 (abc1)")).toBeInTheDocument();
     await expectSettled();
-    const rows = screen.getAllByRole("listitem");
+    const rows = listRows();
     expect(rows.map(cells).map((row) => row.slice(1))).toEqual([
       ["committed", "project", "~/project", "Commit number 3 (abc3)"],
       ["registered", "project", "", ""], // a Repository's own Event: its name is already there
@@ -80,7 +80,7 @@ describe("the Events View", () => {
   it("names the Machine only once there are several", async () => {
     serveEvents([committed], 2);
     renderWithQueries(<Events />);
-    const [row] = await screen.findAllByRole("listitem");
+    const [row] = await findListRows();
     await vi.waitFor(() => expect(cells(row as HTMLElement)).toContain("laptop"));
   });
 
@@ -192,7 +192,7 @@ describe("the Events View's columns", () => {
       </>,
     );
     await screen.findAllByText("Commit number 1 (abc1)");
-    const lists = screen.getAllByRole("list");
+    const lists = screen.getAllByRole("rowgroup");
     expect(lists.map(grid)).toEqual([columns(88), columns(88)]);
     const [recorded] = screen.getAllByRole("separator");
     fireEvent.mouseDown(recorded as HTMLElement, { clientX: 100 });
@@ -213,7 +213,8 @@ describe("the Events View's columns", () => {
       </>,
     );
     await screen.findAllByText("Commit number 1 (abc1)");
-    const frames = () => screen.getAllByRole("list").map((list) => list.closest("[data-layout]"));
+    const frames = () =>
+      screen.getAllByRole("rowgroup").map((list) => list.closest("[data-layout]"));
     expect(frames().map((frame) => frame?.getAttribute("data-layout"))).toEqual([
       "columns",
       "columns",
@@ -227,7 +228,7 @@ describe("the Events View's columns", () => {
   it("include the Machine's once there are several", async () => {
     serveEvents([committed], 2);
     renderWithQueries(<Events />);
-    const list = await screen.findByRole("list");
+    const list = await screen.findByRole("rowgroup");
     await vi.waitFor(() => expect(grid(list)).toContain(" 140px 120px 120px 200px "));
   });
 });

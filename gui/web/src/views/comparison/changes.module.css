@@ -90,32 +90,32 @@
 
 /* In lines: still one line, as high as in columns, the path taking what the others leave; the
  * bars' room kept in rows without, so that all lines line up. In any list of changes. */
-.columns[data-layout="lines"] li [data-column="path"] {
+.columns[data-layout="lines"] [aria-level] [data-column="path"] {
   flex: 1 1 0;
   order: 1;
 }
 
-.columns[data-layout="lines"] li [data-column="lines"] {
+.columns[data-layout="lines"] [aria-level] [data-column="lines"] {
   order: 2;
 }
 
-.columns[data-layout="lines"] li [data-column="meter"] {
+.columns[data-layout="lines"] [aria-level] [data-column="meter"] {
   order: 3;
   width: var(--meter-length);
 }
 
 /* Over the lines, before the bars. */
-.columns[data-layout="lines"] [data-column="lines"]:not(li *) {
+.columns[data-layout="lines"] [data-column="lines"]:not([aria-level] *) {
   margin-right: calc(var(--meter-length) + var(--column-gap));
 }
 
 /* In lines, very narrow: no bars, as the names need the room more. */
 @container list (width < 30rem) {
-  .columns[data-layout="lines"] li [data-column="meter"] {
+  .columns[data-layout="lines"] [aria-level] [data-column="meter"] {
     display: none;
   }
 
-  .columns[data-layout="lines"] [data-column="lines"]:not(li *) {
+  .columns[data-layout="lines"] [data-column="lines"]:not([aria-level] *) {
     margin-right: 0;
   }
 }

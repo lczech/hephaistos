@@ -53,6 +53,7 @@ export function RepositoriesView({ fragment, setFragment }: ViewProps) {
       </ViewBar>
       <List
         table={table}
+        label="Repositories"
         className={styles.repositories}
         grouped
         layout={layout}

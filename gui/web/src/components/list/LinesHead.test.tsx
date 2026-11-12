@@ -48,6 +48,7 @@ function Fruits() {
     <>
       <List
         table={table}
+        label="Fruits"
         layout="lines"
         choices={{
           ripeness: [{ value: "ripe", label: "ripe" }],
@@ -69,12 +70,14 @@ function Fruits() {
 const button = (name: string | RegExp) => screen.getByRole("button", { name });
 const state = () => JSON.parse(screen.getByRole("status").textContent ?? "{}");
 const names = () =>
-  [...document.querySelectorAll("ol [data-column='name']")].map((cell) => cell.textContent);
+  [...document.querySelectorAll("[role=rowgroup] [data-column='name']")].map(
+    (cell) => cell.textContent,
+  );
 
 describe("a list's header in two lines", () => {
   it("has a button for each filter, the square's by its name, saying what it is set to", async () => {
     render(<Fruits />);
-    expect(screen.queryByRole("columnheader")).toBeNull();
+    expect(screen.getAllByRole("columnheader")).toHaveLength(1); // around its buttons, not one each
     await userEvent.click(button("ripeness"));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "ripe" }));
     expect(button("ripeness: ripe")).toHaveAttribute("data-filtered");

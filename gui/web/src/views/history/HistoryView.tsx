@@ -188,6 +188,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
       )}
       <List
         table={table}
+        label="Commits"
         className={styles.history}
         layout={layout}
         choices={{}}

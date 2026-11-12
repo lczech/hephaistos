@@ -1,6 +1,6 @@
 /* The name close to the forge's logo before it, as an icon's label; its header too, while the
  * header is a row of columns (not in lines). */
-.repositories li [data-column="name"] {
+.repositories [aria-level] [data-column="name"] {
   margin-left: calc(var(--space-1) - var(--column-gap));
 }
 
@@ -9,15 +9,15 @@
 }
 
 /* Clones within their Repository, Worktrees within their Clone. */
-.repositories li:not([data-depth]) [data-column="name"] {
+.repositories [aria-level="1"] [data-column="name"] {
   font-weight: var(--weight-strong);
 }
 
-.repositories li[data-depth="1"] [data-column="name"] {
+.repositories [aria-level="2"] [data-column="name"] {
   padding-left: var(--space-4);
 }
 
-.repositories li[data-depth="2"] [data-column="name"] {
+.repositories [aria-level="3"] [data-column="name"] {
   padding-left: calc(2 * var(--space-4));
 }
 
@@ -44,51 +44,51 @@
   align-items: center;
 }
 
-.repositories[data-layout="lines"] li [data-column="remote"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="remote"] {
   order: 1;
   width: calc(var(--icon-size) + 2 * var(--space-half));
 }
 
-.repositories[data-layout="lines"] li [data-column="name"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="name"] {
   flex: 1 1 0;
   order: 2;
 }
 
-.repositories[data-layout="lines"] li [data-column="status"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="status"] {
   order: 3;
 }
 
-.repositories[data-layout="lines"] li [data-column="views"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="views"] {
   order: 4;
 }
 
-.repositories[data-layout="lines"] li [data-column="branch"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="branch"] {
   flex: 0 1 auto;
   order: 11;
   margin-left: calc(var(--space-1) - var(--column-gap)); /* where the name starts, as below */
 }
 
 /* At the end, where times of any length line up. */
-.repositories[data-layout="lines"] li [data-column="active"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="active"] {
   order: 12;
   margin-left: auto;
 }
 
 /* A Repository's has the room of the status it lacks, on its one line. */
-.repositories[data-layout="lines"] li:not([data-depth]) [data-column="active"] {
+.repositories[data-layout="lines"] [aria-level="1"] [data-column="active"] {
   order: 3;
 }
 
-.repositories[data-layout="lines"] li [data-column="observed"],
-.repositories[data-layout="lines"] li:not([data-depth]) [data-column="branch"] {
+.repositories[data-layout="lines"] [aria-level] [data-column="observed"],
+.repositories[data-layout="lines"] [aria-level="1"] [data-column="branch"] {
   display: none;
 }
 
 /* The second line starts where the name does, indented as it is. */
-.repositories[data-layout="lines"] li[data-depth="1"] [data-column="branch"] {
+.repositories[data-layout="lines"] [aria-level="2"] [data-column="branch"] {
   padding-left: var(--space-4);
 }
 
-.repositories[data-layout="lines"] li[data-depth="2"] [data-column="branch"] {
+.repositories[data-layout="lines"] [aria-level="3"] [data-column="branch"] {
   padding-left: calc(2 * var(--space-4));
 }

@@ -91,7 +91,7 @@ async function explorer(width = 700, height = 320) {
 }
 
 const rowOf = (name: string) =>
-  [...document.querySelectorAll("li")].find(
+  [...document.querySelectorAll("[role=row]")].find(
     (item) => item.querySelector(":scope > div bdi")?.textContent === name,
   )?.firstElementChild as HTMLElement;
 
@@ -136,6 +136,17 @@ describe("the Explorer's tree, as drawn", () => {
     expect(lines.right).toBeLessThan(chevron.right);
   });
 
+  it("shows the guides of rows within folders only while the pointer is over the list", async () => {
+    await explorer();
+    await userEvent.click(screen.getByText("a"));
+    await screen.findByText("a1.txt");
+    const guides = rowOf("a1.txt").querySelector("[aria-hidden=true]:not(svg)") as HTMLElement;
+    await userEvent.unhover(rowOf("a1.txt"));
+    await expect.poll(() => getComputedStyle(guides).opacity).toBe("0");
+    await userEvent.hover(rowOf("README.md"));
+    await expect.poll(() => getComputedStyle(guides).opacity).toBe("1");
+  });
+
   it("keeps open folders in view below the header, deeper ones below and under them", async () => {
     await explorer();
     await userEvent.click(screen.getByText("a"));
@@ -150,9 +161,9 @@ describe("the Explorer's tree, as drawn", () => {
     await waitFor(() => expect(box(rowOf("f39.txt")).bottom).toBeLessThan(box(scroller).bottom));
     // As seen: the rows stuck are copies, drawn apart above the rows, far above, not drawn.
     const stuck = (name: string) =>
-      within(document.querySelector("[aria-hidden] li")?.parentElement as HTMLElement)
+      within(document.querySelector("[aria-hidden] [role=row]")?.parentElement as HTMLElement)
         .getByText(name)
-        .closest("li") as HTMLElement;
+        .closest("[role=row]") as HTMLElement;
     const [a, b] = [stuck("a"), stuck("b")];
     expect(box(a).top).toBeCloseTo(box(head).bottom, 0);
     expect(box(b).top).toBeCloseTo(box(a).bottom, 0);
@@ -236,7 +247,7 @@ describe("the Explorer's find, as drawn", () => {
     const frame = document.querySelector("[data-tree]") as HTMLElement;
     await waitFor(() => {
       const found = box(rowOf("f39.txt"));
-      const stuck = [...document.querySelectorAll("[aria-hidden] li")].map(box);
+      const stuck = [...document.querySelectorAll("[aria-hidden] [role=row]")].map(box);
       expect(stuck.length).toBe(2); // a and b
       expect(found.top).toBeGreaterThanOrEqual(Math.max(...stuck.map((at) => at.bottom)) - 1);
       expect(found.bottom).toBeLessThanOrEqual(box(frame).bottom + 1);
