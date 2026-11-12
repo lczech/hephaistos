@@ -1,4 +1,4 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import {
   type PointerEvent,
   type ReactNode,
@@ -11,7 +11,7 @@ import {
 import { flushSync } from "react-dom";
 import { cssVars } from "../cssVars";
 import styles from "./list.module.css";
-import { type Shape, type Stuck, stuckRows } from "./stuck";
+import { rowAt, type Shape, type Stuck, stuckRows } from "./stuck";
 
 // Not compiled by React's compiler (`web/vite.config.ts`): it refuses TanStack Virtual's
 // `useVirtualizer`, whose virtualizer stays the same object as what it shows changes. Drawn anew
@@ -26,14 +26,16 @@ export interface Drawn {
   index: number;
   measure?: (element: Element | null) => void;
   copy?: { top: number; place: () => void };
+  entry?: boolean; // where Tab enters the rows: the row focused, else the first in view
 }
 
 /**
- * What the List may ask of its rows: to bring one into view, drawn first if it is not; whether
- * one is drawn.
+ * What the List may ask of its rows: to bring one into view, drawn first if it is not; the row
+ * a page away from one, up or down; whether one is drawn.
  */
 export interface RowsHandle {
   scrollTo: (index: number) => void;
+  page: (index: number, by: 1 | -1) => number;
   drawn: (index: number) => boolean;
 }
 
@@ -57,6 +59,7 @@ interface Props {
   sticky?: boolean;
   drawnNow?: (indexes: number[]) => void; // after each draw, the rows drawn
   handle?: RefObject<RowsHandle | null>;
+  focus?: number; // the row focused, kept drawn while scrolled away, so as to keep the focus
   onPointerOver?: (event: PointerEvent) => void;
 }
 
@@ -84,6 +87,7 @@ export function VirtualRows({
   sticky = true,
   drawnNow,
   handle,
+  focus,
   onPointerOver,
 }: Props) {
   const list = useRef<HTMLDivElement>(null);
@@ -101,6 +105,11 @@ export function VirtualRows({
     initialRect: { width: 0, height: window.innerHeight },
     estimateSize: () => guess.current,
     overscan: 12,
+    rangeExtractor: (range) => {
+      const drawn = defaultRangeExtractor(range);
+      if (focus === undefined || focus >= range.count || drawn.includes(focus)) return drawn;
+      return [...drawn, focus].sort((a, b) => a - b);
+    },
     scrollMargin: place.margin,
     getItemKey: keyOf,
     // As high as drawn, not rounded to pixels as TanStack's own measure is: else each row lies a
@@ -184,6 +193,7 @@ export function VirtualRows({
     return stuckRows(measures, shape, stuckLine(), height, offsetOf);
   };
   const stuck = stuckNow();
+  const stuckEnd = Math.max(0, ...stuck.map((at) => at.top + at.height));
   // The rows stuck move as the list scrolls, within the rows drawn too, of which the virtualizer
   // says nothing: drawn anew, before the list is painted, as they change.
   const [, setStuckKey] = useState("");
@@ -310,15 +320,85 @@ export function VirtualRows({
     requestAnimationFrame(bringIntoView);
   };
   useLayoutEffect(bringIntoView);
+  // The row a page from this one: as far as the rows in view reach, below those stuck.
+  const page = (index: number, by: 1 | -1) => {
+    const [box, measures] = [virtualizer.scrollElement, virtualizer.measurementsCache];
+    const item = measures[index];
+    if (box === null || item === undefined) return index;
+    // From the row's own top: the details below it count as the rows do. At least a row on.
+    const room = Math.max(box.clientHeight - place.pad - place.below - stuckEnd, guess.current);
+    const at = rowAt(measures, item.start + by * room) ?? (by > 0 ? count - 1 : 0);
+    const moved = by > 0 ? at > index : at < index;
+    return moved ? at : Math.min(Math.max(index + by, 0), count - 1);
+  };
   if (handle) {
     handle.current = {
       scrollTo: (index) => {
         asked.current = { index, tries: 5 };
         bringIntoView();
       },
+      page,
       drawn: (index) => virtualizer.getVirtualItems().some((item) => item.index === index),
     };
   }
+  // Where Tab enters the rows: the row focused, else the first in view, below those stuck.
+  const firstInView = () => {
+    const measures = virtualizer.measurementsCache;
+    const y = stuckLine() + stuckEnd;
+    const at = rowAt(measures, y);
+    if (at === undefined) return 0;
+    // Cut off at the top, the next, if that is in view: else this one, its details filling it.
+    const next = measures[at + 1];
+    const bottom =
+      (virtualizer.scrollElement?.scrollTop ?? 0) + (virtualizer.scrollElement?.clientHeight ?? 0);
+    return (measures[at]?.start ?? 0) < y - 1 && next !== undefined && next.start < bottom
+      ? at + 1
+      : at;
+  };
+  const entry = focus ?? firstInView();
+  // Only the row Tab enters reaches by Tab what it holds: its links, its actions, its details;
+  // those of the other rows drawn are left out, to come back once their row is focused. Also what
+  // comes into them later, e.g. a diff's buttons once it is drawn, in its shadow DOM too.
+  const untab = () => {
+    for (const item of virtualizer.getVirtualItems()) {
+      const row = virtualizer.elementsCache.get(item.key);
+      if (!(row instanceof HTMLElement)) continue;
+      const own = item.index === entered.current;
+      for (const scope of scopesOf(row)) {
+        for (const element of scope.querySelectorAll<HTMLElement>(TABBABLE)) {
+          // Its own `tabindex` kept aside, if any, to have it back.
+          const kept = element.dataset.untabbed;
+          if (own && kept !== undefined) {
+            if (kept === "") element.removeAttribute("tabindex");
+            else element.setAttribute("tabindex", kept);
+            delete element.dataset.untabbed;
+          } else if (!own && kept === undefined) {
+            element.dataset.untabbed = element.getAttribute("tabindex") ?? "";
+            element.tabIndex = -1;
+          }
+        }
+      }
+    }
+  };
+  const entered = useRef(entry);
+  entered.current = entry;
+  useLayoutEffect(untab);
+  useEffect(() => {
+    const rows = list.current;
+    if (rows === null) return;
+    let asked = 0;
+    const observer = new MutationObserver(() => {
+      cancelAnimationFrame(asked);
+      asked = requestAnimationFrame(untab);
+    });
+    for (const scope of scopesOf(rows)) {
+      observer.observe(scope, { childList: true, subtree: true });
+    }
+    return () => {
+      cancelAnimationFrame(asked);
+      observer.disconnect();
+    };
+  });
 
   // Once, not anew on each draw, which would size and place all rows drawn again.
   const [containerRef] = useState(() => (element: HTMLDivElement | null) => {
@@ -328,7 +408,7 @@ export function VirtualRows({
 
   // The copies lie on the background, from just above the line, below the header's edge, to the
   // end of the lowest.
-  const end = Math.max(0, ...stuck.map((at) => at.top + at.height));
+  const end = stuckEnd;
   return (
     <>
       {shape && (
@@ -359,9 +439,25 @@ export function VirtualRows({
         onPointerOver={onPointerOver}
       >
         {items.map((item) =>
-          draw(item.index, { index: item.index, measure: virtualizer.measureElement }),
+          draw(item.index, {
+            index: item.index,
+            measure: virtualizer.measureElement,
+            entry: item.index === entry,
+          }),
         )}
       </div>
     </>
   );
+}
+
+/** What may take the focus by Tab, or did before it was left out (`data-untabbed`). */
+const TABBABLE =
+  "a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1']), [data-untabbed]";
+
+/** An element and the shadow roots within it: where its rows' controls may lie. */
+function scopesOf(element: HTMLElement): (HTMLElement | ShadowRoot)[] {
+  const roots = [...element.querySelectorAll("*")].flatMap((within) =>
+    within.shadowRoot ? [within.shadowRoot] : [],
+  );
+  return [element, ...roots];
 }

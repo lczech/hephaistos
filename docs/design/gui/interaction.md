@@ -93,7 +93,14 @@ A tab's tooltip is its whole title.
 - Ctrl+F goes to the active Panel's search field, the one its View names (`views/keys.ts`), or presses the button opening it, e.g. the Diff's find bar; else the browser finds in the page.
 - Alt+← and Alt+→ go back and forward in the active Group ([layout](layout.md#going-back-and-forward)).
 
-Keyboard navigation in lists comes later.
+In a list, as VS Code's ([lists](lists.md#rows)), on the row focused:
+- ↑ and ↓ go to the row before or after it, PageUp and PageDown a page of rows, Home and End to the first or the last; ↑ on the first stays there.
+- → unfolds it, or opens its details; on a row unfolded, it goes to the first row within. ← folds it, or closes its details; else it goes to the row holding it.
+- Enter and Space open it as a click does: its details, its rows, or its View.
+- Escape closes its details, also from within them, and focuses it again.
+- The menu key and Shift+F10 open its menu; on the header, the header's.
+- Tab goes through what it holds, its links, its actions and its details, then out of the list; Shift+Tab back, then to the header.
+- A key that does nothing there is left to the page, e.g. Escape; with Alt, the arrows are the Group's, back and forward, and Enter opens beside.
 
 ## Controls
 

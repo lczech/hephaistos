@@ -2,6 +2,7 @@ import { FlexRender, type ReactTable, type RowData } from "@tanstack/react-table
 import { ChevronRight, FunnelX } from "lucide-react";
 import {
   type HTMLAttributes,
+  type KeyboardEvent,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -10,6 +11,7 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -42,6 +44,9 @@ interface Menu {
   column: string | undefined;
   keyboard: boolean;
 }
+
+/** How a row is opened: by a click of which button, or by a key, as the button's first. */
+export type Opening = Pick<globalThis.MouseEvent, "button" | "altKey">;
 
 /** What a View may ask of its List. */
 export interface ListHandle {
@@ -82,7 +87,7 @@ interface Props<TData extends RowData> {
   bareDetails?: boolean; // as wide as the list, without a box: e.g. diffs, which have their own
   folds?: (row: TData) => boolean; // whether a row opens the rows within it instead
   plain?: (row: TData) => boolean; // whether a row opens nothing, as it shows all it has
-  opens?: (row: TData) => ((click: MouseEvent) => void) | undefined; // another View, as clicked
+  opens?: (row: TData) => ((how: Opening) => void) | undefined; // another View, as clicked
   showing?: (row: TData) => boolean; // whether a View it opens is shown, which marks it
   opened?: ReadonlySet<string>; // the rows whose details are open, if not kept here
   onOpenedChange?: (opened: ReadonlySet<string>) => void;
@@ -234,15 +239,13 @@ export function List<TData extends RowData>({
   };
   // A row's menu where it was clicked or long pressed; from the keyboard, below its start. Made
   // only then: a row without one leaves the browser's own.
-  const showRowMenu = (
-    event: MouseEvent<HTMLDivElement>,
-    row: TData,
-    id: string,
-    copy: boolean,
-  ) => {
+  // On the row itself, not its details, which keep the browser's own.
+  const showRowMenu = (event: MouseEvent<HTMLElement>, row: TData, id: string, copy: boolean) => {
+    const own = event.currentTarget.firstElementChild ?? event.currentTarget;
+    if (event.target !== event.currentTarget && !own.contains(event.target as Node)) return;
     if (rowMenu?.(row) === undefined) return;
     event.preventDefault();
-    const box = event.currentTarget.getBoundingClientRect();
+    const box = own.getBoundingClientRect();
     const keyboard = event.clientX === 0 && event.clientY === 0;
     const [x, y] = keyboard ? [0, box.height] : [event.clientX - box.left, event.clientY - box.top];
     setRowMenuAt({ id, x, y, keyboard, copy });
@@ -294,6 +297,50 @@ export function List<TData extends RowData>({
     return at;
   });
   const rowsHandle = useRef<RowsHandle>(null);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  // The row focused, the only selection, by its ID, kept as rows change; with where it was and
+  // the rows holding it, nearest first, to focus another once it goes: the one holding it, as a
+  // folder closed; else the row now at its place, or the one before where it was the last.
+  const [focused, setFocused] = useState<{ id: string; index: number; holders: string[] }>();
+  const focusOf = (id: string) => {
+    const holders: string[] = [];
+    for (let up = byId.get(id)?.parentId; up !== undefined; up = byId.get(up)?.parentId) {
+      holders.push(up);
+    }
+    return { id, index: indexOf.get(id) ?? 0, holders };
+  };
+  // Whether the focus of the page is in the list, to bring it to the row focusing anew.
+  const focusIn = useRef(false);
+  const refocus = useRef<string | undefined>(undefined);
+  let focusIndex = focused && indexOf.get(focused.id);
+  if (focused && focusIndex === undefined) {
+    const holder = focused.holders.find((id) => indexOf.has(id));
+    const next = holder ?? rows[Math.min(focused.index, rows.length - 1)]?.id;
+    setFocused(next === undefined ? undefined : focusOf(next));
+    focusIndex = next === undefined ? undefined : indexOf.get(next);
+  } else if (focused && focusIndex !== focused.index) {
+    setFocused(focusOf(focused.id)); // moved, e.g. rows came before it
+  }
+  // The row to focus once drawn, scrolled into view by the rows: one the keys moved to, or the
+  // one focused anew once the focus was lost with its row, gone.
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    const lost = focusIn.current && (active === null || active === document.body);
+    const id = refocus.current ?? (lost ? focused?.id : undefined);
+    const index = id === undefined ? undefined : indexOf.get(id);
+    if (index === undefined) return;
+    const row = document.getElementById(`${list}-${index}`)?.parentElement;
+    if (!row) return;
+    row.focus({ preventScroll: true });
+    refocus.current = undefined;
+  });
+  const focusRow = (index: number) => {
+    const row = rows[index];
+    if (row === undefined) return;
+    setFocused(focusOf(row.id));
+    refocus.current = row.id;
+    rowsHandle.current?.scrollTo(index);
+  };
   useImperativeHandle(handle, () => ({
     scrollTo: (id) => {
       const index = indexOf.get(id);
@@ -321,17 +368,79 @@ export function List<TData extends RowData>({
     if (at === null || embedded) return 0;
     return at.getBoundingClientRect().height + (Number.parseFloat(getComputedStyle(at).top) || 0);
   };
-  const drawRow = (row: (typeof rows)[number], drawn?: Drawn) => {
-    const index = indexOf.get(row.id) ?? 0;
+  // What a row does: opens a View, opens nothing (`still`), folds, or shows its details.
+  const actsOf = (row: (typeof rows)[number]) => {
     const view = opens?.(row.original);
     const still = view === undefined && (plain?.(row.original) ?? false);
     const folding = folds?.(row.original) ?? false;
     const shown = folding ? row.getIsExpanded() : open.has(row.id);
-    let opening: (click: MouseEvent) => void = folding
+    let opening: (how: Opening) => void = folding
       ? () => row.toggleExpanded()
       : () => toggle(row.id);
     if (view !== undefined) opening = view;
-    const middle = (click: MouseEvent) => click.button === 1 && view?.(click);
+    return { view, still, folding, shown, opening };
+  };
+  // The keys, on a row focused: up and down between rows, by a page, to the first or last; right
+  // and left unfold and fold it, or go to its first row within, or to the row holding it; Enter
+  // and Space open it as a click does. Escape closes its details, also from within them, and
+  // focuses it again.
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    const item = (event.target as Element).closest<HTMLElement>("[role=row][data-index]");
+    const index = Number(item?.dataset.index);
+    const row = rows[index];
+    // The List's own rows, not those of a List within its details.
+    if (item === null || row === undefined || item.closest("[role=treegrid]") !== grid.current)
+      return;
+    const { view, still, folding, shown, opening } = actsOf(row);
+    const openable = !still && view === undefined; // its rows or its details
+    const holding = row.subRows.length > 0;
+    const parent = row.parentId === undefined ? undefined : indexOf.get(row.parentId);
+    if (event.target !== item) {
+      if (event.key !== "Escape") return;
+      if (shown && openable && !folding) toggle(row.id);
+      focusRow(index);
+      event.preventDefault();
+      return;
+    }
+    // Each says whether it did anything: those that did not are left to the page, e.g. Escape.
+    const go = (to: number) => {
+      if (to === index) return false;
+      focusRow(to);
+      return true;
+    };
+    const open = () => {
+      opening({ button: 0, altKey: event.altKey });
+      return true;
+    };
+    const keys: Record<string, () => boolean> = {
+      ArrowDown: () => go(Math.min(index + 1, rows.length - 1)),
+      ArrowUp: () => go(Math.max(index - 1, 0)),
+      PageDown: () => go(rowsHandle.current?.page(index, 1) ?? index),
+      PageUp: () => go(rowsHandle.current?.page(index, -1) ?? index),
+      Home: () => go(0),
+      End: () => go(rows.length - 1),
+      ArrowRight: () =>
+        (openable && !shown && open()) || (folding && shown && holding && go(index + 1)),
+      ArrowLeft: () => (openable && shown && open()) || (parent !== undefined && go(parent)),
+      Enter: () => !still && open(),
+      " ": () => !still && open(),
+      Escape: () => shown && openable && !folding && open(),
+    };
+    const act = keys[event.key];
+    // With Alt, the arrows are the Group's, back and forward; Enter and Space open beside.
+    const alt = event.altKey && event.key !== "Enter" && event.key !== " ";
+    if (act === undefined || event.ctrlKey || event.metaKey || alt) return;
+    // The keys in use: the ring shows on the row they focus, also where the browser would not,
+    // as Firefox after a click, the focus moved by script (`data-keys`).
+    if (grid.current) grid.current.dataset.keys = "";
+    if (act()) event.preventDefault();
+  };
+  const drawRow = (row: (typeof rows)[number], drawn?: Drawn) => {
+    const index = indexOf.get(row.id) ?? 0;
+    const acts = actsOf(row);
+    const { view, still, folding, shown } = acts;
+    let { opening } = acts;
+    const middle = (click: Opening) => click.button === 1 && view?.(click);
     // A copy stuck, clicked, scrolls its row to where it is, then closes it, as its row would.
     const copy = drawn?.copy;
     if (copy) {
@@ -339,6 +448,7 @@ export function List<TData extends RowData>({
       opening = (click) => {
         copy.place();
         closing(click);
+        focusRow(index); // as a click on the row itself does
       };
     }
     const id = `${list}-${index}`; // a row's ID may be any text, so not in IDs
@@ -352,6 +462,19 @@ export function List<TData extends RowData>({
         aria-posinset={placeAmong[index]}
         aria-setsize={siblings.get(row.parentId ?? "")}
         aria-expanded={still || view ? undefined : shown}
+        aria-selected={copy ? undefined : focusIndex === index}
+        tabIndex={copy ? undefined : drawn?.entry ? 0 : -1}
+        onFocus={
+          copy
+            ? undefined
+            : () => {
+                if (focusIndex !== index) setFocused(focusOf(row.id));
+                ahead?.(row.original);
+              }
+        }
+        onContextMenu={
+          rowMenu && ((event) => showRowMenu(event, row.original, row.id, copy !== undefined))
+        }
         data-index={copy ? undefined : drawn?.index}
         data-first={index === 0 || undefined}
         className={styles.item}
@@ -371,11 +494,7 @@ export function List<TData extends RowData>({
           data-showing={showing?.(row.original) || undefined}
           onClick={still ? undefined : (event) => clickRow(event, () => opening(event))}
           onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
-          onContextMenu={
-            rowMenu && ((event) => showRowMenu(event, row.original, row.id, copy !== undefined))
-          }
           onPointerEnter={ahead && (() => ahead(row.original))}
-          onFocus={ahead && (() => ahead(row.original))}
         >
           {first && still && (
             <Cell {...cellData(first.column)}>
@@ -386,12 +505,18 @@ export function List<TData extends RowData>({
             <Cell {...cellData(first.column)}>
               <button
                 type="button"
+                tabIndex={-1} // the row's keys open it
                 className={styles.open}
                 aria-expanded={view ? undefined : shown} // as the row's, as a button that opens it
                 aria-controls={shown && !folding && !view && !copy ? `${id}-details` : undefined}
                 aria-labelledby={copy ? undefined : id}
                 title={squareTitle?.(row.original)}
-                onClick={opening}
+                onClick={(click) => {
+                  opening(click);
+                  // The row focused, as by a click on the rest of it, not this button, which a
+                  // click focuses and the keys then pass by.
+                  if (!copy) focusRow(index);
+                }}
                 onAuxClick={view && middle}
               >
                 <FlexRender cell={first} />
@@ -422,7 +547,9 @@ export function List<TData extends RowData>({
           )}
         </div>
         {shown && !folding && !still && !view && !copy && (
-          <Cell block className={styles.details} data-bare={bareDetails || undefined}>
+          // Focusable, so that a click within takes the focus here, not to the row, whose keys
+          // would then act on it rather than scroll: as on any page, but for Escape.
+          <Cell block tabIndex={-1} className={styles.details} data-bare={bareDetails || undefined}>
             <section id={`${id}-details`} aria-label={detailsLabel}>
               {details(row.original)}
             </section>
@@ -449,6 +576,19 @@ export function List<TData extends RowData>({
         role="treegrid"
         aria-label={label}
         aria-rowcount={rows.length + 1} // the header too
+        onKeyDown={onKeyDown}
+        onPointerDown={() => grid.current && delete grid.current.dataset.keys}
+        onFocus={() => {
+          focusIn.current = true;
+        }}
+        onBlur={(event) => {
+          // Left for elsewhere, or for nowhere by a click that takes no focus; not with its row
+          // gone, which the focus goes with.
+          const to = event.relatedTarget;
+          const away =
+            to === null ? (event.target as Element).isConnected : !event.currentTarget.contains(to);
+          if (away) focusIn.current = false;
+        }}
         className={styles.grid}
         style={cssVars(columns)}
       >
@@ -546,6 +686,7 @@ export function List<TData extends RowData>({
             below={below}
             drawnNow={drawnNow}
             handle={rowsHandle}
+            focus={focusIndex}
             onPointerOver={showWholeText}
           />
         )}

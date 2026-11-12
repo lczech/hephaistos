@@ -194,7 +194,12 @@
 
 /* Shown while the row is pointed at, or holds the keyboard's focus: not a click's, which stays
  * after a press dragged off the row, released elsewhere. */
-.row:is(:hover, :has(:focus-visible)) .actions {
+:is(
+  .row:hover,
+  .row:has(:focus-visible),
+  .item:focus-visible > .row,
+  :where(.grid[data-keys]) .item:focus > .row
+) .actions {
   display: flex;
 }
 
@@ -204,7 +209,9 @@
 
 /* Links to Views, repeated on every row, are grey until the row is hovered or holds the
    keyboard's focus, then in the colour of their family (`views/families.module.css`). */
-.row:is(:hover, :has(:focus-visible)) {
+.row:is(:hover, :has(:focus-visible)),
+.item:focus-visible > .row,
+:where(.grid[data-keys]) .item:focus > .row {
   --view-icon: initial;
 }
 
@@ -244,8 +251,7 @@
   cursor: default;
 }
 
-/* The row's button, in its first cell, outlines the whole row when focused; the cells under its
-   outline stay hoverable, for their tooltips, and a click on them opens the row too. */
+/* The row's button, in its first cell, for the mouse: the row's keys open it. */
 .open {
   display: block;
   width: 100%;
@@ -257,18 +263,13 @@
   cursor: pointer;
 }
 
-.open::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-}
-
-.open:focus-visible {
+/* The row focused by the keys, the only selection: outlined, its details not. */
+.item:focus-visible {
   outline: none;
 }
 
-.open:focus-visible::after {
+.item:focus-visible > .row,
+:where(.grid[data-keys]) .item:focus > .row {
   outline: 1px solid var(--accent);
   outline-offset: -1px;
 }
@@ -332,6 +333,11 @@
   background: var(--bar);
   color: var(--text);
   font-size: var(--text-small);
+}
+
+/* Focused by a click within, so that the keys scroll: no ring, as it is no stop of Tab. */
+.details:focus {
+  outline: none;
 }
 
 /* Bare: as wide as the list, for what has a look of its own. */

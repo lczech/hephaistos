@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List as ListIcon } from "lucide-react";
-import { type MouseEvent, useState } from "react";
+import { useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
-import { List } from "../../components/list/List";
+import { List, type Opening } from "../../components/list/List";
 import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
@@ -90,7 +90,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
   };
   const opens = (entry: Entry) => {
     const diff = diffOf(entry);
-    return diff && ((click: MouseEvent) => openView(diff, clickOpening(click)));
+    return diff && ((how: Opening) => openView(diff, clickOpening(how)));
   };
   const showing = (entry: Entry) => {
     const diff = diffOf(entry);

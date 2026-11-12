@@ -27,7 +27,13 @@ What a row opens, and how it shows that, is in [interaction](interaction.md#rows
 
 A row may have actions: icons after what names it, shown while it is pointed at or holds the focus of the keyboard, its name then making room, cut off, so that its other cells stay as they are (`actions`).
 A View may ask for what a row opens as it is pointed at or focused (`ahead`), and for what it shows as it comes into view, or near it (`seen`): as it is drawn, and again as the rows or what the View asks change.
-It may have a menu, by the right button, a long press, or the menu key or Shift+F10 on the row (`menu`, `RowMenu`): what can be done with it, in groups, each by its icon, a View's in its family's colour.
+It may have a menu, by the right button, a long press, or the menu key or Shift+F10 on the row, not in its details (`menu`, `RowMenu`): what can be done with it, in groups, each by its icon, a View's in its family's colour.
+The keys move between rows and open them ([interaction](interaction.md#keys)).
+The row focused is the only selection (`aria-selected`), by its ID, so that it stays as rows change: once it goes, the row holding it takes the focus, as a folder closed, else the row now at its place, or the one before where it was the last.
+A click focuses its row too, its square's button included, so that the keys go on from there; a click within its details focuses them, not the row, so that the keys scroll there as on any page, but for Escape.
+Rows are one stop of Tab, the row focused, else the first in view; only that row reaches by Tab what it holds, the others' links and buttons left out while drawn (`data-untabbed`), also those coming later, in shadow DOM too, as a diff's; and the button opening a row never, as the keys do.
+The row focused stays drawn while scrolled away, so as to keep the focus.
+A ring of the accent colour shows it once the keys moved there (`:focus-visible`), not after a click, nor while the list has no focus; also in Firefox, which shows none on a row focused by script after a click, the list marked while its keys are in use (`data-keys`).
 A row that opens a View is marked while that View is shown in any Group, focused or not, as VS Code marks the file of the editor shown (`useIsShown`, from `layout/`).
 A commit in History is marked so while its Changes are shown.
 Rows may be grouped, a line above each group but the first.
@@ -54,7 +60,7 @@ A list may set its rows closer together (`compact`): the Explorer does, as a sid
 A row whose content is open, the rows within it or its details, stays in view below the header and below the rows holding it while that content scrolls past, as VS Code's sticky scroll does; part of a page, at the top of what scrolls the page.
 The rows stuck are copies, drawn apart above the rows (`stuck.ts`, `VirtualRows`), as the rows they stand for may be far out of view, not drawn; hidden from screen readers and out of the order of Tab.
 A row sticks once scrolled past the header's end, not while in its place, by where it starts itself, not the line above it starting a group; the end of its content pushes it up, sliding out below the rows holding it.
-A click on a copy leaves the focus where it is.
+A click on a copy focuses its row, as a click on the row does; the copy itself takes no focus.
 The copies lie on one block of the background, from a pixel above the header's end to the end of the lowest: each lies at a fraction of a pixel, drawn at whole pixels on its own, so that the rows passing below would show between two.
 A click on a copy scrolls its row to where the copy is, at the top, then closes it; its menu opens there too.
 The copies stay by CSS's sticking where the list scrolls itself; part of a page, they are moved as it scrolls, as the list scrolls sideways itself, which makes it the box sticking would hold to.

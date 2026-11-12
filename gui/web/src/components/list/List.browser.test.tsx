@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ListLayout } from "./kept";
@@ -343,6 +344,7 @@ describe("a list as a tree", () => {
       head.getBoundingClientRect().bottom,
       0,
     );
+    await waitFor(() => expect(ownRowOf("src").parentElement).toHaveFocus()); // the row, not its copy
   });
 });
 
@@ -686,5 +688,49 @@ describe("a list's rows in view", () => {
     await drawn();
     expect(frame.scrollTop).toBe(scrolled);
     expect(ownRowOf("fruit 20").getBoundingClientRect().top).toBeCloseTo(before, 0);
+  });
+});
+
+describe("a list's row focused by the keys", () => {
+  const frame = () => document.querySelector("[data-layout]") as HTMLElement;
+
+  it("stays drawn and focused while scrolled away, and the next comes into view", async () => {
+    render(<Long name="last" width={800} after={300} />);
+    await userEvent.tab();
+    expect(ownRowOf("fruit 1").parentElement).toHaveFocus();
+    frame().scrollTop = frame().scrollHeight;
+    await screen.findByText("last");
+    expect(ownRowOf("fruit 1").parentElement).toHaveFocus(); // still drawn
+    await userEvent.keyboard("{ArrowDown}");
+    await waitFor(() => expect(ownRowOf("fruit 2").parentElement).toHaveFocus());
+    const head = frame().firstElementChild?.firstElementChild as HTMLElement;
+    const row = ownRowOf("fruit 2").getBoundingClientRect();
+    expect(row.top).toBeGreaterThanOrEqual(head.getBoundingClientRect().bottom - 1);
+  });
+
+  it("moves a page down, to the last row in view, and the next page brings more", async () => {
+    render(<Long name="last" width={800} after={300} />);
+    await userEvent.tab();
+    await userEvent.keyboard("{PageDown}");
+    const view = frame().getBoundingClientRect();
+    const focused = () => document.activeElement?.getBoundingClientRect() ?? new DOMRect();
+    await waitFor(() => expect(document.activeElement?.textContent).not.toContain("fruit 1"));
+    expect(focused().bottom).toBeLessThanOrEqual(view.bottom + 1);
+    expect(focused().bottom).toBeGreaterThan(view.bottom - 2 * focused().height);
+    const before = document.activeElement?.textContent;
+    await userEvent.keyboard("{PageDown}");
+    await waitFor(() => expect(document.activeElement?.textContent).not.toBe(before));
+    expect(focused().bottom).toBeLessThanOrEqual(view.bottom + 1);
+  });
+
+  // Not after a click, which a real pointer must make: checked in the app, as scripted events
+  // make the browser take the focus for the keyboard's.
+  it("shows a ring around the row focused by the keys", async () => {
+    render(<Long name="last" width={800} />);
+    expect(getComputedStyle(ownRowOf("last")).outlineStyle).toBe("none");
+    await userEvent.tab();
+    await userEvent.keyboard("{End}");
+    expect(ownRowOf("last").parentElement).toHaveFocus();
+    expect(getComputedStyle(ownRowOf("last")).outlineStyle).toBe("solid");
   });
 });
