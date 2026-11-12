@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import os
 import socket
@@ -153,6 +154,8 @@ def test_status_of_the_server(
 ) -> None:
     monkeypatch.setenv("PATH", "/nonexistent")  # no systemctl
     paths.state_dir.mkdir(parents=True)
+    if server.last_request_at is not None:  # "now" when the test runs, not when it was collected
+        server = dataclasses.replace(server, last_request_at=datetime.now(UTC))
     found = Status(os.getpid(), "0.1.0", NOW, parts=("server",), server=server)
     status.write(paths.state_dir, found)
     with status.held_lock(paths.state_dir):
