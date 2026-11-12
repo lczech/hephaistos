@@ -366,7 +366,7 @@ describe("the Checkouts in the Graph View", () => {
     expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
     expect(document.activeElement).toHaveTextContent("Commit o"); // the row, focused
     expect(asked(requests, "/api/history").get("skip")).toBe("3");
-    expect(screen.getByRole("status")).toHaveTextContent("graph?at=wt-proj-old&clone=clone-proj");
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // a jump only
     expect(screen.queryByText(/^Loading towards/)).toBeNull(); // done before its chip said so
     expect(chip("Worktree old")).not.toHaveAttribute("data-busy");
   });
@@ -441,9 +441,7 @@ describe("the Checkouts in the Graph View", () => {
     await screen.findByText("Commit b");
     expect(chip("Worktree feature")).toHaveAttribute("data-hidden", "true");
     await userEvent.click(chip("Worktree feature"));
-    expect(screen.getByRole("status")).toHaveTextContent(
-      /^graph\?at=wt-proj-feature&clone=clone-proj$/,
-    );
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
   });
 
   it("hides the default branch's badge, and its lane and accent, while it is hidden", async () => {
@@ -468,6 +466,13 @@ describe("the Checkouts in the Graph View", () => {
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(chip("Worktree feature")).toHaveAttribute("aria-current", "true");
     expect(chip("Clone proj")).not.toHaveAttribute("aria-current");
+    await userEvent.click(chip("Clone proj")); // a jump: still opened at the Worktree
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(2));
+    expect(went.mock.contexts[1]).toHaveTextContent("Commit m");
+    expect(chip("Worktree feature")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /^graph\?at=wt-proj-feature&clone=clone-proj$/,
+    );
   });
 });
 

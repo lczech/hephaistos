@@ -18,7 +18,7 @@ import { BarEnd, BarGroup, Refresh, ViewBar, ViewPage } from "../../components/V
 import { pathParts } from "../../paths";
 import { numberText } from "../../text";
 import { useNow } from "../../useNow";
-import { type Params, paramValues, withParam } from "../address";
+import { paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
 import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
 import { CommitList } from "../commits/CommitList";
@@ -73,7 +73,7 @@ interface Placed {
  * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each
  * Checkout is drawn larger, named on its badge, with what is not committed above it. A chip per
  * Checkout, marked in the colour of its HEAD's line, goes to its HEAD, loading older commits
- * until it shows (`at`, a Worktree's).
+ * until it shows; it opens at a Worktree's (`at`).
  */
 export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
@@ -235,19 +235,17 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       setTowards(null); // a click on the chip gone to stops it
       return;
     }
-    const head = placed.find((each) => each.head.path === chip.key);
-    let next: Params = head?.head.worktree
-      ? { ...params, at: head.head.worktree }
-      : withParam(params, "at", []);
+    // Only a jump, the address kept where the Graph opened; a hidden branch is shown again.
     if (chip.hidden && chip.branch !== null) {
-      next = withParam(
-        next,
-        "hide",
-        hidden.filter((name) => name !== chip.branch),
+      const branch = chip.branch;
+      setParams(
+        withParam(
+          params,
+          "hide",
+          hidden.filter((name) => name !== branch),
+        ),
       );
     }
-    setHandled(paramValues(next.at)[0]);
-    setParams(next);
     go(chip);
   };
 
