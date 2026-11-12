@@ -8,7 +8,15 @@ import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitList.module.css";
 import { colourOf, fittedWidth, GraphCell } from "./Graph";
-import { branchOf, type Drawn, type Entry, entryId, type Found, whereText } from "./rows";
+import {
+  branchOf,
+  type Drawn,
+  type Entry,
+  entryId,
+  type Found,
+  shownRefs,
+  whereText,
+} from "./rows";
 
 const column = listColumnHelper<Entry>();
 
@@ -107,14 +115,15 @@ export function commitColumns(
         const { commit } = entry;
         const at = graph?.rows.get(entryId(entry));
         const lane = at === undefined ? undefined : graph?.layout.rows[at];
-        const named = branchOf(commit.refs);
+        const refs = shownRefs(commit.refs, graph?.drawing);
+        const named = branchOf(refs);
         const lead =
           lane && named !== undefined ? { name: named, colour: colourOf(lane.colour) } : undefined;
         const checkedOut = graph?.drawing.checkedOut?.filter((each) => each.commit === commit.hash);
         return (
           <span title={commit.subject} data-entry={entryId(entry)}>
             <RefLabels
-              refs={commit.refs}
+              refs={refs}
               head={commit.hash === head}
               lead={lead}
               {...(checkedOut ? { checkedOut } : {})}

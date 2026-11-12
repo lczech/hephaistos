@@ -52,7 +52,7 @@ interface RefLabelsProps {
  * a graph is framed in that line's colour, its remote-tracking branch too.
  *
  * In a Graph, a branch checked out says where, by the Clone's or Worktree's icon and name, and a
- * Checkout whose HEAD is detached has a HEAD label of its own. They come first, after HEAD: the
+ * Checkout whose HEAD is detached has a label of its own, saying so. They come first, after HEAD: the
  * default branch, branches checked out, other local branches, remote-tracking ones, tags.
  */
 export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: RefLabelsProps) {
@@ -81,10 +81,10 @@ export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: Ref
         <span
           key={`head:${each.name}`}
           className={styles.ref}
-          title={`HEAD of ${checkoutKind(each)} ${each.name}, detached`}
+          title={`HEAD of ${checkoutKind(each)} ${each.name}, detached at ${shortHash(each.commit ?? "")}`}
         >
           <HEAD_ICON aria-hidden="true" />
-          HEAD
+          detached
           <Where checkout={each} />
         </span>
       ))}

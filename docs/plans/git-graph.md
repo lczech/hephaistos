@@ -111,6 +111,7 @@ Each step its own commits, stopping for review.
 - 2.2: the Graph View (`views/graph/`), its default branch pinned, its HEADs drawn as such, its order, refresh and title; links from Repositories and History; `Drawing` for how a list draws its graph.
 - 2.3: the Checkouts in the Graph View: where they are on badges, HEAD badges when detached, uncommitted rows, chips with ahead and behind, going to a HEAD with Stop and Escape; `/api/graph` counts detached HEADs too (API 0.28).
 - 2.4: the branch filter (`BranchFilter`): all local branches or Worktrees only, each branch ticked or not, "only", "Show all"; the checkboxes and "only" of the list filters, as ticked means shown here.
+- After review (2026-11-12): a detached HEAD's badge says `detached`; a hidden branch loses its badges, and the default branch its lane and accent, while hidden, as the filter says; the Graph View's icon drawn (`GitTipsJoining`), as `git-graph` reads as a fork; going to a HEAD scrolls it to the top, and says so on its chip after 300 ms, not in a note that moved the list; Checkouts named by their folders, not by git's names for Worktrees, which tools make IDs of.
 
 ## Open
 

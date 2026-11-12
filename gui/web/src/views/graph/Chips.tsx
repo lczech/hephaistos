@@ -1,3 +1,4 @@
+import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { cssVars } from "../../components/cssVars";
 import { entityIcon } from "../../icons";
 import styles from "./Chips.module.css";
@@ -17,33 +18,46 @@ export interface Chip {
   hidden: boolean; // its branch is hidden by the filter
 }
 
+interface Props {
+  chips: Chip[];
+  current: string | undefined; // the key of the chip marked
+  going?: { key: string; text: string } | undefined; // to the HEAD of a chip, and how far
+  missed?: string | undefined; // the key of the chip whose HEAD no page listed
+  onPick: (chip: Chip) => void;
+}
+
 /**
  * A chip per Checkout of the Clone, below the bar: where it is, in the colour of its branch, and
- * how far it is ahead of the default branch and behind it. A click goes to its HEAD.
+ * how far it is ahead of the default branch and behind it. A click goes to its HEAD; while it
+ * loads older commits to get there, the chip turns, and a click on it stops. It is said in its
+ * tooltip and to screen readers, not in a note above the list, which would move it.
  */
-export function Chips({
-  chips,
-  current,
-  onPick,
-}: {
-  chips: Chip[];
-  current: string | undefined;
-  onPick: (chip: Chip) => void;
-}) {
+export function Chips({ chips, current, going, missed, onPick }: Props) {
   if (chips.length === 0) return null;
+  const said = chips.find((chip) => chip.key === missed);
   return (
     <nav className={styles.chips} aria-label="Checkouts">
+      <span className={styles.said} aria-live="polite">
+        {going?.text ?? (said && missedText(said.name))}
+      </span>
       {chips.map((chip) => {
-        const Icon = entityIcon(chip.worktree ? "worktree" : "clone");
+        const busy = chip.key === going?.key;
+        const lost = chip.key === missed;
+        let Icon = entityIcon(chip.worktree ? "worktree" : "clone");
+        if (busy) Icon = LoaderCircle;
+        else if (lost) Icon = TriangleAlert;
         const where = checkedOutText(chip.branch, chip.commit);
         const standing = standingText(chip.ahead, chip.behind);
         const words = standingWords(chip.ahead, chip.behind, chip.against);
         const kind = chip.worktree ? "Worktree" : "Clone";
-        const title = [
-          `${kind} ${chip.name}: ${where}`,
-          ...(words ? [words] : []),
-          chip.hidden ? "hidden by the filter; a click shows it" : "a click goes to its HEAD",
-        ].join("; ");
+        let action = chip.hidden
+          ? "hidden by the filter; a click shows it"
+          : "a click goes to its HEAD";
+        if (busy) action = `${going?.text}; a click or Escape stops`;
+        else if (lost) action = `${missedText(chip.name)}; a click tries again`;
+        const title = [`${kind} ${chip.name}: ${where}`, ...(words ? [words] : []), action].join(
+          "; ",
+        );
         return (
           <button
             key={chip.key}
@@ -53,6 +67,8 @@ export function Chips({
             aria-label={`${kind} ${chip.name}`}
             aria-current={chip.key === current || undefined}
             data-hidden={chip.hidden || undefined}
+            data-busy={busy || undefined}
+            data-missed={lost || undefined}
             style={cssVars({ "--chip-colour": chip.colour })}
             onClick={() => onPick(chip)}
           >
@@ -65,4 +81,8 @@ export function Chips({
       })}
     </nav>
   );
+}
+
+function missedText(name: string): string {
+  return `The HEAD of ${name} is not among the commits shown`;
 }

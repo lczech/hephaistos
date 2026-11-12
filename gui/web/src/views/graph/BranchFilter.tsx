@@ -105,6 +105,9 @@ export function BranchFilter({ walked, branches, hidden, onChange }: Props) {
               </li>
             ))}
           </ul>
+          <p className={styles.hint}>
+            A hidden branch's commits stay where a branch shown has them.
+          </p>
         </Dialog>
       </Popover>
     </DialogTrigger>

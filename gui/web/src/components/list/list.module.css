@@ -774,6 +774,11 @@
     linear-gradient(var(--fill-hover-row), var(--fill-hover-row)), var(--copy-tint, none);
 }
 
+/* A row scrolled to the top comes into view below the header, not under it. */
+.frame:not([data-embedded], [data-tree]) .item {
+  scroll-margin-top: var(--head-height);
+}
+
 /* What is focused or scrolled to in a row comes into view below the header and the rows stuck
  * above it, those holding it, not under them; in its details, below the row too, stuck. One
  * row's room below. */

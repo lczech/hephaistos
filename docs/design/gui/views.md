@@ -178,18 +178,18 @@ The Graph View shows the commits of a whole Clone with their graph (`graph?clone
 It walks all local branches and the HEAD of each Checkout of the Clone, detached ones too, less the branches hidden (`hide`): `/api/history` with `branches=local`.
 Or, Worktrees only (`branches=worktrees`), the branches checked out in its Checkouts and the default branch: where the Checkouts stand, in the fewest rows.
 The branch filter, a picker at the start of its bar, chooses which: it lists the branches walked, the default one first, each shown while ticked, with "only" to hide the others, and "Show all".
-Hidden branches are kept by name, so that a branch made later shows; a hidden branch still shows its commits where a shown one leads to them.
+Hidden branches are kept by name, so that a branch made later shows; a hidden branch still shows its commits where a shown one leads to them, as the filter says, but no badge, and names no lane.
 It lists topologically by default, or by date (`order=date`).
-Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it; the HEAD of each Checkout is drawn as HEAD.
+Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it, unless hidden, when no line has the accent; the HEAD of each Checkout is drawn as HEAD.
 Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, whether it shows Worktrees only, and how many branches are hidden.
 
 Its Checkouts:
-- the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a HEAD badge of its own, so named; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;
+- the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a badge of its own, `detached`, with the HEAD icon and where; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;
 - what is not committed in a Checkout, from its State, has a row above its HEAD, with links to its Changes and Diff;
 - below the bar, a chip per Checkout, in the colour of its branch (the accent for the default one): its name, its branch or `detached at abc1234` in the words of git, and how far it is ahead of the default branch and behind it (`↑3 ↓12`, zero parts left out; the default branch against its upstream), said in words in its tooltip;
-- a click on a chip goes to its HEAD: older pages load until its row is listed, a note saying so with a button to stop, as Escape in the View does; then it is scrolled to; a note says if no page lists it;
+- a click on a chip goes to its HEAD: older pages load until its row is listed, then it is scrolled to the top, with what is not committed above it; after 300 ms, as most are done by then, the chip turns, its tooltip and a live region saying how far, and a click on it stops, as Escape in the View does; its chip says with a warning if no page lists it; a note above the list would move it;
 - the chip of the Checkout the Graph is at is marked: the Clone, or a Worktree (`at`), as opened from its row in Repositories; a click keeps the one it went to in the address;
 - the chip of a Checkout whose branch is hidden is faint; a click shows the branch again.
 It opens from the rows of Clones and Worktrees in Repositories, and from the bar of History.

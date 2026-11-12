@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hueOf } from "../../hues";
-import { branchOf, type Commit, type Entry, entries, graphOf, type Ref } from "./rows";
+import { branchOf, type Commit, type Entry, entries, graphOf, type Ref, shownRefs } from "./rows";
 
 const person = { name: "L", email: "l@example.org", at: "2026-01-01T00:00:00Z" };
 const ref = (name: string, kind: Ref["kind"]): Ref => ({ name, full: name, kind, commit: "" });
@@ -81,5 +81,26 @@ describe("a graph with a pinned branch", () => {
     expect(layout.rows[1]?.colour).toEqual({ kind: "accent" });
     expect(layout.rows[0]?.colour).toEqual({ kind: "hue", hue: hueOf("feature"), muted: false });
     expect(layout.rows.map((row) => row.node)).toEqual(["head", "head", "commit"]);
+  });
+
+  it("gives no line the accent when the pinned one is not there, as asked", () => {
+    const listed = entries([commit("f", ["b"], [ref("feature", "branch")]), commit("b", [])]);
+    const { layout } = graphOf(listed, "f", { heads: new Set(["f"]), accent: "pinned" });
+    expect(layout.rows.map((row) => row.colour.kind)).toEqual(["hue", "hue"]);
+  });
+
+  it("names no lane by a hidden branch, and labels no commit with it", () => {
+    const refs = [ref("main", "branch"), ref("origin/up", "remote")];
+    const listed = entries([commit("m", ["b"], refs), commit("b", [])]);
+    const drawing = {
+      heads: new Set<string>(),
+      accent: "pinned" as const,
+      hidden: new Set(["main"]),
+    };
+    const { layout } = graphOf(listed, "m", drawing);
+    // named by the remote-tracking branch, shown
+    expect(layout.rows[0]?.colour).toEqual({ kind: "hue", hue: hueOf("up"), muted: false });
+    expect(shownRefs(refs, drawing).map((each) => each.name)).toEqual(["origin/up"]);
+    expect(shownRefs(refs, undefined)).toBe(refs);
   });
 });

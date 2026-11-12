@@ -9,3 +9,12 @@
   padding: 0;
   color: var(--text-muted);
 }
+
+/* That hiding a branch leaves out only the commits no branch shown has. */
+.hint {
+  max-inline-size: var(--field-width);
+  margin: var(--space-1) 0 0;
+  padding: 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-small);
+}

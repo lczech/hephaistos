@@ -19,11 +19,19 @@ import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { BranchFilter, type Walked } from "./BranchFilter";
 import { type Chip, Chips } from "./Chips";
-import styles from "./GraphView.module.css";
 import { graphTitle } from "./text";
 
 type Head = Schemas["GraphHeadJson"];
 type Repository = Schemas["RepositoryJson"];
+
+const SLOW = 300; // ms going to a HEAD before its chip says so: most are done by then
+
+/** A HEAD being gone to, by its chip. */
+interface Towards {
+  key: string;
+  name: string;
+  commit: string;
+}
 
 /** A Checkout of the Clone, where the graph shows it. */
 interface Placed {
@@ -35,7 +43,7 @@ interface Placed {
 /**
  * The commits of a whole Clone, with their graph: walked from all its local branches and the
  * HEAD of each of its Checkouts, topologically by default (`order`), less the branches hidden
- * (`hide`). Its default branch keeps lane 0 and the accent; the HEAD of each Checkout is drawn
+ * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each Checkout is drawn
  * larger, named on its badge, with what is not committed above it. A chip per Checkout goes to
  * its HEAD, loading older commits until it shows (`at`, a Worktree's).
  */
@@ -68,7 +76,10 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const placed = (known?.heads ?? []).map((head) => place(head, repositories.data));
   const commits = history.data?.pages.flatMap((each) => each.commits) ?? [];
   const listed = withUncommitted(entries(commits), placed, repositories.data);
-  const pinned = known?.branches.find((branch) => branch.name === known.default_branch)?.commit;
+  // The default branch keeps lane 0 and the accent, unless hidden.
+  const defaultBranch =
+    known?.default_branch && !hidden.includes(known.default_branch) ? known.default_branch : null;
+  const pinned = known?.branches.find((branch) => branch.name === defaultBranch)?.commit;
   const heads = new Set(placed.flatMap(({ head }) => (head.commit ? [head.commit] : [])));
   const checkedOut: CheckedOut[] = placed.map(({ head, name }) => ({
     name,
@@ -85,38 +96,53 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     ahead: head.ahead,
     behind: head.behind,
     against: head.against,
-    colour: chipColour(head, known?.default_branch ?? null),
+    colour: chipColour(head, defaultBranch),
     hidden: head.branch !== null && hidden.includes(head.branch),
   }));
 
-  // Going to a HEAD: older pages load until its row is listed, then it is scrolled to.
-  const [towards, setTowards] = useState<{ name: string; commit: string } | null>(null);
-  const [missed, setMissed] = useState<string | null>(null);
+  // Going to a HEAD: older pages load until its row is listed, then it is scrolled to the top,
+  // with what is not committed above it. Its chip says so, once it takes a while.
+  const [towards, setTowards] = useState<Towards | null>(null);
+  const [slow, setSlow] = useState(false);
+  const [missed, setMissed] = useState<string | null>(null); // the key of the chip
   const [handled, setHandled] = useState<string | undefined>(undefined);
-  const go = (chip: { name: string; commit: string | null }) => {
+  const go = (chip: { key: string; name: string; commit: string | null }) => {
     setMissed(null);
-    setTowards(chip.commit ? { name: chip.name, commit: chip.commit } : null);
+    setSlow(false);
+    setTowards(chip.commit ? { key: chip.key, name: chip.name, commit: chip.commit } : null);
   };
   const atHead = placed.find(({ head }) => head.worktree !== null && head.worktree === at);
   if (at !== handled && atHead !== undefined) {
     setHandled(at); // once per address: the Worktree it was opened at
-    go({ name: atHead.name, commit: atHead.head.commit });
+    go({ key: atHead.head.path, name: atHead.name, commit: atHead.head.commit });
   }
   const loaded = history.data;
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = history;
   useEffect(() => {
     if (towards === null || loaded === undefined) return;
-    const row = page.current?.querySelector(`[data-entry="${towards.commit}"]`);
+    const listed = new Map(
+      [...(page.current?.querySelectorAll("[data-entry]") ?? [])].map((each) => [
+        each.getAttribute("data-entry"),
+        each,
+      ]),
+    );
+    const row = listed.get(towards.commit);
     if (row) {
-      row.closest("li")?.scrollIntoView({ block: "center" });
+      const top = listed.get(`uncommitted:${towards.key}`) ?? row;
+      top.closest("li")?.scrollIntoView({ block: "start" });
       setTowards(null);
     } else if (!hasNextPage) {
-      setMissed(towards.name); // e.g. its branch hidden
+      setMissed(towards.key); // e.g. its branch hidden
       setTowards(null);
     } else if (!isFetchingNextPage) {
       void fetchNextPage();
     }
   }, [towards, loaded, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  useEffect(() => {
+    if (towards === null) return;
+    const wait = setTimeout(() => setSlow(true), SLOW);
+    return () => clearTimeout(wait);
+  }, [towards]);
   // Escape stops it, while the focus is in this View, as it closes Find.
   useEffect(() => {
     if (towards === null) return;
@@ -129,19 +155,23 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     return () => document.removeEventListener("keydown", stop);
   }, [towards]);
 
-  // The branches the filter lists: those walked, the default one first.
-  const defaultBranch = known?.default_branch ?? null;
+  // The branches the filter lists: those walked, the default one first, hidden or not.
+  const named = known?.default_branch ?? null;
   const out = new Set(placed.flatMap(({ head }) => (head.branch ? [head.branch] : [])));
   const filtered = (known?.branches ?? [])
     .map((each) => each.name)
-    .filter((name) => walked === "local" || out.has(name) || name === defaultBranch)
-    .sort((a, b) => Number(b === defaultBranch) - Number(a === defaultBranch));
+    .filter((name) => walked === "local" || out.has(name) || name === named)
+    .sort((a, b) => Number(b === named) - Number(a === named));
   const filter = (next: Walked, nextHidden: string[]) =>
     setParams(
       withParam(withParam(params, "branches", next === "local" ? [] : [next]), "hide", nextHidden),
     );
 
   const pick = (chip: Chip) => {
+    if (towards?.key === chip.key) {
+      setTowards(null); // a click on the chip gone to stops it
+      return;
+    }
     const head = placed.find((each) => each.head.path === chip.key);
     let next: Params = head?.head.worktree
       ? { ...params, at: head.head.worktree }
@@ -200,20 +230,20 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
           </BarGroup>
         </BarEnd>
       </ViewBar>
-      <Chips chips={chips} current={current} onPick={pick} />
-      {towards && (
-        <p className={styles.note} role="status">
-          Loading towards {towards.name}: {numberText(commits.length)} commits so far
-          <button type="button" className={styles.action} onClick={() => setTowards(null)}>
-            Stop
-          </button>
-        </p>
-      )}
-      {missed && (
-        <p className={styles.note} role="status">
-          The HEAD of {missed} is not among the commits shown.
-        </p>
-      )}
+      <Chips
+        chips={chips}
+        current={current}
+        going={
+          towards && slow
+            ? {
+                key: towards.key,
+                text: `Loading towards ${towards.name}: ${numberText(commits.length)} commits so far`,
+              }
+            : undefined
+        }
+        missed={missed ?? undefined}
+        onPick={pick}
+      />
       {error && <LoadNote error={error} />}
       <CommitList
         kind="graph"
@@ -227,9 +257,11 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         paging={history}
         graph={{
           heads,
+          accent: "pinned",
           checkedOut,
+          hidden: new Set(hidden),
           ...(pinned === undefined ? {} : { pinned }),
-          ...(known?.default_branch ? { first: known.default_branch } : {}),
+          ...(defaultBranch ? { first: defaultBranch } : {}),
         }}
       />
     </ViewPage>
@@ -269,7 +301,8 @@ function withUncommitted(
   );
 }
 
-/** The colour of a Checkout's chip: that of its branch's line, the default branch's accent. */
+/** The colour of a Checkout's chip: that of its branch's line, the default branch's accent
+ * (`defaultBranch`, null while hidden). */
 function chipColour(head: Head, defaultBranch: string | null): string {
   if (head.branch !== null && head.branch === defaultBranch) return "var(--accent)";
   if (head.branch !== null) return hueColour(hueOf(head.branch));

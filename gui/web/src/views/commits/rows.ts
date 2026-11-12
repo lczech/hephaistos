@@ -111,19 +111,21 @@ export interface Drawn {
 /**
  * How a list draws its graph: HEAD's commit and the others drawn as HEADs, and which line takes
  * lane 0 and the accent: the first, as History's from where it starts, or a pinned commit's, as
- * the Graph View's default branch.
+ * the Graph View's default branch; none, `pinned` without one.
  */
 export interface Drawing {
   heads: ReadonlySet<string>;
+  accent?: "first" | "pinned"; // by default `pinned` if a commit is, else `first`
   pinned?: string;
   checkedOut?: CheckedOut[]; // where the Checkouts are, marked on the badges
   first?: string; // the default branch, the first of the badges
+  hidden?: ReadonlySet<string>; // local branches hidden: without badges, naming no lane
 }
 
 /** A Checkout of a Clone, as a Graph marks where it is: on its branch's badge, or by a HEAD badge
  * of its own when detached. */
 export interface CheckedOut {
-  name: string; // the folder of the Clone, or the name of the Worktree
+  name: string; // the folder of the Clone or Worktree
   worktree: boolean; // a Worktree, else the main working tree of the Clone
   branch: string | null; // null when detached
   commit: string | null; // null before the first commit
@@ -138,14 +140,14 @@ export function graphOf(
   head: string | null | undefined,
   drawing: Drawing,
 ): Drawn {
-  const { heads, pinned } = drawing;
-  const layout = new Layout({ heads, pinned, accent: pinned === undefined ? "first" : "pinned" });
+  const { heads, pinned, accent = pinned === undefined ? "first" : "pinned" } = drawing;
+  const layout = new Layout({ heads, pinned, accent });
   const rows = new Map<string, number>();
   for (const entry of entries) {
     if (entry.type === "commit") {
       const { hash, parents, refs } = entry.commit;
       rows.set(entryId(entry), layout.rows.length);
-      layout.add({ hash, parents, branch: branchOf(refs) });
+      layout.add({ hash, parents, branch: branchOf(shownRefs(refs, drawing)) });
     } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
       rows.set(entryId(entry), layout.rows.length);
       const parent = (entry.of?.head ?? head) as string;
@@ -153,6 +155,13 @@ export function graphOf(
     }
   }
   return { layout, rows, drawing };
+}
+
+/** The refs a graph labels a commit with: all but the local branches hidden. */
+export function shownRefs(refs: Ref[], drawing: Drawing | undefined): Ref[] {
+  const hidden = drawing?.hidden;
+  if (hidden === undefined || hidden.size === 0) return refs;
+  return refs.filter((ref) => ref.kind !== "branch" || !hidden.has(ref.name));
 }
 
 /** The branch a commit's lane is named by: a local one, else a remote one by its own name. */
