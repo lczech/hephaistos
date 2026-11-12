@@ -7,6 +7,7 @@ import { DbView } from "./db/DbView";
 import { DiffView } from "./diff/DiffView";
 import { EventsView } from "./events/EventsView";
 import { ExplorerView } from "./explorer/ExplorerView";
+import { GraphView } from "./graph/GraphView";
 import { HistoryView } from "./history/HistoryView";
 import type { KindName } from "./kinds";
 import { LogView } from "./log/LogView";
@@ -39,6 +40,7 @@ export const VIEWS: Record<string, View> = {
   changes: ChangesView,
   diff: DiffView,
   history: HistoryView,
+  graph: GraphView,
   explorer: ExplorerView,
   log: LogView,
   config: ConfigView,

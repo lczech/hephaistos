@@ -143,3 +143,15 @@ export const GitGraphArrowDown = createLucideIcon({
     ["path", { d: "M18 14v8", key: "arrow-stem" }],
   ],
 });
+
+/** A graph of branches, as the Graph View draws them: two branches' tips, the right one's line
+ * joining the left one's, which goes on down. Lucide's `git-graph` reads as a fork. */
+export const GitTipsJoining = createLucideIcon({
+  name: "git-tips-joining",
+  node: [
+    ["circle", { cx: "7", cy: "5", r: "3", key: "left" }],
+    ["path", { d: "M7 8v14", key: "line" }],
+    ["circle", { cx: "17", cy: "5", r: "3", key: "right" }],
+    ["path", { d: "M17 8c0 6-4 10-10 10", key: "joining" }],
+  ],
+});

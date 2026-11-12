@@ -44,7 +44,7 @@ A Diff's file header names the file and its lines, not the comparison again.
 ## Repositories
 
 The Repositories View lists the Repositories, their Clones and Worktrees as a tree, each with its state and activity.
-A Checkout's row links to its Events and its files in the Explorer, then to what git has of it: its History, Changes and Diff.
+A Checkout's row links to its Events and its files in the Explorer, then to what git has of it: its History, Graph, Changes and Diff; that of a Worktree to the Graph of its Clone, at its HEAD (`at`).
 
 ## Events
 
@@ -147,7 +147,7 @@ A row opens all about its commit: the commit box, also under a commit's Changes 
 While HEAD's commits show, a row above them says what is not committed, with its Changes and Diff.
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.
 They say if no branch or tag leads to the commit any more, and what amends of it led to.
-History opens from a Checkout's row in Repositories, and from the bars of its Changes and of a file's Diff.
+History opens from the row of a Checkout in Repositories, and from the bars of its Changes and of a file's Diff; its bar links to the Graph of its Clone.
 
 ### The graph
 
@@ -171,6 +171,17 @@ Colours:
 Words:
 - *Lane*: a column of the graph, in which a line is drawn from a commit down to the parent it waits for.
 - *Passing*: a lane neither ending nor starting in a row.
+
+## Graph
+
+The Graph View shows the commits of a whole Clone with their graph (`graph?clone=…`), as History shows them ([the graph](#the-graph)), from the same list (`views/commits/`).
+It walks all local branches and the HEAD of each Checkout of the Clone, detached ones too, less the branches hidden (`hide`): `/api/history` with `branches=local`.
+It lists topologically by default, or by date (`order=date`).
+Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it; the HEAD of each Checkout is drawn as HEAD.
+Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
+A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
+The tab says `Graph: proj`, and how many branches are hidden.
+It opens from the rows of Clones and Worktrees in Repositories, and from the bar of History.
 
 ## Explorer
 

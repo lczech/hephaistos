@@ -11,7 +11,17 @@ export type Hint = Schemas["LiveHintsJson"]["hints"][number];
 
 /** What each hint has asked again. */
 export const HINTED: Record<Hint, KeyName[]> = {
-  data: ["repositories", "machines", "events", "db", "changes", "diff", "history", "files"],
+  data: [
+    "repositories",
+    "machines",
+    "events",
+    "db",
+    "changes",
+    "diff",
+    "history",
+    "graph",
+    "files",
+  ],
   daemon: ["daemon"],
   log: ["log"],
 };
@@ -23,6 +33,7 @@ export const ON_FOCUS: KeyName[] = [
   "changes",
   "diff",
   "history",
+  "graph",
   "files",
   "paths",
 ];

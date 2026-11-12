@@ -33,7 +33,7 @@ The page's own fragment carries the token (`#token=…`).
 
 ## Opening
 
-Each kind that stands alone says where it is offered (`views/kinds.ts`); Changes, Diff and History need a Checkout, so open only from other Views.
+Each kind that stands alone says where it is offered (`views/kinds.ts`); Changes, Diff and History need a Checkout, and the Graph a Clone, so they open only from other Views.
 The View menu, in the title bar, lists all that stand alone, by family, and opens one in the active Group.
 "+" in each Group's tab bar and an empty Group list those at hand: Repositories and Events; the others are only in the View menu.
 Views open other Views by links ([interaction](interaction.md#links)).

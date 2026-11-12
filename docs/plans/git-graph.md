@@ -108,6 +108,7 @@ Each step its own commits, stopping for review.
   Simpler than planned: no check whether the branches moved, as `--split` adds nothing where nothing is new, and each Clone is tried at most once a day.
 
 - 2.1: the walk from branches (`branches`, `hide`) in the Core and `/api/history`, and `/api/graph` (API 0.27), from `core/utils/graph.py`: the HEADs of the Checkouts, the default branch, ahead and behind.
+- 2.2: the Graph View (`views/graph/`), its default branch pinned, its HEADs drawn as such, its order, refresh and title; links from Repositories and History; `Drawing` for how a list draws its graph.
 
 ## Open
 
@@ -116,4 +117,4 @@ Each step its own commits, stopping for review.
 
 ## Later
 
-To move into the [ideas](../ideas/views.md#history) at the merge: branches moved without a checkout reaching the Views, once the Watcher acts on changes to files (the roadmap), by a digest of the branch tips in State; search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.
+To move into the [ideas](../ideas/views.md#history) at the merge: search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.

@@ -8,21 +8,21 @@ import { CommitBox } from "./CommitBox";
 import styles from "./CommitList.module.css";
 import { commitColumns, type FoundActions } from "./columns";
 import { GraphBeside } from "./Graph";
-import { type Entry, entryId, graphOf } from "./rows";
+import { type Drawing, type Entry, entryId, graphOf } from "./rows";
 
 interface Props {
   kind: string; // whose list it is, for its kept widths, order and hidden columns: `history`
   checkout: Checkout | undefined;
   entries: Entry[];
   head: string | null | undefined; // the commit HEAD is at, whose row says so
-  actions: FoundActions;
+  actions?: FoundActions; // for a commit searched for by its hash, not listed
   layout: ListLayout;
   now: number;
   message: string | null;
   stale: boolean;
   paging: Paging;
-  graph: boolean; // whether to draw the graph: only for commits listed in an order with every
-  // child above its parents, and none left out between
+  graph: Drawing | undefined; // how to draw the graph, if at all: only for commits listed in an
+  // order with every child above its parents, and none left out between
 }
 
 /**
@@ -44,7 +44,7 @@ export function CommitList({
   graph,
 }: Props) {
   const isShown = useIsShown();
-  const drawn = graph ? graphOf(entries, head) : undefined;
+  const drawn = graph && graphOf(entries, head, graph);
   const table = useList(kind, layout, {
     columns: commitColumns(checkout, head, actions, drawn),
     data: entries,

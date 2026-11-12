@@ -36,6 +36,7 @@ export const KEYS = {
   changes: ["changes"],
   diff: ["diff"],
   history: ["history"],
+  graph: ["graph"],
   files: ["files"],
   paths: ["paths"],
   config: ["config"],
@@ -312,6 +313,23 @@ export function useHistory(query: HistoryQuery | undefined) {
     getNextPageParam: (page) => page.next ?? undefined,
     placeholderData: keepPreviousData,
     enabled: query !== undefined,
+  });
+}
+
+/** Which Checkout's Clone: `/api/graph`'s parameters. */
+export type GraphQuery = NonNullable<paths["/api/graph"]["get"]["parameters"]["query"]>;
+
+/**
+ * What a graph of a Clone shows besides its commits: its default branch, how far each branch is
+ * ahead of it and behind it, and where each of its Checkouts is. Asked again as its history is.
+ */
+export function useGraph(checkout: GraphQuery | undefined) {
+  return useQuery({
+    queryKey: [...KEYS.graph, checkout],
+    queryFn: async () =>
+      unwrap(await api.GET("/api/graph", { params: { query: checkout as GraphQuery } })),
+    placeholderData: keepPreviousData,
+    enabled: checkout !== undefined,
   });
 }
 

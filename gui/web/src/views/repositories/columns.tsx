@@ -37,8 +37,9 @@ function eventsAt(entry: Entry): Address {
 }
 
 /**
- * A row's Views: Events for all; then the Explorer and History for a Checkout; then Changes and
- * Diff for one with a working tree. What it is first, then what git has of it.
+ * A row's Views: Events for all; then the Explorer, History and the Graph for a Checkout, the
+ * Graph of a Worktree's Clone at its HEAD; then Changes and Diff for one with a working tree.
+ * What it is first, then what git has of it.
  */
 function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
   const name = nameText(entry, home);
@@ -60,6 +61,20 @@ function Views({ entry, home }: { entry: Entry; home: string | undefined }) {
         <ViewLink address={{ kind: "history", params }} label={`Commit history of ${name}`} />
       ) : (
         <span />
+      )}
+      {entry.type === "repository" ? (
+        <span />
+      ) : (
+        <ViewLink
+          address={{
+            kind: "graph",
+            params:
+              entry.type === "worktree"
+                ? { clone: entry.clone.id, at: entry.worktree.id }
+                : { clone: entry.clone.id },
+          }}
+          label={`Graph of the branches of ${name}`}
+        />
       )}
       {params && state?.staged !== null ? ( // not for a bare Clone
         <ChangesLinks checkout={params} what={`changes in ${name}`} state={state} />
@@ -107,7 +122,7 @@ export const columns = column.columns([
     },
   }),
   column.display({
-    id: "views", // its Events, Explorer, History, Changes and Diff, each in its place, lined up
+    id: "views", // its Events, Explorer, History, Graph, Changes and Diff, each in its place, lined up
     enableResizing: false,
     meta: { width: "var(--views)" },
     cell: ({ row, table }) => <Views entry={row.original} home={table.options.meta?.home} />,

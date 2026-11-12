@@ -13,6 +13,7 @@ import { DiffView } from "./views/diff/DiffView";
 import { FileBody, FileSection } from "./views/diff/FileSection";
 import { EventsView } from "./views/events/EventsView";
 import { ExplorerView } from "./views/explorer/ExplorerView";
+import { GraphView } from "./views/graph/GraphView";
 import { HistoryView } from "./views/history/HistoryView";
 import { LogView } from "./views/log/LogView";
 import { useIsShown } from "./views/opening";
@@ -25,7 +26,7 @@ import { RepositoriesView } from "./views/repositories/RepositoriesView";
 it("has React's compiler memoize the components and hooks", () => {
   const compiled = [
     ...[PanelView, ViewOpener, ChangesView, DbView, DiffView, FileSection, FileBody, Diff],
-    ...[EventsView, ExplorerView, HistoryView, CommitList, LogView, RepositoriesView],
+    ...[EventsView, ExplorerView, HistoryView, CommitList, GraphView, LogView, RepositoriesView],
     ...[useDebounced, useFolds, useKeptSets, useChangesTable, useIsShown],
   ];
   for (const code of compiled) {

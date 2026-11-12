@@ -30,7 +30,7 @@ describe("the graph of a list of commits", () => {
       { type: "uncommitted", text: "Uncommitted: 1 changed" },
       ...entries([commit("h", ["s"], [ref("main", "branch")]), commit("s", [])]),
     ];
-    const { layout, rows } = graphOf(listed, "h");
+    const { layout, rows } = graphOf(listed, "h", { heads: new Set(["h"]) });
     expect([...rows.entries()]).toEqual([
       ["uncommitted", 0],
       ["h", 1],
@@ -46,7 +46,7 @@ describe("the graph of a list of commits", () => {
       { type: "renamed", commit: "a", from: "old.ts" },
       ...entries([commit("a", [], [ref("topic", "branch")])]),
     ];
-    const { layout, rows } = graphOf(listed, null);
+    const { layout, rows } = graphOf(listed, null, { heads: new Set() });
     expect([...rows.keys()]).toEqual(["a"]);
     expect(layout.rows).toHaveLength(1);
   });
@@ -57,13 +57,29 @@ describe("the graph of a list of commits", () => {
       commit("t", ["b"], [ref("topic", "branch")]),
       commit("b", []),
     ]);
-    const { layout } = graphOf(listed, "m");
+    const { layout } = graphOf(listed, "m", { heads: new Set(["m"]) });
     // t is awaited by the merge's lane, which no branch names: muted, by the commit it leads to.
     expect(layout.rows[1]?.colour).toEqual({ kind: "hue", hue: hueOf("t"), muted: true });
     const tip = graphOf(
       entries([commit("x", ["b"]), commit("t", ["b"], [ref("topic", "branch")]), commit("b", [])]),
       "x",
+      { heads: new Set(["x"]) },
     );
     expect(tip.layout.rows[1]?.colour).toEqual({ kind: "hue", hue: hueOf("topic"), muted: false });
+  });
+});
+
+describe("a graph with a pinned branch", () => {
+  it("keeps the pinned commit's line in lane 0 and the accent, HEADs drawn larger", () => {
+    const listed = entries([
+      commit("f", ["b"], [ref("feature", "branch")]),
+      commit("m", ["b"], [ref("main", "branch")]),
+      commit("b", []),
+    ]);
+    const { layout } = graphOf(listed, "f", { heads: new Set(["f", "m"]), pinned: "m" });
+    expect(layout.rows.map((row) => row.lane)).toEqual([1, 0, 0]);
+    expect(layout.rows[1]?.colour).toEqual({ kind: "accent" });
+    expect(layout.rows[0]?.colour).toEqual({ kind: "hue", hue: hueOf("feature"), muted: false });
+    expect(layout.rows.map((row) => row.node)).toEqual(["head", "head", "commit"]);
   });
 });

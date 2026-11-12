@@ -100,7 +100,8 @@ A toggle or button never shows the icon of an entity, so that each icon keeps st
 - A Machine is its chassis: a laptop, a monitor, a server, a box for a vm or container, …; a computer if unknown.
 - A commit is git's commit (Lucide's `git-commit-vertical`); the History View two on one line, following each other as it lists them, drawn as Lucide would (`drawnIcons.ts`, as the stacked Diff's several pages).
 - HEAD is a circle with a chevron up; a branch is git's branch, a remote branch a cloud, a tag a tag: in pickers, badges and Events alike.
-- git's branch icons stay for branches, and for a graph of them, if one comes.
+- git's branch icons stay for branches.
+- The Graph View: two branches' tips, the line of one joining the other's (drawn), as Lucide's `git-graph` reads as a fork.
 - The orders of commits: topological, a graph of two lines with the arrow of `clock-arrow-down` from Lucide (drawn, `drawnIcons.ts`); by date, `clock-arrow-down` itself.
 
 ### Actions

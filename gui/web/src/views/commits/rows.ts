@@ -80,11 +80,26 @@ export interface Drawn {
 }
 
 /**
- * The graph of these entries, newest first: their commits, and above HEAD's what is not
- * committed, the start's line in lane 0 and the accent. Other entries have no row in it.
+ * How a list draws its graph: HEAD's commit and the others drawn as HEADs, and which line takes
+ * lane 0 and the accent: the first, as History's from where it starts, or a pinned commit's, as
+ * the Graph View's default branch.
  */
-export function graphOf(entries: Entry[], head: string | null | undefined): Drawn {
-  const layout = new Layout({ head, accent: "first" });
+export interface Drawing {
+  heads: ReadonlySet<string>;
+  pinned?: string;
+}
+
+/**
+ * The graph of these entries, newest first: their commits, and above HEAD's what is not
+ * committed. Other entries have no row in it.
+ */
+export function graphOf(
+  entries: Entry[],
+  head: string | null | undefined,
+  drawing: Drawing,
+): Drawn {
+  const { heads, pinned } = drawing;
+  const layout = new Layout({ heads, pinned, accent: pinned === undefined ? "first" : "pinned" });
   const rows = new Map<string, number>();
   for (const entry of entries) {
     if (entry.type === "commit") {

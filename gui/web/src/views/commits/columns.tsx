@@ -30,7 +30,7 @@ export interface FoundActions {
 export function commitColumns(
   checkout: Checkout | undefined,
   head: string | null | undefined,
-  actions: FoundActions,
+  actions: FoundActions | undefined,
   graph: Drawn | undefined,
 ) {
   return column.columns([
@@ -86,7 +86,13 @@ export function commitColumns(
         const entry = row.original;
         if (entry.type === "uncommitted")
           return <span className={styles.uncommitted}>{entry.text}</span>;
-        if (entry.type === "found") return <FoundWhere found={entry.found} actions={actions} />;
+        if (entry.type === "found") {
+          return actions ? (
+            <FoundWhere found={entry.found} actions={actions} />
+          ) : (
+            entry.found.commit.subject
+          );
+        }
         if (entry.type === "renamed") {
           return (
             <span className={styles.renamed} title={`renamed from ${entry.from}`}>

@@ -51,7 +51,7 @@ export interface RowGraph {
 
 export interface LayoutOptions {
   pinned?: string; // the commit whose first-parent line keeps lane 0, if any
-  head?: string | null; // the commit HEAD is at, drawn larger
+  heads?: ReadonlySet<string>; // the commits HEADs are at, drawn larger: of each Checkout
   accent?: "first" | "pinned"; // which lane takes the accent: lane 0 from the top, or the pinned
 }
 
@@ -235,7 +235,7 @@ export class Layout {
 
   private kindOf(node: GraphNode): NodeKind {
     if (node.uncommitted) return "uncommitted";
-    if (this.options.head && node.hash === this.options.head) return "head";
+    if (this.options.heads?.has(node.hash)) return "head";
     return node.parents.length > 1 ? "merge" : "commit";
   }
 

@@ -10,7 +10,7 @@ import {
   ScrollText,
   SlidersHorizontal,
 } from "lucide-react";
-import { FileDiffs, GitCommits } from "../drawnIcons";
+import { FileDiffs, GitCommits, GitTipsJoining } from "../drawnIcons";
 import type { Address, Params } from "./address";
 import { checkoutOf } from "./checkout";
 
@@ -53,6 +53,7 @@ const kinds = {
       params.path === undefined && checkoutOf(params) !== undefined ? FileDiffs : FileDiff,
   },
   history: { name: "History", icon: GitCommits, family: "git" },
+  graph: { name: "Graph", icon: GitTipsJoining, family: "git" },
   explorer: { name: "Explorer", icon: Files, family: "files", offered: "menu" },
   daemon: { name: "Daemon", icon: Activity, family: "machine", offered: "menu" },
   log: { name: "Log", icon: ScrollText, family: "machine", offered: "menu" },

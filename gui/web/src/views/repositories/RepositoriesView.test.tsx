@@ -142,6 +142,24 @@ describe("the Repositories View", () => {
     ]);
   });
 
+  it("opens the Graph of a Clone, from a Worktree at its HEAD", async () => {
+    serveRepositories();
+    const open = vi.fn<OpenView>();
+    renderWithQueries(<Repositories open={open} />);
+    await screen.findByText("recent");
+    expect(screen.queryByRole("button", { name: "Graph of the branches of recent" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Graph of the branches of ~/recent" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Graph of the branches of .worktrees/feature" }),
+    );
+    expect(open.mock.calls.map(([address]) => addressText(address))).toEqual([
+      "graph?clone=clone-recent",
+      "graph?at=wt-recent-feature&clone=clone-recent",
+    ]);
+  });
+
   it("opens the Explorer of a Clone or Worktree, at its path", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();

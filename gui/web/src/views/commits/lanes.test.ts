@@ -88,7 +88,7 @@ describe("lanes", () => {
 
   it("starts a lane above HEAD for its uncommitted changes, without a pinned commit", () => {
     const wt = { ...n("wt", "h"), uncommitted: true };
-    const { rows } = lay([wt, n("h", "a"), n("a")], { head: "h", accent: "first" });
+    const { rows } = lay([wt, n("h", "a"), n("a")], { heads: new Set(["h"]), accent: "first" });
     expect(lanesOf(rows)).toEqual([0, 0, 0]);
     expect(rows.map((row) => row.node)).toEqual(["uncommitted", "head", "commit"]);
     expect(rows[1]?.above?.dashed).toBe(true);
@@ -142,7 +142,7 @@ describe("lanes", () => {
   });
 
   it("names the kinds of nodes: HEAD, merges, commits", () => {
-    const { rows } = lay([n("m", "a", "b"), n("b", "a"), n("a")], { head: "b" });
+    const { rows } = lay([n("m", "a", "b"), n("b", "a"), n("a")], { heads: new Set(["b"]) });
     expect(rows.map((row) => row.node)).toEqual(["merge", "head", "commit"]);
   });
 

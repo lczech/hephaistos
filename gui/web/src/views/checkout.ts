@@ -33,6 +33,17 @@ export function checkoutState(
   return undefined;
 }
 
+/** The Clone a Checkout is, or whose Worktree it is, by ID; undefined while not known. */
+export function cloneOf(
+  repositories: Repository[] | undefined,
+  checkout: Checkout,
+): string | undefined {
+  if ("clone" in checkout) return checkout.clone;
+  const clones = repositories?.flatMap((repository) => repository.clones) ?? [];
+  return clones.find((clone) => clone.worktrees.some((found) => found.id === checkout.worktree))
+    ?.id;
+}
+
 /** A Checkout's short name, for the tab: its folder's, or its Worktree's. */
 export function checkoutName(
   repositories: Repository[] | undefined,

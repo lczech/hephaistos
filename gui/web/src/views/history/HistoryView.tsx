@@ -19,12 +19,13 @@ import { useDebounced } from "../../useDebounced";
 import { useNow } from "../../useNow";
 import { type Params, paramValues, withParam } from "../address";
 import { Gone, isGone, LoadNote, useKeptError } from "../CheckoutError";
-import { type Checkout, checkoutName, checkoutOf, checkoutState } from "../checkout";
+import { type Checkout, checkoutName, checkoutOf, checkoutState, cloneOf } from "../checkout";
 import { CommitList } from "../commits/CommitList";
 import { OrderToggle, orderOf, withOrder } from "../commits/OrderToggle";
 import { searchedEntries, uncommittedText } from "../commits/rows";
 import type { ViewProps } from "../index";
 import { useTitle } from "../title";
+import { ViewLink } from "../ViewLink";
 import styles from "./HistoryView.module.css";
 import { historyTitle, noneFoundText } from "./text";
 
@@ -77,6 +78,12 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const showOn = (other: string) => setParams({ ...params, ref: other });
   const allFiles = () => setParams(withParam(params, "path", []));
   const [layout, setLayout] = useListLayout("history");
+  // The Graph of the Clone, at this Checkout's HEAD if a Worktree.
+  const clone = checkout && cloneOf(repositories.data, checkout);
+  const graphParams =
+    checkout && clone
+      ? { clone, ...("worktree" in checkout ? { at: checkout.worktree } : {}) }
+      : undefined;
 
   const without = (name: string): Params => withParam(params, name, []);
   let message: string | null = null;
@@ -154,6 +161,14 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
             />
             <LayoutToggle layout={layout} onChange={setLayout} />
           </BarGroup>
+          {graphParams && (
+            <BarGroup>
+              <ViewLink
+                address={{ kind: "graph", params: graphParams }}
+                label="Graph of all branches"
+              />
+            </BarGroup>
+          )}
           <BarGroup>
             <Refresh
               busy={history.isFetching}
@@ -187,7 +202,11 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
         stale={error !== null || history.isPlaceholderData}
         paging={history}
         // Not for a path or a search, which leave commits out between those listed.
-        graph={path === undefined && words.length === 0}
+        graph={
+          path === undefined && words.length === 0
+            ? { heads: new Set(first?.head ? [first.head] : []) }
+            : undefined
+        }
       />
     </ViewPage>
   );
