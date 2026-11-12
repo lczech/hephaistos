@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import type { Schemas } from "../../api/client";
 import { ownRow } from "../../test/list";
 import { fileEntry, info, json, renderWithQueries, serve } from "../../test/server";
@@ -131,13 +131,8 @@ async function opened(initial: Params, then?: () => Promise<void>, fragment?: Pa
 /** The find row's status, once it says which match of how many, or why none. */
 const status = () => document.querySelector("search output");
 
+// How the match found comes into view, which jsdom cannot show: `ExplorerView.browser.test.tsx`.
 describe("finding in the Explorer", () => {
-  const scrolled = vi.fn<(this: Element) => void>();
-  beforeEach(() => {
-    scrolled.mockReset();
-    Element.prototype.scrollIntoView = scrolled; // jsdom lays nothing out
-  });
-
   it("shows matches in the folders holding them, marked, revealing the one found once closed", async () => {
     serveDisk();
     await finding("ma");
@@ -150,7 +145,6 @@ describe("finding in the Explorer", () => {
       expect(names()).toEqual(["deep", "proj", "main.py", "old", ".bashrc", "notes.md"]),
     );
     expect(screen.getByText("main.py").closest("[data-current]")).not.toBeNull();
-    expect(scrolled.mock.contexts.at(-1)).toHaveTextContent("main.py");
   });
 
   it("steps through matches in the tree's order, opening the folder stepped into", async () => {
@@ -235,7 +229,6 @@ describe("finding in the Explorer", () => {
     await userEvent.keyboard("{Escape}");
     await waitFor(() => expect(names()[0]).toBe("deep/inner"));
     expect(screen.getByText("deep/inner").closest("[data-current]")).not.toBeNull();
-    expect(scrolled.mock.contexts.at(-1)).toHaveTextContent("deep/inner");
   });
 
   it("finds what git ignores too if asked, saying when nothing is found", async () => {

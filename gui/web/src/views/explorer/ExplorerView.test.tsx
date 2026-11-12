@@ -392,7 +392,6 @@ describe("the Explorer View", () => {
   });
 
   it("says how many more a folder holds than listed, also while finding in it", async () => {
-    Element.prototype.scrollIntoView = () => {}; // to the match found: jsdom lays nothing out
     serve({
       "GET /api/info": () => json(info()),
       "GET /api/repositories": () => json([]),

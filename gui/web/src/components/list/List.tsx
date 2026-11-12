@@ -7,6 +7,7 @@ import {
   type RefObject,
   useEffect,
   useId,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -22,7 +23,7 @@ import styles from "./list.module.css";
 import { type RowAction, RowMenu } from "./RowMenu";
 import { shapeOf } from "./stuck";
 import type { ListFeatures } from "./table";
-import { type Drawn, VirtualRows } from "./VirtualRows";
+import { type Drawn, type RowsHandle, VirtualRows } from "./VirtualRows";
 
 /** How a row's square is coloured: amber, red, or filled red; or its row quieter. */
 export type Tone = "warning" | "danger" | "alarm" | "muted";
@@ -38,6 +39,14 @@ interface Menu {
   y: number;
   column: string | undefined;
   keyboard: boolean;
+}
+
+/** What a View may ask of its List. */
+export interface ListHandle {
+  /** Brings the row of this ID into view, drawn first if it is not; false if it has none. */
+  scrollTo: (id: string) => boolean;
+  /** Whether the row of this ID is drawn, near the view. */
+  drawn: (id: string) => boolean;
 }
 
 /** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
@@ -78,6 +87,7 @@ interface Props<TData extends RowData> {
   menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
   ahead?: (row: TData) => void; // pointed at or focused: to ask for what opening it shows
   seen?: (row: TData) => void; // come into view, or near it: to ask for what it shows
+  handle?: RefObject<ListHandle | null>;
 }
 
 /**
@@ -135,6 +145,7 @@ export function List<TData extends RowData>({
   menu: rowMenu,
   ahead,
   seen,
+  handle,
 }: Props<TData>) {
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
   const open = opened ?? kept;
@@ -270,6 +281,19 @@ export function List<TData extends RowData>({
     rows.flatMap((row) => (row.parentId === undefined ? [] : [row.parentId])),
   );
   const indexOf = new Map(rows.map((row, index) => [row.id, index]));
+  const rowsHandle = useRef<RowsHandle>(null);
+  useImperativeHandle(handle, () => ({
+    scrollTo: (id) => {
+      const index = indexOf.get(id);
+      if (index === undefined) return false;
+      rowsHandle.current?.scrollTo(index);
+      return true;
+    },
+    drawn: (id) => {
+      const index = indexOf.get(id);
+      return index !== undefined && (rowsHandle.current?.drawn(index) ?? false);
+    },
+  }));
   // Whether a row's content is open: in a tree, the rows within it; else its details.
   const holds = (row: (typeof rows)[number]) =>
     folds?.(row.original)
@@ -494,6 +518,7 @@ export function List<TData extends RowData>({
             shape={shape}
             below={below}
             drawnNow={drawnNow}
+            handle={rowsHandle}
             onPointerOver={showWholeText}
           />
         )}

@@ -16,7 +16,7 @@ import { FindBar } from "../../components/find/FindBar";
 import { useCurrentMatch, useFind } from "../../components/find/useFind";
 import { IconButton } from "../../components/IconButton";
 import { useListLayout } from "../../components/list/kept";
-import { List } from "../../components/list/List";
+import { List, type ListHandle } from "../../components/list/List";
 import { useHidden, useList } from "../../components/list/table";
 import type { Loaded } from "../../components/list/tree";
 import { useKeptSets } from "../../components/list/tree";
@@ -319,16 +319,8 @@ export function ExplorerView({
   // The match revealed, below the root it was found in: another's paths are others.
   const [revealed, setRevealed] = useState<{ root: string | undefined; path: string }>();
   const shownCurrent = finding ? currentPath : revealed?.root === root ? revealed?.path : undefined;
-  const view = useRef<HTMLElement>(null);
+  const list = useRef<ListHandle>(null);
   const scrolled = useRef<string | undefined>(undefined); // the root and path scrolled to
-  useEffect(() => {
-    const at = `${root}\0${shownCurrent}`;
-    if (shownCurrent === undefined || scrolled.current === at) return;
-    const row = view.current?.querySelector("[data-current]");
-    if (!row) return; // not yet shown, e.g. its folder still asked for
-    row.scrollIntoView({ block: "nearest" });
-    scrolled.current = at;
-  });
   const stepTo = (by: 1 | -1) => {
     const next = order[(current + by + order.length) % order.length];
     if (next === undefined) return;
@@ -402,6 +394,19 @@ export function ExplorerView({
       setOpened(changed);
     },
   });
+  // The match shown brought into view, once, drawn first, as only the rows near the view are.
+  useEffect(() => {
+    const at = `${root}\0${shownCurrent}`;
+    if (shownCurrent === undefined || scrolled.current === at) return;
+    const row = table
+      .getRowModel()
+      .rows.find(
+        ({ original }) => original.type === "entry" && shownPaths(original).includes(shownCurrent),
+      );
+    // Not yet listed, e.g. its folder still asked for: tried again as the rows change.
+    if (row === undefined || !list.current?.scrollTo(row.id)) return;
+    scrolled.current = at;
+  });
 
   const rootLoaded = root === undefined ? undefined : loaded.get(root);
   let message: string | null = null;
@@ -418,7 +423,7 @@ export function ExplorerView({
     message = "Empty.";
   }
   return (
-    <ViewPage ref={view}>
+    <ViewPage>
       <ViewBar>
         {/* Once the home directory is known, so that the path does not change from /home/me to ~. */}
         {root !== undefined && !info.isPending && (
@@ -536,6 +541,7 @@ export function ExplorerView({
             }));
           })
         }
+        handle={list}
         ahead={(entry) => {
           // A closed folder pointed at or focused: what it holds shows at once once opened. One
           // showing nothing, as it turns out, loses its chevron at once: drawn anew for it alone.

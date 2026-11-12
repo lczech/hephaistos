@@ -28,9 +28,13 @@ export interface Drawn {
   copy?: { top: number; place: () => void };
 }
 
-/** What the List may ask of its rows: to bring one into view. */
+/**
+ * What the List may ask of its rows: to bring one into view, drawn first if it is not; whether
+ * one is drawn.
+ */
 export interface RowsHandle {
   scrollTo: (index: number) => void;
+  drawn: (index: number) => boolean;
 }
 
 interface Props {
@@ -262,9 +266,57 @@ export function VirtualRows({
     drawnNow?.(drawnKeys === "" ? [] : drawnKeys.split(" ").map(Number));
   }, [drawnKeys, drawnNow]);
 
+  // A row asked for comes into view, by as little as it takes: below the header and the rows
+  // that would stick above it, those holding it. Tried again after each draw for a while, as rows
+  // drawn on the way are measured, and move it.
+  const asked = useRef<{ index: number; tries: number } | null>(null);
+  const bringIntoView = () => {
+    const [box, at] = [virtualizer.scrollElement, asked.current];
+    if (box === null || at === null) return;
+    const measures = virtualizer.measurementsCache;
+    const item = measures[at.index];
+    if (item === undefined || at.tries-- <= 0) {
+      asked.current = null;
+      return;
+    }
+    const height = (index: number) => {
+      const measure = measures[index];
+      return own.current.get(String(measure?.key)) ?? measure?.size ?? guess.current;
+    };
+    let above = place.pad + place.below;
+    for (let up = shape?.parent[at.index] ?? -1; up >= 0; up = shape?.parent[up] ?? -1) {
+      if (shape?.holds[up]) above += height(up);
+    }
+    const top = box.scrollTop + above;
+    const bottom = box.scrollTop + box.clientHeight;
+    // The row itself, below what stands above it in its room, e.g. a group's line.
+    const end = item.start + offsetOf(at.index) + height(at.index);
+    const to =
+      at.index === 0
+        ? 0 // the first, at the very top
+        : item.start < top
+          ? item.start - above
+          : end > bottom
+            ? end - box.clientHeight
+            : undefined;
+    if (to === undefined || Math.abs(to - box.scrollTop) < 0.5) {
+      asked.current = null;
+      return;
+    }
+    // Rounded so that the whole row shows where scrolling goes by whole pixels, as in WebKit.
+    box.scrollTop = to > box.scrollTop ? Math.ceil(to) : Math.floor(to);
+    // Again once drawn there, as rows drawn on the way are measured: drawn anew by React only as
+    // the range drawn changes.
+    requestAnimationFrame(bringIntoView);
+  };
+  useLayoutEffect(bringIntoView);
   if (handle) {
     handle.current = {
-      scrollTo: (index) => virtualizer.scrollToIndex(index, { align: "auto" }),
+      scrollTo: (index) => {
+        asked.current = { index, tries: 5 };
+        bringIntoView();
+      },
+      drawn: (index) => virtualizer.getVirtualItems().some((item) => item.index === index),
     };
   }
 

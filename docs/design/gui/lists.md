@@ -52,6 +52,7 @@ The copies stay by CSS's sticking where the list scrolls itself; part of a page,
 They move as the list scrolls, as rows are measured anew, e.g. details growing once drawn, and as the header changes its height, e.g. its buttons wrapping.
 What a row was told to show is kept outside it, as a row scrolled far away is drawn anew: the large diffs shown in the Diff's List.
 What is focused or scrolled to in a row, or in its details, comes into view below those rows, not under them.
+A View brings a row into view by its ID (`ListHandle.scrollTo`), as it may not be drawn, by as little as it takes, below the rows that would stick above it: the match the Explorer's find steps to, the untracked file of each match the Diff's find steps to, where that is not drawn (`ListHandle.drawn`).
 The header covers the pixel above itself with the background, at its scroll edge, where a row passing below may show when zoomed.
 A row's tone is its own, not that of the rows within it.
 While the list is pointed at, a thin line runs below each open row's chevron, through the rows within it.

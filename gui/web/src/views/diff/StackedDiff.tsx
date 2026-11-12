@@ -1,8 +1,8 @@
 import type { SortingState } from "@tanstack/react-table";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { ChangesQuery, DiffQuery } from "../../api/queries";
 import { foldedBy, withFolded } from "../../components/files/folds";
-import { List } from "../../components/list/List";
+import { List, type ListHandle } from "../../components/list/List";
 import { counted } from "../../text";
 import changesStyles from "../comparison/changes.module.css";
 import { Lines } from "../comparison/columns";
@@ -180,6 +180,21 @@ function Untracked(props: UntrackedProps) {
   const said = openFiles.join("\0");
   useEffect(() => onUntrackedOpen?.(said === "" ? [] : said.split("\0")), [said, onUntrackedOpen]);
   useEffect(() => () => onUntrackedOpen?.([]), [onUntrackedOpen]);
+  // The file of each match stepped to brought into view where it is not drawn, as only the rows
+  // near the view are: its diff then brings the match into view itself, as it does where drawn.
+  const list = useRef<ListHandle>(null);
+  const revealed = openFiles.find((path) => findIn?.(path)?.revealed);
+  const match = revealed === undefined ? undefined : findIn?.(revealed)?.current;
+  const scrolled = useRef<unknown>(undefined); // the match whose file was brought into view
+  useEffect(() => {
+    if (match === scrolled.current) return;
+    const row = table
+      .getRowModel()
+      .rows.find(({ original }) => original.type === "change" && original.change.path === revealed);
+    if (match !== undefined && row === undefined) return; // not listed yet
+    if (row && !list.current?.drawn(row.id)) list.current?.scrollTo(row.id);
+    scrolled.current = match;
+  });
   const showAll = () => {
     openAll();
     setAll(true);
@@ -228,6 +243,7 @@ function Untracked(props: UntrackedProps) {
         folds={folds}
         plain={(entry) => entry.type === "note"}
         opened={open}
+        handle={list}
         onOpenedChange={(next) => {
           if (all) setClosed(new Set(ids.filter((id) => !next.has(id))));
           else setOpened(next);

@@ -226,6 +226,23 @@ describe("the Explorer's tree, as drawn", () => {
 });
 
 describe("the Explorer's find, as drawn", () => {
+  it("brings the match found into view, below the folders stuck, far from the view", async () => {
+    await explorer();
+    await userEvent.click(screen.getByRole("button", { name: "Find files and folders by name" }));
+    await userEvent.keyboard("f");
+    await waitFor(() => expect(rowOf("f00.txt")).toBeDefined());
+    // From the first match round to the last, far below the view.
+    await userEvent.click(screen.getByRole("button", { name: "Previous match" }));
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    await waitFor(() => {
+      const found = box(rowOf("f39.txt"));
+      const stuck = [...document.querySelectorAll("[aria-hidden] li")].map(box);
+      expect(stuck.length).toBe(2); // a and b
+      expect(found.top).toBeGreaterThanOrEqual(Math.max(...stuck.map((at) => at.bottom)) - 1);
+      expect(found.bottom).toBeLessThanOrEqual(box(frame).bottom + 1);
+    });
+  });
+
   it("asks what a folder holding matches holds once its row comes into view", async () => {
     const folders = Array.from({ length: 60 }, (_, at) => `d${String(at).padStart(2, "0")}`);
     const asked: string[] = [];

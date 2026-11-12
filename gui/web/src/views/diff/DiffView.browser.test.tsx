@@ -39,7 +39,7 @@ function added(path: string, count: number): string {
 }
 
 interface File {
-  status: "A" | "M";
+  status: "A" | "M" | "?";
   patch: string;
   old: string | null;
   new: string;
@@ -256,6 +256,46 @@ describe("finding in all files' diffs", () => {
               : null,
           ),
         ).toBe(true);
+        const line = range?.getBoundingClientRect();
+        const view = scroller.getBoundingClientRect();
+        expect(line?.top).toBeGreaterThan(view.top);
+        expect(line?.bottom).toBeLessThan(view.bottom);
+      },
+      { timeout: 10_000 },
+    );
+  });
+});
+
+describe("finding in untracked files' diffs", () => {
+  it("brings a match it steps to into view, in a file whose row is not drawn yet", async () => {
+    const untracked = Array.from({ length: 30 }, (_, at) => `u${String(at).padStart(2, "0")}.txt`);
+    serveFiles({
+      "a.txt": changed("a.txt", 10, [5]),
+      ...Object.fromEntries(
+        untracked.map((path) => [
+          path,
+          { status: "?", patch: added(path, 10), old: null, new: text(10) },
+        ]),
+      ),
+    });
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "line 7", case: "1", word: "1" });
+    await drawn("a.txt");
+    await userEvent.click(await screen.findByRole("button", { name: "Show all" }));
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 31"), { timeout: 10_000 });
+    expect(screen.queryByText("u29.txt")).toBeNull(); // far below, not drawn
+    await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
+    await userEvent.keyboard("{Shift>}{Enter}{/Shift}"); // round, to the last
+    expect(count()).toHaveTextContent("31 of 31");
+    const scroller = screen
+      .getByRole("region", { name: "a.txt" })
+      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    await waitFor(
+      () => {
+        const [range] = [...(CSS.highlights.get("hephaistos-found-current") ?? [])] as Range[];
+        expect(range?.toString()).toBe("line 7");
+        const root = range?.startContainer.getRootNode();
+        const host = root instanceof ShadowRoot ? root.host : range?.startContainer;
+        expect(host?.parentElement?.closest("li")?.textContent).toContain("u29.txt");
         const line = range?.getBoundingClientRect();
         const view = scroller.getBoundingClientRect();
         expect(line?.top).toBeGreaterThan(view.top);
