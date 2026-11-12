@@ -104,6 +104,7 @@ So it keeps its scroll positions, and showing it again lays nothing out anew, e.
 Another View shown in a Panel, e.g. a preview replaced or a step back, is built anew, so it starts at its top, not at the last one's scroll positions (`showIn` in `layout/dock.ts`).
 The same View looked at otherwise, e.g. with another fragment, and a View changing itself, e.g. filtered, stay as they are.
 Views are drawn over their Groups, not in them, so where an element sits says nothing of its Panel or Group.
+Those of tabs not shown yet lie below the others, past the window, until dockview places them: the box of the Groups clips them (`overflow: clip`, `App.module.css`), and cannot be scrolled, so that `scrollIntoView` or focus in a View never moves the tabs and bars out of sight.
 Shortcuts act on dockview's active Panel or Group, reaching into a View through its Panel's context.
 The mouse's side buttons act on the Group our tab, View or placeholder belongs to.
 A lint rule (`gui/lint/dock-elements.grit`) rejects reading dockview's elements.

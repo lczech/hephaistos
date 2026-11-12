@@ -8,8 +8,10 @@
   flex: 1;
   min-height: 0; /* the Groups fit the window; Panels scroll */
   /* Nor does the page: dockview draws Views over their Groups, and those of tabs not shown yet
-     where it has not placed them, below the others, past the window. */
-  overflow: hidden;
+     where it has not placed them, below the others, past the window. Clipped, not hidden: a box
+     hiding what overflows can still be scrolled, by `scrollIntoView` or focus in a View, which
+     moved the tabs and bars out of sight. */
+  overflow: clip;
 }
 
 .banner,
