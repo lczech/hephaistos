@@ -547,6 +547,21 @@ describe("the Checkouts in the Graph View", () => {
     expect(went).not.toHaveBeenCalled();
   });
 
+  it("says no longer that a HEAD is not shown once a refresh shows it", async () => {
+    const graph = { ...GRAPH, heads: [MAIN, elsewhere("lost", "q")] };
+    let pages = [COMMITS];
+    serveGraph({ graph, pages: () => pages, worktrees: ["lost"] });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(chip("Worktree lost"));
+    await screen.findByText("The HEAD of lost is not among the commits shown");
+    pages = [[commit("q", ["m"]), ...COMMITS]]; // its branch shown again, by git or by hand
+    await userEvent.click(screen.getByRole("button", { name: /^Refresh/ }));
+    await screen.findByText("Commit q");
+    expect(screen.queryByText(/is not among the commits shown/)).toBeNull();
+    expect(chip("Worktree lost")).not.toHaveAttribute("data-missed");
+  });
+
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
     let release = () => {};
     const hold = new Promise<void>((resolve) => {

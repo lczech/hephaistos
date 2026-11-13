@@ -154,7 +154,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   // those laid out ahead do not have it: a tag elsewhere is not looked for page after page.
   const [towards, setTowards] = useState<Towards | null>(null);
   const [slow, setSlow] = useState(false);
-  const [missed, setMissed] = useState<Towards | null>(null);
+  const [missedOnce, setMissed] = useState<Towards | null>(null);
   const [handled, setHandled] = useState<string | undefined>(undefined);
   const go = (target: { key: string; name: string; commit: string | null | undefined }) => {
     setMissed(null);
@@ -183,6 +183,8 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const { hasNextPage, isFetching, fetchNextPage } = history;
   // The row gone to, once listed: what is not committed above its commit, if any, else that.
   const ids = new Set(listed.map(entryId));
+  // Missed no longer once it shows, e.g. after a refresh brought it back.
+  const missed = missedOnce !== null && !ids.has(missedOnce.commit) ? missedOnce : null;
   const reached =
     towards === null || !ids.has(towards.commit)
       ? undefined
