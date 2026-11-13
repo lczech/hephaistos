@@ -6,6 +6,11 @@ import type { Bend, LaneColour, Layout, Line, NodeKind } from "./lanes";
 export const LANE = 12; // px per lane
 const MOST_FITTED = 8; // lanes the column fits until resized; more are cut off at its edge
 const SIZE = 14; // px of the box a node is drawn in
+// How far solid lines start above their row's top, under the end of those of the row above, so
+// that no seam shows where rows meet at a fraction of a pixel: in px below a row's first line, in
+// the units of its first line's half height (some 11px) in it.
+const OVER = 2;
+const OVER_HEAD = 0.2;
 
 /** The width of the graph column fitted to its lanes, until resized. */
 export function fittedWidth(lanes: number): number {
@@ -46,9 +51,9 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
         preserveAspectRatio="none"
       >
         {passing.map((line) => (
-          <Straight key={`p${line.lane}`} line={line} from={0} to={2} />
+          <Straight key={`p${line.lane}`} line={line} from={over(line)} to={2} />
         ))}
-        {graph.above && <Straight line={graph.above} from={0} to={1} />}
+        {graph.above && <Straight line={graph.above} from={over(graph.above)} to={1} />}
         {graph.into.map((bend) => (
           <Curve key={`i${bend.from}`} bend={bend} into />
         ))}
@@ -177,7 +182,7 @@ function Below({ lines, width, className }: BelowProps) {
             key={line.lane}
             x1={x(line.lane)}
             x2={x(line.lane)}
-            y1="0"
+            y1={line.dashed ? 0 : -OVER}
             y2="100%"
             {...stroke(line.colour, line.dashed)}
           />
@@ -186,6 +191,9 @@ function Below({ lines, width, className }: BelowProps) {
     </span>
   );
 }
+
+/** Where a straight line in a row's first line starts: a solid one above the row. */
+const over = (line: Line) => (line.dashed ? 0 : -OVER_HEAD);
 
 function Straight({ line, from, to }: { line: Line; from: number; to: number }) {
   return (
@@ -205,7 +213,9 @@ function Straight({ line, from, to }: { line: Line; from: number; to: number }) 
 function Curve({ bend, into }: { bend: Bend; into: boolean }) {
   const from = x(bend.from);
   const to = x(bend.to);
-  const d = into ? `M${from} 0 Q${from} 1 ${to} 1` : `M${from} 1 Q${to} 1 ${to} 2`;
+  const d = into
+    ? `M${from} ${bend.dashed ? 0 : -OVER_HEAD} V0 Q${from} 1 ${to} 1`
+    : `M${from} 1 Q${to} 1 ${to} 2`;
   return (
     <path
       d={d}

@@ -160,6 +160,7 @@ Lanes waiting for the same parent stay apart until it comes, so that a branch jo
 Where a lane passes a row is kept once per lane, as the rows it spans, so that a row looks up only its own.
 A commit listed below its parent, as the default order of git may list with clocks apart, draws no line to it rather than one that never ends.
 Each row draws its part across its whole height (`Graph.tsx`), in two lines too; the node is in the middle of its first line; lanes go on beside the details opened below it.
+A row's solid lines start a little above it, under the ends of the row above's, so that no seam shows where rows meet at a fraction of a pixel.
 Nodes are drawn as most graphs draw them: a commit a dot, a merge a ring around a dot, HEAD a larger, thicker ring, what is not committed a dotted ring, joined to HEAD by a dotted line.
 
 Colours:

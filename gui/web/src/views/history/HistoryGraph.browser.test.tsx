@@ -135,6 +135,35 @@ describe.each(["columns", "lines"] as const)("the graph of History in %s", (layo
     });
   });
 
+  it("starts a row's solid lanes above its top, under the row above's, so no seam shows", async () => {
+    await history(layout);
+    // Rows meet at a fraction of a pixel, where the ends of two lines, each rounded or smoothed,
+    // left a gap or a lighter seam; overlapping, they leave none.
+    // Below HEAD, whose line from what is not committed is dashed: those of b, c, d and f.
+    for (const item of items().slice(2)) {
+      const rail = item.querySelector('[data-graph="row"]') as Element;
+      const solid = [...rail.querySelectorAll("line, path")].filter(
+        (line) => !line.getAttribute("stroke-dasharray") && box(line).top < box(rail).top + 1,
+      );
+      expect(solid.length).toBeGreaterThan(0);
+      for (const line of solid) expect(box(line).top).toBeLessThan(box(rail).top - 1);
+      // Not cut off at the row's top on the way: by the rail, nor by what it is placed in; a
+      // cell between, not placed, does not cut it.
+      const clips = (element: Element) => getComputedStyle(element).overflowY !== "visible";
+      for (let up = solid[0]?.parentElement; up && up !== rail; up = up.parentElement) {
+        expect(clips(up)).toBe(false);
+      }
+      expect(clips(rail)).toBe(false);
+      for (
+        let up = (rail as HTMLElement).offsetParent;
+        up && up !== item && item.contains(up);
+        up = (up as HTMLElement).offsetParent
+      ) {
+        expect(clips(up)).toBe(false);
+      }
+    }
+  });
+
   it("draws the lanes going on beside a commit's details, lined up with the rows", async () => {
     await history(layout);
     await userEvent.click(screen.getByText("Commit c"));
@@ -150,6 +179,10 @@ describe.each(["columns", "lines"] as const)("the graph of History in %s", (layo
     const own = opened.querySelector('[data-graph="row"] > span:has(svg)') as Element;
     expect(linesX(beside as Element)).toHaveLength(2);
     expect(linesX(beside as Element)).toEqual(linesX(own));
+    // From above its top, under the row's lines, as a row's own do.
+    for (const line of (beside as Element).querySelectorAll("line")) {
+      expect(box(line).top).toBeLessThan(box(beside).top - 1);
+    }
     // The details start after the graph, not over it.
     expect(box(details).left).toBeGreaterThanOrEqual(box(beside).right);
   });

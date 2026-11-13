@@ -15,12 +15,14 @@
   top: 0;
   bottom: 0;
   width: var(--graph-width);
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible; /* its lines start above it, under the row above's (`OVER`) */
   pointer-events: none;
 }
 
 .rail svg {
   display: block;
+  overflow: visible;
   stroke-width: var(--graph-stroke);
 }
 
@@ -64,8 +66,10 @@
 }
 
 .tail svg,
-.fill svg {
+.fill svg,
+.beside svg {
   display: block;
+  overflow: visible;
   stroke-width: var(--graph-stroke);
 }
 
@@ -86,6 +90,12 @@
   left: var(--node-x);
 }
 
+/* Straight lines drawn to whole pixels, sharp however the column falls. Curves stay smooth. */
+.rail line,
+.beside line {
+  shape-rendering: crispEdges;
+}
+
 .ring {
   fill: var(--background);
 }
@@ -97,6 +107,7 @@
   right: calc(100% + var(--details-border) + var(--column-gap));
   bottom: calc(-1 * var(--space-2) - var(--details-border));
   width: var(--graph-width);
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   pointer-events: none;
 }
