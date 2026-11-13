@@ -87,8 +87,27 @@ Each step its own commits, stopping for review.
    2. the Graph View: its list with the default branch pinned, its order and refresh, its title, the links from Repositories and History;
    3. Worktrees: rings, badges, uncommitted rows, chips, and loading towards a HEAD;
    4. the branch filter.
+3. Two small changes asked for meanwhile: the edges of the columns of a list shown at rest; a toggle in Changes folding all directories.
+4. Branch tips only:
+   1. the walk of the Daemon and its API;
+   2. the count rows and the toggle in the Graph View;
+   3. going to a stretch from its row, and the docs.
 
-Branch tips only and compact lanes, planned as step 3, are ideas for later (user, 2026-11-13): [ideas](../ideas/views.md#history).
+Compact lanes are an idea for later (user, 2026-11-13): [ideas](../ideas/views.md#history).
+
+## Branch tips only
+
+Settled with the user, 2026-11-13:
+- A toggle in the bar of the Graph View, off by default, kept in the address (`tips=only`): Lucide `unfold-vertical`, "Show all commits", and `fold-vertical`, "Show branch tips only, the commits between counted"; the title says it ("Graph: hephaistos, tips only, 2 hidden"); in both orders; not in History.
+- Kept: the tips of the branches shown, the HEADs of the Checkouts, the tip of the default branch, the first commit, and each commit where lines drawn part or join.
+  A line is drawn only where it leads to a commit kept: the side of a merge whose branch is gone is not, its commits counted in the stretch it was merged into.
+  Hidden branches keep no tips; what is not committed stays above its HEAD.
+- Worked out by the Daemon over the whole walk, in memory, from one `git rev-list --parents` (0.2 s on the repository of git, with its commit-graph file), behind a parameter of the request of the Graph View; tens of commits, in one answer without pages.
+  Measured (`.agents/scratch/git-graph/tips-only/`): hephaistos keeps 9 of 387 commits; on the repository of git, keeping every merge and fork kept 31,069 of 86,216, which the rule above avoids.
+- A stretch is a row of its own, right below its newer commit: the lane through it dashed, without a node; "12 commits", muted, and the dates of its newest and oldest commits ("Oct 3 – Nov 10"); the other columns empty.
+  It counts what the newer commit has that the older has not, as ahead and behind do.
+  Its tooltip: "12 commits of feature between abc1234 and def5678: a click shows them".
+- A click on a stretch, or Enter on it, shows all commits again and goes to its newer commit, at the top, the hidden ones below it; chips go to their HEADs, always kept; "Go to…" a commit hidden shows all commits and goes to it.
 
 ## Done
 
