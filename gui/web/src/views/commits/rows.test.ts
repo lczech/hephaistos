@@ -179,4 +179,28 @@ describe("the tips of a graph's lines above a row", () => {
     // History's HEAD, though without refs, has its badge.
     expect(tipsAt(bare, 0, "z").tips.map((tip) => tip.id)).toEqual(["z"]);
   });
+
+  it("gives the same tips, a row on, with a commit added on top, as pages load anew", () => {
+    const [first, ...rest] = listed;
+    const added = graphOf([first as Entry, ...entries([commit("n", ["f"])]), ...rest], undefined, {
+      heads: new Set(["f", "m"]),
+      pinned: "m",
+    });
+    // n above f: below x's row, a row lower now, the same lines and tips, by the same IDs.
+    const before = tipsAt(drawn, 3, undefined);
+    const after = tipsAt(added, 4, undefined);
+    expect(after.tips.map((tip) => tip.id)).toEqual(before.tips.map((tip) => tip.id));
+    expect(after.lines.map((line) => line.lane)).toEqual(before.lines.map((line) => line.lane));
+  });
+
+  it("keeps a line waiting for a parent not listed, e.g. a page missed, its tip still there", () => {
+    const gap = graphOf(
+      entries([commit("t", ["p"], [ref("topic", "branch")]), commit("m", ["b"]), commit("b", [])]),
+      undefined,
+      { heads: new Set() },
+    );
+    const { lines, tips } = tipsAt(gap, 2, undefined);
+    expect(lines.map((line) => [line.lane, line.start])).toEqual([[0, 0]]); // t's, waiting on
+    expect(tips.map((tip) => tip.id)).toEqual(["t"]);
+  });
 });

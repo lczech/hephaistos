@@ -1305,6 +1305,38 @@ describe("a list's band, below its header", () => {
     }
   });
 
+  it("stays on the row at the top as rows come before it, and moves on as that goes", async () => {
+    const many = Array.from({ length: 100 }, (_, at) => `fruit ${at + 1}`);
+    const { rerender } = render(<Fruity band names={many} />);
+    frameOf().scrollTop = 200;
+    await waitFor(() => expect(bandOf()).toHaveTextContent(/^below fruit \d+/));
+    const top = /^below (fruit \d+)/.exec(bandOf()?.textContent ?? "")?.[1] ?? "";
+    const more = Array.from({ length: 5 }, (_, at) => `new ${at + 1}`);
+    rerender(<Fruity band names={[...more, ...many]} />); // e.g. new commits on top
+    await drawn();
+    expect(bandOf()).toHaveTextContent(new RegExp(`^below ${top}(,|$)`));
+    rerender(<Fruity band names={[...more, ...many].filter((name) => name !== top)} />); // gone
+    await drawn();
+    expect(bandOf()).toHaveTextContent(/^below (new|fruit) \d+/);
+    expect(bandOf()).not.toHaveTextContent(new RegExp(`^below ${top}(,|$)`));
+  });
+
+  it("in two lines, is a row's first line high, and rows gone to come below it", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    render(<Fruity band layout="lines" handle={handle} />);
+    handle.current?.goTo("fruit 20");
+    await waitFor(() => expect(focusedText()).toBe("fruit 20"));
+    await waitFor(() => expect(bandOf()).toHaveTextContent(/^below fruit 19$/));
+    const band = boxOf(bandOf());
+    const own = ownRowOf("fruit 20");
+    const name = own.querySelector('[data-column="name"]')?.getBoundingClientRect();
+    expect(own.getBoundingClientRect().top).toBeCloseTo(band?.bottom ?? 0, 0);
+    // As high as the first line, with its room above and below: here the whole row, as no
+    // fruit has a second.
+    expect((name?.top ?? 0) - own.getBoundingClientRect().top).toBeGreaterThan(0);
+    expect(band?.height ?? 0).toBeCloseTo(own.getBoundingClientRect().height, 0);
+  });
+
   it("hides with the Panel it is in, as dockview hides those not shown", async () => {
     render(
       <div style={{ visibility: "hidden" }}>

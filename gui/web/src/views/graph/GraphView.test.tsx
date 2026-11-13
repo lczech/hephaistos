@@ -96,12 +96,12 @@ const GRAPH: Schemas["GraphJson"] = {
 };
 
 interface Served {
-  graph?: Schemas["GraphJson"];
+  graph?: Schemas["GraphJson"] | (() => Schemas["GraphJson"]); // as `pages`
   // The pages of commits, in order; asked again for each request, as a repository changes.
   pages?: Commit[][] | (() => Commit[][]);
   only?: Record<string, string[]>; // commits only on a branch, left out of a walk hiding it
-  clone?: Partial<Schemas["CloneJson"]>;
-  worktrees?: string[];
+  clone?: Partial<Schemas["CloneJson"]> | (() => Partial<Schemas["CloneJson"]>); // as `pages`
+  worktrees?: string[] | (() => string[]); // as `pages`
   // Pages after the first wait for it; or, as a function, each page asked for, from `skip`.
   hold?: Promise<void> | ((skip: number) => Promise<void> | undefined);
   holdLines?: Promise<void>; // the lines laid out ahead wait for it
@@ -124,12 +124,15 @@ function serveGraph({
   };
   return serve({
     "GET /api/info": () => json(info()),
-    "GET /api/repositories": () =>
-      json([
+    "GET /api/repositories": () => {
+      const names = typeof worktrees === "function" ? worktrees() : worktrees;
+      const more = typeof fields === "function" ? fields() : fields;
+      return json([
         repository("proj", [
-          clone("proj", { worktrees: worktrees.map((name) => worktree("proj", name)), ...fields }),
+          clone("proj", { worktrees: names.map((name) => worktree("proj", name)), ...more }),
         ]),
-      ]),
+      ]);
+    },
     "GET /api/history": async (request) => {
       const asked = new URL(request.url).searchParams;
       const skip = Number(asked.get("skip") ?? 0);
@@ -169,7 +172,7 @@ function serveGraph({
         found: null,
       });
     },
-    "GET /api/graph": () => json(graph),
+    "GET /api/graph": () => json(typeof graph === "function" ? graph() : graph),
     "GET /api/graph/lines": async (request) => {
       if (holdLines) await holdLines;
       const asked = new URL(request.url).searchParams;
@@ -408,23 +411,32 @@ describe("the Checkouts in the Graph View", () => {
       await new Promise((done) => setTimeout(done, 100)); // a while, for what git takes
       first.release();
       older.release();
+      // The pages asked for after: from the walk as it is now, none from where it was.
+      return () =>
+        requests
+          .slice(before)
+          .filter((request) => new URL(request.url).pathname === "/api/history")
+          .map((request) => new URL(request.url).searchParams.get("skip") ?? "0");
+    }
+
+    /** Gone to old's HEAD, its commit at the top, once there. */
+    async function wentToOld() {
       await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
       expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
-      // The pages asked for after: from the walk as it is now, none from where it was.
-      return requests
-        .slice(before)
-        .filter((request) => new URL(request.url).pathname === "/api/history")
-        .map((request) => new URL(request.url).searchParams.get("skip") ?? "0");
     }
 
     it("lists a commit made meanwhile, its loading not cut short by the next page's", async () => {
-      const skips = await refreshedOnTheWay([[commit("n", ["f"]), ...COMMITS], OLD]);
+      const asked = await refreshedOnTheWay([[commit("n", ["f"]), ...COMMITS], OLD]);
+      await wentToOld();
+      const skips = asked();
       expect(screen.getByText("Commit n")).toBeInTheDocument();
       expect(skips).not.toContain("3");
     });
 
     it("loads on from where the walk is after a reset, not past commits", async () => {
-      const skips = await refreshedOnTheWay([COMMITS.slice(1), OLD]); // f reset away
+      const asked = await refreshedOnTheWay([COMMITS.slice(1), OLD]); // f reset away
+      await wentToOld();
+      const skips = asked();
       await waitFor(() => expect(screen.queryByText("Commit f")).toBeNull());
       expect(skips).not.toContain("3");
       expect(listRows().map((row) => row.textContent?.match(/Commit \w/)?.[0])).toEqual([
@@ -432,6 +444,14 @@ describe("the Checkouts in the Graph View", () => {
         "Commit b",
         "Commit o",
       ]);
+    });
+
+    it("says its HEAD is not among the commits shown once a rewrite removed it", async () => {
+      await refreshedOnTheWay([COMMITS]); // old's commit gone, e.g. its Worktree reset
+      expect(
+        await screen.findByText("The HEAD of old is not among the commits shown"),
+      ).toBeTruthy();
+      expect(went).not.toHaveBeenCalled();
     });
   });
 
@@ -602,6 +622,105 @@ describe("the Checkouts in the Graph View", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       /^graph\?at=wt-proj-feature&clone=clone-proj$/,
     );
+  });
+});
+
+describe("the Graph View as its repository changes", () => {
+  const MAIN_BRANCH = { name: "main", commit: hash("m"), ahead: null, behind: null, against: null };
+  // A row's subject: a commit's, named by a letter, or what is not committed.
+  const subjects = () =>
+    listRows().map(
+      (row) =>
+        row.textContent?.match(/Commit [a-z](?![a-z])|Uncommitted in proj: \d+ changed/)?.[0],
+    );
+
+  it("shows a rebase once told: the old commits gone, the branch and its HEAD moved", async () => {
+    let rebased = false;
+    const after = [commit("g", ["m"], { refs: [branch("feature", "g")] }), ...COMMITS.slice(1)];
+    const moved = {
+      ...GRAPH,
+      branches: [
+        { name: "feature", commit: hash("g"), ahead: 1, behind: 0, against: "main" },
+        MAIN_BRANCH,
+      ],
+      heads: [MAIN, { ...FEATURE, commit: hash("g"), behind: 0 }],
+    };
+    serveGraph({
+      pages: () => [rebased ? after : COMMITS],
+      graph: () => (rebased ? moved : GRAPH),
+    });
+    const { client } = renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit f");
+    rebased = true;
+    await client.invalidateQueries(); // as a live hint does
+    await screen.findByText("Commit g");
+    expect(subjects()).toEqual(["Commit g", "Commit m", "Commit b"]);
+    expect(
+      within(listRows()[0] as HTMLElement).getByTitle("branch, checked out in worktree feature"),
+    ).toBeInTheDocument();
+    expect(chip("Worktree feature")).toHaveAttribute(
+      "title",
+      expect.stringContaining("1 ahead of main;"),
+    );
+  });
+
+  it("moves what is not committed above its HEAD as it moves, gone while clean", async () => {
+    let step = 0;
+    const committed = [
+      commit("n", ["m"], { refs: [branch("main", "n")] }),
+      ...COMMITS.map((each) => ({ ...each, refs: each.hash === hash("m") ? [] : each.refs })),
+    ];
+    const moved = {
+      ...GRAPH,
+      branches: [GRAPH.branches[0] ?? MAIN_BRANCH, { ...MAIN_BRANCH, commit: hash("n") }],
+      heads: [{ ...MAIN, commit: hash("n") }, FEATURE],
+    };
+    serveGraph({
+      pages: () => [step === 0 ? COMMITS : committed],
+      graph: () => (step === 0 ? GRAPH : moved),
+      clone: () => ({ changed: [2, 0, 1][step] ?? 0 }),
+    });
+    const { client } = renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Uncommitted in proj: 2 changed");
+    expect(subjects()).toEqual([
+      "Commit f",
+      "Uncommitted in proj: 2 changed",
+      "Commit m",
+      "Commit b",
+    ]);
+    step = 1; // committed
+    await client.invalidateQueries();
+    await screen.findByText("Commit n");
+    await waitFor(() => expect(screen.queryByText(/^Uncommitted in proj/)).toBeNull());
+    step = 2; // changed again
+    await client.invalidateQueries();
+    await screen.findByText("Uncommitted in proj: 1 changed");
+    expect(subjects()).toEqual([
+      "Uncommitted in proj: 1 changed",
+      "Commit n",
+      "Commit f",
+      "Commit m",
+      "Commit b",
+    ]);
+  });
+
+  it("drops the chip of a Worktree removed, its branch drawn as any other", async () => {
+    let removed = false;
+    serveGraph({
+      graph: () => (removed ? { ...GRAPH, heads: [MAIN] } : GRAPH),
+      worktrees: () => (removed ? [] : ["feature"]),
+    });
+    const { client } = renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit f");
+    expect(chip("Worktree feature")).toBeInTheDocument();
+    removed = true;
+    await client.invalidateQueries();
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Worktree feature" })).toBeNull(),
+    );
+    expect(screen.queryByTitle("branch, checked out in worktree feature")).toBeNull();
+    expect(screen.getByText("feature")).toBeInTheDocument(); // its badge, as a branch's
+    expect(nodes().map((node) => node.kind)).toEqual(["commit", "head", "commit"]);
   });
 });
 
