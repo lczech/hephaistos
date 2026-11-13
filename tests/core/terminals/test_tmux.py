@@ -397,6 +397,16 @@ def test_what_a_session_shows(keeper: TmuxKeeper, tmp_path: Path) -> None:
     assert not keeper.shows(api, pane_tty(keeper, "other"))
 
 
+def test_a_dead_pane_shows_nothing(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """tmux keeps the name of the pty it closed, which the next pane, of any program, may get:
+    attaching there loops nothing."""
+    build = new(keeper, "build", tmp_path, "sh", "-c", "exit 3")
+    tty = tmux(keeper, "display-message", "-p", "-t", build.key, "#{pane_tty}").strip()
+    ending(keeper, "build")
+    assert tmux(keeper, "display-message", "-p", "-t", build.key, "#{pane_tty}").strip() == tty
+    assert not keeper.shows(build, tty)
+
+
 def test_nothing_shows_without_a_server(keeper: TmuxKeeper, tmp_path: Path) -> None:
     api = new(keeper, "api", tmp_path)
     tmux(keeper, "kill-server")

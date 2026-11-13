@@ -699,14 +699,16 @@ class TmuxKeeper:
     def shows(self, session: Session, tty: str) -> bool:
         """Whether `session` shows the terminal at `tty`; see `Keeper.shows`.
 
-        From its panes to the sessions that clients in them show, and on, by their ttys.
+        From its panes to the sessions that clients in them show, and on, by their ttys. Not by
+        those of dead panes: tmux keeps the name of a pty it closed, which another may have now.
         """
         self.check()
-        panes = self._listed("list-panes", "-a", "-F", "#{session_id}\t#{pane_tty}")
+        live = "#{session_id}\t#{?pane_dead,,#{pane_tty}}"
+        panes = self._listed("list-panes", "-a", "-F", live)
         clients = self._listed("list-clients", "-F", "#{session_id}\t#{client_tty}")
         inside, ttys = {session.key}, set[str]()
         while True:
-            ttys = {pane for key, pane in panes if key in inside}
+            ttys = {pane for key, pane in panes if key in inside and pane}
             shown = {key for key, client in clients if client in ttys} - inside
             if not shown:
                 return tty in ttys

@@ -159,6 +159,7 @@ Its row then holds no command, as it runs a shell.
 Two attaching to the same lost Terminal at once both attach to it: the second finds it restored by the first.
 
 Attaching is refused at a tty that the Terminal shows, where its output would loop back into it (`Keeper.shows`): one of its panes, or that of another Terminal attached in it, and so on, by the clients of tmux and their ttys.
+Dead panes count for none: tmux keeps the name of the pty it closed, which another pane, of any program, may have now.
 tmux refuses the same only with `TMUX` set, which no Terminal has.
 A Terminal shown through a tmux of the user, e.g. one started inside it, is not found that way, as tmux itself does not find it across servers.
 `terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile, and to the last screen of a command already ended; a shell that exited already says so.
