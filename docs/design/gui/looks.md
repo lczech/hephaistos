@@ -43,7 +43,7 @@ The desktop app's window, before its page loads, follows the system.
 - Content marked is the accent (`--fill-marked`), the only fill in it: a row whose View is shown, the Revision picked.
 - What is on or marked is a step stronger again under the pointer or the keys (`--fill-on-hover`, `--fill-marked-hover`).
 - Keyboard focus outlines a control in the accent.
-- A resize line is grey under the pointer and the accent while dragged.
+- A resize line, in the header between columns, is a thin line as high as the text (`--line`); under the pointer, wider, darker grey and as high as the header; the accent while dragged.
 
 The accent, orange, marks important current state, in the GUI or coming from git.
 It is the highlight colour for what should be visible at a glance.

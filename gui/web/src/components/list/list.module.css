@@ -392,9 +392,11 @@
   cursor: col-resize;
   touch-action: none;
   user-select: none;
+  background: linear-gradient(var(--line), var(--line)) center / var(--space-hair) 1lh no-repeat;
 }
 
-/* A line in the gap: grey under the pointer, the accent while dragged. */
+/* A line in the gap: thin and as high as the text, so that it can be found; under the pointer
+   wider, darker and the whole height, which it can be dragged by; the accent while dragged. */
 .resizer:hover {
   background:
     linear-gradient(var(--fill-on-hover), var(--fill-on-hover)) center / var(--space-half) 100%

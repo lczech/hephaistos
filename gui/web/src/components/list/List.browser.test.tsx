@@ -95,6 +95,20 @@ function Long({ name, width, after = 0 }: { name: string; width: number; after?:
   );
 }
 
+describe("a column's edge", () => {
+  it("shows a thin line as high as the text, the whole height under the pointer", async () => {
+    render(<Long name="a fruit" width={800} />);
+    const edge = document.querySelector('[data-column="name"] hr') as HTMLElement;
+    const size = () => getComputedStyle(edge).backgroundSize;
+    const [width, height] = size().split(" ").map(Number.parseFloat);
+    expect(width).toBe(1);
+    expect(height).toBeCloseTo(Number.parseFloat(getComputedStyle(edge).lineHeight), 1);
+    await pointer.hover(edge);
+    await waitFor(() => expect(size()).toMatch(/^\d+(\.\d+)?px 100%$/));
+    expect(size()).not.toMatch(/^1px /);
+  });
+});
+
 describe("a column's edge, double-clicked", () => {
   const nameWidth = () => document.querySelector('[data-column="name"]')?.clientWidth ?? 0;
   const fitName = () =>
