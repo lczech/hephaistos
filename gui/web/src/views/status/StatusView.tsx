@@ -66,7 +66,6 @@ function Checks({ checks }: { checks: CheckJson[] }) {
             <Quoted text={check.text} />
             {check.fix !== null && (
               <span className={styles.fix}>
-                {" "}
                 → <Quoted text={check.fix} />
               </span>
             )}

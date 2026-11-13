@@ -65,6 +65,7 @@ The Config View lists the settings, with their values and where each comes from.
 
 The Status View shows the setup of this Machine, its Daemon and what runs, as `hephaistos status` does ([Status](../daemon/status.md)).
 - Setup lists the checks, which the Daemon runs when the View is shown, and again as the page gains focus or the connection comes back, while it is shown; and one of this GUI itself: whether it fits the API the Daemon runs.
+  What a check found is followed by what to do, on the line below.
 - About lists the versions and the system; "Copy Setup and About" copies both as Markdown, every check included without what to do, the home directory as `~` where it starts a path.
 - Paths lists where the Daemon keeps its files ([status](../daemon/status.md#paths)), the home directory as `~`, each followed by a button that copies it in full; below it, what it holds, and its size.
   Copy Setup and About leaves them out, as they name the user.

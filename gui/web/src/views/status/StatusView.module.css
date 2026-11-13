@@ -107,7 +107,9 @@
   color: var(--text-muted);
 }
 
+/* What to do, on the line below what the check found. */
 .fix {
+  display: block;
   color: var(--text-muted);
 }
 

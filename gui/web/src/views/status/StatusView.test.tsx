@@ -50,9 +50,11 @@ describe("the Status View", () => {
     renderWithQueries(<App />);
     const linger = (await screen.findByText("linger")).closest("li");
     expect(linger).toHaveAttribute("data-outcome", "problem");
-    expect(
-      within(linger as HTMLElement).getByText("hephaistos daemon install --linger"),
-    ).toHaveProperty("tagName", "CODE");
+    const fix = within(linger as HTMLElement).getByText("hephaistos daemon install --linger");
+    expect(fix).toHaveProperty("tagName", "CODE");
+    // An element of its own, after what the check found: its style puts it on the line below.
+    expect(fix.parentElement).toHaveTextContent(/^→ hephaistos daemon install --linger runs it/);
+    expect(fix.parentElement?.parentElement).toHaveTextContent(/^off: the daemon.*→ hephaistos/);
     expect(screen.getByText("ionice").closest("li")).toHaveAttribute("data-outcome", "note");
     expect(screen.getByText("gui").closest("li")).toHaveTextContent(/built for API/);
     const asked = (path: string) => requests.filter((r) => new URL(r.url).pathname === path).length;
