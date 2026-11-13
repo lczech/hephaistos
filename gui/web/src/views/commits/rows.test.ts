@@ -67,7 +67,8 @@ describe("the graph of a list of commits", () => {
       commit("b", []),
     ]);
     const { layout } = graphOf(listed, "m", { heads: new Set(["m"]) });
-    // t is awaited by the merge's lane, which no branch names: muted, by the commit it leads to.
+    // t is awaited by the lane of the merge, which no branch names: muted, by the commit it
+    // leads to.
     expect(layout.rows[1]?.colour).toEqual({ kind: "hue", hue: hueOf("t"), muted: true });
     const tip = graphOf(
       entries([commit("x", ["b"]), commit("t", ["b"], [ref("topic", "branch")]), commit("b", [])]),
@@ -115,7 +116,7 @@ describe("a graph with a pinned branch", () => {
 });
 
 describe("the tips of a graph's lines above a row", () => {
-  // A Worktree's uncommitted changes above f, on feature; main pinned at m, which merged x.
+  // The uncommitted changes of a Worktree above f, on feature; main pinned at m, which merged x.
   const checkout = { worktree: "wt-f" };
   const listed: Entry[] = [
     { type: "uncommitted", text: "Uncommitted in f", of: { checkout, head: "f", key: "wt" } },
@@ -130,11 +131,11 @@ describe("the tips of a graph's lines above a row", () => {
   const drawn = graphOf(listed, undefined, { heads: new Set(["f", "m"]), pinned: "m" });
 
   it("gives those with badges by lane, what is not committed by its HEAD's", () => {
-    const { lines, tips } = tipsAt(drawn, 3, undefined); // x's row
+    const { lines, tips } = tipsAt(drawn, 3, undefined); // the row of x
     expect(lines.map((line) => [line.lane, line.start])).toEqual([
       [0, 2],
       [1, 0],
-      [2, null], // opened by m's merge: a line alone
+      [2, null], // opened by the merge m: a line alone
     ]);
     expect(tips.map(({ lane, row, id, node }) => ({ lane, row, id, node }))).toEqual([
       { lane: 0, row: 2, id: "m", node: "head" },
@@ -145,13 +146,13 @@ describe("the tips of a graph's lines above a row", () => {
   });
 
   it("adds the tip of the row coming in below, by its lane, if it starts a line", () => {
-    // m's row below the uncommitted changes and f: m starts main's line.
+    // The row of m below the uncommitted changes and f: m starts the line of main.
     const { tips } = tipsAt(drawn, 1, undefined, 2);
     expect(tips.map(({ id, lane, coming }) => [id, lane, coming ?? false])).toEqual([
       ["m", 0, true],
       ["uncommitted:wt", 1, false],
     ]);
-    // x's line was opened by m's merge: no tip of its own.
+    // The line of x was opened by the merge m: no tip of its own.
     expect(tipsAt(drawn, 2, undefined, 3).tips.map((tip) => tip.id)).toEqual([
       "m",
       "uncommitted:wt",
@@ -159,7 +160,8 @@ describe("the tips of a graph's lines above a row", () => {
   });
 
   it("marks those whose lines end in the row coming in below, which pushes them out", () => {
-    // b, below x's row, takes main's line; feature's, from the uncommitted changes, ends there.
+    // b, below the row of x, takes the line of main; that of feature, from the uncommitted changes,
+    // ends there.
     const { tips } = tipsAt(drawn, 3, undefined, 4);
     expect(tips.map(({ id, leaving }) => [id, leaving ?? false])).toEqual([
       ["m", false],
@@ -176,7 +178,7 @@ describe("the tips of a graph's lines above a row", () => {
     const { lines, tips } = tipsAt(bare, 0, undefined);
     expect(lines.map((line) => line.lane)).toEqual([0]);
     expect(tips).toEqual([]);
-    // History's HEAD, though without refs, has its badge.
+    // The HEAD of History, though without refs, has its badge.
     expect(tipsAt(bare, 0, "z").tips.map((tip) => tip.id)).toEqual(["z"]);
   });
 
@@ -186,7 +188,7 @@ describe("the tips of a graph's lines above a row", () => {
       heads: new Set(["f", "m"]),
       pinned: "m",
     });
-    // n above f: below x's row, a row lower now, the same lines and tips, by the same IDs.
+    // n above f: below the row of x, a row lower now, the same lines and tips, by the same IDs.
     const before = tipsAt(drawn, 3, undefined);
     const after = tipsAt(added, 4, undefined);
     expect(after.tips.map((tip) => tip.id)).toEqual(before.tips.map((tip) => tip.id));
@@ -200,7 +202,7 @@ describe("the tips of a graph's lines above a row", () => {
       { heads: new Set() },
     );
     const { lines, tips } = tipsAt(gap, 2, undefined);
-    expect(lines.map((line) => [line.lane, line.start])).toEqual([[0, 0]]); // t's, waiting on
+    expect(lines.map((line) => [line.lane, line.start])).toEqual([[0, 0]]); // that of t, waiting on
     expect(tips.map((tip) => tip.id)).toEqual(["t"]);
   });
 });

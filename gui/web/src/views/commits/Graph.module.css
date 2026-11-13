@@ -1,7 +1,7 @@
 /*
- * A row's part of a commit graph (`Graph.tsx`): across the whole row, from the cell of the graph
- * column, cut off at its width (`--graph-width`). Its first line's height is twice the height of
- * the node's middle (`--graph-node-y`, set by the list).
+ * The part of a commit graph in a row (`Graph.tsx`): across the whole row, from the cell of the
+ * graph column, cut off at its width (`--graph-width`). The height of its first line is twice the
+ * height of the middle of the node (`--graph-node-y`, set by the list).
  */
 .rail,
 .beside {
@@ -16,7 +16,7 @@
   bottom: 0;
   width: var(--graph-width);
   overflow-x: clip;
-  overflow-y: visible; /* its lines start above it, under the row above's (`OVER`) */
+  overflow-y: visible; /* its lines start above it, under those of the row above (`OVER`) */
   pointer-events: none;
 }
 
@@ -44,8 +44,8 @@
   top: calc(2 * var(--graph-node-y));
 }
 
-/* In a graph's band (`GraphTips`): a line, from a node or the top, to the row coming in or the
- * end; and that row's own part, from where it starts, as it is below. */
+/* In the band of a graph (`GraphTips`): a line, from a node or the top, to the row coming in or
+ * the end; and the part of that row itself, from where it starts, as it is below. */
 .segment {
   position: absolute;
   top: var(--from);
@@ -73,8 +73,8 @@
   stroke-width: var(--graph-stroke);
 }
 
-/* In a graph's band, while a row comes in: the background in a tip's lane, from the top to its
- * node, over that row's line from its top. */
+/* In the band of a graph, while a row comes in: the background in the lane of a tip, from the top
+ * to its node, over the line of that row from its top. */
 .cap {
   position: absolute;
   top: 0;

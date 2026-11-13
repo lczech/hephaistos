@@ -66,7 +66,7 @@ export function GoToRevision({
           else setOpen(opening);
         }}
       >
-        {/* Our own button, for its tooltip: React Aria's has none. */}
+        {/* Our own button, for its tooltip: that of React Aria has none. */}
         <Pressable>
           <button
             type="button"

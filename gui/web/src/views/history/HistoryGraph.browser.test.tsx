@@ -80,12 +80,12 @@ const box = (element: Element | null | undefined) => {
   if (!element) throw new Error("missing element");
   return element.getBoundingClientRect();
 };
-// The rows listed, drawn: not the header's, nor copies of rows stuck, which have no index.
+// The rows listed, drawn: not that of the header, nor copies of rows stuck, which have no index.
 const items = () => [...document.querySelectorAll<HTMLElement>("[role=row][data-index]")];
 const rowOf = (item: Element) => item.querySelector(":scope > div");
 const middle = (rect: DOMRect) => rect.top + rect.height / 2;
 
-/** The x of each vertical line drawn in an element's SVGs, on the page. */
+/** The x of each vertical line drawn in the SVGs of an element, on the page. */
 function linesX(element: Element): number[] {
   return [...element.querySelectorAll("line")]
     .filter((line) => line.getAttribute("x1") === line.getAttribute("x2"))
@@ -147,7 +147,7 @@ describe.each(["columns", "lines"] as const)("the graph of History in %s", (layo
       );
       expect(solid.length).toBeGreaterThan(0);
       for (const line of solid) expect(box(line).top).toBeLessThan(box(rail).top - 1);
-      // Not cut off at the row's top on the way: by the rail, nor by what it is placed in; a
+      // Not cut off at the top of the row on the way: by the rail, nor by what it is placed in; a
       // cell between, not placed, does not cut it.
       const clips = (element: Element) => getComputedStyle(element).overflowY !== "visible";
       for (let up = solid[0]?.parentElement; up && up !== rail; up = up.parentElement) {
@@ -171,15 +171,15 @@ describe.each(["columns", "lines"] as const)("the graph of History in %s", (layo
     const opened = details.closest("[role=row]") as HTMLElement;
     const beside = details.querySelector('[data-graph="beside"]');
     const below = items()[items().indexOf(opened) + 1];
-    // From the row's bottom to the next row's top, where the same lanes go on: once the rows
-    // below are placed anew, the opened one measured.
+    // From the bottom of the row to the top of the next row, where the same lanes go on: once the
+    // rows below are placed anew, the opened one measured.
     await expect.poll(() => Math.abs(box(beside).bottom - box(below).top)).toBeLessThan(0.5);
     expect(Math.abs(box(beside).top - box(rowOf(opened)).bottom)).toBeLessThan(0.5);
-    // HEAD's line, and f's going on to b, where the row's own lanes leave it.
+    // The line of HEAD, and that of f going on to b, where the lanes of the row itself leave it.
     const own = opened.querySelector('[data-graph="row"] > span:has(svg)') as Element;
     expect(linesX(beside as Element)).toHaveLength(2);
     expect(linesX(beside as Element)).toEqual(linesX(own));
-    // From above its top, under the row's lines, as a row's own do.
+    // From above its top, under the lines of the row, as the lines of a row itself do.
     for (const line of (beside as Element).querySelectorAll("line")) {
       expect(box(line).top).toBeLessThan(box(beside).top - 1);
     }

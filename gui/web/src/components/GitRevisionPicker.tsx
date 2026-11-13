@@ -66,13 +66,13 @@ const ALL_SHOWS = { refs: 5, commits: 10 };
 const MORE = "more:"; // a row leading to a tab, `more:<tab>:<section>`: an ID no Revision has
 const SHORT_HASH = /^[0-9a-f]{4,40}$/i;
 
-/** Whose commits are offered: HEAD's, every branch's and tag's, or those of the walk of a graph,
+/** Whose commits are offered: those of HEAD, of every branch and tag, or of the walk of a graph,
  * in its order, as it lists them. */
 export type CommitsFrom = "head" | "everywhere" | Pick<HistoryQuery, "branches" | "hide" | "order">;
 
 /** A Revision picked: as named to git, the commit it is at where known, and as shown. */
 export interface Picked {
-  revision: string; // `HEAD`, `index`, `working-tree`, a full ref name or a commit's hash
+  revision: string; // `HEAD`, `index`, `working-tree`, a full ref name or the hash of a commit
   commit: string | undefined; // undefined for a fixed row
   name: string; // `main`, `abc1234`, `HEAD (main)`, or what was typed
 }
@@ -89,7 +89,7 @@ interface ListProps {
   commitsFrom: CommitsFrom;
   /** Whether remote-tracking branches are offered with the branches; by default they are. */
   withRemotes?: boolean;
-  /** The refs as known already, until the list's own come. */
+  /** The refs as known already, until those of the list come. */
   known?: KnownRefs;
   onPick: (picked: Picked) => void;
 }
@@ -97,7 +97,7 @@ interface ListProps {
 interface GitRevisionPickerProps extends Omit<ListProps, "value" | "onPick"> {
   title?: string;
   className?: string;
-  /** A Revision: `HEAD`, `index`, `working-tree`, a full ref name or a commit's hash. */
+  /** A Revision: `HEAD`, `index`, `working-tree`, a full ref name or the hash of a commit. */
   value: string;
   onChange: (revision: string) => void;
 }

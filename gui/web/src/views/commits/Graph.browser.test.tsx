@@ -5,7 +5,7 @@ import { GraphTips } from "./Graph";
 import styles from "./Graph.module.css";
 import { Layout, type NodeKind } from "./lanes";
 
-// A graph's band as browsers draw it, while the row below comes in under it.
+// The band of a graph as browsers draw it, while the row below comes in under it.
 
 const BACKGROUND = "rgb(1, 2, 3)";
 
@@ -48,7 +48,7 @@ describe("a graph's band", () => {
     const { rail, caps } = band({ by: 0 }, 2);
     const node = rail.querySelector(":scope > svg[data-node]");
     const next = rail.querySelector(`.${styles.next}`);
-    // The row coming in is drawn from its top, its line from above the tip's node too.
+    // The row coming in is drawn from its top, its line from above the node of the tip too.
     const own = next?.querySelector("line") as Element;
     expect(box(own).top).toBeLessThan(box(node).top);
     expect(caps).toHaveLength(1);
@@ -59,7 +59,7 @@ describe("a graph's band", () => {
     expect(box(cap).left).toBeLessThanOrEqual(x - 1);
     expect(box(cap).right).toBeGreaterThanOrEqual(x + 1);
     expect(getComputedStyle(cap).backgroundColor).toBe(BACKGROUND);
-    // Over the row coming in, below the tip's node.
+    // Over the row coming in, below the node of the tip.
     const children = [...rail.children];
     expect(children.indexOf(cap as HTMLElement)).toBeGreaterThan(children.indexOf(next as Element));
     expect(children.indexOf(cap as HTMLElement)).toBeLessThan(children.indexOf(node as Element));

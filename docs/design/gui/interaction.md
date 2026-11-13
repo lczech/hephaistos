@@ -120,7 +120,7 @@ Its list (`RevisionPopover`) is made each time it opens; two buttons open it: on
 All comes first: a few of each, with a row leading to their tab.
 Typing shows All, filtered.
 Refs are filtered in the browser and ranked: the same name, starting with it, at a word's start, within.
-Commits are searched by the Server, from HEAD, everywhere, or in a graph's walk.
+Commits are searched by the Server, from HEAD, everywhere, or in the walk of a graph.
 An exact name, or a hash's commit, comes on top.
 A kind's tab lists all of it, virtualized; commits load more on scrolling.
 Enter picks the first row; with none, it resolves the text as git does.

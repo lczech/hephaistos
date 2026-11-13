@@ -735,10 +735,10 @@
   content: "";
 }
 
-/* A row of the View's own below the header once the rows scroll under it (`band`), as high as a
- * row's first line, and what the View's rows may have more (`--band-more`), e.g. framed labels:
- * on the background, over the rows, as the rows stuck are; drawn while hidden too, so that its
- * height is known for the rows gone to below it. */
+/* A row of the View itself below the header once the rows scroll under it (`band`), as high as
+ * the first line of a row, and what the rows of the View may have more (`--band-more`), e.g.
+ * framed labels: on the background, over the rows, as the rows stuck are; drawn while hidden too,
+ * so that its height is known for the rows gone to below it. */
 .band {
   position: sticky;
   top: var(--stuck-top);

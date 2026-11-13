@@ -305,7 +305,8 @@ def test_by_date_lines_interleave_and_topologically_each_keeps_together(forked: 
 
 
 def test_orders_list_children_before_parents_even_with_clocks_apart(tmp_path: Path) -> None:
-    """P is newer than C, its child: git's own order lists P first, the graph's orders after C."""
+    """P is newer than C, its child: the default order of git lists P first, those of the graph
+    after C."""
     repo = create(tmp_path / "skewed", commits=0)
     p = _dated(repo, "P", [], 3000)
     c = _dated(repo, "C", [p], 1000)  # committed on a machine whose clock was behind

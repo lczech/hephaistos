@@ -11,11 +11,12 @@ export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
 export type Found = Schemas["FoundCommitJson"];
 
-/** What is not committed in a Checkout, above its HEAD: History's own, or one of a Graph's. */
+/** What is not committed in a Checkout, above its HEAD: that of History, or one of those of a
+ * Graph. */
 export interface Uncommitted {
   type: "uncommitted";
   text: string;
-  of?: { checkout: Checkout; head: string; key: string }; // a Graph's: its Checkout and HEAD
+  of?: { checkout: Checkout; head: string; key: string }; // of a Graph: its Checkout and HEAD
 }
 
 /** A commit as a graph lays it out: listed, or only walked (`/api/graph/lines`). */
@@ -26,7 +27,7 @@ export type Line = Pick<Commit, "hash" | "parents" | "refs">;
 export type Laid = Uncommitted | { type: "commit"; commit: Line } | { type: "found" | "renamed" };
 
 export type Entry =
-  | Uncommitted // above the commits, when HEAD's are shown
+  | Uncommitted // above the commits, when those of HEAD are shown
   | { type: "found"; found: Found } // a commit searched for by its hash, not among them
   | { type: "commit"; commit: Commit }
   | { type: "renamed"; commit: string; from: string }; // below the commit that renamed it
@@ -66,12 +67,13 @@ export function entryId(entry: Entry): string {
   return entry.type === "commit" ? entry.commit.hash : `renamed:${entry.commit}`;
 }
 
-/** The ID of the row of what is not committed: History's own, or a Graph's, by its Checkout. */
+/** The ID of the row of what is not committed: that of History, or of a Graph, by its Checkout. */
 function uncommittedId(entry: Uncommitted): string {
   return entry.of ? `uncommitted:${entry.of.key}` : "uncommitted";
 }
 
-/** What a Checkout's State says is not committed, in words; empty for a bare Clone, or none. */
+/** What the State of a Checkout says is not committed, in words; empty for a bare Clone, or
+ * none. */
 export function uncommittedIn(
   state:
     | {
@@ -125,9 +127,9 @@ export interface Drawn {
 }
 
 /**
- * How a list draws its graph: HEAD's commit and the others drawn as HEADs, and which line takes
- * lane 0 and the accent: the first, as History's from where it starts, or a pinned commit's, as
- * the Graph View's default branch; none, `pinned` without one.
+ * How a list draws its graph: the commit of HEAD and the others drawn as HEADs, and which line
+ * takes lane 0 and the accent: the first, as that of History from where it starts, or that of a
+ * pinned commit, as the default branch of the Graph View; none, `pinned` without one.
  */
 export interface Drawing {
   heads: ReadonlySet<string>;
@@ -138,8 +140,8 @@ export interface Drawing {
   hidden?: ReadonlySet<string>; // local branches hidden: without badges, naming no lane
 }
 
-/** A Checkout of a Clone, as a Graph marks where it is: on its branch's badge, or by a HEAD badge
- * of its own when detached. */
+/** A Checkout of a Clone, as a Graph marks where it is: on the badge of its branch, or by a HEAD
+ * badge of its own when detached. */
 export interface CheckedOut {
   name: string; // the folder of the Clone or Worktree
   path: string; // where it is, telling apart Checkouts in folders of the same name
@@ -149,8 +151,8 @@ export interface CheckedOut {
 }
 
 /**
- * The graph of these entries, newest first: their commits, and above HEAD's what is not
- * committed. Other entries have no row in it.
+ * The graph of these entries, newest first: their commits, and above the commit of HEAD what is
+ * not committed. Other entries have no row in it.
  */
 export function graphOf(
   entries: readonly Laid[],
@@ -179,7 +181,8 @@ export function graphOf(
 }
 
 /** The tip of a line, where it starts: its row and ID, its node, the commit its badges are of
- * (HEAD's, for what is not committed above it), and its line's lane and colour below a row. */
+ * (that of HEAD, for what is not committed above it), and the lane and colour of its line below a
+ * row. */
 export interface Tip {
   row: number;
   id: string;
@@ -193,9 +196,10 @@ export interface Tip {
 
 /**
  * The lines going on below row `row`, and the tips of those that start in it or above it, by
- * lane: each with badges, its commit's refs or a Checkout's HEAD detached there. The others, and
- * those a merge opened, pass as lines alone. With `next`, the row below, coming in, its tip too,
- * if it starts a line with badges; and those whose lines end in it are marked as leaving.
+ * lane: each with badges, the refs of its commit or the HEAD of a Checkout detached there. The
+ * others, and those a merge opened, pass as lines alone. With `next`, the row below, coming in,
+ * its tip too, if it starts a line with badges; and those whose lines end in it are marked as
+ * leaving.
  */
 export function tipsAt(
   drawn: Drawn,
@@ -248,7 +252,7 @@ export function shownRefs(refs: Ref[], drawing: Drawing | undefined): Ref[] {
   return refs.filter((ref) => ref.kind !== "branch" || !hidden.has(ref.name));
 }
 
-/** The branch a commit's lane is named by: a local one, else a remote one by its own name. */
+/** The branch the lane of a commit is named by: a local one, else a remote one by its own name. */
 export function branchOf(refs: Ref[]): string | undefined {
   const local = refs.find((ref) => ref.kind === "branch");
   if (local) return local.name;

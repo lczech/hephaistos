@@ -62,7 +62,7 @@ describe("a list with more to load", () => {
     const fetchNextPage = vi.fn();
     const { rerender } = render(<Fruits fetchNextPage={fetchNextPage} isFetching />);
     screen.getByText("Older fruits load as you scroll.").scrollIntoView();
-    await new Promise((done) => setTimeout(done, 200)); // the observer's first report
+    await new Promise((done) => setTimeout(done, 200)); // the first report of the observer
     expect(fetchNextPage).not.toHaveBeenCalled();
     rerender(<Fruits fetchNextPage={fetchNextPage} />);
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalledOnce());
@@ -1296,7 +1296,7 @@ describe("a list's band, below its header", () => {
     render(<Fruity band />);
     await drawn();
     expect(bandOf()).toBeNull(); // at the top: the first row itself shows
-    frameOf().scrollTop = 20; // past the list's room above the header, which scrolls first
+    frameOf().scrollTop = 20; // past the room of the list above the header, which scrolls first
     await waitFor(() => expect(bandOf()).toHaveTextContent("below fruit 1"));
     const head = headOf().getBoundingClientRect();
     const row = ownRowOf("fruit 1").getBoundingClientRect();

@@ -180,7 +180,7 @@ def _starts(walk: Next, known: Refs, starts: Sequence[str] | None = None) -> lis
     return [*_EVERYWHERE, "--end-of-options", *([known.head] if known.head else [])]
 
 
-def _log(  # noqa: PLR0913 - all of a walk's choices
+def _log(  # noqa: PLR0913 - all the choices of a walk
     top: Path,
     walk: Next,
     count: int,
@@ -205,7 +205,7 @@ def _log(  # noqa: PLR0913 - all of a walk's choices
     return _commits(output, known)
 
 
-def _oldest(  # noqa: PLR0913 - all of a walk's choices
+def _oldest(  # noqa: PLR0913 - all the choices of a walk
     top: Path,
     walk: Next,
     page: list[Commit],
@@ -247,7 +247,7 @@ def _start(top: Path, ref: str | None) -> str | None:
     raise HistoryError(git.missing_revision_text(top, ref))
 
 
-def _first(  # noqa: PLR0913 - all of a walk's choices
+def _first(  # noqa: PLR0913 - all the choices of a walk
     top: Path,
     ref: str | None,
     path: str | None,
@@ -256,7 +256,7 @@ def _first(  # noqa: PLR0913 - all of a walk's choices
     everywhere: bool,
     starts: Sequence[str] | None,
 ) -> Next | None:
-    """Where a walk's first page starts; None if it has no commits."""
+    """Where the first page of a walk starts; None if it has no commits."""
     if starts is not None:
         return Next(None, path, 0) if starts else None
     if everywhere:
@@ -280,10 +280,10 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
     """Up to `limit` commits of the Checkout at `top`, from `ref` (or HEAD) back.
 
     Or, `everywhere`, from all branches, remote-tracking branches and tags; or from `starts`,
-    full ref names and commits, e.g. the branches a graph shows (`graph.starts`). In `git log`'s
-    order, or `order`: by date or topologically, each commit only after all its children; only
-    those that changed `path`, if given, following a file's renames, and whose message has the
-    words of `search`. `after` goes on where a page ended, for the same search and order.
+    full ref names and commits, e.g. the branches a graph shows (`graph.starts`). In the order of
+    `git log`, or `order`: by date or topologically, each commit only after all its children; only
+    those that changed `path`, if given, following the renames of a file, and whose message has
+    the words of `search`. `after` goes on where a page ended, for the same search and order.
     """
     if sum((ref is not None, everywhere, starts is not None)) > 1:
         raise HistoryError("give a ref, everywhere or starts, not more than one")
@@ -332,8 +332,8 @@ def lines(
 
     Up to `limit`, and only until each commit of `until` has come, e.g. the HEADs of Checkouts
     whose place in the graph is wanted: all of the walk if one of them is not on it. For many
-    commits at once: their hashes and parents only, from git's commit-graph file where written,
-    read as git writes them, so that git stops as soon as they have come.
+    commits at once: their hashes and parents only, from the commit-graph file of git where
+    written, read as git writes them, so that git stops as soon as they have come.
     """
     if not starts:
         return ()

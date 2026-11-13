@@ -11,7 +11,7 @@
 
 import { hueOf } from "../../hues";
 
-/** A row's commit, or the uncommitted changes of a Worktree, whose parent is its HEAD. */
+/** The commit of a row, or the uncommitted changes of a Worktree, whose parent is its HEAD. */
 export interface GraphNode {
   hash: string;
   parents: readonly string[];
@@ -24,7 +24,7 @@ export type LaneColour = { kind: "accent" } | { kind: "hue"; hue: number; muted:
 
 export type NodeKind = "commit" | "merge" | "head" | "uncommitted";
 
-/** A lane through a row: its column, its colour, and dashed where it is not a commit's own. */
+/** A lane through a row: its column, its colour, and dashed where it is not that of a commit. */
 export interface Line {
   lane: number;
   colour: LaneColour;
@@ -32,7 +32,7 @@ export interface Line {
   start: number | null; // the row of the tip its line starts at; null for a line a merge opened
 }
 
-/** A line bending in a row's half: from a column to another; dashed and started as `Line`. */
+/** A line bending in half of a row: from a column to another; dashed and started as `Line`. */
 export interface Bend {
   from: number;
   to: number;
@@ -48,7 +48,7 @@ export interface RowGraph {
   start: number | null; // the row of the tip of its line: its own if it starts one; as `Line`
   above: Line | null; // its own lane, coming down into the node
   into: Bend[]; // in the top half: other lanes that end in the node
-  out: Bend[]; // in the bottom half: from the node to each parent's lane, the first one's own
+  out: Bend[]; // in the bottom half: from the node to the lane of each parent, the first straight down
   width: number; // the columns its node, bends and passing lanes take
 }
 
@@ -67,7 +67,7 @@ interface Lane {
   start: number | null; // as `Line`
 }
 
-/** A lane's room: below row `from` down to above row `to`; open lanes have no `to` yet. */
+/** The room of a lane: below row `from` down to above row `to`; open lanes have no `to` yet. */
 interface Span {
   lane: number;
   colour: LaneColour;
@@ -85,14 +85,14 @@ function mutedFor(hash: string): LaneColour {
 }
 
 /**
- * The graph of commits listed newest first, children before their parents (git's topological or
- * date order). A child listed after its parent, as git's default order may list with clocks
- * apart, draws no line to it rather than one that never ends.
+ * The graph of commits listed newest first, children before their parents (the topological or
+ * date order of git). A child listed after its parent, as the default order of git may list with
+ * clocks apart, draws no line to it rather than one that never ends.
  */
 export class Layout {
   readonly rows: RowGraph[] = [];
   private lanes: (Lane | null)[] = [];
-  private waiting = new Map<string, number[]>(); // a commit's hash → the lanes awaiting it
+  private waiting = new Map<string, number[]>(); // the hash of a commit → the lanes awaiting it
   private seen = new Set<string>();
   private spans: Span[] = [];
   private buckets: Span[][] | null = null; // spans by the buckets of rows they pass; built lazily
@@ -267,7 +267,7 @@ export class Layout {
     return node.parents.length > 1 ? "merge" : "commit";
   }
 
-  /** The colour of a lane starting at a node no lane awaited: a branch's, or lane 0's. */
+  /** The colour of a lane starting at a node no lane awaited: that of a branch, or of lane 0. */
   private colourStarting(lane: number, row: number, node: GraphNode): LaneColour {
     if (this.options.accent === "first" && lane === 0 && row === 0) return { kind: "accent" };
     if (node.branch !== undefined) return { kind: "hue", hue: hueOf(node.branch), muted: false };

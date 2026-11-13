@@ -6,13 +6,13 @@ import { type Params, paramValues, withParam } from "../address";
 /** The orders a graph can be drawn in: each commit only after all its children. */
 export type Order = "topo" | "date";
 
-/** The order a View's parameters ask for (`order`), else `fallback`. */
+/** The order the parameters of a View ask for (`order`), else `fallback`. */
 export function orderOf(params: Params, fallback: Order): Order {
   const [asked] = paramValues(params.order);
   return asked === "topo" || asked === "date" ? asked : fallback;
 }
 
-/** The parameters with `order`, left out where it is the View's own. */
+/** The parameters with `order`, left out where it is that of the View itself. */
 export function withOrder(params: Params, order: Order, fallback: Order): Params {
   return withParam(params, "order", order === fallback ? [] : [order]);
 }

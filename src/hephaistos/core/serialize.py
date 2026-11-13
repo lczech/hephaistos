@@ -943,13 +943,13 @@ class GraphLineJson(TypedDict):
 
 
 class GraphLinesJson(TypedDict):
-    """The commits of a graph's walk, newest first, as it lays them out."""
+    """The commits of the walk of a graph, newest first, as it lays them out."""
 
     commits: list[GraphLineJson]
 
 
 def graph_lines_json(found: Iterable[history.Line]) -> GraphLinesJson:
-    """The commits of a graph's walk, as the API gives them."""
+    """The commits of the walk of a graph, as the API gives them."""
     return GraphLinesJson(
         commits=[
             GraphLineJson(

@@ -232,7 +232,7 @@ describe("the Graph View", () => {
     ]);
     expect(asked(requests, "/api/graph").get("clone")).toBe("clone-proj");
     expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj");
-    // feature, the newest, beside main's lane 0; both HEADs of Checkouts, drawn larger.
+    // feature, the newest, beside lane 0, that of main; both HEADs of Checkouts, drawn larger.
     expect(nodes()).toEqual([
       { kind: "head", x: "11px" },
       { kind: "head", x: "-1px" },
@@ -333,7 +333,7 @@ describe("the Checkouts in the Graph View", () => {
   });
 
   it("marks the chip of a HEAD on another branch's line in that line's colour", async () => {
-    // old's HEAD is on main's line, below main's tip: in the accent, as its badge.
+    // The HEAD of old is on the line of main, below the tip of main: in the accent, as its badge.
     const old: Head = { ...FEATURE, path: "/home/me/proj/.worktrees/old", branch: "old" };
     const graph = {
       ...GRAPH,
@@ -379,8 +379,9 @@ describe("the Checkouts in the Graph View", () => {
     const OLD = [commit("o", [])];
 
     /**
-     * Goes to old's HEAD on a page held back, then refreshes with the walk changed so: the walk's
-     * first page held back too, as git takes a while, while the page before may be asked for.
+     * Goes to the HEAD of old on a page held back, then refreshes with the walk changed so: the
+     * first page of the walk held back too, as git takes a while, while the page before may be
+     * asked for.
      */
     async function refreshedOnTheWay(changed: Commit[][]) {
       const held = () => {
@@ -419,7 +420,7 @@ describe("the Checkouts in the Graph View", () => {
           .map((request) => new URL(request.url).searchParams.get("skip") ?? "0");
     }
 
-    /** Gone to old's HEAD, its commit at the top, once there. */
+    /** Gone to the HEAD of old, its commit at the top, once there. */
     async function wentToOld() {
       await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
       expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
@@ -447,7 +448,7 @@ describe("the Checkouts in the Graph View", () => {
     });
 
     it("says its HEAD is not among the commits shown once a rewrite removed it", async () => {
-      await refreshedOnTheWay([COMMITS]); // old's commit gone, e.g. its Worktree reset
+      await refreshedOnTheWay([COMMITS]); // the commit of old gone, e.g. its Worktree reset
       expect(
         await screen.findByText("The HEAD of old is not among the commits shown"),
       ).toBeTruthy();
@@ -567,7 +568,7 @@ describe("the Checkouts in the Graph View", () => {
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
     await screen.findByText("Commit b");
     await expectSettled();
-    // feature's HEAD on no line walked: waited for, the lines would be walked to their limit
+    // The HEAD of feature on no line walked: waited for, the lines would be walked to their limit
     expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("m")]);
   });
 
@@ -660,7 +661,7 @@ describe("the Checkouts in the Graph View", () => {
     await screen.findByText("Commit b");
     expect(screen.queryByTitle("branch, checked out in clone proj")).toBeNull();
     expect(screen.getByTitle("branch, checked out in worktree feature")).toBeInTheDocument();
-    // feature in lane 0, main's commit beside it: no lane kept for it
+    // feature in lane 0, the commit of main beside it: no lane kept for it
     expect(nodes()).toEqual([
       { kind: "head", x: "-1px" },
       { kind: "head", x: "11px" },
@@ -688,7 +689,7 @@ describe("the Checkouts in the Graph View", () => {
 
 describe("the Graph View as its repository changes", () => {
   const MAIN_BRANCH = { name: "main", commit: hash("m"), ahead: null, behind: null, against: null };
-  // A row's subject: a commit's, named by a letter, or what is not committed.
+  // The subject of a row: that of a commit, named by a letter, or what is not committed.
   const subjects = () =>
     listRows().map(
       (row) =>
@@ -780,7 +781,7 @@ describe("the Graph View as its repository changes", () => {
       expect(screen.queryByRole("button", { name: "Worktree feature" })).toBeNull(),
     );
     expect(screen.queryByTitle("branch, checked out in worktree feature")).toBeNull();
-    expect(screen.getByText("feature")).toBeInTheDocument(); // its badge, as a branch's
+    expect(screen.getByText("feature")).toBeInTheDocument(); // its badge, as that of a branch
     expect(nodes().map((node) => node.kind)).toEqual(["commit", "head", "commit"]);
   });
 });
@@ -812,7 +813,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     await waitFor(() => expect(document.activeElement).toHaveTextContent("Commit o"));
     expect(goTo()).toHaveTextContent("Go to…"); // holding nothing
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // nor kept
-    // Its commits are searched for in the Graph's walk; remote branches not offered.
+    // Its commits are searched for in the walk of the Graph; remote branches not offered.
     const searched = requests
       .map((request) => new URL(request.url))
       .filter((url) => url.pathname === "/api/history" && url.searchParams.has("everywhere"));

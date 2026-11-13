@@ -132,7 +132,7 @@ def run(
         try:
             stdout, stderr = process.communicate(stdin, timeout=timeout)
         except subprocess.TimeoutExpired:
-            # Its output not read on: what git started may hold it open, e.g. an alias's command.
+            # Its output not read on: what git started may hold it open, e.g. an alias command.
             _stop(process, group=False)
             raise _timed_out(path, args, started, timeout) from None
     result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
@@ -235,7 +235,7 @@ def _stop(process: subprocess.Popen[bytes] | subprocess.Popen[str], *, group: bo
     """Stops git, with what it started if in a `group` of its own.
 
     Asked first (SIGTERM), on which git removes its lock files, e.g. of a commit-graph file being
-    written, which would block the user's git; killed only if still running after STOP_GRACE.
+    written, which would block git for the user; killed only if still running after STOP_GRACE.
     """
 
     def send(number: signal.Signals) -> None:

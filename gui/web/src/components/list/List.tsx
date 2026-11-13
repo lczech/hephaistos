@@ -65,7 +65,7 @@ export interface ListHandle {
 }
 
 /**
- * Of an endless list: whether there is more, and how to get it (as TanStack Query's); whether
+ * Of an endless list: whether there is more, and how to get it (as that of TanStack Query); whether
  * any page is being fetched, e.g. all anew as what they show changed, which the next page waits
  * for: asked for meanwhile, it would cut that short, from where the pages were before.
  */
@@ -108,10 +108,10 @@ interface Props<TData extends RowData> {
   menu?: (row: TData) => { label: string; groups: RowAction[][] } | undefined; // its menu, if any
   ahead?: (row: TData) => void; // pointed at or focused: to ask for what opening it shows
   seen?: (row: TData) => void; // come into view, or near it: to ask for what it shows
-  // A row of the View's own, below the header once the rows scroll under it, from the row at
-  // the top, and the row below while it comes in under it, `at` down from the band's top, of
-  // its `height`: its cells by column, e.g. a graph's tips above; none if null. Not part of a
-  // page.
+  // A row of the View itself, below the header once the rows scroll under it, from the row at
+  // the top, and the row below while it comes in under it, `at` down from the top of the band,
+  // of its `height`: its cells by column, e.g. the tips of a graph above; none if null. Not part
+  // of a page.
   band?: (
     top: TData,
     next?: { row: TData; at: number; height: number },
@@ -141,7 +141,7 @@ interface Props<TData extends RowData> {
  * shown while it is pointed at or focused, and a menu (the right button, or the menu key: its
  * first item focused then); `ahead` is called as a row is pointed at or focused, to ask for what
  * opening it shows, `seen` as it is drawn, near the view, to ask for what it shows.
- * `compact` rows stand closer together. A `band` of the View's stays below the header once the
+ * `compact` rows stand closer together. A `band` of the View stays below the header once the
  * rows scroll under it, drawn from the row at the top; rows stuck and gone to come below it.
  */
 export function List<TData extends RowData>({

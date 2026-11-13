@@ -130,7 +130,7 @@ export const FoldersFolded = createLucideIcon({
 });
 
 /** Commits in topological order, each line of them together: two lines of commits, one joining
- * the other, with Lucide's `clock-arrow-down`'s arrow, as date order shows it. */
+ * the other, with the arrow of `clock-arrow-down` from Lucide, as date order shows it. */
 export const GitGraphArrowDown = createLucideIcon({
   name: "git-graph-arrow-down",
   node: [
@@ -144,8 +144,9 @@ export const GitGraphArrowDown = createLucideIcon({
   ],
 });
 
-/** A graph of branches, as the Graph View draws them: two branches' tips, the right one's line
- * joining the left one's, which goes on down. Lucide's `git-graph` reads as a fork. */
+/** A graph of branches, as the Graph View draws them: the tips of two branches, the line of the
+ * right one joining that of the left one, which goes on down. The `git-graph` of Lucide reads as
+ * a fork. */
 export const GitTipsJoining = createLucideIcon({
   name: "git-tips-joining",
   node: [

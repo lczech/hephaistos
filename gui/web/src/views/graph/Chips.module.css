@@ -8,8 +8,8 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* As the bar's buttons, marked at its start in the colour of its HEAD's line: the room for that
-   kept while it is not known, so that nothing moves once it is. */
+/* As the buttons of the bar, marked at its start in the colour of the line of its HEAD: the room
+   for that kept while it is not known, so that nothing moves once it is. */
 .chip {
   --chip-mark: 0.25rem;
   display: inline-flex;

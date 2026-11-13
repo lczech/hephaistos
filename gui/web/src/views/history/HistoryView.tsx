@@ -78,7 +78,7 @@ export function HistoryView({ params, setParams, endTyping, setTitle }: ViewProp
   const showOn = (other: string) => setParams({ ...params, ref: other });
   const allFiles = () => setParams(withParam(params, "path", []));
   const [layout, setLayout] = useListLayout("history");
-  // The Graph of the Clone, at this Checkout's HEAD if a Worktree.
+  // The Graph of the Clone, at the HEAD of this Checkout if a Worktree.
   const clone = checkout && cloneOf(repositories.data, checkout);
   const graphParams =
     checkout && clone

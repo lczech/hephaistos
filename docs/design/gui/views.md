@@ -44,7 +44,7 @@ A Diff's file header names the file and its lines, not the comparison again.
 ## Repositories
 
 The Repositories View lists the Repositories, their Clones and Worktrees as a tree, each with its state and activity.
-A Checkout's row links to its Events and its files in the Explorer, then to what git has of it: its History, Graph, Changes and Diff; that of a Worktree to the Graph of its Clone, at its HEAD (`at`).
+The row of a Checkout links to its Events and its files in the Explorer, then to what git has of it: its History, Graph, Changes and Diff; that of a Worktree to the Graph of its Clone, at its HEAD (`at`).
 
 ## Events
 
@@ -147,7 +147,7 @@ A row opens all about its commit: the commit box, also under a commit's Changes 
 While HEAD's commits show, a row above them says what is not committed, with its Changes and Diff.
 A commit's Changes and Diff (`changes?clone=…&commit=…`, `diff?…&commit=…`) are against its first parent.
 They say if no branch or tag leads to the commit any more, and what amends of it led to.
-History opens from the row of a Checkout in Repositories, and from the bars of its Changes and of a file's Diff; its bar links to the Graph of its Clone.
+History opens from the row of a Checkout in Repositories, and from the bars of its Changes and of the Diff of a file; its bar links to the Graph of its Clone.
 
 ### The graph
 
@@ -160,7 +160,7 @@ Lanes waiting for the same parent stay apart until it comes, so that a branch jo
 Where a lane passes a row is kept once per lane, as the rows it spans, so that a row looks up only its own.
 A commit listed below its parent, as the default order of git may list with clocks apart, draws no line to it rather than one that never ends.
 Each row draws its part across its whole height (`Graph.tsx`), in two lines too; the node is in the middle of its first line; lanes go on beside the details opened below it.
-A row's solid lines start a little above it, under the ends of the row above's, so that no seam shows where rows meet at a fraction of a pixel.
+The solid lines of a row start a little above it, under the ends of those of the row above, so that no seam shows where rows meet at a fraction of a pixel.
 Nodes are drawn as most graphs draw them: a commit a dot, a merge a ring around a dot, HEAD a larger, thicker ring, what is not committed a dotted ring, joined to HEAD by a dotted line.
 
 Colours:
@@ -187,13 +187,13 @@ Its default branch keeps lane 0 and the accent, pinned to the left from the top,
 Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, whether it shows Worktrees only, and how many branches are hidden.
-Once its rows scroll under the header, a row stays below it, as sticky headers do: the tips of the lines going on below the row at the top that start in it or above it, their nodes in their lanes, their badges by lane, in one line cut off at the end of the column; a tip slides into it with its row, its node and badges, and stays as its row passes under; while a row comes in under it, that row's part of the graph is drawn in it as it is, but not above a tip that stays, and a tip whose line ends in that row is pushed out by it; lines without a badge, or opened by a merge, pass; a click on a tip's badges goes to it, and rows gone to come below the row (`tipsBand`).
+Once its rows scroll under the header, a row stays below it, as sticky headers do: the tips of the lines going on below the row at the top that start in it or above it, their nodes in their lanes, their badges by lane, in one line cut off at the end of the column; a tip slides into it with its row, its node and badges, and stays as its row passes under; while a row comes in under it, the part of the graph in that row is drawn in it as it is, but not above a tip that stays, and a tip whose line ends in that row is pushed out by it; lines without a badge, or opened by a merge, pass; a click on the badges of a tip goes to it, and rows gone to come below the row (`tipsBand`).
 
 Its Checkouts:
 - the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a badge of its own, `detached`, with the HEAD icon and where; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;
 - what is not committed in a Checkout, from its State, has a row above its HEAD, with links to its Changes and Diff;
-- below the bar, a chip per Checkout, neutral as the bar's buttons, marked at its start in the colour of the line its HEAD is on, as its badge is framed: its name, its branch or `detached at abc1234` in the words of git, and how far it is ahead of the default branch and behind it (`↑3 ↓12`, zero parts left out; the default branch against its upstream), said in words in its tooltip;
-- the lines of the HEADs come from `/api/graph/lines`, laid out ahead of the list as it will lay them out, up to 10,000 commits, until all HEADs have come: a line's colour comes only from the rows above it, a HEAD's line may be another branch's, and a HEAD may be far below the first page; until then a chip has no mark, but on the default branch the accent, whose line is pinned from the top;
+- below the bar, a chip per Checkout, neutral as the buttons of the bar, marked at its start in the colour of the line its HEAD is on, as its badge is framed: its name, its branch or `detached at abc1234` in the words of git, and how far it is ahead of the default branch and behind it (`↑3 ↓12`, zero parts left out; the default branch against its upstream), said in words in its tooltip;
+- the lines of the HEADs come from `/api/graph/lines`, laid out ahead of the list as it will lay them out, up to 10,000 commits, until all HEADs have come: the colour of a line comes only from the rows above it, the line of a HEAD may be that of another branch, and a HEAD may be far below the first page; until then a chip has no mark, but on the default branch the accent, whose line is pinned from the top;
 - a click on a chip goes to its HEAD: older pages load until its row is listed, then it comes in at the top, with what is not committed above it, flashed as a tab is, and focused, unless the focus went elsewhere meanwhile, e.g. to a terminal; the focus ring shows only once keys are used; after 300 ms, as most are done by then, the chip turns, its tooltip and a live region saying how far, and a click on it stops, as Escape in the View does; its chip says with a warning if no page lists it; a note above the list would move it;
 - the chip of the Checkout the Graph is at is marked, filled as a toggle that is on: the Clone, or a Worktree (`at`), as opened from its row in Repositories; a click on a chip is a jump only, and keeps the address;
 - the chip of a Checkout whose branch is hidden is faint; a click shows the branch again.

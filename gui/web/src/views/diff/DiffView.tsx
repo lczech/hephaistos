@@ -130,7 +130,7 @@ export function DiffView({
       ? {}
       : { ...checkout, ...base, ...(path !== undefined && { path }) };
   const listed = useChanges(listQuery);
-  const branch = listed.data?.branch; // HEAD's, naming it in the pickers
+  const branch = listed.data?.branch; // that of HEAD, naming it in the pickers
   const error = useKeptError(listed, listQuery);
   // One file's diff, as its section asks for it: also says whether the Checkout is gone.
   const fileQuery = path === undefined ? undefined : query;

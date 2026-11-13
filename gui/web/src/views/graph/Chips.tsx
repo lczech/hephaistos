@@ -16,7 +16,7 @@ export interface Chip {
   ahead: number | null;
   behind: number | null;
   against: string | null;
-  colour: string | undefined; // of its HEAD's line; undefined while not known
+  colour: string | undefined; // of the line of its HEAD; undefined while not known
   hidden: boolean; // its branch is hidden by the filter
 }
 

@@ -1446,7 +1446,7 @@
         "type": "object"
       },
       "GraphLinesJson": {
-        "description": "The commits of a graph's walk, newest first, as it lays them out.",
+        "description": "The commits of the walk of a graph, newest first, as it lays them out.",
         "properties": {
           "commits": {
             "items": {
@@ -4111,7 +4111,7 @@
     },
     "/api/graph/lines": {
       "get": {
-        "description": "The commits of a graph's walk as it lays them out: hashes, parents and refs only.\n\nThe walk of `/api/history` with the same `branches`, `hide` and `order`, so that its graph is\nthe same; up to `limit` commits, and only until each commit of `until` has come, e.g. the\nHEADs of the Checkouts, to know their lines before their pages are listed.",
+        "description": "The commits of the walk of a graph as it lays them out: hashes, parents and refs only.\n\nThe walk of `/api/history` with the same `branches`, `hide` and `order`, so that its graph is\nthe same; up to `limit` commits, and only until each commit of `until` has come, e.g. the\nHEADs of the Checkouts, to know their lines before their pages are listed.",
         "operationId": "graph_lines_api_graph_lines_get",
         "parameters": [
           {
@@ -4250,7 +4250,7 @@
     },
     "/api/history": {
       "get": {
-        "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of\nthe Clone walks: all local ones (`local`) or those of its Checkouts and the default branch\n(`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With\nHEAD and the refs there are to walk from instead. In `order`, by date or topologically, each\ncommit comes only after all its children, as a graph needs; else in the order of `git log`.\n`path` keeps those that changed a file or folder, following a file's renames; `search`, those\nwhose message has all of its words. A search for one hash (4 to 40 hex digits) also finds its\ncommit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and\n`skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and\n`order`.",
+        "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of\nthe Clone walks: all local ones (`local`) or those of its Checkouts and the default branch\n(`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With\nHEAD and the refs there are to walk from instead. In `order`, by date or topologically, each\ncommit comes only after all its children, as a graph needs; else in the order of `git log`.\n`path` keeps those that changed a file or folder, following the renames of a file; `search`,\nthose whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds\nits commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and\n`skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and\n`order`.",
         "operationId": "history_show_api_history_get",
         "parameters": [
           {

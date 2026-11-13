@@ -8,7 +8,7 @@ describe("checkoutName", () => {
       clone("proj", {
         worktrees: [
           worktree("proj", "feature"),
-          // as Orca makes them: git's name an ID, the folder named by the user
+          // as Orca makes them: the name git has for it an ID, the folder named by the user
           worktree("proj", "2837265-1d6db581", {
             path: "/home/me/workspaces/proj/git-graph",
           }),

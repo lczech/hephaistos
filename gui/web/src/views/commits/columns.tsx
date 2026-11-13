@@ -33,9 +33,9 @@ export interface FoundActions {
 }
 
 /**
- * The columns of a list of commits: a commit's hash, with its Changes and Diff; its subject after
- * its branches and tags; who wrote it, and when. The row of a rename says only where the file was
- * before.
+ * The columns of a list of commits: the hash of a commit, with its Changes and Diff; its subject
+ * after its branches and tags; who wrote it, and when. The row of a rename says only where the
+ * file was before.
  */
 export function commitColumns(
   checkout: Checkout | undefined,
@@ -166,8 +166,8 @@ export function commitColumns(
   ]);
 }
 
-/** A commit's branches and tags, as its row labels them: its branch framed in the colour of its
- * line, if drawn, and where the Checkouts are. */
+/** The branches and tags of a commit, as its row labels them: its branch framed in the colour of
+ * its line, if drawn, and where the Checkouts are. */
 export function CommitRefs({
   commit,
   head,

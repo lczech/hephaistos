@@ -45,10 +45,10 @@ type Head = Schemas["GraphHeadJson"];
 type Repository = Schemas["RepositoryJson"];
 
 // How far ahead of the list to lay out the lines of the HEADs, at most: ~100-200 ms on git.git
-// (`/api/graph/lines`); most HEADs come long before, a stale Worktree's may never.
+// (`/api/graph/lines`); most HEADs come long before, that of a stale Worktree may never.
 const LINES_LIMIT = 10_000;
 
-const GO_TO = "go-to"; // the key of going to what was picked, as a chip's is its path
+const GO_TO = "go-to"; // the key of going to what was picked, as that of a chip is its path
 const LOCAL = "refs/heads/";
 
 const SLOW = 300; // ms going to a HEAD before its chip says so: most are done by then
@@ -72,8 +72,8 @@ interface Placed {
  * HEAD of each of its Checkouts, topologically by default (`order`), less the branches hidden
  * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each
  * Checkout is drawn larger, named on its badge, with what is not committed above it. A chip per
- * Checkout, marked in the colour of its HEAD's line, goes to its HEAD, loading older commits
- * until it shows; it opens at a Worktree's (`at`).
+ * Checkout, marked in the colour of the line of its HEAD, goes to its HEAD, loading older commits
+ * until it shows; it opens at that of a Worktree (`at`).
  */
 export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
@@ -81,7 +81,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const hidden = paramValues(params.hide);
   const walked: Walked = paramValues(params.branches)[0] === "worktrees" ? "worktrees" : "local";
   const [at] = paramValues(params.at);
-  // The walk: from which branches, less those hidden, in which order; of the Checkout's Clone.
+  // The walk: from which branches, less those hidden, in which order; of the Clone of the Checkout.
   const walking = { branches: walked, order, ...(hidden.length === 0 ? {} : { hide: hidden }) };
   const walk = checkout && { ...checkout, ...walking };
   const query: HistoryQuery | undefined = walk;
@@ -161,10 +161,10 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     hidden: head.branch !== null && hidden.includes(head.branch),
   }));
 
-  // Going to a commit, a chip's HEAD or one picked: older pages load until its row is listed,
-  // then it is scrolled to the top, with what is not committed above it. Its chip or the picker
-  // says so, once it takes a while. Whether it is on the walk at all, the lines say first, where
-  // those laid out ahead do not have it: a tag elsewhere is not looked for page after page.
+  // Going to a commit, the HEAD of a chip or one picked: older pages load until its row is
+  // listed, then it is scrolled to the top, with what is not committed above it. Its chip or the
+  // picker says so, once it takes a while. Whether it is on the walk at all, the lines say first,
+  // where those laid out ahead do not have it: a tag elsewhere is not looked for page after page.
   const [towards, setTowards] = useState<Towards | null>(null);
   const [slow, setSlow] = useState(false);
   const [missedOnce, setMissed] = useState<Towards | null>(null);
@@ -204,8 +204,8 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       : ids.has(`uncommitted:${towards.key}`)
         ? `uncommitted:${towards.key}`
         : towards.commit;
-  // Not in the previous walk's rows, shown while another loads, e.g. a hidden branch shown again
-  // to go to it: its pages say nothing of the new walk's.
+  // Not in the rows of the previous walk, shown while another loads, e.g. a hidden branch shown
+  // again to go to it: its pages say nothing of those of the new walk.
   const previous = history.isPlaceholderData;
   useEffect(() => {
     if (towards === null || loaded === undefined || previous) return;
@@ -391,7 +391,7 @@ function place(head: Head, repositories: Repository[] | undefined): Placed {
   return { head, checkout, name };
 }
 
-/** What is not committed in each Checkout, as rows above its HEAD, by the HEAD's commit. */
+/** What is not committed in each Checkout, as rows above its HEAD, by the commit of the HEAD. */
 function uncommittedAbove(
   placed: Placed[],
   repositories: Repository[] | undefined,
@@ -424,9 +424,9 @@ function withUncommitted<E extends Laid>(
 }
 
 /**
- * The colour of the line a Checkout's HEAD is on, as the list draws it: from the lines laid out
- * ahead of the list, which may not reach it; until they do, the accent if on the default branch
- * (`defaultBranch`, null while hidden), else none.
+ * The colour of the line the HEAD of a Checkout is on, as the list draws it: from the lines laid
+ * out ahead of the list, which may not reach it; until they do, the accent if on the default
+ * branch (`defaultBranch`, null while hidden), else none.
  */
 function lineColour(head: Head, laid: Drawn | undefined, defaultBranch: string | null) {
   const row = head.commit === null ? undefined : laid?.rows.get(head.commit);

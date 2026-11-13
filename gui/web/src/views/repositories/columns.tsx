@@ -37,8 +37,8 @@ function eventsAt(entry: Entry): Address {
 }
 
 /**
- * A row's Views: Events for all; then the Explorer, History and the Graph for a Checkout, the
- * Graph of a Worktree's Clone at its HEAD; then Changes and Diff for one with a working tree.
+ * The Views of a row: Events for all; then the Explorer, History and the Graph for a Checkout, the
+ * Graph of the Clone of a Worktree at its HEAD; then Changes and Diff for one with a working tree.
  * What it is first, then what git has of it.
  */
 function Views({ entry, home }: { entry: Entry; home: string | undefined }) {

@@ -4,8 +4,8 @@ import { pathParts } from "../../paths";
 import { revisionText } from "../../revisions";
 import { listText } from "../../text";
 
-/** The tab's title: `History: proj`, `History: proj, origin/main`, `History: rows.ts`; refs and
- * hashes shortened. */
+/** The title of the tab: `History: proj`, `History: proj, origin/main`, `History: rows.ts`; refs
+ * and hashes shortened. */
 export function historyTitle(
   name: string | undefined,
   ref: string | undefined,

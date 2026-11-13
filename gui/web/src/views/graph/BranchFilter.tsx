@@ -33,7 +33,7 @@ export function BranchFilter({ walked, branches, hidden, onChange }: Props) {
   const set = (next: string[]) => onChange(walked, next);
   return (
     <DialogTrigger>
-      {/* Our own button, for its tooltip: React Aria's has none. */}
+      {/* Our own button, for its tooltip: that of React Aria has none. */}
       <Pressable>
         <button
           type="button"

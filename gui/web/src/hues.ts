@@ -12,7 +12,7 @@ export function hueOf(name: string): number {
   return ((hash >>> 0) % 3600) / 10;
 }
 
-/** A colour of the hue, as CSS: at the theme's lightness, its chroma or the muted one. */
+/** A colour of the hue, as CSS: at the lightness of the theme, its chroma or the muted one. */
 export function hueColour(hue: number, muted = false): string {
   const chroma = muted ? "var(--hue-chroma-muted)" : "var(--hue-chroma)";
   return `oklch(var(--hue-lightness) ${chroma} ${hue})`;

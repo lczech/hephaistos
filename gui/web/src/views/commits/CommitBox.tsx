@@ -49,11 +49,12 @@ interface RefLabelsProps {
 /**
  * The branches and tags pointing at a commit, and HEAD if it does, as labels: on a line, a few,
  * so its subject still shows, and how many more; all where `all`. The branch leading the line of
- * a graph is framed in that line's colour, its remote-tracking branch too.
+ * a graph is framed in the colour of that line, its remote-tracking branch too.
  *
- * In a Graph, a branch checked out says where, by the Clone's or Worktree's icon and name, and a
- * Checkout whose HEAD is detached has a label of its own, saying so. They come first, after HEAD: the
- * default branch, branches checked out, other local branches, remote-tracking ones, tags.
+ * In a Graph, a branch checked out says where, by the icon and name of the Clone or Worktree, and
+ * a Checkout whose HEAD is detached has a label of its own, saying so. They come first, after
+ * HEAD: the default branch, branches checked out, other local branches, remote-tracking ones,
+ * tags.
  */
 export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: RefLabelsProps) {
   const detached = checkedOut.filter((each) => each.branch === null);

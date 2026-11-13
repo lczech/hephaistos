@@ -2,7 +2,7 @@
 
 import { numberText } from "../../text";
 
-/** The tab's title: `Graph: proj`; `Graph: proj, worktrees only, 2 hidden` while filtered. */
+/** The title of the tab: `Graph: proj`; `Graph: proj, worktrees only, 2 hidden` while filtered. */
 export function graphTitle(
   name: string | undefined,
   hidden: number,
@@ -36,7 +36,7 @@ export function standingWords(
   return `${numberText(ahead)} ahead of ${against}, ${numberText(behind)} behind`;
 }
 
-/** What a Checkout has out, in git's words: `feature`, `detached at abc1234`, `no commits`. */
+/** What a Checkout has out, in the words of git: `feature`, `detached at abc1234`, `no commits`. */
 export function checkedOutText(branch: string | null, commit: string | null): string {
   if (branch !== null) return branch;
   return commit === null ? "no commits" : `detached at ${commit.slice(0, 7)}`;

@@ -104,7 +104,7 @@ def standings(top: Path, default: str | None, known: Refs) -> dict[str, Standing
     }
     found.pop(default, None)
     standings_ = {name: Standing(ahead, behind, default) for name, (ahead, behind) in found.items()}
-    # Counted by full names, as a tag may have a branch's name; `@{u}` takes a branch's.
+    # Counted by full names, as a tag may have the name of a branch; `@{u}` takes that of a branch.
     upstream = git.run(top, "rev-parse", "--symbolic-full-name", f"{default}@{{u}}")
     if upstream.returncode == 0 and (full := upstream.stdout.strip()):
         ahead, behind = _counted(top, full, f"refs/heads/{default}")

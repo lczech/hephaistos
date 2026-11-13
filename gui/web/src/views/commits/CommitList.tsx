@@ -31,9 +31,10 @@ interface Props {
 
 /**
  * Commits, newest first, as History lists them: a row opens all about its commit; its hash, its
- * changes. A row is marked while its commit's Changes or Diff is shown. With `graph`, a column
- * draws their lanes, which go on beside a commit's details opened below its row; with `onTip`,
- * the tips of those passing the row at the top stay below the header, a click going to one.
+ * changes. A row is marked while the Changes or Diff of its commit is shown. With `graph`, a
+ * column draws their lanes, which go on beside the details of a commit opened below its row; with
+ * `onTip`, the tips of those passing the row at the top stay below the header, a click going to
+ * one.
  */
 export function CommitList({
   kind,

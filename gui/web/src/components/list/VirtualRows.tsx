@@ -57,7 +57,7 @@ interface Props {
   // one part of a page whose frame scrolls sideways, the box sticking would hold to, they are
   // moved as the page scrolls.
   sticky?: boolean;
-  // A row of the View's own, below the header once the rows scroll under it, from the row at the
+  // A row of the View itself, below the header once the rows scroll under it, from the row at the
   // top, if it gives one: drawn over the rows, those stuck and those gone to coming below it.
   // Only where the rows stick by CSS.
   // With the row below, `next`, while it comes in under it: how far down the band it starts.
@@ -68,8 +68,8 @@ interface Props {
   onPointerOver?: (event: PointerEvent) => void;
 }
 
-/** The row below the band's, coming in under it: where it starts, down from the band's top, and
- * how high the band is, out of which it pushes what it ends as it rises. */
+/** The row below that of the band, coming in under it: where it starts, down from the top of the
+ * band, and how high the band is, out of which it pushes what it ends as it rises. */
 export interface Next {
   index: number;
   at: number;
@@ -193,13 +193,13 @@ export function VirtualRows({
   });
   const offsetOf = (index: number) =>
     ownTop.current.get(String(virtualizer.measurementsCache[index]?.key)) ?? 0;
-  // The band's height, as drawn, also while it is not shown: for the rows gone to below it.
+  // The height of the band, as drawn, also while it is not shown: for the rows gone to below it.
   const bandHeight = useRef(0);
   useLayoutEffect(() => {
     bandHeight.current = banded.current?.getBoundingClientRect().height ?? 0;
   });
   const banding = band !== undefined && sticky;
-  // Where the header ends, in what scrolls them; the band's row: the one there, once the rows
+  // Where the header ends, in what scrolls them; the row of the band: the one there, once the rows
   // scroll under the header, if it gives a band.
   const headerLine = () => (virtualizer.scrollElement?.scrollTop ?? 0) + place.pad + place.below;
   const bandIndex = () => {
@@ -521,8 +521,8 @@ export function VirtualRows({
 }
 
 /**
- * The band's row, drawn anew as the list scrolls while the row below comes in under it, so that
- * what it brings, e.g. a tip, slides in: apart from the rows, which are drawn anew only as the
+ * The row of the band, drawn anew as the list scrolls while the row below comes in under it, so
+ * that what it brings, e.g. a tip, slides in: apart from the rows, which are drawn anew only as the
  * row at the top changes.
  */
 function BandRow({

@@ -6,9 +6,9 @@ import type { Bend, LaneColour, Layout, Line, NodeKind } from "./lanes";
 const LANE = 12; // px per lane
 const MOST_FITTED = 8; // lanes the column fits until resized; more are cut off at its edge
 const SIZE = 14; // px of the box a node is drawn in
-// How far solid lines start above their row's top, under the end of those of the row above, so
-// that no seam shows where rows meet at a fraction of a pixel: in px below a row's first line, in
-// the units of its first line's half height (some 11px) in it.
+// How far solid lines start above the top of their row, under the end of those of the row above,
+// so that no seam shows where rows meet at a fraction of a pixel: in px below the first line of a
+// row, in the units of half the height of its first line (some 11px) in it.
 const OVER = 2;
 const OVER_HEAD = 0.2;
 
@@ -17,7 +17,7 @@ export function fittedWidth(lanes: number): number {
   return Math.min(Math.max(lanes, 1), MOST_FITTED) * LANE + LANE / 2;
 }
 
-/** A lane's colour as CSS. */
+/** The colour of a lane as CSS. */
 export function colourOf(colour: LaneColour): string {
   return colour.kind === "accent" ? "var(--accent)" : hueColour(colour.hue, colour.muted);
 }
@@ -32,9 +32,10 @@ function stroke(colour: LaneColour, dashed: boolean) {
 }
 
 /**
- * A row's part of the graph, across the whole row however high it is: in its first line's
- * height (`--graph-node-y` twice), the lanes passing, the node's own coming from above, others
- * ending in it, and its parents' leaving it; below, down to the row's end, those going on.
+ * The part of the graph in a row, across the whole row however high it is: in the height of its
+ * first line (`--graph-node-y` twice), the lanes passing, that of the node coming from above,
+ * others ending in it, and those of its parents leaving it; below, down to the end of the row,
+ * those going on.
  */
 export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
   const graph = layout.rows[row];
@@ -78,11 +79,11 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
 }
 
 /**
- * The tips of the lines going on below the row at the top, as a graph's band shows them, in a
- * row's first line: a node where a tip with badges is, its line going down from it; the other
- * lines passing. While the row below comes in, `at` down the band, the lines end there, and that
- * row's own part is drawn from there, as it is below: its node, the lines ending in it, those
- * leaving it; a tip whose line ends in it is pushed out, higher by `by`.
+ * The tips of the lines going on below the row at the top, as the band of a graph shows them, in
+ * the first line of a row: a node where a tip with badges is, its line going down from it; the
+ * other lines passing. While the row below comes in, `at` down the band, the lines end there, and
+ * the part of that row itself is drawn from there, as it is below: its node, the lines ending in
+ * it, those leaving it; a tip whose line ends in it is pushed out, higher by `by`.
  */
 export function GraphTips({
   layout,
@@ -127,8 +128,8 @@ export function GraphTips({
         );
       })}
       {next &&
-        // Above a tip that stays, nothing: the row coming in is drawn up to its top, its tip's
-        // line too, which here goes down from the tip.
+        // Above a tip that stays, nothing: the row coming in is drawn up to its top, the line of
+        // its tip too, which here goes down from the tip.
         tips
           .filter((tip) => !tip.coming && !tip.leaving)
           .map((tip) => (
@@ -139,7 +140,7 @@ export function GraphTips({
             />
           ))}
       {tips
-        .filter((tip) => !tip.coming) // drawn with its row's part
+        .filter((tip) => !tip.coming) // drawn with the part of its row
         .map((tip) => (
           <svg
             key={tip.lane}
@@ -158,7 +159,7 @@ export function GraphTips({
   );
 }
 
-/** The lanes going on below a row, beside what opens under it, e.g. a commit's details. */
+/** The lanes going on below a row, beside what opens under it, e.g. the details of a commit. */
 export function GraphBeside({ layout, row }: { layout: Layout; row: number }) {
   return (
     <span className={styles.beside} data-graph="beside">
@@ -192,7 +193,7 @@ function Below({ lines, width, className }: BelowProps) {
   );
 }
 
-/** Where a straight line in a row's first line starts: a solid one above the row. */
+/** Where a straight line in the first line of a row starts: a solid one above the row. */
 const over = (line: Line) => (line.dashed ? 0 : -OVER_HEAD);
 
 function Straight({ line, from, to }: { line: Line; from: number; to: number }) {
@@ -209,7 +210,7 @@ function Straight({ line, from, to }: { line: Line; from: number; to: number }) 
 }
 
 /** A bend in the top half, from another lane into the node; or in the bottom half, from the node
- * to a parent's lane, straight down where it is the node's own. */
+ * to the lane of a parent, straight down where it is that of the node. */
 function Curve({ bend, into }: { bend: Bend; into: boolean }) {
   const from = x(bend.from);
   const to = x(bend.to);

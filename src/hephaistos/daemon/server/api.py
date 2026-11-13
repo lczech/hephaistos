@@ -507,9 +507,9 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     (`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With
     HEAD and the refs there are to walk from instead. In `order`, by date or topologically, each
     commit comes only after all its children, as a graph needs; else in the order of `git log`.
-    `path` keeps those that changed a file or folder, following a file's renames; `search`, those
-    whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds its
-    commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and
+    `path` keeps those that changed a file or folder, following the renames of a file; `search`,
+    those whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds
+    its commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and
     `skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and
     `order`.
     """
@@ -575,7 +575,7 @@ def graph_lines(  # noqa: PLR0913 - one parameter per choice
     until: Annotated[list[str] | None, Query()] = None,
     limit: Annotated[int, Query(ge=1)],
 ) -> GraphLinesJson:
-    """The commits of a graph's walk as it lays them out: hashes, parents and refs only.
+    """The commits of the walk of a graph as it lays them out: hashes, parents and refs only.
 
     The walk of `/api/history` with the same `branches`, `hide` and `order`, so that its graph is
     the same; up to `limit` commits, and only until each commit of `until` has come, e.g. the

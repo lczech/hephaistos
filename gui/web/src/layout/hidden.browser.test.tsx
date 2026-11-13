@@ -8,7 +8,7 @@ import { daemon, json, serve } from "../test/server";
 import { Workbench } from "./Workbench";
 
 // How dockview hides the Views of tabs not shown, which stay drawn (`PanelView`): Views rely on
-// it, e.g. a List's band, which inherits its visibility so as to hide with them.
+// it, e.g. the band of a List, which inherits its visibility so as to hide with them.
 
 beforeEach(() => {
   serve({ "GET /api/daemon": () => json(daemon()) });
@@ -25,7 +25,7 @@ describe("a View of a tab not shown, kept drawn", () => {
       </QueryClientProvider>,
     );
     await userEvent.click(await screen.findByRole("tab", { name: "b" }));
-    // Both drawn, a's from when it was shown first, as unknown kinds: "no longer exists".
+    // Both drawn, that of tab a from when it was shown first, as unknown kinds: "no longer exists".
     const views = () => screen.getAllByText(/This view no longer exists/);
     await waitFor(() => expect(views()).toHaveLength(2));
     const seen = () => views().map((view) => getComputedStyle(view).visibility);

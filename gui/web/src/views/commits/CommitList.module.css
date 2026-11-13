@@ -1,6 +1,6 @@
 /* The rows of a list of commits, and their parts. */
 
-/* The middle of a node of the graph: of a row's first line, as high in both layouts. */
+/* The middle of a node of the graph: of the first line of a row, as high in both layouts. */
 .list {
   --graph-node-y: calc(var(--row-space) + 0.5lh);
   --band-more: 2px; /* the frames of the badges, which make a row with them higher */
@@ -11,8 +11,8 @@
 }
 
 /* Where the graph ends, as a length fixed where it is set: `--square` is in `lh`, which inside
- * the smaller text of a row's details would measure shorter, and the lanes beside would not line
- * up with the rows'. */
+ * the smaller text of the details of a row would measure shorter, and the lanes beside would not
+ * line up with those of the rows. */
 @property --graph-end {
   syntax: "<length>";
   inherits: true;

@@ -72,7 +72,7 @@ describe("lanes", () => {
   });
 
   it("keeps the row of the tip each line starts at, none for a line a merge opened", () => {
-    // f and m are tips; m merges x, whose line m opened; b takes f's lane, the leftmost.
+    // f and m are tips; m merges x, whose line m opened; b takes the lane of f, the leftmost.
     const { rows, layout } = lay([n("f", "b"), n("m", "b", "x"), n("x", "b"), n("b", "a"), n("a")]);
     expect(rows.map((row) => row.start)).toEqual([0, 1, null, 0, 0]);
     expect(rows[1]?.out.map((bend) => bend.start)).toEqual([1, null]);
@@ -126,12 +126,12 @@ describe("lanes", () => {
 
   it("keeps lanes open for parents not listed yet, passing every row below", () => {
     const { layout } = lay([n("m", "a", "z"), n("a", "y"), n("p")]);
-    expect(columns(layout.below(2))).toEqual([0, 1]); // a's to y, m's second to z
+    expect(columns(layout.below(2))).toEqual([0, 1]); // that of a to y, the second of m to z
     expect(columns(layout.passing(2))).toEqual([0, 1]);
   });
 
   it("draws no line to a parent listed before its child, as with clocks apart", () => {
-    // git's default order may list a's parent r before a child of r that came later.
+    // the default order of git may list r, the parent of a, before a child of r that came later.
     const { rows, layout } = lay([n("a", "r"), n("r"), n("late", "r")]);
     expect(rows[2]?.out).toEqual([]);
     expect(layout.below(2)).toEqual([]); // no lane left open

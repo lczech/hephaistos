@@ -7,13 +7,13 @@ import { GraphTips } from "./Graph";
 import { branchOf, type Drawn, shownRefs, type Tip, tipsAt } from "./rows";
 
 /**
- * A graph's band, below the list's header once the rows scroll under it: the tips of the lines
- * going on below the row at the top, which started in it or above it, by lane; in the graph's
- * column their nodes, from which their lines go down, in the subject's their badges, in one line
- * cut off at its end, a click on which goes to the tip. The lines of the others pass. The tip of
- * the row coming in below slides in with it, as far down as its row (`at`), so that it does not
- * show only once there; those whose lines end in that row are pushed out by it, up by as much as
- * it has risen into the band.
+ * The band of a graph, below the header of the list once the rows scroll under it: the tips of
+ * the lines going on below the row at the top, which started in it or above it, by lane; in the
+ * column of the graph their nodes, from which their lines go down, in that of the subject their
+ * badges, in one line cut off at its end, a click on which goes to the tip. The lines of the
+ * others pass. The tip of the row coming in below slides in with it, as far down as its row
+ * (`at`), so that it does not show only once there; those whose lines end in that row are pushed
+ * out by it, up by as much as it has risen into the band.
  */
 export function tipsBand(
   drawn: Drawn,

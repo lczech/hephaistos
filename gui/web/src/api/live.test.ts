@@ -99,7 +99,7 @@ describe("the live connection", () => {
     };
     while (client.isFetching() > 0) await answer();
     const before = asked;
-    aborted.length = 0; // loads the connection's opening cut short
+    aborted.length = 0; // loads the opening of the connection cut short
     act(() => lastSocket().receive({ hints: ["data"] }));
     expect(asked).toBe(before + 1);
     // Loading anew, taking longer than the hints a second: not cut short, nor started over.

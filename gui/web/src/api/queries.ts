@@ -316,7 +316,7 @@ export function useHistory(query: HistoryQuery | undefined) {
   });
 }
 
-/** Which Checkout's Clone: `/api/graph`'s parameters. */
+/** The Clone of which Checkout: the parameters of `/api/graph`. */
 export type GraphQuery = NonNullable<paths["/api/graph"]["get"]["parameters"]["query"]>;
 
 /**
@@ -333,12 +333,12 @@ export function useGraph(checkout: GraphQuery | undefined) {
   });
 }
 
-/** The commits of a graph's walk as it lays them out: `/api/graph/lines`' parameters. */
+/** The commits of the walk of a graph as it lays them out: the parameters of `/api/graph/lines`. */
 export type GraphLinesQuery = NonNullable<paths["/api/graph/lines"]["get"]["parameters"]["query"]>;
 
 /**
- * The commits of a graph's walk as it lays them out, hashes, parents and refs only: up to
- * `limit`, until each of `until` has come. Asked again with the graph's other queries.
+ * The commits of the walk of a graph as it lays them out, hashes, parents and refs only: up to
+ * `limit`, until each of `until` has come. Asked again with the other queries of the graph.
  */
 export function useGraphLines(query: GraphLinesQuery | undefined) {
   return useQuery({
