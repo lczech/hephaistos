@@ -35,9 +35,7 @@ Decided with the user on 2026-11-11, after a prototype and research in `.agents/
   - `looks.md` says "Nothing else is orange": reworded, as lanes may be orange or yellow.
 - Nodes, as most tools draw them: a commit is a filled dot in the colour of its lane; a merge a ring with a dot inside, at the size of a commit; a HEAD a larger, thick ring; uncommitted changes a dotted ring, joined to its HEAD by a dotted line; a gap in the background colour around each node.
 - Toggles:
-  - the order, two modes: topological order (a drawn icon, a graph with the arrow of `clock-arrow-down`) and date order (Lucide `clock-arrow-down`); History by default in date order, the Graph View in topological order; kept as a parameter of each View;
-  - compact (Lucide `fold-horizontal`), in both Views, off by default: lanes waiting for the same parent join at once, and empty columns close up, as `git log --graph` draws (on the repository of git, a median of 63 lanes rather than 204);
-  - branch tips only (a drawn icon, two heads), in the Graph View.
+  - the order, two modes: topological order (a drawn icon, a graph with the arrow of `clock-arrow-down`) and date order (Lucide `clock-arrow-down`); History by default in date order, the Graph View in topological order; kept as a parameter of each View.
 - Badges: at most two on a row, the rest counted, all in the commit box; in the Graph View first the default branch, then branches checked out in a Worktree, other local branches, remote branches, tags.
 
 ## Worktrees and branches, in the Graph View
@@ -59,9 +57,6 @@ Decided with the user on 2026-11-11, after a prototype and research in `.agents/
 - The tab is titled "Graph: hephaistos", and "Graph: hephaistos, 2 hidden" while branches are hidden; Repositories links to it from the rows of Clones and Worktrees, by Lucide `git-graph`, a Worktree scrolled to its HEAD.
 - The Graph View has a refresh button, as History, and is asked again on the hints History is, and when the GUI regains focus.
   A branch moved without a checkout (`git branch -f`, `update-ref`, a fetch into a local branch) shows only then: carrying such moves from the Watcher to the GUI, by State or a hint of its own, was judged not worth its machinery (2026-11-12).
-- Branch tips only keeps the tips, the HEADs of Worktrees, the default branch, the merge bases with it, and the commits where lines to different kept commits part or join; the others fold away, each line standing for the commits between.
-  A line that leaves commits out is dashed, with their count beside it; each left-out commit lies on exactly one such line.
-  Computed on the Daemon over the whole walk, as `--simplify-by-decoration` loses the merge bases.
 
 ## The commit-graph file
 
@@ -74,7 +69,7 @@ Topological and date order make git walk all commits before the first: on the re
 
 ## Words
 
-Defined under the Graph View in `docs/design/gui/views.md`, as the words of other tools and of git name them: lane, default branch (pinned to the left), all local branches, ahead and behind, merge base, uncommitted changes, topological order and date order, branch filter (hide, solo, show all), compact, branch tips only.
+Defined under the Graph View in `docs/design/gui/views.md`, as the words of other tools and of git name them: lane, default branch (pinned to the left), all local branches, ahead and behind, merge base, uncommitted changes, topological order and date order, branch filter (hide, solo, show all).
 Badges keep their name; git calls them decorations, and "reference labels" is the word of one tool.
 The glossary names no View, so it gains nothing.
 
@@ -92,7 +87,8 @@ Each step its own commits, stopping for review.
    2. the Graph View: its list with the default branch pinned, its order and refresh, its title, the links from Repositories and History;
    3. Worktrees: rings, badges, uncommitted rows, chips, and loading towards a HEAD;
    4. the branch filter.
-3. Branch tips only, with dashed lines and their counts; compact.
+
+Branch tips only and compact lanes, planned as step 3, are ideas for later (user, 2026-11-13): [ideas](../ideas/views.md#history).
 
 ## Done
 
@@ -118,8 +114,3 @@ Each step its own commits, stopping for review.
 ## Open
 
 - Live hints, checked (2026-11-12): commits, rebases and resets in any Worktree reach the Views, by the reflog of its HEAD; a branch moved without a checkout shows on focus or refresh.
-- History with a path: whether git rewriting parents keeps the renames that History follows; until checked, the graph hides for a path, and while searching.
-
-## Later
-
-To move into the [ideas](../ideas/views.md#history) at the merge: search that highlights matches rather than hiding rows; a branch highlighted with its own commits, back to its merge base; hues for lanes of merged branches from their merge messages; the graph of History with a path; remote branches.

@@ -4,8 +4,22 @@ Ideas for single Views; those for the GUI as a whole are in [the GUI](gui.md).
 
 ## History
 
-User, 2026-10-17: for a merge, its changes against another parent; a filter by author; the successor of a rebased commit. A graph of lanes is planned in [the git graph](../plans/git-graph.md).
+User, 2026-10-17: for a merge, its changes against another parent; a filter by author; the successor of a rebased commit.
 
+From the git graph (2026-11-13), in History and the Graph View:
+
+- The graph of History with a path (user, 2026-11-13: later): today it hides for a path, as the parents of a commit there are mostly not listed, and the lanes would wait for them.
+  The commits keep their own parents, which their details and merge marks show; the graph would take others in a field of its own, as `git log --parents -- <path>` rewrites them, to the nearest commits listed.
+  At a rename, which History follows to the old path, that rewriting gives none: the first commit of the walk of the old path would be the parent of the rename in the graph, by one more `git log -1`.
+  Only for a path, so it costs nothing elsewhere.
+- Search that highlights matches rather than hiding rows, so that the graph can show while searching.
+- Branch tips only (user, 2026-11-13: later; planned as step 3 of the git graph), a toggle of the Graph View: it keeps the tips, the HEADs of Worktrees, the default branch, the merge bases with it, and the commits where lines to different kept commits part or join; the others fold away, each line standing for the commits between.
+  A line that leaves commits out is dashed, with their count beside it; each left-out commit lies on exactly one such line.
+  Computed on the Daemon over the whole walk, as `--simplify-by-decoration` loses the merge bases.
+- Compact lanes (user, 2026-11-13: later), a toggle in both Views, by Lucide `fold-horizontal`, off by default: lanes waiting for the same parent join at once, and empty columns close up, as `git log --graph` draws (on the repository of git, a median of 63 lanes rather than 204).
+- A branch highlighted with its own commits, back to its merge base.
+- Hues for the lanes of merged branches, from their merge messages ("Merge branch 'x'"), rather than muted ones.
+- Remote branches in the Graph View.
 - A graph in the CLI (user, 2026-11-11: later, if at all): `hephaistos history --graph`, passing to `git log --graph --branches` in the Checkout picked by our names; later on other Machines too.
 
 ## Changes and Diff
