@@ -61,10 +61,11 @@ A list may set its rows closer together (`compact`): the Explorer does, as a sid
 A row whose content is open, the rows within it or its details, stays in view below the header and below the rows holding it while that content scrolls past, as VS Code's sticky scroll does; part of a page, at the top of what scrolls the page.
 The rows stuck are copies, drawn apart above the rows (`stuck.ts`, `VirtualRows`), as the rows they stand for may be far out of view, not drawn; hidden from screen readers and out of the order of Tab.
 A row sticks once scrolled past the header's end, not while in its place, by where it starts itself, not the line above it starting a group; the end of its content pushes it up, sliding out below the rows holding it.
+A copy looks as its row does: its tone, its square tinted, and marked while its View is shown.
 A click on a copy focuses its row, as a click on the row does; the copy itself takes no focus.
 The copies lie on one block of the background, from a pixel above the header's end to the end of the lowest: each lies at a fraction of a pixel, drawn at whole pixels on its own, so that the rows passing below would show between two.
 A click on a copy scrolls its row to where the copy is, at the top, then closes it; its menu opens there too.
-The copies stay by CSS's sticking where the list scrolls itself; part of a page, they are moved as it scrolls, as the list scrolls sideways itself, which makes it the box sticking would hold to.
+The copies stay by CSS's sticking where the list scrolls itself; part of a page, they are moved as it scrolls, as the list scrolls sideways itself, which makes it the box sticking would hold to: by hand, not by drawing the rows anew at each scroll.
 They move as the list scrolls, as rows are measured anew, e.g. details growing once drawn, and as the header changes its height, e.g. its buttons wrapping.
 What a row was told to show is kept outside it, as a row scrolled far away is drawn anew: the large diffs shown in the Diff's List.
 What is focused or scrolled to in a row, or in its details, comes into view below those rows, not under them.
