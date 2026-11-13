@@ -321,13 +321,14 @@ export function VirtualRows({
 
   // A row asked for comes into view, by as little as it takes: below the header and the rows
   // that would stick above it, those holding it. Tried again after each draw for a while, as rows
-  // drawn on the way are measured, and move it.
-  const asked = useRef<{ index: number; tries: number; start: boolean } | null>(null);
+  // drawn on the way are measured, and move it; by its key, as rows may come or go before it.
+  const asked = useRef<{ key: string; tries: number; start: boolean } | null>(null);
   const bringIntoView = () => {
     const [box, at] = [virtualizer.scrollElement, asked.current];
     if (box === null || at === null) return;
     const measures = virtualizer.measurementsCache;
-    const item = measures[at.index];
+    const index = measures.findIndex((measure) => String(measure.key) === at.key);
+    const item = measures[index];
     if (item === undefined || at.tries-- <= 0) {
       asked.current = null;
       return;
@@ -337,18 +338,18 @@ export function VirtualRows({
       return own.current.get(String(measure?.key)) ?? measure?.size ?? guess.current;
     };
     // Below the band too, but at the very top, where it is not shown.
-    let above = place.pad + place.below + (banding && at.index > 0 ? bandHeight.current : 0);
-    for (let up = shape?.parent[at.index] ?? -1; up >= 0; up = shape?.parent[up] ?? -1) {
+    let above = place.pad + place.below + (banding && index > 0 ? bandHeight.current : 0);
+    for (let up = shape?.parent[index] ?? -1; up >= 0; up = shape?.parent[up] ?? -1) {
       if (shape?.holds[up]) above += height(up);
     }
     const top = box.scrollTop + above;
     const bottom = box.scrollTop + box.clientHeight;
     // The row itself, below what stands above it in its room, e.g. a group's line.
-    const end = item.start + offsetOf(at.index) + height(at.index);
+    const end = item.start + offsetOf(index) + height(index);
     // Rounded so that the whole row shows where scrolling goes by whole pixels, as in WebKit:
     // down to its top, up to its bottom.
     let to: number | undefined;
-    if (at.index === 0)
+    if (index === 0)
       to = 0; // the first, at the very top
     else if (at.start || item.start < top) to = Math.floor(item.start - above);
     else if (end > bottom) to = Math.ceil(end - box.clientHeight);
@@ -379,7 +380,7 @@ export function VirtualRows({
   if (handle) {
     handle.current = {
       scrollTo: (index, where = "nearest") => {
-        asked.current = { index, tries: 5, start: where === "start" };
+        asked.current = { key: keyOf(index), tries: 5, start: where === "start" };
         bringIntoView();
       },
       page,

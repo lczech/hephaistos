@@ -1226,6 +1226,20 @@ describe("a list's row gone to", () => {
     flashed.mockRestore();
   });
 
+  it("comes to the top with rows come before it on the way", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    const many = Array.from({ length: 300 }, (_, at) => `fruit ${at + 1}`);
+    const { rerender } = render(<Fruity names={many} handle={handle} />);
+    handle.current?.goTo("fruit 250");
+    const more = Array.from({ length: 5 }, (_, at) => `new ${at + 1}`);
+    rerender(<Fruity names={[...more, ...many]} handle={handle} />); // tried again meanwhile
+    await waitFor(() => expect(focusedText()).toBe("fruit 250"));
+    await waitFor(() => {
+      const row = ownRowOf("fruit 250").getBoundingClientRect();
+      expect(Math.abs(row.top - headOf().getBoundingClientRect().bottom)).toBeLessThan(1);
+    });
+  });
+
   it("near the end, comes as far up as the list goes", async () => {
     const handle: RefObject<ListHandle | null> = { current: null };
     render(<Fruity handle={handle} />);
