@@ -13,14 +13,30 @@ from hephaistos.core.observers import terminals as observer
 from hephaistos.core.registry import machines
 from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import TerminalStatus
+from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.paths import Paths
+from support import eventually
 
 pytestmark = [pytest.mark.tmux, pytest.mark.stress]
 
 WORKER = Path(__file__).with_name("soak_worker.py")
 PROCESSES = 4
 OPERATIONS = 15  # each
+
+
+def settled(paths: Paths, keeper: TmuxKeeper) -> dict[uuid.UUID | None, Session] | None:
+    """The sessions, once one observation passed while none of them ended, nor closed: some
+    commands end soon after they start."""
+
+    def ends() -> dict[uuid.UUID | None, bool]:
+        return {session.terminal_id: session.ending is None for session in keeper.sessions()}
+
+    before = ends()
+    observer.observe(paths, keeper)
+    if ends() != before:
+        return None
+    return {session.terminal_id: session for session in keeper.sessions()}
 
 
 def test_racing_processes_leave_state_as_tmux_has_it(
@@ -61,8 +77,8 @@ def test_racing_processes_leave_state_as_tmux_has_it(
         assert worker.returncode == 0, f"seeds {seeds}:\n{errors}"
     assert failures == [], f"seeds {seeds}"
 
-    observer.observe(paths, keeper)
-    sessions = {session.terminal_id: session for session in keeper.sessions()}
+    sessions = eventually(lambda: settled(paths, keeper))
+    assert sessions is not None
     with read_session(paths) as session:
         rows = {state.id: state for state in terminals.on_this_machine(session)}
     assert set(rows) == set(sessions), f"seeds {seeds}"
