@@ -25,6 +25,7 @@ from pathlib import Path
 from hephaistos.core import config
 from hephaistos.core.terminals.keeper import (
     TERMINAL_VARIABLE,
+    Ending,
     KeeperError,
     Listing,
     NameTakenError,
@@ -39,6 +40,8 @@ log = logging.getLogger(__name__)
 
 MINIMUM = (3, 2)  # 3.2a in practice: subscriptions, flow control and extended keys need it
 MINIMUM_TEXT = "3.2a"
+#: The first that reaps the process of each pane also when built with utempter; see `config_text`.
+REAPS = (3, 6)
 TIMEOUT = 10.0  # seconds for one tmux command; tmux is local, so only a hung one takes long
 DEFAULT_SOCKET = "hephaistos"
 CONFIG_NAME = "tmux.conf"  # in the state directory
@@ -46,9 +49,14 @@ CONFIG_NAME = "tmux.conf"  # in the state directory
 #: What tmux sets in each Terminal, removed there so that tmux stays out of sight.
 HIDDEN = ("TMUX", "TMUX_PANE")
 
-#: Our options: on a session, the ID of its Terminal; on the server, the config marker.
+#: Our options: on a session, the ID of its Terminal; on the pane of a command, a marker that
+#: it is one, which keeps it once ended; on a pane kept once ended, a marker that our hook kept
+#: it; on the server, the config marker, and one for the job that reaps.
 ID_OPTION = "@hephaistos_id"
+COMMAND_OPTION = "@hephaistos_command"
+ENDED_OPTION = "@hephaistos_ended"
 CONFIG_OPTION = "@hephaistos_config"
+REAPING_OPTION = "@hephaistos_reaping"  # on the server, once its job that reaps runs
 
 #: What a terminal emulator passes on to a new tab: the `update-environment` defaults of tmux,
 #: with the Wayland display and the D-Bus session bus. A new Terminal takes them from its creator.
@@ -81,6 +89,11 @@ _FIELDS = (
     "#{session_attached}",
     "#{session_created}",
     "#{session_activity}",
+    "#{pane_dead}",
+    f"#{{{ENDED_OPTION}}}",
+    "#{pane_dead_status}",  # empty if a signal ended it
+    "#{pane_dead_signal}",  # since 3.3; empty before
+    "#{pane_dead_time}",  # since 3.3; empty before
     f"#{{{CONFIG_OPTION}}}",
 )
 _SEPARATOR = "\t\x1f\t"
@@ -119,6 +132,12 @@ class Installation:
         """Whether it is older than we need; one that names no version is not."""
         version = self.version
         return version is not None and version < MINIMUM
+
+    @property
+    def may_miss_exits(self) -> bool:
+        """Whether it may fail to reap the process of a pane: older than 3.6; see `config_text`."""
+        version = self.version
+        return version is not None and version < REAPS
 
 
 def binary() -> str:
@@ -210,13 +229,24 @@ def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
     return f"{DEFAULT_SOCKET}-{digest[:10]}"
 
 
-def config_text(history: int) -> str:
+def config_text(history: int, *, reaping: bool = False) -> str:
     """Our tmux config, ending with the marker that names it by its hash.
 
     The defaults of tmux, with only what the server needs on top; never the config of the user.
     The look and the keys stay those of tmux, so that attaching from the CLI is plain tmux; a
     client in control mode, as the GUI uses, shows no status bar and runs no key bindings. The
     server outlives its last session, so that no server means it crashed or was killed.
+
+    A pane whose program ended stays, showing its last screen, unless it is not that of a command
+    and its program exited: then the hook closes it at once, as a terminal emulator closes the tab
+    of a shell that exited. So the pane of a command stays, and any a signal ended; the hook marks
+    those it keeps. tmux runs it once it knows how the program ended, which it may learn only after
+    the pane counts as dead: until then, a pane is not taken as ended.
+
+    tmux before 3.6, built with utempter as Ubuntu's and Debian's are, sometimes misses the end of
+    the process of a pane (tmux issue 4559), and so never runs the hook: the pane would stay dead,
+    blank, until another child of the server ended. With `reaping`, a job of the server sends it
+    SIGCHLD twice a second, as tmux 3.6 does itself, until the server ends; one job per server.
     """
     variables = " ".join(UPDATED_VARIABLES)
     body = f"""\
@@ -231,9 +261,21 @@ set -s escape-time 10
 set -s exit-empty off
 set -g history-limit {history}
 set -g update-environment "{variables}"
+set -g remain-on-exit on
+set-hook -g pane-died {{ if-shell -F "{_CLOSED}" kill-pane "set-option -p {ENDED_OPTION} 1" }}
 """
+    if reaping:  # once per server: sourced again, the config finds the job running
+        job = f'set -g {REAPING_OPTION} 1 ; run-shell -b "{_REAPING}"'
+        body += f'if-shell -F "#{{{REAPING_OPTION}}}" "" {{ {job} }}\n'
     digest = hashlib.sha256(body.encode()).hexdigest()[:12]
     return f"{body}set -g {CONFIG_OPTION} {digest}\n"
+
+
+#: What the job that reaps for tmux before 3.6 runs: it ends with the server.
+_REAPING = "while kill -s CHLD #{pid} 2>/dev/null; do sleep 0.5; done"
+
+#: Whether the hook closes a pane that died: its program exited, and it is not that of a command.
+_CLOSED = f"#{{&&:#{{!=:#{{pane_dead_status}},}},#{{!=:#{{{COMMAND_OPTION}}},1}}}}"
 
 
 def config_digest(text: str) -> str:
@@ -281,6 +323,20 @@ def _time(text: str) -> datetime:
     return datetime.fromtimestamp(int(text), UTC)
 
 
+def _ending(dead: str, kept: str, status: str, signal: str, at: str) -> Ending | None:
+    """How the program of a pane ended, from its fields; None while it runs.
+
+    Only once our hook `kept` it, as tmux then knows how; not if it runs again, respawned by hand.
+    """
+    if dead != "1" or kept != "1":
+        return None
+    return Ending(
+        status=int(status) if status else None,
+        signal=int(signal) if signal and not status else None,
+        at=_time(at) if at else None,
+    )
+
+
 class TmuxKeeper:
     """Keeps Terminals alive in tmux; see the module docstring."""
 
@@ -298,7 +354,8 @@ class TmuxKeeper:
         self.binary = binary
         self.socket = socket
         self.config_file = config_file
-        self.config = config_text(history)
+        self.history = history
+        self.config = config_text(history)  # until `check` knows the version of tmux
         self.timeout = timeout
         self._detect_scopes = detect_scopes
         self._checked = False
@@ -390,6 +447,7 @@ class TmuxKeeper:
                 f"{found.text} is too old: Terminals need tmux {MINIMUM_TEXT} or later;"
                 " install a newer one, e.g. without root, and set terminals.tmux.path to it"
             )
+        self.config = config_text(self.history, reaping=found.may_miss_exits)
         self._write_config()
         self._checked = True
 
@@ -416,6 +474,11 @@ class TmuxKeeper:
             clients,
             created,
             active,
+            dead,
+            kept,
+            dead_status,
+            dead_signal,
+            dead_time,
             marker,
         ) = fields
         if not name:  # e.g. one made by hand as `#`, which tmux 3.8 expands to nothing
@@ -437,11 +500,12 @@ class TmuxKeeper:
                 directory=tmux_path(directory),
                 current_directory=tmux_path(current) if current else None,
                 program=program,
-                pid=int(pid),
+                pid=int(pid) if pid else None,  # a dead pane holds none since 3.8
                 clients=int(clients),
                 created_at=_time(created),
                 active_at=_time(active),
                 panes=1,
+                ending=_ending(dead, kept, dead_status, dead_signal, dead_time),
             )
         except ValueError:
             log.warning("skipped a tmux session we cannot read: %r", record[:200])
@@ -540,11 +604,13 @@ class TmuxKeeper:
     ) -> Session:
         """Starts a session; see `Keeper.create`.
 
-        Its ID is set by the same command list, so nobody sees it without one. With systemd, its
-        process runs in a scope of its own, `hephaistos-terminal-<id>.scope`. A tmux built with
-        systemd support, e.g. that of Ubuntu, moves each new pane into its own `tmux-spawn-*.scope`
-        too, from the server, while the pane starts: whichever move comes last holds it, as
-        isolated either way.
+        Its ID is set by the same command list, so nobody sees it without one, and so is the
+        marker of a command, which keeps its pane once ended, also one that ends at once.
+
+        With systemd, its process runs in a scope of its own, `hephaistos-terminal-<id>.scope`. A
+        tmux built with systemd support, e.g. that of Ubuntu, moves each new pane into its own
+        `tmux-spawn-*.scope` too, from the server, while the pane starts: whichever move comes last
+        holds it, as isolated either way.
         """
         self.check()
         variables = {name: environment[name] for name in UPDATED_VARIABLES if name in environment}
@@ -565,6 +631,7 @@ class TmuxKeeper:
             *map(_escaped, pairs),
             *map(_escaped, program),
             ";", "set-option", ID_OPTION, str(terminal_id),  # without a target: the new session
+            *([";", "set-option", "-p", COMMAND_OPTION, "1"] if command else []),  # its pane
         ]  # fmt: skip
         result = self._client(*args, scoped=not self.running())
         if result.returncode != 0:
@@ -656,7 +723,8 @@ class TmuxKeeper:
     def kill(self, name: str, *, force: bool = False) -> None:
         """Ends a session; see `Keeper.kill`.
 
-        With `force`, its scope and the processes in the session of its pane get SIGKILL first.
+        With `force`, its scope and the processes in the session of its pane get SIGKILL first, as
+        far as tmux still names its process: e.g. those a command left running when it ended.
         """
         self.check()
         session = self.session(name)
@@ -676,6 +744,8 @@ class TmuxKeeper:
         Its scope is the one its process runs in: ours, or the one tmux makes, see `create`. Never
         the scope of the server, which holds a session started by hand on a tmux that makes none.
         """
+        if session.pid is None:
+            return
         unit = scope_of(session.pid) if self.scopes else None
         if unit is not None and unit != scope_of(self._server_pid()):
             systemctl = shutil.which("systemctl") or "systemctl"

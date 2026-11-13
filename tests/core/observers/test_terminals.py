@@ -80,7 +80,7 @@ def test_created_then_ended(set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_p
     keeper.kill("api")
     result = observe(set_up, keeper, boot)
     assert result.changes is not None
-    assert result.changes.ended == 1
+    assert result.changes.closed == 1
     assert list(stored(set_up)) == ["web"]
 
 
@@ -96,7 +96,7 @@ def test_one_that_cannot_be_read_keeps_its_row(
     assert keeper.listing().unreadable
     result = observe(set_up, keeper, boot)
     assert result.changes is not None
-    assert result.changes.ended == 0
+    assert result.changes.closed == 0
     assert stored(set_up)["api"].status is TerminalStatus.OPEN
 
 
@@ -230,3 +230,52 @@ def test_raw_listing(set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: Pa
     assert row["command"] is None  # only creating through the Core knows it
     assert isinstance(row["id"], uuid.UUID)
     assert (types["id"], types["started_at"], types["observed_at"]) == ("id", "time", "clock")
+
+
+def test_ended_ones_after_a_reboot(
+    set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: Path
+) -> None:
+    """They stay ended, with how, and say that their screen went, and why; open ones are lost."""
+    keeper.create(uuid.uuid4(), "build", tmp_path, ["sh", "-c", "exit 4"], {})
+    keeper.create(uuid.uuid4(), "api", tmp_path, None, {})
+    eventually(lambda: keeper.session("build").ending)
+    observe(set_up, keeper, boot)
+    tmux(keeper, "kill-server")  # as a reboot does
+    boot.write_text("boot-2\n")
+    result = observe(set_up, keeper, boot)
+    assert result.changes is not None
+    assert (result.changes.lost, result.changes.closed) == (2, 0)
+    build, api = stored(set_up)["build"], stored(set_up)["api"]
+    assert (build.status, build.exit_status, build.lost_because) == ("ended", 4, "reboot")
+    assert (api.status, api.lost_because) == ("lost", "reboot")
+    assert build.boot_id == "boot-1"  # the boot it ran in
+
+
+def test_one_made_by_hand_takes_the_id_of_an_ended_one_whose_session_went(
+    set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: Path
+) -> None:
+    created = keeper.create(uuid.uuid4(), "build", tmp_path, ["sh", "-c", "exit 4"], {})
+    eventually(lambda: keeper.session("build").ending)
+    observe(set_up, keeper, boot)
+    tmux(keeper, "kill-server")
+    observe(set_up, keeper, boot)
+    by_hand(keeper, "build", tmp_path)
+    observe(set_up, keeper, boot)
+    state = stored(set_up)["build"]
+    assert (state.id, state.status, state.exit_status, state.lost_at) == (
+        created.terminal_id,
+        "open",
+        None,
+        None,
+    )
+
+
+def test_only_running_ones_count_as_open(
+    set_up: Paths, keeper: TmuxKeeper, boot: Path, tmp_path: Path
+) -> None:
+    keeper.create(uuid.uuid4(), "build", tmp_path, ["true"], {})
+    keeper.create(uuid.uuid4(), "api", tmp_path, None, {})
+    eventually(lambda: keeper.session("build").ending)
+    result = observe(set_up, keeper, boot)
+    assert result.changes is not None
+    assert (result.changes.open, result.changes.ended) == (1, 1)

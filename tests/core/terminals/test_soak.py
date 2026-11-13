@@ -27,7 +27,8 @@ def test_racing_processes_leave_state_as_tmux_has_it(
     paths: Paths, keeper: TmuxKeeper, tmp_path: Path
 ) -> None:
     """Processes create, rename and kill Terminals at random while another observes in a loop;
-    one observation afterwards stores exactly what tmux holds, with the commands created."""
+    one observation afterwards stores exactly what tmux holds, with the commands created, open
+    or ended as their programs are."""
     machines.set_up(paths, "laptop")
     seeds = [random.randrange(1 << 30) for _ in range(PROCESSES)]  # noqa: S311 - not secret
     workers = [
@@ -66,7 +67,11 @@ def test_racing_processes_leave_state_as_tmux_has_it(
         rows = {state.id: state for state in terminals.on_this_machine(session)}
     assert set(rows) == set(sessions), f"seeds {seeds}"
     for terminal_id, row in rows.items():
-        assert (row.name, row.status) == (sessions[terminal_id].name, TerminalStatus.OPEN)
+        found = sessions[terminal_id]
+        status = TerminalStatus.OPEN if found.ending is None else TerminalStatus.ENDED
+        assert (row.name, row.status) == (found.name, status), f"seeds {seeds}"
+        if found.ending is not None:
+            assert row.exit_status == found.ending.status, f"seeds {seeds}"
     created = [json.loads(line) for output, _ in outputs for line in output.splitlines()]
     for made in created:
         row = rows.get(uuid.UUID(made["id"]))

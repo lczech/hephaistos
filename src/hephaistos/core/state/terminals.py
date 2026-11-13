@@ -1,13 +1,17 @@
 """The State of Terminals: what the Keeper of each Machine last showed of its Terminals.
 
-A Terminal is open while its session runs, lost once it cannot run any more, after a reboot or
-when the server of its Keeper died; lost ones keep their row and name until restored or killed.
-One that ended, e.g. its shell exited, loses its row. Terminals record no Events.
+A Terminal is open while its program runs. It ended once the program of a command ended, or a
+signal ended any: its session stays, showing its last screen, and its row keeps how and when,
+until killed. It is lost once it cannot run any more, after a reboot or when the server of its
+Keeper died; lost ones keep their row and name until restored or killed, and so do ended ones
+whose session went that way, with their screen gone. One whose session closed, e.g. a shell that
+exited, or one killed by hand, loses its row. Terminals record no Events.
 """
 
 import json
 import logging
 import re
+import signal
 import sqlite3
 import uuid
 from collections.abc import Collection, Mapping, Sequence
@@ -54,6 +58,11 @@ DECODERS = {
     "program": values.plain,
     "clients": values.plain,
     "panes": values.plain,
+    "exit_status": values.plain,
+    "exit_signal": values.plain,
+    "ended_at": values.milliseconds,
+    "lost_at": values.milliseconds,
+    "lost_because": values.plain,
     "observed_at": values.clock,
     "observed_by": values.uuid_bytes,
 }
@@ -64,7 +73,15 @@ class TerminalStatus(StrEnum):
     """Whether a Terminal runs."""
 
     OPEN = "open"
+    ENDED = "ended"  # its program ended; kept, showing how, until killed
     LOST = "lost"  # its session is gone, but it was never ended: restorable
+
+
+class LostBecause(StrEnum):
+    """Why the session of a Terminal is gone, though it was never closed."""
+
+    REBOOT = "reboot"  # the Machine started again
+    SERVER = "server"  # the server of its Keeper ended, e.g. crashed or killed, in the same boot
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -85,6 +102,18 @@ class TerminalState:
     panes: int
     observed_at: Timestamp
     observed_by: uuid.UUID
+    # How its program ended, while ended: an exit status, or the signal, if the Keeper says which.
+    exit_status: int | None = None
+    exit_signal: int | None = None
+    ended_at: datetime | None = None  # when, or when first seen ended, if the Keeper does not say
+    # When its session was found gone, and why: while lost, or ended with its last screen gone.
+    lost_at: datetime | None = None
+    lost_because: LostBecause | None = None
+
+    @property
+    def session_gone(self) -> bool:
+        """Whether the Keeper holds nothing of it: lost, or ended with its session gone since."""
+        return self.lost_at is not None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Self:
@@ -107,6 +136,11 @@ class TerminalState:
             panes=row["panes"],
             observed_at=Timestamp(row["observed_at"]),
             observed_by=uuid.UUID(bytes=row["observed_by"]),
+            exit_status=row["exit_status"],
+            exit_signal=row["exit_signal"],
+            ended_at=_optional_datetime(row["ended_at"]),
+            lost_at=_optional_datetime(row["lost_at"]),
+            lost_because=None if row["lost_because"] is None else LostBecause(row["lost_because"]),
         )
 
 
@@ -114,8 +148,38 @@ def _datetime(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, UTC)
 
 
+def ending_text(state: TerminalState) -> str:
+    """How the program of an ended Terminal ended, e.g. `exited with status 1`, `ended by SIGKILL`.
+
+    `ended by a signal` where the Keeper does not say which, as tmux before 3.3.
+    """
+    if state.exit_status is not None:
+        return f"exited with status {state.exit_status}"
+    if state.exit_signal is None:
+        return "ended by a signal"
+    try:
+        return f"ended by {signal.Signals(state.exit_signal).name}"
+    except ValueError:
+        return f"ended by signal {state.exit_signal}"
+
+
+#: Why the session of a Terminal is gone, as said after "as": `as the machine restarted`.
+LOST_TEXTS = {
+    LostBecause.REBOOT: "the machine restarted",
+    LostBecause.SERVER: "the tmux server ended",
+}
+
+
+def _optional_datetime(ms: int | None) -> datetime | None:
+    return None if ms is None else _datetime(ms)
+
+
 def _ms(moment: datetime) -> int:
     return round(moment.timestamp() * 1000)
+
+
+def _optional_ms(moment: datetime | None) -> int | None:
+    return None if moment is None else _ms(moment)
 
 
 def name_order(name: str) -> tuple[tuple[int, int | str], ...]:
@@ -199,6 +263,11 @@ def _write(session: WriteSession, state: TerminalState) -> None:
         "program": utf8(state.program),
         "clients": state.clients,
         "panes": state.panes,
+        "exit_status": state.exit_status,
+        "exit_signal": state.exit_signal,
+        "ended_at": _optional_ms(state.ended_at),
+        "lost_at": _optional_ms(state.lost_at),
+        "lost_because": None if state.lost_because is None else state.lost_because.value,
         "observed_at": state.observed_at,
         "observed_by": state.observed_by,
     }
@@ -218,7 +287,7 @@ def _delete(session: WriteSession, terminal_id: uuid.UUID) -> None:
 
 
 def rename_lost(session: WriteSession, state: TerminalState, new_name: str) -> None:
-    """Renames a lost Terminal, which has no session to rename.
+    """Renames a Terminal whose session is gone, e.g. a lost one, as it has none to rename.
 
     Raises HephaistosError if another Terminal took `new_name` meanwhile.
     """
@@ -242,7 +311,7 @@ def restored(session: WriteSession, state: TerminalState) -> None:
 
 
 def forget(session: WriteSession, state: TerminalState) -> None:
-    """Deletes the row of a lost Terminal: it is killed without having run again."""
+    """Deletes the row of a Terminal whose session is gone: it is killed without one."""
     _delete(session, state.id)
 
 
@@ -252,11 +321,12 @@ class Changes:
 
     open: int  # Terminals seen running
     added: int  # rows new, e.g. adopted
-    ended: int  # rows deleted
-    lost: int  # rows newly lost
+    ended: int  # rows newly ended
+    closed: int  # rows deleted
+    lost: int  # rows whose session is newly gone: lost, or ended with their screen gone
 
 
-def _end_or_lose(
+def _close_or_lose(
     session: WriteSession,
     missing: Sequence[TerminalState],
     *,
@@ -264,29 +334,41 @@ def _end_or_lose(
     boot_id: str,
     observed_at: Timestamp,
 ) -> tuple[set[uuid.UUID], int]:
-    """Deletes the open Terminals not found that ended, and marks the others lost.
+    """Deletes the Terminals not found whose session closed, and marks the others' gone.
 
-    Returns those ended and how many were lost. Lost ones not found stay so.
+    A session closed if the server runs in the same boot: e.g. a shell exited, or someone killed
+    it. Otherwise it went with the server: an open Terminal is lost, an ended one stays so, with
+    its screen gone; both say when and why. Returns those closed and how many went so. Those whose
+    session was gone already stay as they are.
     """
-    ended: set[uuid.UUID] = set()
+    closed: set[uuid.UUID] = set()
     lost = rebooted = 0
     for state in missing:
-        if state.status is not TerminalStatus.OPEN:
+        if state.session_gone:
             continue
         if running and state.boot_id == boot_id:
             _delete(session, state.id)
-            ended.add(state.id)
+            closed.add(state.id)
             continue
-        _write(session, replace(state, status=TerminalStatus.LOST, observed_at=observed_at))
+        because = LostBecause.REBOOT if state.boot_id != boot_id else LostBecause.SERVER
+        gone = replace(
+            state,
+            status=TerminalStatus.LOST if state.status is TerminalStatus.OPEN else state.status,
+            clients=0,
+            lost_at=observed_at.datetime,
+            lost_because=because,
+            observed_at=observed_at,
+        )
+        _write(session, gone)
         lost += 1
-        rebooted += state.boot_id != boot_id
+        rebooted += because is LostBecause.REBOOT
     if rebooted:
         log.info("%s lost by a reboot", number_text(rebooted, "terminal"))
     if unexpected := lost - rebooted:  # in the same boot
         log.warning(
             "the server of the keeper is gone: %s lost", number_text(unexpected, "terminal")
         )
-    return ended, lost
+    return closed, lost
 
 
 def _names_taken(
@@ -372,8 +454,8 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
         for state in known.values()
         if state.id not in seen and state.id not in newer and state.id not in unreadable
     ]
-    # First, so that the names of ended Terminals become free.
-    ended, lost = _end_or_lose(
+    # First, so that the names of closed Terminals become free.
+    closed, lost = _close_or_lose(
         session, missing, running=running, boot_id=boot_id, observed_at=observed_at
     )
     remaining = {state.id: state for state in on_this_machine(session)}  # lost ones as lost now
@@ -389,29 +471,25 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
                 names[terminal_id],
             )
         _delete(session, terminal_id)
+    ended = 0
     for terminal_id, item in seen.items():
         if (name := taking.get(terminal_id)) is None:
             continue
         old = remaining.get(terminal_id)
-        _write(
-            session,
-            TerminalState(
-                id=terminal_id,
-                name=name,
-                directory=old.directory if old else item.directory,
-                command=old.command if old else (command or {}).get(terminal_id),
-                status=TerminalStatus.OPEN,
-                boot_id=boot_id,
-                started_at=item.created_at,
-                active_at=item.active_at,
-                current_directory=item.current_directory,
-                program=item.program,
-                clients=item.clients,
-                panes=item.panes,
-                observed_at=observed_at,
-                observed_by=session.machine_id,
-            ),
+        found_state = _found(
+            item,
+            old,
+            terminal_id=terminal_id,
+            name=name,
+            command=(command or {}).get(terminal_id),
+            boot_id=boot_id,
+            observed_at=observed_at,
+            observed_by=session.machine_id,
         )
+        ended += found_state.status is TerminalStatus.ENDED and (
+            old is None or old.status is not TerminalStatus.ENDED
+        )
+        _write(session, found_state)
     for terminal_id in renamed:
         if terminal_id not in taking:
             _write(
@@ -419,4 +497,46 @@ def update(  # noqa: PLR0913 - keyword-only after the first two: what one observ
                 replace(remaining[terminal_id], name=names[terminal_id], observed_at=observed_at),
             )
     added = sum(terminal_id not in remaining for terminal_id in taking)
-    return Changes(open=len(seen), added=added, ended=len(ended), lost=lost)
+    running_now = sum(item.ending is None for item in seen.values())
+    return Changes(open=running_now, added=added, ended=ended, closed=len(closed), lost=lost)
+
+
+def _found(  # noqa: PLR0913 - keyword-only after the first two: what one observation found
+    item: Session,
+    old: TerminalState | None,
+    *,
+    terminal_id: uuid.UUID,
+    name: str,
+    command: tuple[str, ...] | None,
+    boot_id: str,
+    observed_at: Timestamp,
+    observed_by: uuid.UUID,
+) -> TerminalState:
+    """The State of a Terminal whose session was found: open, or ended, as its program is.
+
+    An ended one keeps when it was first seen so, where the Keeper does not say when it ended.
+    """
+    ending = item.ending
+    ended_at = None
+    if ending is not None:
+        before = old.ended_at if old is not None and old.status is TerminalStatus.ENDED else None
+        ended_at = ending.at or before or observed_at.datetime
+    return TerminalState(
+        id=terminal_id,
+        name=name,
+        directory=old.directory if old else item.directory,
+        command=old.command if old else command,
+        status=TerminalStatus.OPEN if ending is None else TerminalStatus.ENDED,
+        boot_id=boot_id,
+        started_at=item.created_at,
+        active_at=item.active_at,
+        current_directory=item.current_directory,
+        program=item.program,
+        clients=item.clients,
+        panes=item.panes,
+        observed_at=observed_at,
+        observed_by=observed_by,
+        exit_status=None if ending is None else ending.status,
+        exit_signal=None if ending is None else ending.signal,
+        ended_at=ended_at,
+    )

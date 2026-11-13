@@ -8,7 +8,7 @@ from pathlib import Path
 
 from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.state import terminals as state
-from hephaistos.core.state.terminals import Changes, TerminalState, TerminalStatus
+from hephaistos.core.state.terminals import Changes, TerminalState
 from hephaistos.core.terminals.keeper import Keeper, KeeperError, Session
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.ids import new_id
@@ -40,11 +40,11 @@ def _adopted(keeper: Keeper, found: list[Session], stored: list[TerminalState]) 
     """`found`, each with an ID of its own; gone ones are left out.
 
     Adopts those without one, with an invalid one, or with one another session has (copied by
-    hand, say). A session named like a lost Terminal takes the ID of that one, e.g. one started
-    by hand after a reboot.
+    hand, say). A session named like a Terminal whose session is gone, lost or ended, takes the ID
+    of that one, e.g. one started by hand after a reboot.
     """
     names = {terminal.id: terminal.name for terminal in stored}
-    lost = {t.name: t.id for t in stored if t.status is TerminalStatus.LOST}
+    lost = {t.name: t.id for t in stored if t.session_gone}
 
     def order(item: Session) -> tuple[bool, bool, object, str]:
         # Of sessions sharing an ID, the one named like its Terminal keeps it, else the oldest.

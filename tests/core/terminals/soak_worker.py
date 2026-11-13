@@ -2,8 +2,9 @@
 Machine.
 
 Usage: soak_worker.py <seed> <operations> <directory>. Prints each Terminal it created, as JSON
-with its ID and command, one per line. Refusals a racing process meets (a name taken, a Terminal
-gone meanwhile) are expected; anything else ends it with a traceback.
+with its ID and command, one per line; some commands end, at once or soon, and stay ended.
+Refusals a racing process meets (a name taken, a Terminal gone meanwhile) are expected;
+anything else ends it with a traceback.
 """
 
 import json
@@ -30,7 +31,10 @@ def main(seed: int, operations: int, directory: Path) -> None:
         try:
             if action == "create":
                 name = rng.choice([None, f"t{rng.randrange(NAMES)}"])
-                command = rng.choice([None, ["sleep", "600"]])
+                # A shell, a command that runs, one that ends at once, one that ends soon.
+                command = rng.choice(
+                    [None, ["sleep", "600"], ["sh", "-c", "exit 3"], ["sleep", "0.3"]]
+                )
                 created = actions.create(paths, directory, name=name, command=command)
                 sys.stdout.write(json.dumps({"id": str(created.id), "command": command}) + "\n")
                 sys.stdout.flush()

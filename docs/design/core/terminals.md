@@ -9,7 +9,7 @@ The Core uses it through a small interface (`core/terminals/keeper.py`): check t
 It knows nothing of the database.
 tmux is the only Keeper (`core/terminals/tmux.py`).
 
-The snapshot of a session has the ID of its Terminal (none until adopted), its name, where it started, the current directory and program of its foreground process, the clients attached, when it was created and last active, and how many panes it has.
+The snapshot of a session has the ID of its Terminal (none until adopted), its name, where it started, the current directory and program of its foreground process, the clients attached, when it was created and last active, how many panes it has, and how its program ended, if it did.
 
 ## tmux
 
@@ -39,10 +39,29 @@ On top, only what the server needs:
 - a short escape time, so Esc does not lag;
 - the server staying after its last session, so that no server means it crashed or was killed;
 - `history-limit` from `terminals.history`;
-- `update-environment` with the variables of a desktop session, see below.
+- `update-environment` with the variables of a desktop session, see below;
+- `remain-on-exit`, and a hook for panes that end, see below.
 
 It ends with a marker, `@hephaistos_config`, the hash of its text.
 Listing the sessions finds a server whose marker differs, e.g. one started by hand or before a settings change, and loads our config into it.
+
+### Ends
+
+A Terminal ends as a terminal emulator does with a tab, except that a death is never hidden:
+- a shell that exits, e.g. by `exit` or Ctrl+D, whatever its status, closes;
+- a command, given at creation, that ends stays, showing its last screen and tmux's line "Pane is dead (status 1, …)";
+- a program ended by a signal, e.g. by the OOM killer, stays too, in a shell Terminal as in a command one.
+
+The exit status of a shell says nothing: after Ctrl+D, it is that of the last command run.
+So tmux keeps every pane that ends (`remain-on-exit`), and the hook `pane-died` closes that of a shell that exited.
+A command Terminal is told apart by a pane option, `@hephaistos_command`, set by the command list that creates it, also for one that ends at once; panes made by hand, and those split off by hand, count as shells.
+The hook marks the panes it keeps, `@hephaistos_ended`.
+tmux runs it once it knows how the program ended, which it may learn only after the pane counts as dead (`pane_dead`, its pty closed), so only a marked pane counts as ended.
+How it ended comes from `pane_dead_status`, or `pane_dead_signal` and `pane_dead_time` since tmux 3.3; before, a pane without a status was ended by a signal, which tmux does not name, at a time it does not say.
+
+tmux before 3.6, built with utempter as Ubuntu's and Debian's are, sometimes never learns that the process of a pane ended ([tmux 4559](https://github.com/tmux/tmux/issues/4559)): utempter resets the handler of SIGCHLD while the pane closes.
+About one exit in five left a pane dead and blank, its hook not run, until another child of the server ended.
+So for those versions, our config starts one job in the server, guarded by `@hephaistos_reaping`, which sends it SIGCHLD twice a second, as tmux 3.6 does itself, and ends with it.
 
 ### Scopes
 
@@ -78,6 +97,7 @@ Without a server, or with one whose socket refuses connections, e.g. left by a c
 Killing a Terminal ends its session, and its processes get SIGHUP.
 What ignores SIGHUP outlives it.
 `force` sends SIGKILL first, to the scope the process of the Terminal runs in, never that of the server, and to every process in the session of its pane.
+Killing an ended Terminal closes its pane; `force` also ends what its command left running, where tmux still names its process, which it forgets since 3.8.
 
 ### Versions
 
@@ -92,20 +112,24 @@ Each Machine stores its Terminals in `state_terminals` ([data](data.md)), as the
 The Keeper runs outside any transaction, then one write session compares its sessions with the rows.
 A row observed after the Keeper was asked, e.g. of a Terminal another process created meanwhile, is a newer reading: it stays as it is, as those of Clones do ([observation](observation.md)).
 
-A Terminal is **open** while its session runs, and **lost** once it cannot run any more:
-- its session gone, the server running in the same boot: it ended, e.g. its shell exited, and its row goes;
+A Terminal is **open** while its program runs, **ended** once its pane stays ended, and **lost** once it cannot run any more:
+- its session gone, the server running in the same boot: it closed, e.g. its shell exited or someone killed it, and its row goes;
 - the server gone in the same boot: it crashed or was killed, so its Terminals are lost;
 - another boot (by the Linux boot ID): they are lost too.
 
+An ended one keeps its exit status, or the signal that ended it, if tmux says which, and when it ended, or was first seen ended where tmux does not say.
 Lost ones keep their row and name, to be restored with both, or killed.
+So do ended ones whose session went with the server: they stay ended, with how, their last screen gone.
+Both keep when their session was found gone, and why: `reboot` or `server`.
+A session found again, e.g. one ended and respawned by hand, is open, without what it was.
 Terminals record no Events ([ADR 001](../../decisions/001-data-ownership.md)).
 
 A session without an ID, e.g. one started by hand on our socket, is adopted: it gets one and a row.
 So does one whose ID is not valid, or is that of another session.
-One named like a lost Terminal takes the ID of that one, so that `tmux -L hephaistos new -s api` after a reboot brings `api` back.
+One named like a Terminal whose session is gone, lost or ended, takes the ID of that one, so that `tmux -L hephaistos new -s api` after a reboot brings `api` back.
 tmux compares and sets the ID in one command, so two processes adopting at once agree on it.
 
-Names are unique per Machine, lost Terminals included.
+Names are unique per Machine, ended and lost Terminals included.
 A Terminal renamed by hand to the name of another takes it; the other moves to a free name, e.g. `api-1`.
 Names hephaistos gives have ASCII letters, digits, `-` and `_`, at most 64, not starting with `-`; adopted ones keep their name in tmux, whatever it is.
 The default name of a new Terminal is that of its directory, numbered from 1: `hephaistos-1`, `hephaistos-2`.
@@ -116,15 +140,18 @@ Without a working Keeper, e.g. without tmux, a Machine without Terminals is no n
 
 Creating, attaching, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
-A lost Terminal has no session, so renaming or killing one changes its row alone; killing forgets it, also one lost while being killed, as its server ended meanwhile.
+A Terminal whose session is gone, lost or ended, has none, so renaming or killing one changes its row alone; killing forgets it, also one whose session went while being killed, as its server ended meanwhile.
+Killing an ended one with its session closes that, its last screen with it.
 
 A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as text in the database is.
 Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.
-A name given that is taken, by an open or lost Terminal or by a session not observed yet, is refused.
+A name given that is taken, by an open, ended or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
-A command that ends before the Terminal is observed is reported as having ended at once; a server that ends meanwhile, as lost at once.
+A command that ends at once, e.g. a typo, is created ended, so that its message shows; a shell that ends at once, e.g. by its profile, is refused, and so is one lost at once as its server ended meanwhile.
 
 Attaching gives the command that attaches a terminal emulator: for tmux, `tmux attach-session` with our socket and config, targeting the session by its ID.
+Attaching to an ended Terminal is plain tmux too: its last screen shows, with tmux's line, typing there does nothing, and the prefix with `d` leaves.
+One whose screen went too is refused, saying how it ended and why its screen went; nothing starts in it again, as its command may have been anything.
 Attaching to a lost Terminal first starts it again, with its ID, name and directory, as the login shell.
 A short `sh` prints a dim line first: "restored after a restart; earlier output is gone", with what a command Terminal ran, which does not run again, as it may have been anything, e.g. a deployment.
 Where its directory is gone, it starts in the home directory, and the line says so.
@@ -134,5 +161,5 @@ Two attaching to the same lost Terminal at once both attach to it: the second fi
 Attaching is refused at a tty that the Terminal shows, where its output would loop back into it (`Keeper.shows`): one of its panes, or that of another Terminal attached in it, and so on, by the clients of tmux and their ttys.
 tmux refuses the same only with `TMUX` set, which no Terminal has.
 A Terminal shown through a tmux of the user, e.g. one started inside it, is not found that way, as tmux itself does not find it across servers.
-`terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile; a command already ended says so.
+`terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile, and to the last screen of a command already ended; a shell that exited already says so.
 

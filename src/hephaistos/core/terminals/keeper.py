@@ -29,6 +29,15 @@ class NoSuchSessionError(KeeperError):
     """No session has that name."""
 
 
+@dataclass(frozen=True)
+class Ending:
+    """How the program of a session ended; its pane stays, showing its last screen."""
+
+    status: int | None  # its exit status; None if a signal ended it
+    signal: int | None  # the signal that ended it; None if it exited, or the Keeper does not say
+    at: datetime | None  # when it ended; None if the Keeper does not say
+
+
 @dataclass(frozen=True, kw_only=True)
 class Session:
     """A Terminal as its Keeper sees it at one moment."""
@@ -40,11 +49,12 @@ class Session:
     directory: Path  # where it started
     current_directory: Path | None  # where its foreground process is; None if unknown
     program: str  # what runs in the foreground, e.g. `bash` or `vim`
-    pid: int  # of the process it started, e.g. the shell
+    pid: int | None  # of the process it started, e.g. the shell; None once ended, if not said
     clients: int  # attached to it, e.g. Terminal emulators showing it
     created_at: datetime
     active_at: datetime  # when it last had input or output
     panes: int  # more than 1 if someone split it outside hephaistos; the first one counts
+    ending: Ending | None = None  # how its program ended; None while it runs
 
 
 @dataclass(frozen=True)
@@ -88,6 +98,10 @@ class Keeper(Protocol):
         `environment` is that of the creator, e.g. of a shell: the Terminal gets the variables
         that a terminal emulator passes on, such as DISPLAY and SSH_AUTH_SOCK, from it.
         Raises NameTakenError if `name` is taken.
+
+        Once its program ends, the session of a command stays, ended, showing its last screen, as
+        does that of any program a signal ended; that of a shell which exited closes, as a tab of a
+        terminal emulator does. So a session made by hand counts as a shell.
         """
         ...
 
@@ -107,7 +121,8 @@ class Keeper(Protocol):
     def kill(self, name: str, *, force: bool = False) -> None:
         """Ends a session, its processes getting SIGHUP; raises NoSuchSessionError.
 
-        With `force`, they get SIGKILL first, which also ends those that ignore SIGHUP.
+        With `force`, they get SIGKILL first, which also ends those that ignore SIGHUP. One that
+        ended closes.
         """
         ...
 

@@ -1,5 +1,6 @@
 import logging
 import os
+import signal
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -167,10 +168,28 @@ def test_odd_commands(set_up: Paths, proj: Path, command: list[str]) -> None:
     assert created.command == tuple(command)
 
 
-@pytest.mark.parametrize("command", [["true"], ["no-such-program-hephaistos"]])
-def test_a_command_that_ends_at_once(set_up: Paths, proj: Path, command: list[str]) -> None:
-    with pytest.raises(HephaistosError, match=r"^terminal quick ended at once"):
-        actions.create(set_up, proj, name="quick", command=command)
+@pytest.mark.parametrize(
+    ("command", "status"), [(["true"], 0), (["false"], 1), (["no-such-program-hephaistos"], 127)]
+)
+def test_a_command_that_ends_at_once_is_created_ended(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path, command: list[str], status: int
+) -> None:
+    """To be seen, e.g. what a typo gave: its screen stays."""
+    created = actions.create(set_up, proj, name="quick", command=command)
+    assert (created.status, created.exit_status, created.command) == (
+        TerminalStatus.ENDED,
+        status,
+        tuple(command),
+    )
+    assert stored(set_up)["quick"] == created
+    if status == 127:
+        assert "no-such-program-hephaistos" in everything(keeper, "quick")
+
+
+def test_a_shell_that_ends_at_once(set_up: Paths, proj: Path) -> None:
+    """E.g. a profile that exits: refused, as there is nothing to see."""
+    with pytest.raises(HephaistosError, match=r"^terminal quick ended at once: its shell exited$"):
+        actions.create(set_up, proj, name="quick", environment={"SHELL": "/bin/false"})
     assert stored(set_up) == {}
 
 
@@ -287,6 +306,16 @@ def keeper_options(keeper: TmuxKeeper) -> list[str]:
     return ["-u", "-L", keeper.socket, "-f", str(keeper.config_file)]
 
 
+def everything(keeper: TmuxKeeper, name: str) -> str:
+    """What the pane of a Terminal shows, its scrollback included."""
+    return tmux(keeper, "capture-pane", "-p", "-J", "-S", "-", "-t", f"={name}:")
+
+
+def prompted(keeper: TmuxKeeper, name: str) -> None:
+    """Waits for the prompt of its shell: keys typed while its profile runs may be lost."""
+    eventually(lambda: everything(keeper, name).rstrip().endswith("$"))
+
+
 def screen(keeper: TmuxKeeper, name: str) -> str:
     """What the pane of a Terminal shows, once its shell has printed something."""
     return eventually(lambda: tmux(keeper, "capture-pane", "-p", "-J", "-t", f"={name}:").strip())
@@ -337,13 +366,25 @@ def test_a_created_one_attaches_by_its_id(set_up: Paths, keeper: TmuxKeeper, pro
     assert command[-2:] == ["-t", keeper.session("renamed").key]
 
 
-def test_a_created_one_that_ended_before_attaching(
+def test_a_created_command_that_ended_before_attaching(
     set_up: Paths, keeper: TmuxKeeper, proj: Path
 ) -> None:
+    """It attaches to its last screen."""
     created = actions.create(set_up, proj, name="build", command=["sleep", "0.5"])
+    eventually(lambda: keeper.session("build").ending)
+    command = actions.attach_created(set_up, created, keeper=keeper)
+    assert command[-2:] == ["-t", keeper.session("build").key]
+
+
+def test_a_created_shell_that_exited_before_attaching(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    created = actions.create(set_up, proj, name="sh", environment={"SHELL": "/bin/sh"})
+    prompted(keeper, "sh")
+    tmux(keeper, "send-keys", "-t", "=sh:", "exit 1", "Enter")
     eventually(lambda: not keeper.sessions())
     with pytest.raises(
-        HephaistosError, match=r"^terminal build ended before attaching: its command exited$"
+        HephaistosError, match=r"^terminal sh ended before attaching: its shell exited$"
     ):
         actions.attach_created(set_up, created, keeper=keeper)
 
@@ -410,3 +451,120 @@ def test_a_restored_one_whose_directory_is_gone_starts_at_home(
     assert f"{gone} is gone, so it starts in the home directory" in screen(keeper, "api")
     assert keeper.session("api").current_directory == home
     assert stored(set_up)["api"].directory == gone  # where it started, as before
+
+
+# Ended ones: their session stays until killed; those whose session went too keep their row.
+
+
+def ended_one(paths: Paths, keeper: TmuxKeeper, proj: Path, name: str = "build") -> None:
+    """Creates a command Terminal that ends with status 3, once observed so."""
+    actions.create(paths, proj, name=name, command=["sh", "-c", "echo built; exit 3"])
+    eventually(lambda: keeper.session(name).ending)
+    actions.observer.observe(paths, keeper)
+
+
+def test_attach_to_an_ended_one_shows_its_last_screen(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    ended_one(set_up, keeper, proj)
+    found, command = actions.attach(set_up, "build", environment={})
+    assert (found.status, found.exit_status) == (TerminalStatus.ENDED, 3)
+    assert command[-2:] == ["-t", keeper.session("build").key]
+    assert "built" in everything(keeper, "build")
+    assert len(keeper.sessions()) == 1  # nothing started again
+
+
+def test_attach_to_an_ended_one_whose_screen_went(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    """Refused, as there is nothing to show; nothing starts again, as its command may have been
+    anything, e.g. a deployment."""
+    ended_one(set_up, keeper, proj)
+    lose_all(keeper, set_up)
+    with pytest.raises(
+        HephaistosError,
+        match=r"^terminal build exited with status 3; its last screen is gone,"
+        r" as the tmux server ended$",
+    ):
+        actions.attach(set_up, "build", environment={"SHELL": "/bin/sh"})
+    assert keeper.sessions() == []
+    assert stored(set_up)["build"].status is TerminalStatus.ENDED
+
+
+def test_names_taken_by_ended_ones(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    ended_one(set_up, keeper, proj)
+    taken = r"^an ended terminal named build exists; kill it, or choose another name$"
+    with pytest.raises(HephaistosError, match=taken):
+        actions.create(set_up, proj, name="build")
+    actions.create(set_up, proj, name="api")
+    with pytest.raises(HephaistosError, match=taken):
+        actions.rename(set_up, "api", "build")
+    assert actions.create(set_up, proj).name == "proj-1"
+    ended_one(set_up, keeper, proj, name="proj-2")
+    lose_all(keeper, set_up)  # a name stays taken while the row holds it
+    assert actions.create(set_up, proj).name == "proj-3"
+
+
+def test_rename_an_ended_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    ended_one(set_up, keeper, proj)
+    renamed = actions.rename(set_up, "build", "built")
+    assert (renamed.name, renamed.status, renamed.exit_status) == ("built", "ended", 3)
+    assert keeper.session("built").ending is not None
+    lose_all(keeper, set_up)
+    again = actions.rename(set_up, "built", "old")  # its row alone
+    assert (again.name, again.status, again.session_gone) == ("old", "ended", True)
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_kill_an_ended_one(set_up: Paths, keeper: TmuxKeeper, proj: Path, force: bool) -> None:  # noqa: FBT001
+    ended_one(set_up, keeper, proj)
+    actions.create(set_up, proj, name="api")
+    killed = actions.kill(set_up, "build", force=force)
+    assert (killed.name, killed.status) == ("build", TerminalStatus.ENDED)
+    assert [session.name for session in keeper.sessions()] == ["api"]
+    assert list(stored(set_up)) == ["api"]
+
+
+def test_kill_an_ended_one_whose_session_went(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    ended_one(set_up, keeper, proj)
+    lose_all(keeper, set_up)
+    killed = actions.kill(set_up, "build")
+    assert (killed.status, killed.session_gone) == (TerminalStatus.ENDED, True)
+    assert stored(set_up) == {}
+
+
+def test_a_command_that_ends_while_running_is_kept(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    """With how and when, through observations that come after."""
+    actions.create(set_up, proj, name="job", command=["sh", "-c", "sleep 0.5; kill -TERM $$"])
+    assert stored(set_up)["job"].status is TerminalStatus.OPEN
+    eventually(lambda: keeper.session("job").ending)
+    for _ in range(3):
+        actions.observer.observe(set_up, keeper)
+    state = stored(set_up)["job"]
+    assert (state.status, state.exit_status, state.ended_at is not None) == ("ended", None, True)
+    assert terminals.ending_text(state) in {"ended by SIGTERM", "ended by a signal"}
+
+
+def test_a_shell_that_exits_loses_its_row(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    actions.create(set_up, proj, name="sh", environment={"SHELL": "/bin/sh"})
+    prompted(keeper, "sh")
+    tmux(keeper, "send-keys", "-t", "=sh:", "false; exit", "Enter")
+    eventually(lambda: not keeper.sessions())
+    actions.observer.observe(set_up, keeper)
+    assert stored(set_up) == {}
+
+
+def test_a_shell_ended_by_a_signal_stays(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+    """E.g. by the OOM killer: seen, not gone without a word."""
+    actions.create(set_up, proj, name="sh", environment={"SHELL": "/bin/sh"})
+    pid = keeper.session("sh").pid
+    assert pid is not None
+    os.kill(pid, signal.SIGKILL)
+    eventually(lambda: keeper.session("sh").ending)
+    actions.observer.observe(set_up, keeper)
+    state = stored(set_up)["sh"]
+    assert (state.status, state.command, state.exit_status) == ("ended", None, None)

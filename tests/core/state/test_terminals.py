@@ -12,13 +12,17 @@ from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import machines
 from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import Changes, TerminalStatus
-from hephaistos.core.terminals.keeper import Session
+from hephaistos.core.terminals.keeper import Ending, Session
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import MAX_DRIFT_MS, Timestamp, new_id, wall_ms
 from hephaistos.core.utils.paths import Paths
 
 BOOT = "boot-1"
 STARTED = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
+#: Marks a row lost, as if its server had died, by its ID.
+LOSE = (
+    "UPDATE state_terminals SET status = 'lost', lost_at = 0, lost_because = 'server' WHERE id = ?"
+)
 
 
 @pytest.fixture
@@ -76,7 +80,9 @@ def statuses(paths: Paths) -> dict[str, TerminalStatus]:
 
 def test_found_ones_are_stored(set_up: Paths) -> None:
     api = new_id()
-    assert update(set_up, session("api", api)) == Changes(open=1, added=1, ended=0, lost=0)
+    assert update(set_up, session("api", api)) == Changes(
+        open=1, added=1, ended=0, closed=0, lost=0
+    )
     state = stored(set_up)["api"]
     assert (state.id, state.status, state.boot_id, state.command) == (api, "open", BOOT, None)
     assert (state.directory, state.current_directory) == (
@@ -94,7 +100,7 @@ def test_observing_again_changes_only_what_changed(set_up: Paths) -> None:
     first = stored(set_up)["api"]
     later = datetime(2026, 11, 6, 10, 0, tzinfo=UTC)
     assert update(set_up, session("api", api, program="vim", clients=1, active_at=later)) == (
-        Changes(open=1, added=0, ended=0, lost=0)
+        Changes(open=1, added=0, ended=0, closed=0, lost=0)
     )
     second = stored(set_up)["api"]
     assert (second.program, second.clients, second.active_at) == ("vim", 1, later)
@@ -113,13 +119,13 @@ def test_the_directory_stays_where_it_started(set_up: Paths) -> None:
 
 
 def test_sessions_without_an_id_wait(set_up: Paths) -> None:
-    assert update(set_up, session("mine")) == Changes(open=0, added=0, ended=0, lost=0)
+    assert update(set_up, session("mine")) == Changes(open=0, added=0, ended=0, closed=0, lost=0)
     assert stored(set_up) == {}
 
 
 def test_ended_with_the_server_running(set_up: Paths) -> None:
     update(set_up, session("api", new_id()), session("web", new_id()))
-    assert update(set_up, session("web", stored(set_up)["web"].id)) == Changes(1, 0, 1, 0)
+    assert update(set_up, session("web", stored(set_up)["web"].id)) == Changes(1, 0, 0, 1, 0)
     assert statuses(set_up) == {"web": "open"}
 
 
@@ -135,15 +141,15 @@ def test_ones_that_cannot_be_read_stay(set_up: Paths) -> None:
             started=clock(set_up),
             unreadable={api},
         )
-    assert changes.ended == 0
+    assert changes.closed == 0
     assert set(stored(set_up)) == {"api", "web"}
 
 
 def test_lost_when_the_server_died(set_up: Paths) -> None:
     update(set_up, session("api", new_id()))
-    assert update(set_up, running=False) == Changes(open=0, added=0, ended=0, lost=1)
+    assert update(set_up, running=False) == Changes(open=0, added=0, ended=0, closed=0, lost=1)
     assert statuses(set_up) == {"api": "lost"}
-    assert update(set_up, running=False) == Changes(0, 0, 0, 0)  # lost stays lost
+    assert update(set_up, running=False) == Changes(0, 0, 0, 0, 0)  # lost stays lost
 
 
 def test_lost_after_a_reboot(set_up: Paths) -> None:
@@ -156,7 +162,7 @@ def test_lost_ones_are_open_again_once_found(set_up: Paths) -> None:
     api = new_id()
     update(set_up, session("api", api))
     update(set_up, running=False)
-    assert update(set_up, session("api", api), boot="boot-2") == Changes(1, 0, 0, 0)
+    assert update(set_up, session("api", api), boot="boot-2") == Changes(1, 0, 0, 0, 0)
     state = stored(set_up)["api"]
     assert (state.status, state.boot_id) == ("open", "boot-2")
 
@@ -173,7 +179,7 @@ def test_a_rename_onto_a_lost_ones_name(set_up: Paths) -> None:
     update(set_up, session("api", api), session("web", web))
     update(set_up, session("web", web), running=False)  # api lost, as if crashed alone
     with write_session(set_up) as written:
-        written.conn.execute("UPDATE state_terminals SET status = 'lost' WHERE id = ?", (api,))
+        written.conn.execute(LOSE, (api,))
     update(set_up, session("api", web))
     assert {name: (state.id, state.status) for name, state in stored(set_up).items()} == {
         "api": (web, "open"),
@@ -206,9 +212,7 @@ def test_renames_by_hand_in_one_pass(set_up: Paths, data: st.DataObject) -> None
     lost = data.draw(st.sets(st.sampled_from(list(before)), max_size=len(before) - 1))
     with write_session(set_up) as written:
         for terminal_id in lost:
-            written.conn.execute(
-                "UPDATE state_terminals SET status = 'lost' WHERE id = ?", (terminal_id,)
-            )
+            written.conn.execute(LOSE, (terminal_id,))
     found = data.draw(st.permutations([i for i in before if i not in lost]))
     names = st.lists(
         st.sampled_from(NAMES_TO_SHUFFLE), min_size=len(found), max_size=len(found), unique=True
@@ -272,10 +276,10 @@ def test_an_older_snapshot_leaves_newer_rows(set_up: Paths) -> None:
     api = new_id()
     started = clock(set_up)  # sessions listed: none yet
     update(set_up, session("api", api))  # created and observed meanwhile, by another process
-    assert update(set_up, started=started) == Changes(open=0, added=0, ended=0, lost=0)
+    assert update(set_up, started=started) == Changes(open=0, added=0, ended=0, closed=0, lost=0)
     assert statuses(set_up) == {"api": "open"}
     assert update(set_up, running=False, started=started).lost == 0
-    assert update(set_up).ended == 1  # a snapshot taken since has it gone
+    assert update(set_up).closed == 1  # a snapshot taken since has it gone
 
 
 def test_a_creator_tells_what_a_row_stored_first_runs(set_up: Paths) -> None:
@@ -303,8 +307,8 @@ def test_newer_readings_with_the_clock_ahead(set_up: Paths) -> None:
     update(set_up, session("api", api))
     started = clock(set_up)
     update(set_up, session("api", api), session("web", web))  # web created meanwhile
-    assert update(set_up, session("api", api), started=started).ended == 0
-    assert update(set_up).ended == 2
+    assert update(set_up, session("api", api), started=started).closed == 0
+    assert update(set_up).closed == 2
 
 
 def test_an_older_snapshot_leaves_a_newer_name(set_up: Paths) -> None:
@@ -328,13 +332,13 @@ def test_another_machines_names_are_its_own(set_up: Paths) -> None:
             " VALUES (?, 'gaia', 'gaia', ?, ?)",
             (other, written.tick(), other),
         )
+        copied = ", ".join("?" if c == "observed_by" else c for c in terminals.COLUMNS[1:])
         written.conn.execute(
-            "INSERT INTO state_terminals SELECT ?, name, directory, command, status, boot_id,"
-            " started_at, active_at, current_directory, program, clients, panes, observed_at, ?"
-            " FROM state_terminals",
+            f"INSERT INTO state_terminals ({', '.join(terminals.COLUMNS)})"  # noqa: S608
+            f" SELECT ?, {copied} FROM state_terminals",
             (new_id(), other),
         )
-    assert update(set_up, session("api", stored(set_up)["api"].id)).ended == 0
+    assert update(set_up, session("api", stored(set_up)["api"].id)).closed == 0
     with read_session(set_up) as read:
         rows = read.conn.execute("SELECT count(*) FROM state_terminals").fetchone()[0]
     assert rows == 2
@@ -378,9 +382,8 @@ def test_one_name_per_machine(set_up: Paths) -> None:
     update(set_up, session("api", new_id()))
     with pytest.raises(sqlite3.IntegrityError), write_session(set_up) as written:
         written.conn.execute(
-            "INSERT INTO state_terminals SELECT ?, name, directory, command, status, boot_id,"
-            " started_at, active_at, current_directory, program, clients, panes, observed_at,"
-            " observed_by FROM state_terminals",
+            f"INSERT INTO state_terminals ({', '.join(terminals.COLUMNS)})"  # noqa: S608
+            f" SELECT ?, {', '.join(terminals.COLUMNS[1:])} FROM state_terminals",
             (new_id(),),
         )
 
@@ -425,3 +428,235 @@ def test_names_sort_numbers_as_numbers() -> None:
         "proj-10",
         "proj-100",
     ]
+
+
+# Ended ones: their program ended, their session stays until killed; and sessions gone.
+
+ENDED_AT = datetime(2026, 11, 6, 9, 30, tzinfo=UTC)
+
+
+def ended(
+    name: str,
+    terminal_id: uuid.UUID,
+    *,
+    status: int | None = 1,
+    signal: int | None = None,
+    at: datetime | None = ENDED_AT,
+) -> Session:
+    """A session whose program ended: by default, exited with status 1 at ENDED_AT."""
+    return session(name, terminal_id, ending=Ending(status=status, signal=signal, at=at))
+
+
+def test_an_ended_one_keeps_how(set_up: Paths) -> None:
+    api = new_id()
+    update(set_up, session("api", api))
+    assert update(set_up, ended("api", api)) == Changes(open=0, added=0, ended=1, closed=0, lost=0)
+    state = stored(set_up)["api"]
+    assert (state.status, state.exit_status, state.exit_signal) == ("ended", 1, None)
+    assert (state.ended_at, state.lost_at, state.session_gone) == (ENDED_AT, None, False)
+    assert terminals.ending_text(state) == "exited with status 1"
+    assert update(set_up, ended("api", api)).ended == 0  # already
+
+
+def test_one_ended_at_once_is_added_as_ended(set_up: Paths) -> None:
+    changes = update(set_up, ended("build", new_id(), status=127))
+    assert (changes.added, changes.ended, changes.open) == (1, 1, 0)
+    assert stored(set_up)["build"].exit_status == 127
+
+
+@pytest.mark.parametrize(
+    ("status", "signal", "text"),
+    [
+        (0, None, "exited with status 0"),
+        (None, 9, "ended by SIGKILL"),
+        (None, 15, "ended by SIGTERM"),
+        (None, 99, "ended by signal 99"),
+        (None, None, "ended by a signal"),  # tmux before 3.3
+    ],
+)
+def test_how_they_ended(set_up: Paths, status: int | None, signal: int | None, text: str) -> None:
+    update(set_up, ended("api", new_id(), status=status, signal=signal))
+    state = stored(set_up)["api"]
+    assert (state.exit_status, state.exit_signal) == (status, signal)
+    assert terminals.ending_text(state) == text
+
+
+def test_when_it_ended_unless_the_keeper_says(set_up: Paths) -> None:
+    """tmux before 3.3 does not say: the first observation that sees it ended stamps it."""
+    api = new_id()
+    update(set_up, session("api", api))
+    before = datetime.now(UTC)
+    update(set_up, ended("api", api, at=None))
+    first = stored(set_up)["api"].ended_at
+    assert first is not None
+    assert before.timestamp() - 1 < first.timestamp() < datetime.now(UTC).timestamp() + 1
+    update(set_up, ended("api", api, at=None))
+    assert stored(set_up)["api"].ended_at == first
+
+
+def test_one_that_runs_again_is_open(set_up: Paths) -> None:
+    """E.g. respawned by hand: how it ended before goes."""
+    api = new_id()
+    update(set_up, ended("api", api))
+    update(set_up, session("api", api))
+    state = stored(set_up)["api"]
+    assert (state.status, state.exit_status, state.ended_at) == ("open", None, None)
+
+
+def test_an_ended_one_killed_by_hand_goes(set_up: Paths) -> None:
+    update(set_up, ended("api", new_id()), session("web", new_id()))
+    assert update(set_up, session("web", stored(set_up)["web"].id)).closed == 1
+    assert statuses(set_up) == {"web": "open"}
+
+
+@pytest.mark.parametrize(
+    ("running", "boot", "because"), [(False, BOOT, "server"), (True, "boot-2", "reboot")]
+)
+def test_an_ended_one_whose_session_went_stays_ended(
+    set_up: Paths,
+    running: bool,  # noqa: FBT001
+    boot: str,
+    because: str,
+) -> None:
+    """With how it ended, and when and why its last screen went."""
+    api = new_id()
+    update(set_up, ended("api", api, status=2), session("web", new_id(), clients=1))
+    before = datetime.now(UTC)
+    changes = update(set_up, running=running, boot=boot)
+    assert (changes.lost, changes.closed) == (2, 0)
+    api_state, web_state = stored(set_up)["api"], stored(set_up)["web"]
+    assert (api_state.status, api_state.exit_status, api_state.ended_at) == ("ended", 2, ENDED_AT)
+    assert (web_state.status, web_state.clients) == ("lost", 0)
+    for state in (api_state, web_state):
+        assert state.session_gone
+        assert state.lost_because == because
+        assert state.lost_at is not None
+        assert state.lost_at.timestamp() > before.timestamp() - 1
+    assert update(set_up, running=running, boot=boot) == Changes(0, 0, 0, 0, 0)  # they stay
+
+
+def test_one_whose_session_went_is_found_again(set_up: Paths) -> None:
+    """E.g. adopted by a session made by hand: open, without what it was."""
+    api = new_id()
+    update(set_up, ended("api", api))
+    update(set_up, running=False)
+    update(set_up, session("api", api), boot="boot-2")
+    state = stored(set_up)["api"]
+    assert (state.status, state.lost_at, state.lost_because, state.exit_status) == (
+        "open",
+        None,
+        None,
+        None,
+    )
+
+
+def test_only_running_ones_count_as_open(set_up: Paths) -> None:
+    found = [session("a", new_id()), ended("b", new_id()), ended("c", new_id(), status=0)]
+    assert update(set_up, *found).open == 1
+
+
+@pytest.mark.parametrize(
+    "assignments",
+    [
+        "status = 'ended'",  # when it ended, missing
+        "exit_status = 1",  # while open
+        "exit_signal = 9",
+        "status = 'ended', ended_at = 1, exit_status = 1, exit_signal = 9",  # both
+        "status = 'ended', ended_at = 1, exit_signal = 0",
+        "status = 'lost'",  # when, missing
+        "lost_at = 1",  # why, missing
+        "lost_because = 'server'",
+        "lost_at = 1, lost_because = 'server'",  # while open
+        "status = 'lost', lost_at = 1, lost_because = 'moon'",
+        "status = 'gone'",
+    ],
+)
+def test_the_schema_refuses_endings_that_cannot_be(set_up: Paths, assignments: str) -> None:
+    update(set_up, session("api", new_id()))
+    with pytest.raises(sqlite3.IntegrityError), write_session(set_up) as written:
+        written.conn.execute(f"UPDATE state_terminals SET {assignments}")  # noqa: S608
+
+
+#: How a session may end, as a Keeper says it: an exit status, or a signal, maybe which; when.
+ENDINGS = st.builds(
+    Ending,
+    status=st.none(),
+    signal=st.sampled_from([None, 9, 15]),
+    at=st.sampled_from([None, ENDED_AT]),
+) | st.builds(
+    Ending,
+    status=st.sampled_from([0, 1, 127]),
+    signal=st.none(),
+    at=st.sampled_from([None, ENDED_AT]),
+)
+#: What one observation finds of a Terminal: nothing, a session running, or one ended.
+FINDINGS = st.one_of(st.just("absent"), st.just("running"), ENDINGS)
+STEPS = st.lists(
+    st.tuples(
+        st.lists(FINDINGS, min_size=4, max_size=4),  # one each
+        st.booleans(),  # whether the server runs
+        st.sampled_from([BOOT, "boot-2", "boot-3"]),
+    ),
+    min_size=1,
+    max_size=8,
+)
+
+
+@settings(
+    max_examples=80, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
+@given(steps=STEPS)
+def test_observations_follow_what_the_keeper_shows(
+    set_up: Paths, steps: list[tuple[list[object], bool, str]]
+) -> None:
+    """Over any series of observations, each Terminal is as its session shows, or as it was when
+    its session went: closed with the server running in the same boot, else gone, its row kept."""
+    with write_session(set_up) as written:
+        written.conn.execute("DELETE FROM state_terminals")
+    ids = [new_id() for _ in range(4)]
+    names = {terminal_id: f"t{n}" for n, terminal_id in enumerate(ids)}
+    update(set_up, *(session(names[i], i, key=f"${n}") for n, i in enumerate(ids)))
+    for findings, server, boot in steps:
+        before = {state.id: state for state in stored(set_up).values()}
+        found = {
+            i: session(names[i], i, key=f"${n}", ending=None if f == "running" else f)
+            for n, (i, f) in enumerate(zip(ids, findings, strict=True))
+            if f != "absent"
+        }
+        running = server or bool(found)  # a server that lists sessions runs
+        update(set_up, *found.values(), running=running, boot=boot)
+        after = {state.id: state for state in stored(set_up).values()}
+        for terminal_id in ids:
+            old, new = before.get(terminal_id), after.get(terminal_id)
+            if (item := found.get(terminal_id)) is not None:
+                assert new is not None
+                ending = item.ending
+                assert new.status == ("open" if ending is None else "ended")
+                assert (new.lost_at, new.lost_because, new.boot_id) == (None, None, boot)
+                if ending is None:
+                    assert (new.exit_status, new.exit_signal, new.ended_at) == (None, None, None)
+                    continue
+                assert (new.exit_status, new.exit_signal) == (ending.status, ending.signal)
+                if ending.at is not None:
+                    assert new.ended_at == ending.at
+                elif old is not None and old.status is TerminalStatus.ENDED:
+                    assert new.ended_at == old.ended_at
+                else:
+                    assert new.ended_at is not None
+            elif old is None:
+                assert new is None
+            elif old.session_gone:
+                assert new == old
+            elif running and old.boot_id == boot:
+                assert new is None  # closed
+            else:
+                assert new is not None
+                expected = "lost" if old.status is TerminalStatus.OPEN else "ended"
+                because = "server" if old.boot_id == boot else "reboot"
+                assert (new.status, new.lost_because, new.clients) == (expected, because, 0)
+                assert (new.exit_status, new.exit_signal, new.ended_at) == (
+                    old.exit_status,
+                    old.exit_signal,
+                    old.ended_at,
+                )
+                assert new.lost_at is not None

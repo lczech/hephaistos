@@ -1,4 +1,5 @@
 import os
+import re
 import shlex
 import signal
 import subprocess
@@ -11,6 +12,7 @@ import pytest
 
 from hephaistos.core import config
 from hephaistos.core.terminals.keeper import (
+    Ending,
     KeeperError,
     NameTakenError,
     NoSuchSessionError,
@@ -21,6 +23,7 @@ from hephaistos.core.terminals.tmux import (
     TmuxKeeper,
     config_digest,
     config_text,
+    installation,
     parse_version,
     scope_of,
     socket_name,
@@ -97,7 +100,8 @@ def test_socket_names(tmp_path: Path) -> None:
 def test_config_names_itself_by_its_hash() -> None:
     text = config_text(1234)
     assert "set -g history-limit 1234\n" in text
-    assert "status" not in text  # the look and the keys of tmux stay as they are
+    # The look and the keys of tmux stay as they are.
+    assert not re.search(r"\bstatus\b", text)
     assert "bind" not in text
     assert text.endswith(f"set -g {CONFIG_OPTION} {config_digest(text)}\n")
     assert config_digest(text) == config_digest(config_text(1234))
@@ -417,6 +421,210 @@ def test_kill_with_force(keeper: TmuxKeeper, tmp_path: Path) -> None:
     eventually(lambda: all(map(gone, pids)))
 
 
+# How Terminals end: a command stays, showing its last screen; a shell that exited closes; one a
+# signal ended stays.
+
+
+def says_signals(keeper: TmuxKeeper) -> bool:
+    """Whether this tmux says which signal ended a pane, and when: 3.3 and later."""
+    version = installation(keeper.binary).version
+    return version is None or version >= (3, 3)
+
+
+def ending(keeper: TmuxKeeper, name: str) -> Ending:
+    """How the program of the Terminal named `name` ended, once it did."""
+    found = eventually(lambda: keeper.session(name).ending)
+    assert found is not None
+    return found
+
+
+def closed(keeper: TmuxKeeper, name: str) -> bool:
+    """Whether the session named `name` is gone, once it is."""
+    return eventually(lambda: name not in {session.name for session in keeper.sessions()})
+
+
+def prompted(keeper: TmuxKeeper, name: str) -> None:
+    """Waits until the shell of a Terminal shows its prompt: keys typed while its profile runs
+    may be lost."""
+    eventually(lambda: everything_shown(keeper, name).rstrip().endswith("$"))
+
+
+def everything_shown(keeper: TmuxKeeper, name: str) -> str:
+    """The text of a pane, its scrollback included."""
+    return tmux(keeper, "capture-pane", "-p", "-J", "-S", "-", "-t", f"={name}:")
+
+
+@pytest.mark.parametrize("status", [0, 3, 127])
+def test_a_command_that_exits_stays_with_its_screen(
+    keeper: TmuxKeeper, tmp_path: Path, status: int
+) -> None:
+    before = time.time()
+    new(keeper, "build", tmp_path, "sh", "-c", f"echo built; sleep 0.2; exit {status}")
+    found = ending(keeper, "build")
+    assert (found.status, found.signal) == (status, None)
+    if says_signals(keeper):
+        assert found.at is not None
+        assert before - 1 <= found.at.timestamp() <= time.time() + 1
+    else:
+        assert found.at is None
+    assert "built" in everything_shown(keeper, "build")
+    time.sleep(0.3)
+    assert keeper.session("build").ending == found  # it stays
+
+
+def test_a_command_that_ends_at_once_stays(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """Also when it ends before tmux is done creating it: e.g. a typo, whose message shows."""
+    created = new(keeper, "typo", tmp_path, "no-such-program-hephaistos")
+    assert created.name == "typo"
+    assert ending(keeper, "typo").status == 127
+    assert "no-such-program-hephaistos" in everything_shown(keeper, "typo")
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        ["exit", "Enter"],  # status 0
+        ["false; exit", "Enter"],  # the status of the last command, 1
+        ["exit 3", "Enter"],
+        ["false", "Enter", "C-d"],  # Ctrl+D after a failed command: status 1
+        ["exec sh -c 'exit 5'", "Enter"],  # a program that replaced the shell
+    ],
+)
+def test_a_shell_that_exits_closes(keeper: TmuxKeeper, tmp_path: Path, keys: list[str]) -> None:
+    """As a terminal emulator closes the tab, whatever the status: only a signal keeps it."""
+    new(keeper, "sh", tmp_path, SHELL="/bin/sh")
+    new(keeper, "other", tmp_path, SHELL="/bin/sh")
+    prompted(keeper, "sh")
+    for key in keys:
+        tmux(keeper, "send-keys", "-t", "=sh:", key)
+    assert closed(keeper, "sh")
+    assert [session.name for session in keeper.sessions()] == ["other"]
+
+
+@pytest.mark.parametrize("command", [False, True])
+def test_one_a_signal_ended_stays(keeper: TmuxKeeper, tmp_path: Path, command: bool) -> None:  # noqa: FBT001
+    """A shell or a command: so that one killed, e.g. by the OOM killer, is seen."""
+    run = ("sh", "-c", "exec sleep 600") if command else ()
+    session = new(keeper, "victim", tmp_path, *run, SHELL="/bin/sh")
+    assert session.pid is not None
+    os.kill(session.pid, signal.SIGKILL)
+    found = ending(keeper, "victim")
+    assert found.status is None
+    assert found.signal == (signal.SIGKILL if says_signals(keeper) else None)
+    time.sleep(0.3)
+    assert keeper.session("victim").ending == found
+
+
+def test_a_session_made_by_hand_counts_as_a_shell(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(keeper, "ours", tmp_path, "sh", "-c", "exit 1")  # our server runs, with our config
+    tmux(keeper, "new-session", "-d", "-s", "mine", "sh -c 'sleep 0.2; exit 1'")
+    assert closed(keeper, "mine")
+    assert ending(keeper, "ours").status == 1
+
+
+def test_a_pane_split_by_hand_closes_alone(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """A shell in a pane added by hand closes when it exits, as tmux does; the Terminal stays."""
+    new(keeper, "api", tmp_path, "sleep", "600")
+    tmux(keeper, "split-window", "-t", "=api:", "sh -c 'sleep 0.2; exit 1'")
+    assert keeper.session("api").panes == 2
+    assert eventually(lambda: keeper.session("api").panes == 1)
+    assert keeper.session("api").ending is None
+
+
+def test_a_command_split_by_hand_keeps_the_first_pane(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """The first pane counts: one of a command that ended stays so beside a pane added by hand."""
+    new(keeper, "build", tmp_path, "sh", "-c", "sleep 0.5; exit 2")
+    tmux(keeper, "split-window", "-t", "=build:", "sleep 600")
+    assert ending(keeper, "build").status == 2
+    assert keeper.session("build").panes == 2
+
+
+def test_ended_ones_are_renamed_and_killed(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(keeper, "a", tmp_path, "true")
+    new(keeper, "b", tmp_path, "true")
+    ending(keeper, "a")
+    ending(keeper, "b")
+    keeper.rename("a", "c")
+    assert keeper.session("c").ending is not None
+    keeper.kill("c")
+    keeper.kill("b", force=True)  # with no process left to SIGKILL
+    assert keeper.sessions() == []
+    with pytest.raises(NoSuchSessionError):
+        keeper.kill("b")
+
+
+def test_kill_with_force_of_an_ended_one_ends_what_it_left(
+    keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    """A command may end and leave a process behind, e.g. started with `setsid`, which keeps
+    running in its scope; `force` ends that too, where tmux still says its process."""
+    script = f"setsid sleep 1002 & echo $! > {tmp_path}/pid; exit 4"
+    new(keeper, "left", tmp_path, "sh", "-c", script)
+    pid = int(written(tmp_path / "pid"))
+    assert ending(keeper, "left").status == 4
+    keeper.kill("left", force=True)
+    assert keeper.sessions() == []
+    if not gone(pid):  # tmux 3.8 forgets the process of a dead pane, and so its kin
+        os.kill(pid, signal.SIGKILL)
+
+
+def test_shells_that_exit_close_one_after_another(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """Also with a tmux that misses the end of some (tmux before 3.6, built with utempter, e.g.
+    that of Ubuntu): about one in five stayed dead, blank, without the job that reaps for it."""
+    for n in range(15):
+        new(keeper, f"sh{n}", tmp_path, SHELL="/bin/sh")
+        prompted(keeper, f"sh{n}")
+        tmux(keeper, "send-keys", "-t", f"=sh{n}:", "exit 3", "Enter")
+        assert closed(keeper, f"sh{n}")
+
+
+def reaping_jobs(keeper: TmuxKeeper) -> list[str]:
+    """What the children of the server run that reap for it."""
+    server = tmux(keeper, "display-message", "-p", "#{pid}").strip()
+    found = subprocess.run(
+        ["ps", "--ppid", server, "-o", "args="], capture_output=True, text=True, check=False
+    )
+    return [line for line in found.stdout.splitlines() if "kill -s CHLD" in line]
+
+
+def test_one_job_reaps_for_an_old_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(keeper, "api", tmp_path)
+    expected = 1 if installation(keeper.binary).may_miss_exits else 0
+    tmux(keeper, "source-file", str(keeper.config_file))  # as when the config changes
+    tmux(keeper, "set-option", "-g", CONFIG_OPTION, "outdated")
+    keeper.sessions()  # loads it again
+    assert eventually(lambda: len(reaping_jobs(keeper)) == expected or None) is not None
+    time.sleep(0.2)
+    assert len(reaping_jobs(keeper)) == expected
+
+
+def test_the_config_reaps_only_where_asked() -> None:
+    assert "kill -s CHLD" not in config_text(10)
+    assert "kill -s CHLD" in config_text(10, reaping=True)
+    assert config_digest(config_text(10)) != config_digest(config_text(10, reaping=True))
+
+
+def test_a_server_started_by_hand_keeps_ended_commands_once_ours_is_loaded(
+    keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
+    assert option(keeper, "remain-on-exit") == "off"  # the default of tmux
+    keeper.sessions()
+    assert option(keeper, "remain-on-exit") == "on"
+    new(keeper, "build", tmp_path, "sh", "-c", "exit 6")
+    assert ending(keeper, "build").status == 6
+
+
+def test_ended_and_running_ones_list_together(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    for n in range(10):
+        new(keeper, f"t{n}", tmp_path, *(("sh", "-c", f"exit {n}") if n % 2 else ("sleep", "600")))
+    eventually(lambda: sum(s.ending is not None for s in keeper.sessions()) == 5)
+    listing = keeper.listing()
+    assert listing.unreadable == frozenset()
+    statuses = {s.name: None if s.ending is None else s.ending.status for s in listing.sessions}
+    assert statuses == {f"t{n}": n if n % 2 else None for n in range(10)}
+
+
 def fake_tmux(tmp_path: Path, script: str) -> str:
     path = tmp_path / "tmux"
     path.write_text(f"#!/bin/sh\n{script}\n")
@@ -540,6 +748,7 @@ def test_kill_with_force_spares_the_server(systemd_keeper: TmuxKeeper, tmp_path:
     tmux(systemd_keeper, "new-session", "-d", "-s", "mine", "sleep 60")
     systemd_keeper.kill("mine", force=True)
     assert [session.name for session in systemd_keeper.sessions()] == ["other"]
+    assert other.pid is not None
     assert not gone(other.pid)
 
 

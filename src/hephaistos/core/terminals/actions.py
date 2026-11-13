@@ -2,7 +2,8 @@
 
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper
 outside any transaction, then observes again: State always comes from the one comparison
-(`observers/terminals.py`). A lost Terminal has no session, so its row alone changes.
+(`observers/terminals.py`). A Terminal whose session is gone, lost or ended so, has none to act
+on, so its row alone changes.
 """
 
 import contextlib
@@ -30,10 +31,13 @@ from hephaistos.core.utils.text import escaped, is_utf8
 MAX_TRIES = 100  # default names tried while others take them meanwhile
 
 
-def _taken_text(name: str, lost: bool) -> str:  # noqa: FBT001 - a flag, as the row has it
-    if lost:
-        return f"a lost terminal named {escaped(name)} exists; kill it, or choose another name"
-    return f"a terminal named {escaped(name)} exists; choose another name"
+def _taken_text(name: str, status: TerminalStatus = TerminalStatus.OPEN) -> str:
+    """Why `name` cannot be given: a Terminal of that status has it."""
+    if status is TerminalStatus.OPEN:
+        return f"a terminal named {escaped(name)} exists; choose another name"
+    article = "an" if status is TerminalStatus.ENDED else "a"
+    which = f"{article} {status} terminal named {escaped(name)}"
+    return f"{which} exists; kill it, or choose another name"
 
 
 def _observed(
@@ -72,7 +76,8 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
     """Starts a Terminal in `directory`: `command`, else the login shell of the creator.
 
     Named `name`, else by the directory, the next free number; another process taking that
-    name meanwhile moves it on to the next. `environment` is that of the creator.
+    name meanwhile moves it on to the next. `environment` is that of the creator. A command that
+    ended at once is returned as ended, to be seen; a shell that did is refused.
     """
     target = _directory(directory)
     if name is not None:
@@ -85,13 +90,13 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
             existing = {terminal.name: terminal for terminal in state.on_this_machine(session)}
             chosen = name or state.default_name(session, target, refused)
         if name is not None and (taken := existing.get(name)):
-            raise HephaistosError(_taken_text(name, taken.status is TerminalStatus.LOST))
+            raise HephaistosError(_taken_text(name, taken.status))
         terminal_id = new_id()
         try:
             keeper.create(terminal_id, chosen, target, command, environment)
         except NameTakenError:
             if name is not None:  # e.g. a session started by hand, not observed yet
-                raise HephaistosError(_taken_text(name, lost=False)) from None
+                raise HephaistosError(_taken_text(name)) from None
             refused.add(chosen)
             continue
         except NoSuchSessionError:
@@ -100,11 +105,13 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
         _observed(paths, keeper, command=hint)
         with read_session(paths) as session:
             created = state.by_id(session, terminal_id)
-        if created is None or created.status is TerminalStatus.LOST:
+        if created is None or created.session_gone:
             if created is not None or not keeper.running():
                 lost = f"terminal {escaped(chosen)} was lost at once: the tmux server ended"
                 raise HephaistosError(lost)
-            raise HephaistosError(f"terminal {escaped(chosen)} ended at once: its command exited")
+            # A command stays once ended, so this was a shell, or one killed meanwhile.
+            why = ": its shell exited" if command is None else ""
+            raise HephaistosError(f"terminal {escaped(chosen)} ended at once{why}")
         return created
     raise HephaistosError(
         f"no free name for a terminal in {short_path(target)} after {MAX_TRIES} tries"
@@ -124,15 +131,15 @@ def rename(
     if new_name == name:
         return found
     if taken := others.get(new_name):
-        raise HephaistosError(_taken_text(new_name, taken.status is TerminalStatus.LOST))
-    if found.status is TerminalStatus.LOST:
+        raise HephaistosError(_taken_text(new_name, taken.status))
+    if found.session_gone:
         with write_session(paths) as session:
             state.rename_lost(session, found, new_name)
     else:
         try:
             keeper.rename(name, new_name)
         except NameTakenError:
-            raise HephaistosError(_taken_text(new_name, lost=False)) from None
+            raise HephaistosError(_taken_text(new_name)) from None
         except NoSuchSessionError:
             _observed(paths, keeper)
             raise state.NoSuchTerminalError(name) from None
@@ -171,7 +178,7 @@ def _restore(
         if any(session.terminal_id == lost.id for session in keeper.sessions()):
             return  # restored meanwhile by another process, e.g. a second attach
         # A session started by hand meanwhile, not observed yet.
-        raise HephaistosError(_taken_text(lost.name, lost=False)) from None
+        raise HephaistosError(_taken_text(lost.name)) from None
     except NoSuchSessionError:
         raise HephaistosError(f"terminal {escaped(lost.name)} ended at once") from None
     with write_session(paths) as session:
@@ -207,14 +214,21 @@ def attach(
 ) -> tuple[TerminalState, list[str]]:
     """The Terminal named `name`, restored first if lost, and the command that attaches to it.
 
-    `environment` and `tty` are those of the process attaching: refused at a tty that the
-    Terminal shows, as its output would loop back into it. Not by `HEPHAISTOS_TERMINAL`, which
-    may have spread beyond it, e.g. into a tmux of the user whose server started inside it.
+    One ended shows its last screen, as tmux keeps it; refused if its session is gone too, e.g.
+    after a reboot, as there is nothing to show. `environment` and `tty` are those of the
+    process attaching: refused at a tty that the Terminal shows, as its output would loop back
+    into it. Not by `HEPHAISTOS_TERMINAL`, which may have spread beyond it, e.g. into a tmux of
+    the user whose server started inside it.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
     with read_session(paths) as session:
         found = state.by_name(session, name)
+    if found.status is TerminalStatus.ENDED and found.lost_because is not None:
+        raise HephaistosError(
+            f"terminal {escaped(found.name)} {state.ending_text(found)}; its last screen is gone,"
+            f" as {state.LOST_TEXTS[found.lost_because]}"
+        )
     if found.status is TerminalStatus.LOST:
         _restore(paths, keeper, found, environment)
         _observed(paths, keeper)
@@ -232,10 +246,12 @@ def attach_created(
 ) -> list[str]:
     """The command that attaches to a Terminal just created, by its ID, without observing again.
 
-    So it attaches also if renamed meanwhile; if its command already ended, it says so.
+    So it attaches also if renamed meanwhile, and to the last screen of a command that ended; if
+    its shell exited already, or someone killed it, it says so.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
-    return _attach_command(keeper, created, tty, ended="ended before attaching: its command exited")
+    why = ": its shell exited" if created.command is None else ""
+    return _attach_command(keeper, created, tty, ended=f"ended before attaching{why}")
 
 
 def kill(
@@ -243,22 +259,23 @@ def kill(
 ) -> TerminalState:
     """Ends a Terminal, its processes getting SIGHUP, or with `force` SIGKILL first.
 
-    Returns it as last known. A lost one is forgotten, also one lost meanwhile with its server;
-    one that ended meanwhile counts as killed.
+    Returns it as last known. One ended closes, its last screen with it. One whose session is
+    gone is forgotten, also one whose session went meanwhile with its server; one that closed
+    meanwhile counts as killed.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
     with read_session(paths) as session:
         found = state.by_name(session, name)
-    if found.status is TerminalStatus.OPEN:
-        with contextlib.suppress(NoSuchSessionError):  # ended meanwhile
+    if not found.session_gone:
+        with contextlib.suppress(NoSuchSessionError):  # closed meanwhile
             keeper.kill(name, force=force)
         _observed(paths, keeper)
         with read_session(paths) as session:
             found_now = state.by_id(session, found.id)
-        if found_now is None or found_now.status is TerminalStatus.OPEN:
+        if found_now is None or not found_now.session_gone:
             return found
-        found = found_now  # lost meanwhile, with its server: it is forgotten as well
+        found = found_now  # gone meanwhile, with its server: it is forgotten as well
     with write_session(paths) as session:
         state.forget(session, found)
     _observed(paths, keeper)

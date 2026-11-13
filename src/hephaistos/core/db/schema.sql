@@ -125,7 +125,7 @@ CREATE TABLE state_terminals (
     command           TEXT CHECK (  -- its arguments as a JSON list; NULL for a shell
         command IS NULL OR CASE WHEN json_valid(command) THEN json_type(command) = 'array' ELSE 0 END
     ),
-    status            TEXT NOT NULL CHECK (status IN ('open', 'lost')),
+    status            TEXT NOT NULL CHECK (status IN ('open', 'ended', 'lost')),
     boot_id           TEXT NOT NULL CHECK (boot_id <> ''),  -- of the boot it last ran in
     started_at        INTEGER NOT NULL,  -- milliseconds since 1970 by the Machine's clock
     active_at         INTEGER NOT NULL,  -- likewise: its last input or output
@@ -133,8 +133,19 @@ CREATE TABLE state_terminals (
     program           TEXT NOT NULL,  -- in its foreground, e.g. bash; last known while lost
     clients           INTEGER NOT NULL CHECK (clients >= 0),  -- attached, e.g. Terminal emulators
     panes             INTEGER NOT NULL CHECK (panes >= 1),  -- more if split outside hephaistos
+    exit_status       INTEGER,  -- of an ended one that exited; NULL if a signal ended it
+    exit_signal       INTEGER CHECK (exit_signal > 0),  -- that ended it, if the Keeper says which
+    ended_at          INTEGER,  -- milliseconds since 1970: when it ended, or was first seen so
+    lost_at           INTEGER,  -- likewise: when its session was found gone; NULL while it has one
+    lost_because      TEXT CHECK (lost_because IN ('reboot', 'server')),  -- or the Keeper's ended
     observed_at       INTEGER NOT NULL,
-    observed_by       BLOB NOT NULL REFERENCES registry_machines (id)
+    observed_by       BLOB NOT NULL REFERENCES registry_machines (id),
+    CHECK ((status = 'ended') = (ended_at IS NOT NULL)),
+    CHECK (status = 'ended' OR (exit_status IS NULL AND exit_signal IS NULL)),
+    CHECK (exit_status IS NULL OR exit_signal IS NULL),
+    CHECK ((lost_at IS NULL) = (lost_because IS NULL)),
+    CHECK (status <> 'lost' OR lost_at IS NOT NULL),
+    CHECK (status <> 'open' OR lost_at IS NULL)
 ) STRICT;
 CREATE UNIQUE INDEX state_terminals_name ON state_terminals (observed_by, name);
 
