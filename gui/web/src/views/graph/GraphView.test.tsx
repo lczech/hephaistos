@@ -97,7 +97,9 @@ const GRAPH: Schemas["GraphJson"] = {
 
 interface Served {
   graph?: Schemas["GraphJson"];
-  pages?: Commit[][]; // the pages of commits, in order
+  // The pages of commits, in order; asked again for each request, as a repository changes.
+  pages?: Commit[][] | (() => Commit[][]);
+  only?: Record<string, string[]>; // commits only on a branch, left out of a walk hiding it
   clone?: Partial<Schemas["CloneJson"]>;
   worktrees?: string[];
   hold?: Promise<void>; // pages after the first wait for it
@@ -106,12 +108,19 @@ interface Served {
 
 function serveGraph({
   graph = GRAPH,
-  pages = [COMMITS],
+  pages: paged = [COMMITS],
+  only = {},
   clone: fields = {},
   worktrees = ["feature"],
   hold,
   holdLines,
 }: Served = {}): Request[] {
+  // The pages of a walk hiding these branches: without the commits only on them.
+  const walked = (hide: string[]) => {
+    const left = new Set(hide.flatMap((name) => (only[name] ?? []).map(hash)));
+    const pages = typeof paged === "function" ? paged() : paged;
+    return pages.map((page) => page.filter((each) => !left.has(each.hash)));
+  };
   return serve({
     "GET /api/info": () => json(info()),
     "GET /api/repositories": () =>
@@ -123,7 +132,10 @@ function serveGraph({
     "GET /api/history": async (request) => {
       const asked = new URL(request.url).searchParams;
       const skip = Number(asked.get("skip") ?? 0);
-      const refs = pages.flat().flatMap((each) => each.refs);
+      const pages = walked(asked.getAll("hide"));
+      const refs = walked([])
+        .flat()
+        .flatMap((each) => each.refs); // all, hidden or not
       const ref = asked.get("ref"); // a revision resolved: as if git knew any, as a commit
       if (ref !== null) {
         return json({
@@ -156,9 +168,10 @@ function serveGraph({
     "GET /api/graph": () => json(graph),
     "GET /api/graph/lines": async (request) => {
       if (holdLines) await holdLines;
-      const left = new Set(new URL(request.url).searchParams.getAll("until"));
+      const asked = new URL(request.url).searchParams;
+      const left = new Set(asked.getAll("until"));
       const lines = [];
-      for (const { hash: at, parents, refs } of pages.flat()) {
+      for (const { hash: at, parents, refs } of walked(asked.getAll("hide")).flat()) {
         lines.push({ hash: at, parents, refs });
         left.delete(at);
         if (left.size === 0) break;
@@ -354,6 +367,30 @@ describe("the Checkouts in the Graph View", () => {
     expect(nodes().map((node) => node.kind)).toEqual(["head", "uncommitted", "head", "commit"]);
   });
 
+  it("goes on to a HEAD with the order toggled on the way, in the walk in the new order", async () => {
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
+    const requests = serveGraph({
+      graph,
+      pages: [COMMITS, [commit("o", [])]],
+      worktrees: ["old"],
+      hold,
+    });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(chip("Worktree old"));
+    await waitFor(() => expect(asked(requests, "/api/history").get("skip")).toBe("3"));
+    await userEvent.click(screen.getByRole("button", { name: "Topological order" }));
+    await waitFor(() => expect(asked(requests, "/api/history").get("order")).toBe("date"));
+    release();
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
+    expect(screen.queryByText(/is not among the commits shown/)).toBeNull();
+  });
+
   it("goes to a HEAD not loaded yet, loading older pages until it shows at the top", async () => {
     const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
     const requests = serveGraph({ graph, pages: [COMMITS, [commit("o", [])]], worktrees: ["old"] });
@@ -436,12 +473,17 @@ describe("the Checkouts in the Graph View", () => {
   });
 
   it("shows a hidden branch's chip faint, and shows the branch again on a click", async () => {
-    serveGraph();
+    serveGraph({ only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
     await screen.findByText("Commit b");
+    expect(screen.queryByText("Commit f")).toBeNull();
     expect(chip("Worktree feature")).toHaveAttribute("data-hidden", "true");
     await userEvent.click(chip("Worktree feature"));
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
+    // Gone to once the walk showing it has come, not missed in the one before.
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit f");
+    expect(screen.queryByText(/is not among the commits shown/)).toBeNull();
   });
 
   it("hides the default branch's badge, and its lane and accent, while it is hidden", async () => {
@@ -510,13 +552,15 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   });
 
   it("shows a hidden branch picked again, then goes to it", async () => {
-    serveGraph();
+    serveGraph({ only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
     await screen.findByText("Commit b");
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit f");
+    expect(screen.queryByText(/is not among the commits shown/)).toBeNull();
   });
 
   it("turns while going to what was picked, stopped by a click on it", async () => {

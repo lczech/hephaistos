@@ -189,8 +189,11 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       : ids.has(`uncommitted:${towards.key}`)
         ? `uncommitted:${towards.key}`
         : towards.commit;
+  // Not in the previous walk's rows, shown while another loads, e.g. a hidden branch shown again
+  // to go to it: its pages say nothing of the new walk's.
+  const previous = history.isPlaceholderData;
   useEffect(() => {
-    if (towards === null || loaded === undefined) return;
+    if (towards === null || loaded === undefined || previous) return;
     if (reached !== undefined) {
       list.current?.goTo(reached);
       setTowards(null);
@@ -200,7 +203,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     } else if (!isFetchingNextPage) {
       void fetchNextPage();
     }
-  }, [towards, loaded, reached, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
+  }, [towards, loaded, previous, reached, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
   useEffect(() => {
     if (towards === null) return;
     const wait = setTimeout(() => setSlow(true), SLOW);
