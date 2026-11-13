@@ -433,6 +433,7 @@ def test_names_sort_numbers_as_numbers() -> None:
 # Ended ones: their program ended, their session stays until killed; and sessions gone.
 
 ENDED_AT = datetime(2026, 11, 6, 9, 30, tzinfo=UTC)
+END = Ending(status=1, signal=None, at=ENDED_AT)
 
 
 def ended(
@@ -660,3 +661,26 @@ def test_observations_follow_what_the_keeper_shows(
                     old.ended_at,
                 )
                 assert new.lost_at is not None
+
+
+def test_an_ended_one_keeps_the_program_it_last_ran(set_up: Paths) -> None:
+    """tmux gives a dead pane what it started, e.g. the wrapper of its scope, `systemd-run`."""
+    api = new_id()
+    update(set_up, session("api", api, program="make", current_directory=Path("/home/u/proj/b")))
+    update(set_up, session("api", api, program="systemd-run", ending=END))
+    state = stored(set_up)["api"]
+    assert (state.program, state.current_directory) == ("make", Path("/home/u/proj/b"))
+
+
+def test_one_ended_at_once_has_the_program_of_its_command(set_up: Paths) -> None:
+    build = new_id()
+    with write_session(set_up) as written:
+        terminals.update(
+            written,
+            [session("build", build, program="systemd-run", ending=END)],
+            running=True,
+            boot_id=BOOT,
+            started=written.clock_value,
+            command={build: ("/usr/bin/mkae", "test")},
+        )
+    assert stored(set_up)["build"].program == "mkae"

@@ -514,24 +514,32 @@ def _found(  # noqa: PLR0913 - keyword-only after the first two: what one observ
 ) -> TerminalState:
     """The State of a Terminal whose session was found: open, or ended, as its program is.
 
-    An ended one keeps when it was first seen so, where the Keeper does not say when it ended.
+    An ended one keeps when it was first seen so, where the Keeper does not say when it ended,
+    and the program and directory last seen while it ran: tmux gives a dead pane what it started,
+    e.g. the wrapper of its scope. One never seen running has the name of its command's program.
     """
     ending = item.ending
+    run = old.command if old else command
     ended_at = None
+    program, current = item.program, item.current_directory
     if ending is not None:
         before = old.ended_at if old is not None and old.status is TerminalStatus.ENDED else None
         ended_at = ending.at or before or observed_at.datetime
+        if old is not None and not old.session_gone:
+            program, current = old.program, old.current_directory
+        elif run:
+            program = Path(run[0]).name
     return TerminalState(
         id=terminal_id,
         name=name,
         directory=old.directory if old else item.directory,
-        command=old.command if old else command,
+        command=run,
         status=TerminalStatus.OPEN if ending is None else TerminalStatus.ENDED,
         boot_id=boot_id,
         started_at=item.created_at,
         active_at=item.active_at,
-        current_directory=item.current_directory,
-        program=item.program,
+        current_directory=current,
+        program=program,
         clients=item.clients,
         panes=item.panes,
         observed_at=observed_at,
