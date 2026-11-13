@@ -554,6 +554,13 @@ describe("a tree's rows stuck below its header", () => {
 const drawn = () =>
   new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(null))));
 
+/** Scrolls an element, once the browser has said so, as the list keeps where it was by it. */
+async function scrolled(element: HTMLElement, top: number): Promise<void> {
+  const said = new Promise((done) => element.addEventListener("scroll", done, { once: true }));
+  element.scrollTop = top;
+  await said; // under load, maybe only after a frame or two
+}
+
 /** The name of the row seen at `y`, in the middle of its name, and its box; none outside rows. */
 function seenAt(y: number): { name: string; box: DOMRect } | undefined {
   const cell = document.querySelector('[data-column="name"]') as HTMLElement; // its header
@@ -700,7 +707,7 @@ describe("a list's rows in view", () => {
   it("stay where they are as rows come before them", async () => {
     const { rerender } = render(<Growing ahead={0} />);
     const frame = document.querySelector("[data-layout]") as HTMLElement;
-    frame.scrollTop = 200;
+    await scrolled(frame, 200);
     await drawn();
     const before = ownRowOf("fruit 20").getBoundingClientRect().top;
     rerender(<Growing ahead={5} />);
@@ -723,17 +730,17 @@ describe("a list's rows in view", () => {
   it("are the same once a Panel hidden is shown again", async () => {
     render(<Growing ahead={0} />);
     const frame = document.querySelector("[data-layout]") as HTMLElement;
-    frame.scrollTop = 200;
+    await scrolled(frame, 200);
     await drawn();
-    const [scrolled, before] = [frame.scrollTop, ownRowOf("fruit 20").getBoundingClientRect().top];
-    expect(scrolled).toBeGreaterThan(100);
+    const [top, before] = [frame.scrollTop, ownRowOf("fruit 20").getBoundingClientRect().top];
+    expect(top).toBeGreaterThan(100);
     // As dockview hides a Panel drawn while hidden.
     const panel = frame.parentElement as HTMLElement;
     panel.style.visibility = "hidden";
     await drawn();
     panel.style.visibility = "";
     await drawn();
-    expect(frame.scrollTop).toBe(scrolled);
+    expect(frame.scrollTop).toBe(top);
     expect(ownRowOf("fruit 20").getBoundingClientRect().top).toBeCloseTo(before, 0);
   });
 });
