@@ -554,3 +554,36 @@ def test_missing_revision_text(tmp_path: Path, name: str, said: str) -> None:
     assert git_facts.missing_revision_text(repo, name) == (
         f"{said} does not exist in this clone (git: fatal: Needed a single revision)"
     )
+
+
+def test_a_timed_out_git_is_asked_to_stop_before_it_is_killed(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    # As git stopping: told by SIGTERM, on which it removes its lock files.
+    stops = "!trap 'touch stopped; exit 1' TERM; sleep 30 & wait"
+    with pytest.raises(GitTimeoutError):
+        git_facts.run(repo, "-c", f"alias.stops={stops}", "stops", timeout=0.5)
+    assert (repo / "stopped").exists()
+    for read in (
+        lambda: git_facts.run_bounded(repo, "-c", f"alias.stops={stops}", "stops", max_bytes=10),
+        lambda: list(git_facts.read_lines(repo, "-c", f"alias.stops={stops}", "stops")),
+    ):
+        (repo / "stopped").unlink()
+        config.activate(
+            dataclasses.replace(
+                config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=0.5)
+            )
+        )
+        with pytest.raises(GitTimeoutError):
+            read()
+        assert (repo / "stopped").exists()
+
+
+def test_a_timed_out_git_that_does_not_stop_is_killed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = create(tmp_path / "repo")
+    monkeypatch.setattr(git_facts, "STOP_GRACE", 0.5)
+    started = time.monotonic()
+    with pytest.raises(GitTimeoutError):
+        git_facts.run(repo, "-c", "alias.stays=!trap '' TERM; sleep 30", "stays", timeout=0.5)
+    assert time.monotonic() - started < 5

@@ -14,6 +14,7 @@ Each observation updates `observed_at`; rows and Events change only when somethi
 
 The first observer is `clones` (git), which also finds the Clones' Worktrees.
 git runs outside any transaction, for several Clones in parallel, each command with a timeout (`git.timeout`).
+A command past its timeout is asked to stop (SIGTERM), on which git removes its lock files, and killed only if it is still running five seconds later.
 Then one write session stores the results, keeping any State another process observed meanwhile.
 Commands run with `GIT_OPTIONAL_LOCKS=0`, so they never block the user's own.
 

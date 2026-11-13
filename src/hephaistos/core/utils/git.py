@@ -39,6 +39,8 @@ class NotInRepositoryError(GitError):
     """A path is not in a git repository."""
 
 
+STOP_GRACE = 5.0  # s: how long git has to stop once asked, before it is killed
+
 # The variables that tie git to one repository, as `git rev-parse --local-env-vars` lists them.
 # Set when we run inside a git hook or `git rebase --exec`; they would override `git -C`.
 LOCAL_VARIABLES = frozenset(
@@ -118,19 +120,22 @@ def run(
     if timeout is None:
         timeout = config.settings().git.timeout  # a hung network filesystem must not block us
     started = time.monotonic()
-    try:
-        result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
-            command,
-            input=stdin,
-            capture_output=True,
-            encoding="utf-8",
-            errors="surrogateescape",
-            env=env,
-            check=False,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        raise _timed_out(path, args, started, timeout) from None
+    with subprocess.Popen(  # noqa: S603 - arguments are a list, never passed through a shell
+        command,
+        stdin=None if stdin is None else subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
+        errors="surrogateescape",
+        env=env,
+    ) as process:
+        try:
+            stdout, stderr = process.communicate(stdin, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Its output not read on: what git started may hold it open, e.g. an alias's command.
+            _stop(process, group=False)
+            raise _timed_out(path, args, started, timeout) from None
+    result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
     _log_call(path, args, started, result.returncode, result.stderr)
     return result
 
@@ -226,10 +231,25 @@ def read_lines(path: Path, *args: str) -> Generator[str]:
         raise GitError(f"`git {' '.join(args)}` failed in {path}: {stderr.strip()}")
 
 
-def _stop(process: subprocess.Popen[bytes]) -> None:
-    """Stops git, with what it started."""
-    with contextlib.suppress(ProcessLookupError):  # ended meanwhile
-        os.killpg(process.pid, signal.SIGKILL)
+def _stop(process: subprocess.Popen[bytes] | subprocess.Popen[str], *, group: bool = True) -> None:
+    """Stops git, with what it started if in a `group` of its own.
+
+    Asked first (SIGTERM), on which git removes its lock files, e.g. of a commit-graph file being
+    written, which would block the user's git; killed only if still running after STOP_GRACE.
+    """
+
+    def send(number: signal.Signals) -> None:
+        with contextlib.suppress(ProcessLookupError):  # ended meanwhile
+            if group:
+                os.killpg(process.pid, number)
+            else:
+                process.send_signal(number)
+
+    send(signal.SIGTERM)
+    try:
+        process.wait(STOP_GRACE)
+    except subprocess.TimeoutExpired:
+        send(signal.SIGKILL)
 
 
 def _log_call(
