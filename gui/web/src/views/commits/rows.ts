@@ -1,4 +1,6 @@
-// What a list of commits holds: commits, and where a file was renamed, the path it had before.
+// What a list of commits holds: what is not committed, above HEAD; the commits; where a file was
+// renamed, the path it had before; a commit found by its hash elsewhere. And what its graph is
+// drawn from: the rows laid out in lanes, and the tips of the lines at the top.
 
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";

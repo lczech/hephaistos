@@ -907,7 +907,7 @@ describe("the branch filter of the Graph View", () => {
     ]);
     expect(within(dialog).getByRole("button", { name: "Show all" })).toBeDisabled();
     expect(dialog).toHaveTextContent(
-      "A hidden branch's commits stay where a branch shown has them.",
+      "Commits of a hidden branch still show where a shown branch leads to them.",
     );
     await userEvent.click(within(dialog).getByRole("checkbox", { name: "feature" }));
     expect(status()).toHaveTextContent(/^graph\?clone=clone-proj&hide=feature$/);

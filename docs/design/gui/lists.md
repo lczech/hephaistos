@@ -136,6 +136,7 @@ Dragging a header with a mouse moves its column too (React Aria's `useDrag`, the
 It goes to the gap between the headers shown nearest to where it is dropped, an accent line showing which while dragging.
 With a finger, whose long press opens the menu, its ← and → move it instead.
 Only columns with a header are arranged; those without (a square, a logo, links) stay in place.
+A column with a header may stay in its place too, shown or hidden but never moved (`stays`), e.g. a commit graph, which lines up with what opens below a row.
 A column saying what a row is (a name, a path, a subject, a summary, a message) always shows.
 So does one filtered or sorted by, hidden or not, and the Database View's last one shown.
 

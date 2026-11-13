@@ -3,7 +3,7 @@ import { hueColour } from "../../hues";
 import styles from "./Graph.module.css";
 import type { Bend, LaneColour, Layout, Line, NodeKind } from "./lanes";
 
-export const LANE = 12; // px per lane
+const LANE = 12; // px per lane
 const MOST_FITTED = 8; // lanes the column fits until resized; more are cut off at its edge
 const SIZE = 14; // px of the box a node is drawn in
 // How far solid lines start above their row's top, under the end of those of the row above, so

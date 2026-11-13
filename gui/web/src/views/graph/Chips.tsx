@@ -32,9 +32,10 @@ interface Props {
 
 /**
  * A chip per Checkout of the Clone, below the bar: where it is, marked at its start in the colour
- * of the line its HEAD is on, and how far it is ahead of the default branch and behind it. A click goes to its HEAD; while it
- * loads older commits to get there, the chip turns, and a click on it stops. It is said in its
- * tooltip and to screen readers, not in a note above the list, which would move it.
+ * of the line its HEAD is on, and how far it is ahead of the default branch and behind it. A
+ * click goes to its HEAD; while it loads older commits to get there, the chip turns, and a click
+ * on it stops. It is said in its tooltip and to screen readers, not in a note above the list,
+ * which would move it.
  */
 export function Chips({ chips, current, going, missed, onPick }: Props) {
   if (chips.length === 0) return null;

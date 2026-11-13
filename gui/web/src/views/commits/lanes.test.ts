@@ -48,7 +48,7 @@ describe("lanes", () => {
     expect(lanesOf(rows)).toEqual([0, 1, 0, 0]);
     expect(columns(layout.passing(2))).toEqual([1]);
     expect(froms(rows[3])).toEqual([1]);
-    expect(layout.pending()).toEqual([]);
+    expect(layout.below(3)).toEqual([]); // no lane left open
   });
 
   it("opens a lane per parent of an octopus merge", () => {
@@ -126,7 +126,7 @@ describe("lanes", () => {
 
   it("keeps lanes open for parents not listed yet, passing every row below", () => {
     const { layout } = lay([n("m", "a", "z"), n("a", "y"), n("p")]);
-    expect(layout.pending().sort()).toEqual(["y", "z"]);
+    expect(columns(layout.below(2))).toEqual([0, 1]); // a's to y, m's second to z
     expect(columns(layout.passing(2))).toEqual([0, 1]);
   });
 
@@ -134,10 +134,10 @@ describe("lanes", () => {
     // git's default order may list a's parent r before a child of r that came later.
     const { rows, layout } = lay([n("a", "r"), n("r"), n("late", "r")]);
     expect(rows[2]?.out).toEqual([]);
-    expect(layout.pending()).toEqual([]);
+    expect(layout.below(2)).toEqual([]); // no lane left open
     const merge = lay([n("a", "r"), n("r"), n("m", "r", "s"), n("s")]);
     expect(tos(merge.rows[2])).toEqual([0]); // only the parent still to come
-    expect(merge.layout.pending()).toEqual([]);
+    expect(merge.layout.below(3)).toEqual([]);
   });
 
   it("colours lane 0 in the accent, branches by their names, others muted", () => {

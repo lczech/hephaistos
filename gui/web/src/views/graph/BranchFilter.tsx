@@ -17,8 +17,8 @@ interface Props {
   onChange: (walked: Walked, hidden: string[]) => void;
 }
 
-/** What the filter's button says: `All local branches`, `Worktrees only, 2 hidden`. */
-export function filterText(walked: Walked, hidden: number): string {
+/** What the button of the filter says: `All local branches`, `Worktrees only, 2 hidden`. */
+function buttonText(walked: Walked, hidden: number): string {
   const which = walked === "local" ? "All local branches" : "Worktrees only";
   return hidden > 0 ? `${which}, ${numberText(hidden)} hidden` : which;
 }
@@ -41,7 +41,7 @@ export function BranchFilter({ walked, branches, hidden, onChange }: Props) {
           title="Which branches to show, and where their commits come from"
         >
           <Icon className={controls.pickIcon} aria-hidden="true" />
-          {filterText(walked, hidden.length)}
+          {buttonText(walked, hidden.length)}
           <ChevronDown className={controls.pickIcon} aria-hidden="true" />
         </button>
       </Pressable>
@@ -106,7 +106,7 @@ export function BranchFilter({ walked, branches, hidden, onChange }: Props) {
             ))}
           </ul>
           <p className={styles.hint}>
-            A hidden branch's commits stay where a branch shown has them.
+            Commits of a hidden branch still show where a shown branch leads to them.
           </p>
         </Dialog>
       </Popover>

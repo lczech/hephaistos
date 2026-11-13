@@ -120,11 +120,6 @@ export class Layout {
     return this.width;
   }
 
-  /** The commits the open lanes wait for: those still to come, or not listed. */
-  pending(): string[] {
-    return this.lanes.flatMap((lane) => (lane && !lane.hidden ? [lane.expects] : []));
-  }
-
   add(node: GraphNode): RowGraph {
     const row = this.rows.length;
     const lanes = this.lanes;
