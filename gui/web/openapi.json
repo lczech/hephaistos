@@ -2979,9 +2979,64 @@
             "title": "Directory",
             "type": "string"
           },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "exit_signal": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Signal"
+          },
+          "exit_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Status"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "lost_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lost At"
+          },
+          "lost_because": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lost Because"
           },
           "name": {
             "title": "Name",
@@ -3023,6 +3078,11 @@
           "panes",
           "started_at",
           "active_at",
+          "exit_status",
+          "exit_signal",
+          "ended_at",
+          "lost_at",
+          "lost_because",
           "observed_at",
           "observed_by",
           "checkout"
@@ -3402,7 +3462,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.35"
+    "version": "0.36"
   },
   "openapi": "3.1.0",
   "paths": {

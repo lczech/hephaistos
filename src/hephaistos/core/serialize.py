@@ -48,7 +48,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 35)
+API_VERSION = ApiVersion(0, 36)
 
 
 class Ref(TypedDict):
@@ -189,7 +189,7 @@ class TerminalJson(TypedDict):
 
     id: str
     name: str
-    status: str  # open or lost
+    status: str  # open, ended or lost
     directory: str  # where it started
     current_directory: str | None
     program: str
@@ -198,6 +198,15 @@ class TerminalJson(TypedDict):
     panes: int
     started_at: str
     active_at: str
+    # How an ended one ended: its exit status, or the signal, if the Keeper says which; and when,
+    # or when first seen ended.
+    exit_status: int | None
+    exit_signal: int | None
+    ended_at: str | None
+    # When its session was found gone, and why (`reboot`, `server`): while lost, or ended with
+    # its last screen gone too.
+    lost_at: str | None
+    lost_because: str | None
     observed_at: str
     observed_by: Ref
     checkout: CheckoutRef | None
@@ -278,6 +287,11 @@ def terminal_json(
         panes=state.panes,
         started_at=state.started_at.isoformat(),
         active_at=state.active_at.isoformat(),
+        exit_status=state.exit_status,
+        exit_signal=state.exit_signal,
+        ended_at=None if state.ended_at is None else state.ended_at.isoformat(),
+        lost_at=None if state.lost_at is None else state.lost_at.isoformat(),
+        lost_because=None if state.lost_because is None else state.lost_because.value,
         observed_at=state.observed_at.datetime.isoformat(),
         observed_by=machine_ref(state.observed_by, names),
         checkout=None if checkout is None else _checkout_ref(checkout),

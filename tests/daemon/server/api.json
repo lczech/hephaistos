@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 35
+    "minor": 36
   },
   "shapes": {
     "components": {
@@ -2984,9 +2984,64 @@
               "title": "Directory",
               "type": "string"
             },
+            "ended_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ended At"
+            },
+            "exit_signal": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exit Signal"
+            },
+            "exit_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exit Status"
+            },
             "id": {
               "title": "Id",
               "type": "string"
+            },
+            "lost_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lost At"
+            },
+            "lost_because": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lost Because"
             },
             "name": {
               "title": "Name",
@@ -3028,6 +3083,11 @@
             "panes",
             "started_at",
             "active_at",
+            "exit_status",
+            "exit_signal",
+            "ended_at",
+            "lost_at",
+            "lost_because",
             "observed_at",
             "observed_by",
             "checkout"
