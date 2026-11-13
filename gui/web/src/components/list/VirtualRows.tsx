@@ -365,6 +365,10 @@ export function VirtualRows({
   useLayoutEffect(bringIntoView);
   // The row a page from this one: as far as the rows in view reach, below those stuck.
   const page = (index: number, by: 1 | -1) => {
+    // The row as drawn now: details just opened below it, e.g. by Enter right before, are
+    // measured only at the next frame otherwise, and it would count as one line.
+    const drawnRow = virtualizer.elementsCache.get(keyOf(index));
+    if (drawnRow) virtualizer.measureElement(drawnRow);
     const [box, measures] = [virtualizer.scrollElement, virtualizer.measurementsCache];
     const item = measures[index];
     if (box === null || item === undefined) return index;

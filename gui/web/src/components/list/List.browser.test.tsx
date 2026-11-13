@@ -910,6 +910,16 @@ describe("a page of rows, by the keys", () => {
     await userEvent.keyboard("{PageUp}");
     await waitFor(() => expect(ownRowOf("fruit 1").parentElement).toHaveFocus());
   });
+
+  it("goes past details opened just before, not measured yet, as a fast hand would", async () => {
+    render(<TallDetails />);
+    await userEvent.tab();
+    const row = ownRowOf("fruit 1").parentElement as HTMLElement;
+    // In one task: no frame between them, in which the opened row would be measured.
+    fireEvent.keyDown(row, { key: "Enter" });
+    fireEvent.keyDown(document.activeElement as Element, { key: "PageDown" });
+    await waitFor(() => expect(ownRowOf("fruit 2").parentElement).toHaveFocus());
+  });
 });
 
 describe("a row clicked", () => {
