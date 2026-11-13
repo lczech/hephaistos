@@ -151,5 +151,7 @@ A View in a test's Panel (`test/view.tsx`) counts how often it draws, so that a 
 The Vite dev server proxies `/api` to the Server, but not for Vitest: to the one on `HEPHAISTOS_SERVER_PORT` if set, e.g. 8299 for a scratch Daemon, so that a change shows there without a build.
 
 While working, run the tests of the files changed and the linters; run the whole `npm run check` once, right before a commit, since it starts many workers and real browsers.
+Vitest runs one at a time in a checkout (`gui/vitest.config.ts`): two would clash on the cache of the browser tests, so a second waits, saying so, until the first ends.
+A Vitest that keeps running, in watch mode or from an editor, holds the checkout until it ends: the others wait for it all along.
 A change to the GUI is checked where it shows: browser tests for what only a browser lays out, headless Chrome against a scratch Daemon for how a View looks and behaves, the Desktop for its window and keys, and a tour before and after for changes to styles.
 The scripts for this, and how to run them, are in `.agents/scratch/gui-verification/README.md`.
