@@ -83,6 +83,8 @@ Its types are generated from the API's schema, `gui/web/openapi.json`, which the
 Styles are CSS modules plus one theme file of named values, with no component library so far.
 Vite builds into `gui/web/dist/` (not in git), which the Server serves.
 `gui/package.json` is one npm package for the GUI and the Desktop, and Electron's app.
+Packages may not run code when installed (`ignore-scripts` in `gui/.npmrc`), so Electron's binary, which its install script would download, comes from `npm run fetch-electron`, after `npm ci`, which empties `node_modules` first.
+A merge that changes `gui/package-lock.json` installs nothing in a checkout: the main checkout needs both again before it builds, and its Electron also runs the windows of worktrees.
 
 React's compiler memoizes components and hooks, strictly.
 A component or hook it cannot compile, e.g. one against the Rules of React, fails the build and the tests; a test checks that the compiler runs.
@@ -124,7 +126,8 @@ Each step of the [roadmap](plans/roadmap.md) has its own branch, in a worktree o
 When Orca runs the session (`ORCA_AGENT_SESSION_ID` is set), a worktree is made with `orca worktree create`, throwaway ones too, so that Orca shows and removes it.
 Orca then runs the setup of `orca.yaml`: `scripts/worktree_setup.sh`, which links the worktree's `.agents/scratch/` to the main checkout's, so that what is kept there is the same in every checkout and outlives the worktree; elsewhere, run it once in the new worktree.
 A branch with code gets one code review (`/code-review`), once its commits are done and before the user's last test, so that the fixes are tested too.
-A worktree is removed only once its branch is merged and the user said so: first `scripts/worktree_gui.sh remove`, then Orca's `orca worktree rm --worktree current --delete-branch`, which also deletes the branch once merged, and stops the sessions in the worktree, the agent's own too, so it is the session's last step.
+A worktree is removed only once its branch is merged and the user said so, first by `scripts/worktree_gui.sh remove`.
+Then, for one Orca made, `orca worktree rm --worktree current --delete-branch`, which also deletes the branch once merged, and stops the sessions in the worktree, the agent's own too, so it is the session's last step; for any other, `git worktree remove <path>` and `git branch -d <branch>`, from the main checkout.
 
 ## A worktree's GUI
 
