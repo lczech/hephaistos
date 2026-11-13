@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { hueOf } from "../../hues";
 import {
   branchOf,
+  type CheckedOut,
   type Commit,
+  type Drawing,
   type Entry,
   entries,
   graphOf,
@@ -60,7 +62,7 @@ describe("the graph of a list of commits", () => {
     expect(layout.rows).toHaveLength(1);
   });
 
-  it("colours a branch's lane by its name, below the first", () => {
+  it("colours the lane of a branch by its name, below the first", () => {
     const listed = entries([
       commit("m", ["b", "t"]),
       commit("t", ["b"], [ref("topic", "branch")]),
@@ -112,6 +114,53 @@ describe("a graph with a pinned branch", () => {
     expect(layout.rows[0]?.colour).toEqual({ kind: "hue", hue: hueOf("up"), muted: false });
     expect(shownRefs(refs, drawing).map((each) => each.name)).toEqual(["origin/up"]);
     expect(shownRefs(refs, undefined)).toBe(refs);
+  });
+});
+
+describe("the colour of a line as commits are made on it", () => {
+  // A Worktree on feature at f, and one detached at d; no line in the accent, none pinned.
+  const checkedOut: CheckedOut[] = [
+    { name: "f", path: "/f", worktree: true, branch: "feature", commit: "f" },
+    { name: "d", path: "/d", worktree: true, branch: null, commit: "d" },
+  ];
+  const drawing: Drawing = { heads: new Set(["f", "d"]), accent: "pinned", checkedOut };
+  const uncommitted = (head: string, key: string): Entry => ({
+    type: "uncommitted",
+    text: "Uncommitted",
+    of: { checkout: { worktree: key }, head, key },
+  });
+  const base = [commit("b", [])];
+  const colours = (listed: Entry[], ...ids: string[]) => {
+    const { layout, rows } = graphOf(listed, undefined, drawing);
+    return ids.map((id) => layout.rows[rows.get(id) ?? -1]?.colour);
+  };
+
+  it("keeps that of its branch while what is not committed is above it, and after", () => {
+    const feature = { kind: "hue", hue: hueOf("feature"), muted: false };
+    const before = [
+      uncommitted("f", "/f"),
+      ...entries([commit("f", ["b"], [ref("feature", "branch")]), ...base]),
+    ];
+    expect(colours(before, "uncommitted:/f", "f")).toEqual([feature, feature]);
+    const after = entries([
+      commit("g", ["f"], [ref("feature", "branch")]),
+      commit("f", ["b"]),
+      ...base,
+    ]);
+    expect(colours(after, "g", "f")).toEqual([feature, feature]);
+  });
+
+  it("colours the line of a detached Checkout by its name, muted, as it moves", () => {
+    const detached = { kind: "hue", hue: hueOf("d"), muted: true };
+    const before = [uncommitted("d", "/d"), ...entries([commit("d", ["b"]), ...base])];
+    expect(colours(before, "uncommitted:/d", "d")).toEqual([detached, detached]);
+    const moved = { ...drawing, checkedOut: [{ ...(checkedOut[1] as CheckedOut), commit: "e" }] };
+    const after = graphOf(
+      entries([commit("e", ["d"]), commit("d", ["b"]), ...base]),
+      undefined,
+      moved,
+    );
+    expect(after.layout.rows[0]?.colour).toEqual(detached);
   });
 });
 

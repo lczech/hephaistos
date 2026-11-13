@@ -17,9 +17,11 @@ export interface GraphNode {
   parents: readonly string[];
   uncommitted?: boolean;
   branch?: string; // the name of a branch at this commit, which colours a lane it starts
+  checkout?: string; // else that of a Checkout detached there or on a hidden branch: muted
 }
 
-/** What colours a lane: the accent, a branch by its name, or none, muted by where it leads. */
+/** What colours a lane: the accent, a branch by its name, else muted: a detached Checkout by its
+ * name, or where it leads. */
 export type LaneColour = { kind: "accent" } | { kind: "hue"; hue: number; muted: boolean };
 
 export type NodeKind = "commit" | "merge" | "head" | "uncommitted";
@@ -267,10 +269,14 @@ export class Layout {
     return node.parents.length > 1 ? "merge" : "commit";
   }
 
-  /** The colour of a lane starting at a node no lane awaited: that of a branch, or of lane 0. */
+  /**
+   * The colour of a lane starting at a node no lane awaited: that of lane 0, of a branch, or of a
+   * Checkout detached there, which stay as commits are made on it.
+   */
   private colourStarting(lane: number, row: number, node: GraphNode): LaneColour {
     if (this.options.accent === "first" && lane === 0 && row === 0) return { kind: "accent" };
     if (node.branch !== undefined) return { kind: "hue", hue: hueOf(node.branch), muted: false };
+    if (node.checkout !== undefined) return { kind: "hue", hue: hueOf(node.checkout), muted: true };
     return mutedFor(node.hash);
   }
 

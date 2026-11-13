@@ -5,7 +5,7 @@
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";
 import type { Checkout } from "../checkout";
-import { type Line as Lane, type LaneColour, Layout, type NodeKind } from "./lanes";
+import { type GraphNode, type Line as Lane, type LaneColour, Layout, type NodeKind } from "./lanes";
 
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
@@ -163,21 +163,43 @@ export function graphOf(
   const layout = new Layout({ heads, pinned, accent });
   const rows = new Map<string, number>();
   const laid: Drawn["laid"] = [];
+  const checkedOut = drawing.checkedOut ?? [];
   for (const entry of entries) {
     if (entry.type === "commit") {
       const { hash, parents, refs } = entry.commit;
       rows.set(hash, layout.rows.length);
       laid.push({ entry, id: hash });
-      layout.add({ hash, parents, branch: branchOf(shownRefs(refs, drawing)) });
+      const branch = branchOf(shownRefs(refs, drawing));
+      const detached = checkedOut.find((each) => each.branch === null && each.commit === hash);
+      layout.add({ hash, parents, branch, checkout: detached?.name });
     } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
       const id = uncommittedId(entry);
       rows.set(id, layout.rows.length);
       laid.push({ entry, id });
       const parent = (entry.of?.head ?? head) as string;
-      layout.add({ hash: id, parents: [parent], uncommitted: true });
+      const own = checkedOut.find((each) => each.path === entry.of?.key);
+      layout.add({
+        hash: id,
+        parents: [parent],
+        uncommitted: true,
+        ...uncommittedColour(own, drawing),
+      });
     }
   }
   return { layout, rows, laid, drawing };
+}
+
+/**
+ * What colours the line of what is not committed in a Checkout, as it will be once committed: its
+ * branch, else the Checkout itself, detached or on a hidden branch.
+ */
+function uncommittedColour(
+  own: CheckedOut | undefined,
+  drawing: Drawing,
+): Pick<GraphNode, "branch" | "checkout"> {
+  if (own === undefined) return {};
+  if (own.branch === null || drawing.hidden?.has(own.branch)) return { checkout: own.name };
+  return { branch: own.branch };
 }
 
 /** The tip of a line, where it starts: its row and ID, its node, the commit its badges are of

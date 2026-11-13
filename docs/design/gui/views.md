@@ -167,6 +167,7 @@ Colours:
 - the line of the start, in lane 0, takes the accent;
 - a lane a branch starts takes a hue from the name of the branch (`hues.ts`), the same in every session, at the lightness and chroma of the theme (`--hue-*` in `theme.css`);
 - a lane no branch starts, e.g. the side of a merge, takes a muted hue, from the commit it leads to, so that it stays as pages load;
+- in the Graph View, the line of a Checkout keeps its colour as commits are made on it: what is not committed starts it in the colour of the branch of the Checkout, and a Checkout detached, or on a branch hidden, takes a muted hue from its name;
 - the badge of the branch leading a line, and of its remote-tracking branch, is framed in the colour of that line.
 
 Words:
