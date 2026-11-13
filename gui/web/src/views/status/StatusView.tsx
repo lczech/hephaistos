@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Schemas } from "../../api/client";
 import { type Connection, useConnection } from "../../api/live";
 import { KEYS, useDaemon, useInfo, useObserve, useStatus } from "../../api/queries";
+import { IconButton } from "../../components/IconButton";
 import { Quoted } from "../../components/Quoted";
 import { TextIcon } from "../../components/TextIcon";
 import { BarEnd, Refresh, ViewBar, ViewPage } from "../../components/ViewBar";
@@ -18,6 +19,7 @@ import { ViewLink } from "../ViewLink";
 import { aboutRows, statusMarkdown } from "./about";
 import { daemonText, lastPassText, serverText, watcherText } from "./daemonText";
 import { retryText } from "./health";
+import { type PathRow, pathRows } from "./paths";
 import styles from "./StatusView.module.css";
 
 type Lost = Extract<Connection, { state: "disconnected" }>;
@@ -88,8 +90,8 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-/** Copies `text`, saying so for a moment beside it, or why it could not, moving nothing. */
-function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
+/** Copying text: what to call, and what to say for a moment after, that it copied or why not. */
+function useCopy(): [(text: string) => Promise<void>, string | null] {
   const [said, setSaid] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -99,7 +101,7 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setSaid(null), 3_000);
   };
-  const copy = async () => {
+  const copy = async (text: string) => {
     // Undefined outside a secure context, e.g. a page served over plain HTTP but not localhost.
     if (navigator.clipboard === undefined) return say("Not copied: this page has no clipboard");
     try {
@@ -109,9 +111,15 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
       say(`Not copied: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
+  return [copy, said];
+}
+
+/** Copies `text`, saying so for a moment beside it, or why it could not, moving nothing. */
+function CopyButton({ text, label, title }: { text: string; label: string; title: string }) {
+  const [copy, said] = useCopy();
   return (
     <div className={styles.actions}>
-      <button type="button" className={styles.action} onClick={copy} title={title}>
+      <button type="button" className={styles.action} onClick={() => copy(text)} title={title}>
         <TextIcon icon={ClipboardCopy} />
         {label}
       </button>
@@ -119,6 +127,28 @@ function CopyButton({ text, label, title }: { text: string; label: string; title
         {said}
       </span>
     </div>
+  );
+}
+
+/** A directory of Paths, with a button after it that copies it in full; below, what it holds. */
+function PathValue({ row }: { row: PathRow }) {
+  const [copy, said] = useCopy();
+  return (
+    <>
+      <span className={styles.path}>
+        {row.shown}
+        <IconButton
+          icon={ClipboardCopy}
+          label={`Copy the path of ${row.label}`}
+          title={`Copy ${row.path}`}
+          className={styles.copy}
+          onClick={() => copy(row.path)}
+        />
+      </span>
+      <span className={styles.holds}>
+        {row.holds} <span role="status">{said}</span>
+      </span>
+    </>
   );
 }
 
@@ -149,7 +179,7 @@ function LogCounts({ counts }: { counts: Schemas["LogCountsJson"] }) {
   );
 }
 
-/** What About and Log show while the setup is not there: checking, or why it failed. */
+/** What About, Paths and Log show while the setup is not there: checking, or why it failed. */
 function Waiting({ failed }: { failed: boolean }) {
   return <p className={styles.quiet}>{failed ? "Not loaded; see Setup" : "Loading…"}</p>;
 }
@@ -223,6 +253,19 @@ export function StatusView() {
                 title="Copy Setup and About as Markdown"
               />
             </>
+          )}
+
+          <h2 className={styles.heading}>Paths</h2>
+          {status.data?.paths === undefined ? (
+            // Also from a Daemon before API 0.26, which Setup then says to restart.
+            <Waiting failed={status.isError || status.data !== undefined} />
+          ) : (
+            <Fields
+              rows={pathRows(status.data.paths, info.data?.home).map((row) => [
+                row.label,
+                <PathValue key={row.label} row={row} />,
+              ])}
+            />
           )}
 
           <h2 className={styles.heading}>Running</h2>

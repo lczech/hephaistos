@@ -57,7 +57,24 @@
   composes: action from "../../components/controls.module.css";
 }
 
-/* The title of a section: Setup, About, Running, Log. */
+/* A directory of Paths: the button that copies it half an icon after it; on the line below,
+   what it holds. Both start where the other values do. */
+.path,
+.holds {
+  display: block;
+}
+
+/* Its padding takes no room: `--pad-x` is negative. */
+.copy {
+  composes: inline from "../../components/controls.module.css";
+  --inline-start: calc(var(--pad-x) + var(--space-2));
+}
+
+.holds {
+  color: var(--text-muted);
+}
+
+/* The title of a section: Setup, About, Paths, Running, Log. */
 .heading {
   margin: var(--space-3) 0 var(--space-1);
   font-size: inherit;

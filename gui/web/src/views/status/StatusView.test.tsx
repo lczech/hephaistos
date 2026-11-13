@@ -142,6 +142,40 @@ describe("the Status View", () => {
     expect(text).not.toContain("/home/");
   });
 
+  it("lists the paths, each copied in full, and none in Setup and About", async () => {
+    open();
+    serve(routes());
+    const writeText = vi.fn(async (_: string) => {});
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    renderWithQueries(<App />);
+    const copy = await screen.findByRole("button", { name: "Copy the path of Data" });
+    const path = copy.parentElement as HTMLElement;
+    // Under ~ once /api/info gives the home directory, which may answer after /api/status.
+    await waitFor(() =>
+      expect(path).toHaveTextContent(/^~\/\.local\/share\/hephaistos\/d1c604c9$/),
+    );
+    expect(path.lastElementChild).toBe(copy); // after it
+    const holds = path.nextElementSibling as HTMLElement; // on the line below
+    expect(holds).toHaveTextContent(/^1\.1 MB, the database and the server token/);
+    expect(path.parentElement?.previousElementSibling).toHaveTextContent(/^Data$/); // its label
+    await userEvent.click(copy);
+    expect(writeText).toHaveBeenLastCalledWith("/home/me/.local/share/hephaistos/d1c604c9");
+    expect(within(holds).getByRole("status")).toHaveTextContent("Copied");
+    await userEvent.click(screen.getByRole("button", { name: "Copy Setup and About" }));
+    expect(writeText.mock.lastCall?.[0]).not.toContain(".local");
+  });
+
+  it("says what is missing from a daemon without paths, before API 0.26", async () => {
+    open();
+    const answer = status();
+    // @ts-expect-error: before API 0.26, the status had no paths
+    delete answer.paths;
+    serve({ ...routes(), "GET /api/status": () => json(answer) });
+    renderWithQueries(<App />);
+    expect(await screen.findByText("Not loaded; see Setup")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy Setup and About" })).toBeInTheDocument();
+  });
+
   it("says why a copy failed, each message for its own moment", async () => {
     open();
     serve(routes());
@@ -181,7 +215,7 @@ describe("the Status View", () => {
     open();
     serve({ ...routes(), "GET /api/status": () => new Response(null, { status: 404 }) });
     renderWithQueries(<App />);
-    expect(await screen.findAllByText("Not loaded; see Setup")).toHaveLength(2);
+    expect(await screen.findAllByText("Not loaded; see Setup")).toHaveLength(3);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument(); // /api/daemon
   });
 

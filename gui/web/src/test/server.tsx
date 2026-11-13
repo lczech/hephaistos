@@ -79,7 +79,7 @@ export function info(api = builtFor()): Schemas["InfoJson"] {
 
 /** Where hephaistos keeps its files, in the home directory of `info`; sized as `/api/status`
  * gives them, else as `/api/daemon` does. */
-export function paths(sized = true): Schemas["PathsJson"] {
+export function paths(sized = true): Schemas["HephaistosPathsJson"] {
   const key = "d1c604c9";
   const size = (bytes: number) => (sized ? bytes : null);
   return {
