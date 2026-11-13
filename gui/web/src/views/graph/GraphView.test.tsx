@@ -571,6 +571,21 @@ describe("the Checkouts in the Graph View", () => {
     expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("m")]);
   });
 
+  it("pins the default branch where the rows have it, before the branches say it moved", async () => {
+    // A commit just made on main: the rows have it, the branches still say main is at m.
+    const made = commit("n", ["m"], { refs: [branch("main", "n")] });
+    serveGraph({
+      pages: [
+        [made, COMMITS[0] as Commit, { ...(COMMITS[1] as Commit), refs: [] }, COMMITS[2] as Commit],
+      ],
+    });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit n");
+    await expectSettled();
+    // n in lane 0, from the top, as main is; feature beside it; m below n in lane 0 too.
+    expect(nodes().map((node) => node.x)).toEqual(["-1px", "11px", "-1px", "-1px"]);
+  });
+
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
     let release = () => {};
     const hold = new Promise<void>((resolve) => {

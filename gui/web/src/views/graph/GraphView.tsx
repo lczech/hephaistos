@@ -107,7 +107,14 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   // The default branch keeps lane 0 and the accent, unless hidden.
   const defaultBranch =
     known?.default_branch && !hidden.includes(known.default_branch) ? known.default_branch : null;
-  const pinned = known?.branches.find((branch) => branch.name === defaultBranch)?.commit;
+  // Where it is as the rows listed have it: `/api/graph` may answer later than they do, or
+  // sooner, a commit just made on it laid out beside lane 0 until both agree.
+  const pinned =
+    defaultBranch === null
+      ? undefined
+      : history.data?.pages[0]?.refs.find(
+          (ref) => ref.kind === "branch" && ref.name === defaultBranch,
+        )?.commit;
   const heads = new Set(placed.flatMap(({ head }) => (head.commit ? [head.commit] : [])));
   const checkedOut: CheckedOut[] = placed.map(({ head, name }) => ({
     name,
