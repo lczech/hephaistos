@@ -124,7 +124,12 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     ...(defaultBranch ? { first: defaultBranch } : {}),
   };
   // The lines of the HEADs, laid out as the list will be, before their pages are listed.
-  const lines = useGraphLines(walk && known && { ...walk, until: [...heads], limit: LINES_LIMIT });
+  // Until the HEADs walked: that of a hidden branch may be on no line walked, which would then
+  // be walked to the limit for it.
+  const walkedHeads = placed.flatMap(({ head }) =>
+    head.commit && !(head.branch !== null && hidden.includes(head.branch)) ? [head.commit] : [],
+  );
+  const lines = useGraphLines(walk && known && { ...walk, until: walkedHeads, limit: LINES_LIMIT });
   const laid =
     lines.data &&
     graphOf(

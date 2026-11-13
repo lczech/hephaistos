@@ -562,6 +562,15 @@ describe("the Checkouts in the Graph View", () => {
     expect(chip("Worktree lost")).not.toHaveAttribute("data-missed");
   });
 
+  it("waits in the lines laid out ahead only for HEADs walked, not of hidden branches", async () => {
+    const requests = serveGraph({ only: { feature: ["f"] } });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
+    await screen.findByText("Commit b");
+    await expectSettled();
+    // feature's HEAD on no line walked: waited for, the lines would be walked to their limit
+    expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("m")]);
+  });
+
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
     let release = () => {};
     const hold = new Promise<void>((resolve) => {
