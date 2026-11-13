@@ -32,6 +32,7 @@ import {
   entryId,
   graphOf,
   type Laid,
+  tipsEntries,
   type Uncommitted,
   uncommittedIn,
 } from "../commits/rows";
@@ -39,6 +40,7 @@ import type { ViewProps } from "../index";
 import { useTitle } from "../title";
 import { BranchFilter, type Walked } from "./BranchFilter";
 import { type Chip, Chips } from "./Chips";
+import { TipsToggle, tipsOnlyOf, withTipsOnly } from "./TipsToggle";
 import { graphTitle } from "./text";
 
 type Head = Schemas["GraphHeadJson"];
@@ -73,7 +75,8 @@ interface Placed {
  * (`hide`). Its default branch keeps lane 0 and the accent, unless hidden; the HEAD of each
  * Checkout is drawn larger, named on its badge, with what is not committed above it. A chip per
  * Checkout, marked in the colour of the line of its HEAD, goes to its HEAD, loading older commits
- * until it shows; it opens at that of a Worktree (`at`).
+ * until it shows; it opens at that of a Worktree (`at`). With branch tips only (`tips`), it shows
+ * only the commits where something happens, in one page, those between them counted (`tips.py`).
  */
 export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const checkout = checkoutOf(params);
@@ -81,29 +84,42 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const hidden = paramValues(params.hide);
   const walked: Walked = paramValues(params.branches)[0] === "worktrees" ? "worktrees" : "local";
   const [at] = paramValues(params.at);
+  const tipsOnly = tipsOnlyOf(params);
   // The walk: from which branches, less those hidden, in which order; of the Clone of the Checkout.
   const walking = { branches: walked, order, ...(hidden.length === 0 ? {} : { hide: hidden }) };
   const walk = checkout && { ...checkout, ...walking };
-  const query: HistoryQuery | undefined = walk;
-  const history = useHistory(query);
   const graph = useGraph(checkout);
+  const repositories = useRepositories();
+  const known = graph.data;
+  const placed = (known?.heads ?? []).map((head) => place(head, repositories.data));
+  const above = uncommittedAbove(placed, repositories.data);
+  // With branch tips only, the HEADs of Checkouts on hidden branches kept too, where something is
+  // not committed: it shows above them, as with all commits.
+  const keep = tipsOnly ? keptHeads(placed, above, hidden) : [];
+  const query: HistoryQuery | undefined =
+    walk && (tipsOnly ? { ...walk, tips: true, ...(keep.length > 0 ? { keep } : {}) } : walk);
+  const history = useHistory(query);
   const error = useKeptError(history, query);
   const client = useQueryClient();
-  const repositories = useRepositories();
   useTitle(
     setTitle,
-    graphTitle(checkout && checkoutName(repositories.data, checkout), hidden.length, walked),
+    graphTitle(
+      checkout && checkoutName(repositories.data, checkout),
+      hidden.length,
+      walked,
+      tipsOnly,
+    ),
   );
   const now = useNow(10_000);
   const [layout, setLayout] = useListLayout("graph");
   const page = useRef<HTMLElement>(null);
   const list = useRef<ListHandle>(null);
 
-  const known = graph.data;
-  const placed = (known?.heads ?? []).map((head) => place(head, repositories.data));
   const commits = history.data?.pages.flatMap((each) => each.commits) ?? [];
-  const above = uncommittedAbove(placed, repositories.data);
-  const listed = withUncommitted(entries(commits), above);
+  // Branch tips only as the rows have them: those of all commits shown until they come, and back.
+  const between = history.data?.pages[0]?.lines;
+  const tips = between ? tipsEntries(commits, between) : undefined;
+  const listed = withUncommitted(tips?.entries ?? entries(commits), above);
   // The default branch keeps lane 0 and the accent, unless hidden.
   const defaultBranch =
     known?.default_branch && !hidden.includes(known.default_branch) ? known.default_branch : null;
@@ -130,6 +146,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     hidden: new Set(hidden),
     ...(pinned === undefined ? {} : { pinned }),
     ...(defaultBranch ? { first: defaultBranch } : {}),
+    ...(tips ? { parents: tips.parents } : {}),
   };
   // The lines of the HEADs, laid out as the list will be, before their pages are listed.
   // Until the HEADs walked: that of a hidden branch may be on no line walked, which would then
@@ -137,17 +154,21 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const walkedHeads = placed.flatMap(({ head }) =>
     head.commit && !(head.branch !== null && hidden.includes(head.branch)) ? [head.commit] : [],
   );
-  const lines = useGraphLines(walk && known && { ...walk, until: walkedHeads, limit: LINES_LIMIT });
-  const laid =
-    lines.data &&
-    graphOf(
-      withUncommitted(
-        lines.data.commits.map((commit): Laid => ({ type: "commit", commit })),
-        above,
-      ),
-      undefined,
-      drawing,
-    );
+  // With branch tips only, all HEADs are among the rows, drawn as the list draws them.
+  const lines = useGraphLines(
+    walk && known && !tips ? { ...walk, until: walkedHeads, limit: LINES_LIMIT } : undefined,
+  );
+  const laid = tips
+    ? graphOf(listed, undefined, drawing)
+    : lines.data &&
+      graphOf(
+        withUncommitted(
+          lines.data.commits.map((commit): Laid => ({ type: "commit", commit })),
+          above,
+        ),
+        undefined,
+        drawing,
+      );
   const chips: Chip[] = placed.map(({ head, name }) => ({
     key: head.path,
     name,
@@ -177,7 +198,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     );
   };
   const reach = useGraphLines(
-    walk && towards && !laid?.rows.has(towards.commit)
+    walk && towards && !tips && !laid?.rows.has(towards.commit)
       ? { ...walk, until: [towards.commit], limit: LINES_LIMIT }
       : undefined,
   );
@@ -331,6 +352,10 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
               order={order}
               onChange={(next) => setParams(withOrder(params, next, "topo"))}
             />
+            <TipsToggle
+              only={tipsOnly}
+              onChange={(only) => setParams(withTipsOnly(params, only))}
+            />
             <LayoutToggle layout={layout} onChange={setLayout} />
           </BarGroup>
           <BarGroup>
@@ -409,6 +434,19 @@ function uncommittedAbove(
     above.set(head.commit, [...(above.get(head.commit) ?? []), row]);
   }
   return above;
+}
+
+/** The commits of the HEADs of Checkouts on branches `hidden`, with what is not committed. */
+function keptHeads(placed: Placed[], above: Map<string, Uncommitted[]>, hidden: string[]) {
+  const kept = placed.flatMap(({ head }) =>
+    head.commit !== null &&
+    head.branch !== null &&
+    hidden.includes(head.branch) &&
+    above.get(head.commit)?.some((row) => row.of?.key === head.path)
+      ? [head.commit]
+      : [],
+  );
+  return [...new Set(kept)].sort();
 }
 
 /** The rows with what is not committed above each HEAD listed: in the list, or laid out. */

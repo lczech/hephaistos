@@ -103,6 +103,11 @@
   font-size: var(--text-small);
 }
 
+/* With branch tips only, the commits left out between two: counted, with their days. */
+.stretch {
+  color: var(--text-muted);
+}
+
 .path {
   composes: code from "../../components/text.module.css";
 }

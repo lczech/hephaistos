@@ -186,10 +186,13 @@ The branch filter, a picker at the start of its bar, chooses which: it lists the
 Where the lines laid out ahead have not reached it, `/api/graph/lines` until it says first whether it is on the walk at all, so that a tag elsewhere is said not to be shown at once, not after loading every page.
 Hidden branches are kept by name, so that a branch made later shows; a hidden branch still shows its commits where a shown one leads to them, as the filter says, but no badge, and names no lane.
 It lists topologically by default, or by date (`order=date`).
+Or, a toggle in its bar, branch tips only (`tips=only`), in both orders: only the commits where something happens, in one answer of `/api/history` with `tips` (`tips.py`), and below each whose line leaves out any, a row of its own, a stretch, counting them, "12 commits, Oct 3 – Nov 10", muted: how many, and the days of the oldest and newest, as its subject, its other columns empty; its tooltip names the branch at the tip of its line and the commits it is between.
+Its lane passes its row dashed, without a node; a commit is drawn with the parents its lines end in, from the `lines` of the answer, a merge whose sides are not drawn as a commit.
+The HEADs are among those kept, the lines of their chips laid out from the rows themselves; that of a Checkout on a hidden branch only with something not committed, to show above it, where the walk has it (`keep`).
 Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it, unless hidden, when no line has the accent; the HEAD of each Checkout is drawn as HEAD.
-Its bar has the order, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
+Its bar has the order, branch tips only, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
-The tab says `Graph: proj`, whether it shows Worktrees only, and how many branches are hidden.
+The tab says `Graph: proj`, whether it shows Worktrees only, branch tips only, and how many branches are hidden: `Graph: proj, tips only, 2 hidden`.
 Once its rows scroll under the header, a row stays below it, as sticky headers do: the tips of the lines going on below the row at the top that start in it or above it, their nodes in their lanes, their badges by lane, in one line cut off at the end of the column; a tip slides into it with its row, its node and badges, and stays as its row passes under; while a row comes in under it, the part of the graph in that row is drawn in it as it is, but not above a tip that stays, and a tip whose line ends in that row is pushed out by it; lines without a badge, or opened by a merge, pass; a click on the badges of a tip goes to it, and rows gone to come below the row (`tipsBand`).
 
 Its Checkouts:

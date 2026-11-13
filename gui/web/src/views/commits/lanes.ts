@@ -11,11 +11,13 @@
 
 import { hueOf } from "../../hues";
 
-/** The commit of a row, or the uncommitted changes of a Worktree, whose parent is its HEAD. */
+/** The commit of a row, or the uncommitted changes of a Worktree, whose parent is its HEAD; or,
+ * with branch tips only, the commits left out between a commit and its parent: a stretch. */
 export interface GraphNode {
   hash: string;
   parents: readonly string[];
   uncommitted?: boolean;
+  stretch?: boolean;
   branch?: string; // the name of a branch at this commit, which colours a lane it starts
   checkout?: string; // else that of a Checkout detached there or on a hidden branch: muted
 }
@@ -24,7 +26,8 @@ export interface GraphNode {
  * name, or where it leads. */
 export type LaneColour = { kind: "accent" } | { kind: "hue"; hue: number; muted: boolean };
 
-export type NodeKind = "commit" | "merge" | "head" | "uncommitted";
+/** How a node is drawn; a stretch is not: its lane passes it dashed. */
+export type NodeKind = "commit" | "merge" | "head" | "uncommitted" | "stretch";
 
 /** A lane through a row: its column, its colour, and dashed where it is not that of a commit. */
 export interface Line {
@@ -265,6 +268,7 @@ export class Layout {
 
   private kindOf(node: GraphNode): NodeKind {
     if (node.uncommitted) return "uncommitted";
+    if (node.stretch) return "stretch";
     if (this.options.heads?.has(node.hash)) return "head";
     return node.parents.length > 1 ? "merge" : "commit";
   }

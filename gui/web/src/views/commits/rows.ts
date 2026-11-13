@@ -1,6 +1,7 @@
 // What a list of commits holds: what is not committed, above HEAD; the commits; where a file was
-// renamed, the path it had before; a commit found by its hash elsewhere. And what its graph is
-// drawn from: the rows laid out in lanes, and the tips of the lines at the top.
+// renamed, the path it had before; a commit found by its hash elsewhere; with branch tips only,
+// the commits left out between two. And what its graph is drawn from: the rows laid out in lanes,
+// and the tips of the lines at the top.
 
 import type { Schemas } from "../../api/client";
 import { numberText } from "../../text";
@@ -10,6 +11,18 @@ import { type GraphNode, type Line as Lane, type LaneColour, Layout, type NodeKi
 export type Commit = Schemas["CommitJson"];
 export type Ref = Schemas["RefJson"];
 export type Found = Schemas["FoundCommitJson"];
+type Between = Schemas["TipsLineJson"];
+
+/** With branch tips only, the commits left out between a commit and the parent its line ends in,
+ * counted: a row of its own, below the commit. */
+export interface Stretch {
+  type: "stretch";
+  commit: string;
+  parent: string;
+  count: number;
+  newest: string;
+  oldest: string;
+}
 
 /** What is not committed in a Checkout, above its HEAD: that of History, or one of those of a
  * Graph. */
@@ -24,13 +37,18 @@ export type Line = Pick<Commit, "hash" | "parents" | "refs">;
 
 /** The rows a graph lays out: commits, listed or only walked, and what is not committed; others
  * have no row in it. */
-export type Laid = Uncommitted | { type: "commit"; commit: Line } | { type: "found" | "renamed" };
+export type Laid =
+  | Uncommitted
+  | Stretch
+  | { type: "commit"; commit: Line }
+  | { type: "found" | "renamed" };
 
 export type Entry =
   | Uncommitted // above the commits, when those of HEAD are shown
   | { type: "found"; found: Found } // a commit searched for by its hash, not among them
   | { type: "commit"; commit: Commit }
-  | { type: "renamed"; commit: string; from: string }; // below the commit that renamed it
+  | { type: "renamed"; commit: string; from: string } // below the commit that renamed it
+  | Stretch; // below the commit it is of
 
 /** The rows of these commits, newest first: each once, and below one that renamed the file,
  * where it was before. */
@@ -54,6 +72,37 @@ export function searchedEntries(found: Found | null | undefined, commits: Commit
   return [{ type: "found", found }, ...entries(commits)];
 }
 
+/**
+ * The rows of the commits kept with branch tips only, newest first, each with its stretch below
+ * it, if its line leaves out any; and the parents each is drawn with: those its lines end in, the
+ * first through its stretch. A merge has a line only to each side drawn.
+ */
+export function tipsEntries(
+  commits: Commit[],
+  lines: readonly Between[],
+): { entries: Entry[]; parents: Map<string, string[]> } {
+  const parents = new Map<string, string[]>();
+  const stretches = new Map<string, Stretch>();
+  for (const line of lines) {
+    const drawn = parents.get(line.commit) ?? [];
+    parents.set(line.commit, drawn);
+    // Only the first line of a commit leaves out any: a side drawn ends in a commit kept.
+    if (line.count > 0 && drawn.length === 0 && line.newest !== null && line.oldest !== null) {
+      const { commit, parent, count, newest, oldest } = line;
+      stretches.set(commit, { type: "stretch", commit, parent, count, newest, oldest });
+      drawn.push(stretchId(commit));
+    } else drawn.push(line.parent);
+  }
+  const rows = entries(commits).flatMap((entry): Entry[] => {
+    const stretch = entry.type === "commit" ? stretches.get(entry.commit.hash) : undefined;
+    return stretch ? [entry, stretch] : [entry];
+  });
+  for (const commit of commits) if (!parents.has(commit.hash)) parents.set(commit.hash, []);
+  return { entries: rows, parents };
+}
+
+const stretchId = (commit: string) => `stretch:${commit}`;
+
 /** Where a commit searched for by its hash is, if not listed: `not on main, but on:`. */
 export function whereText(found: Found, walked: string, path: string | undefined): string {
   if (found.where === "path") return `does not change ${path}`;
@@ -64,6 +113,7 @@ export function whereText(found: Found, walked: string, path: string | undefined
 export function entryId(entry: Entry): string {
   if (entry.type === "uncommitted") return uncommittedId(entry);
   if (entry.type === "found") return `found:${entry.found.commit.hash}`;
+  if (entry.type === "stretch") return stretchId(entry.commit);
   return entry.type === "commit" ? entry.commit.hash : `renamed:${entry.commit}`;
 }
 
@@ -138,6 +188,8 @@ export interface Drawing {
   checkedOut?: CheckedOut[]; // where the Checkouts are, marked on the badges
   first?: string; // the default branch, the first of the badges
   hidden?: ReadonlySet<string>; // local branches hidden: without badges, naming no lane
+  parents?: ReadonlyMap<string, readonly string[]>; // those commits are drawn with, else their own:
+  // with branch tips only (`tipsEntries`)
 }
 
 /** A Checkout of a Clone, as a Graph marks where it is: on the badge of its branch, or by a HEAD
@@ -166,12 +218,18 @@ export function graphOf(
   const checkedOut = drawing.checkedOut ?? [];
   for (const entry of entries) {
     if (entry.type === "commit") {
-      const { hash, parents, refs } = entry.commit;
+      const { hash, refs } = entry.commit;
+      const parents = drawing.parents?.get(hash) ?? entry.commit.parents;
       rows.set(hash, layout.rows.length);
       laid.push({ entry, id: hash });
       const branch = branchOf(shownRefs(refs, drawing));
       const detached = checkedOut.find((each) => each.branch === null && each.commit === hash);
       layout.add({ hash, parents, branch, checkout: detached?.name });
+    } else if (entry.type === "stretch") {
+      const id = stretchId(entry.commit);
+      rows.set(id, layout.rows.length);
+      laid.push({ entry, id });
+      layout.add({ hash: id, parents: [entry.parent], stretch: true });
     } else if (entry.type === "uncommitted" && (entry.of?.head ?? head)) {
       const id = uncommittedId(entry);
       rows.set(id, layout.rows.length);
@@ -230,14 +288,7 @@ export function tipsAt(
   next?: number,
 ): { lines: Lane[]; tips: Tip[] } {
   const lines = drawn.layout.below(row);
-  const commitOf = (at: number): Line | undefined => {
-    const laid = drawn.laid[at]?.entry;
-    if (laid?.type === "commit") return laid.commit;
-    if (laid?.type !== "uncommitted") return undefined;
-    const parent = drawn.rows.get(laid.of?.head ?? head ?? "");
-    const below = parent === undefined ? undefined : drawn.laid[parent]?.entry;
-    return below?.type === "commit" ? below.commit : undefined;
-  };
+  const commitOf = (at: number) => tipCommit(drawn, at, head);
   const labelled = (commit: Line) =>
     shownRefs(commit.refs, drawn.drawing).length > 0 ||
     commit.hash === head ||
@@ -280,4 +331,24 @@ export function branchOf(refs: Ref[]): string | undefined {
   if (local) return local.name;
   const remote = refs.find((ref) => ref.kind === "remote");
   return remote?.name.slice(remote.name.indexOf("/") + 1);
+}
+
+/**
+ * The commit at the tip of a line, in row `at`: that of the row, or, where what is not committed
+ * starts the line, the HEAD below it (that of its Checkout, else `head`).
+ */
+function tipCommit(drawn: Drawn, at: number, head?: string | null): Line | undefined {
+  const laid = drawn.laid[at]?.entry;
+  if (laid?.type === "commit") return laid.commit;
+  if (laid?.type !== "uncommitted") return undefined;
+  const parent = drawn.rows.get(laid.of?.head ?? head ?? "");
+  const below = parent === undefined ? undefined : drawn.laid[parent]?.entry;
+  return below?.type === "commit" ? below.commit : undefined;
+}
+
+/** The branch the line through a row is named by, at its tip, if it has one: that of a stretch. */
+export function branchThrough(drawn: Drawn, row: number): string | undefined {
+  const start = drawn.layout.rows[row]?.start;
+  const tip = start === null || start === undefined ? undefined : tipCommit(drawn, start);
+  return tip && branchOf(shownRefs(tip.refs, drawn.drawing));
 }

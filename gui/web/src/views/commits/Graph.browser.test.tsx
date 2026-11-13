@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import type { CSSProperties } from "react";
 import { describe, expect, it } from "vitest";
-import { GraphTips } from "./Graph";
+import { GraphCell, GraphTips } from "./Graph";
 import styles from "./Graph.module.css";
 import { Layout, type NodeKind } from "./lanes";
 
@@ -68,5 +68,30 @@ describe("a graph's band", () => {
   it("covers nothing while no row comes in, nor above a tip pushed out", () => {
     expect(band({ by: 0 }, null).caps).toHaveLength(0);
     expect(band({ by: -12, leaving: true }, 10).caps).toHaveLength(0);
+  });
+});
+
+describe("a stretch in a graph", () => {
+  it("draws its lane through its row dashed, without a node, and others passing as they are", () => {
+    // t and u apart, u's line passing the stretch s of t.
+    const layout = new Layout({});
+    layout.add({ hash: "t", parents: ["s"] });
+    layout.add({ hash: "u", parents: ["b"] });
+    layout.add({ hash: "s", parents: ["b"], stretch: true });
+    layout.add({ hash: "b", parents: [] });
+    const { container } = render(
+      <div style={{ position: "relative", width: 200, height: 24 }}>
+        <GraphCell layout={layout} row={2} />
+      </div>,
+    );
+    expect(container.querySelector("svg[data-node]")).toBeNull();
+    const dashes = [...container.querySelectorAll("line, path")].map((each) => [
+      Number(each.getAttribute("x1") ?? each.getAttribute("d")?.slice(1).split(" ")[0]),
+      each.getAttribute("stroke-dasharray"),
+    ]);
+    expect(dashes.filter(([x]) => x === 6).every(([, dash]) => dash === "2 3")).toBe(true);
+    expect(dashes.filter(([x]) => x === 18).every(([, dash]) => dash === null)).toBe(true);
+    expect(dashes.filter(([x]) => x === 18)).not.toHaveLength(0);
+    expect(dashes.filter(([x]) => x === 6).length).toBeGreaterThanOrEqual(3); // in, out, below
   });
 });

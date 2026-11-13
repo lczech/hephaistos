@@ -3,7 +3,8 @@ import { Ago } from "../../components/Ago";
 import { Chevron } from "../../components/list/List";
 import { listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
-import { numberText } from "../../text";
+import { counted, numberText } from "../../text";
+import { daysText } from "../../time";
 import type { Checkout } from "../checkout";
 import { CommitHash, RefLabels } from "./CommitBox";
 import styles from "./CommitList.module.css";
@@ -11,11 +12,13 @@ import { colourOf, fittedWidth, GraphCell } from "./Graph";
 import type { LaneColour } from "./lanes";
 import {
   branchOf,
+  branchThrough,
   type Drawn,
   type Entry,
   entryId,
   type Found,
   type Line,
+  type Stretch,
   shownRefs,
   whereText,
 } from "./rows";
@@ -35,7 +38,8 @@ export interface FoundActions {
 /**
  * The columns of a list of commits: the hash of a commit, with its Changes and Diff; its subject
  * after its branches and tags; who wrote it, and when. The row of a rename says only where the
- * file was before.
+ * file was before; that of a stretch, how many commits it leaves out and their days, as its
+ * subject.
  */
 export function commitColumns(
   checkout: Checkout | undefined,
@@ -92,7 +96,7 @@ export function commitColumns(
       header: "subject",
       size: 480,
       meta: { identifies: true },
-      cell: ({ row }) => {
+      cell: ({ row, table }) => {
         const entry = row.original;
         if (entry.type === "uncommitted")
           return (
@@ -105,6 +109,16 @@ export function commitColumns(
             <FoundWhere found={entry.found} actions={actions} />
           ) : (
             entry.found.commit.subject
+          );
+        }
+        if (entry.type === "stretch") {
+          const at = graph?.rows.get(entryId(entry));
+          const branch = graph && at !== undefined ? branchThrough(graph, at) : undefined;
+          return (
+            <span className={styles.stretch} title={stretchTitle(entry, branch)}>
+              {counted(entry.count, "commit")},{" "}
+              {daysText(entry.oldest, entry.newest, table.options.meta?.now ?? Date.now())}
+            </span>
           );
         }
         if (entry.type === "renamed") {
@@ -164,6 +178,13 @@ export function commitColumns(
       },
     }),
   ]);
+}
+
+/** What a stretch leaves out, at length: `12 commits of feature between abc1234 and def5678`. */
+function stretchTitle(stretch: Stretch, branch: string | undefined): string {
+  const of = branch === undefined ? "" : ` of ${branch}`;
+  const between = `${stretch.commit.slice(0, 7)} and ${stretch.parent.slice(0, 7)}`;
+  return `${counted(stretch.count, "commit")}${of} between ${between}`;
 }
 
 /** The branches and tags of a commit, as its row labels them: its branch framed in the colour of

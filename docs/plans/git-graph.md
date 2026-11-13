@@ -102,10 +102,10 @@ Settled with the user, 2026-11-13:
 - Kept: the tips of the branches shown, the HEADs of the Checkouts, the tip of the default branch, the first commit, and each commit where lines drawn part or join.
   Lines go down first parents; the side of a merge is drawn only where its parent is on a line too (a branch still there merged, or the default branch merged into another): that of a branch merged and gone is not, its commits counted in the stretch it was merged into.
   At first, a side was drawn where it led to a commit kept; on the repository of git, every topic merged into `next` led to the tip of `master`, and kept 93 commits rather than 41.
-  Hidden branches keep no tips; what is not committed stays above its HEAD.
-- Worked out by the Daemon over the whole walk, in memory, from one `git rev-list --parents` (0.2 s on the repository of git, with its commit-graph file), behind a parameter of the request of the Graph View; tens of commits, in one answer without pages.
+  Hidden branches keep no tips; what is not committed stays above its HEAD, which is kept for it on a hidden branch too, where the walk has it (`keep`, after the review of 2026-11-13).
+- Worked out by the Daemon over the whole walk, in memory, from one `git log` of hashes, dates and parents (1.3 s on the repository of git, with its eight remote branches; 0.04 s on hephaistos), behind a parameter of the request of the Graph View; tens of commits, in one answer without pages.
   Measured (`.agents/scratch/git-graph/tips-only/`): hephaistos keeps 9 of 387 commits; on the repository of git, keeping every merge and fork kept 31,069 of 86,216, which the rule above avoids.
-- A stretch is a row of its own, right below its newer commit: the lane through it dashed, without a node; "12 commits", muted, and the dates of its newest and oldest commits ("Oct 3 – Nov 10"); the other columns empty.
+- A stretch is a row of its own, right below its newer commit: the lane through it dashed, without a node; "12 commits, Oct 3 – Nov 10", muted, the days of its oldest and newest commits in its subject, as a range was too wide for the date column (user, 2026-11-13); the other columns empty.
   It counts what the newer commit has that the older has not, as ahead and behind do.
   Its tooltip: "12 commits of feature between abc1234 and def5678: a click shows them".
 - A click on a stretch, or Enter on it, shows all commits again and goes to its newer commit, at the top, the hidden ones below it; chips go to their HEADs, always kept; "Go to…" a commit hidden shows all commits and goes to it.

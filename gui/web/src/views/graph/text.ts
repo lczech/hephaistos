@@ -2,14 +2,16 @@
 
 import { numberText } from "../../text";
 
-/** The title of the tab: `Graph: proj`; `Graph: proj, worktrees only, 2 hidden` while filtered. */
+/** The title of the tab: `Graph: proj`; `Graph: proj, worktrees only, tips only, 2 hidden` while
+ * filtered, or with branch tips only. */
 export function graphTitle(
   name: string | undefined,
   hidden: number,
   walked: "local" | "worktrees" = "local",
+  tipsOnly = false,
 ): string | undefined {
   if (name === undefined) return undefined;
-  const only = walked === "worktrees" ? ", worktrees only" : "";
+  const only = `${walked === "worktrees" ? ", worktrees only" : ""}${tipsOnly ? ", tips only" : ""}`;
   return `Graph: ${name}${only}${hidden > 0 ? `, ${numberText(hidden)} hidden` : ""}`;
 }
 

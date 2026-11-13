@@ -35,13 +35,19 @@ function stroke(colour: LaneColour, dashed: boolean) {
  * The part of the graph in a row, across the whole row however high it is: in the height of its
  * first line (`--graph-node-y` twice), the lanes passing, that of the node coming from above,
  * others ending in it, and those of its parents leaving it; below, down to the end of the row,
- * those going on.
+ * those going on. A stretch has no node: its lane passes its row dashed.
  */
 export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
   const graph = layout.rows[row];
   if (graph === undefined) return null;
   const width = layout.columns * LANE;
   const passing = layout.passing(row);
+  const stretch = graph.node === "stretch";
+  const above = graph.above && (stretch ? { ...graph.above, dashed: true } : graph.above);
+  const out = stretch ? graph.out.map((bend) => ({ ...bend, dashed: true })) : graph.out;
+  const below = layout
+    .below(row)
+    .map((line) => (stretch && line.lane === graph.lane ? { ...line, dashed: true } : line));
   return (
     <span className={styles.rail} data-graph="row">
       <svg
@@ -54,26 +60,28 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
         {passing.map((line) => (
           <Straight key={`p${line.lane}`} line={line} from={over(line)} to={2} />
         ))}
-        {graph.above && <Straight line={graph.above} from={over(graph.above)} to={1} />}
+        {above && <Straight line={above} from={over(above)} to={1} />}
         {graph.into.map((bend) => (
           <Curve key={`i${bend.from}`} bend={bend} into />
         ))}
-        {graph.out.map((bend) => (
+        {out.map((bend) => (
           <Curve key={`o${bend.to}`} bend={bend} into={false} />
         ))}
       </svg>
-      <Below lines={layout.below(row)} width={width} className={styles.tail} />
-      <svg
-        aria-hidden="true"
-        className={styles.node}
-        width={SIZE}
-        height={SIZE}
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        style={cssVars({ "--node-x": `${x(graph.lane) - SIZE / 2}px` })}
-        data-node={graph.node}
-      >
-        <Node kind={graph.node} colour={colourOf(graph.colour)} />
-      </svg>
+      <Below lines={below} width={width} className={styles.tail} />
+      {!stretch && (
+        <svg
+          aria-hidden="true"
+          className={styles.node}
+          width={SIZE}
+          height={SIZE}
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          style={cssVars({ "--node-x": `${x(graph.lane) - SIZE / 2}px` })}
+          data-node={graph.node}
+        >
+          <Node kind={graph.node} colour={colourOf(graph.colour)} />
+        </svg>
+      )}
     </span>
   );
 }

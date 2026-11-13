@@ -95,6 +95,25 @@ const GRAPH: Schemas["GraphJson"] = {
   heads: [MAIN, FEATURE],
 };
 
+/** With branch tips only: two commits of feature left out below its tip, none of main. */
+const TIPS = {
+  commits: [
+    commit("f", ["f1"], { refs: [branch("feature", "f")] }),
+    commit("m", ["b"], { refs: [branch("main", "m")] }),
+    commit("b", []),
+  ],
+  lines: [
+    {
+      commit: hash("f"),
+      parent: hash("b"),
+      count: 2,
+      newest: "2026-10-03T12:00:00Z",
+      oldest: "2026-10-01T12:00:00Z",
+    },
+    { commit: hash("m"), parent: hash("b"), count: 0, newest: null, oldest: null },
+  ],
+};
+
 interface Served {
   graph?: Schemas["GraphJson"] | (() => Schemas["GraphJson"]); // as `pages`
   // The pages of commits, in order; asked again for each request, as a repository changes.
@@ -105,6 +124,7 @@ interface Served {
   // Pages after the first wait for it; or, as a function, each page asked for, from `skip`.
   hold?: Promise<void> | ((skip: number) => Promise<void> | undefined);
   holdLines?: Promise<void>; // the lines laid out ahead wait for it
+  tips?: { commits: Commit[]; lines: Schemas["TipsLineJson"][] }; // with branch tips only
 }
 
 function serveGraph({
@@ -115,6 +135,7 @@ function serveGraph({
   worktrees = ["feature"],
   hold,
   holdLines,
+  tips,
 }: Served = {}): Request[] {
   // The pages of a walk hiding these branches: without the commits only on them.
   const walked = (hide: string[]) => {
@@ -150,6 +171,9 @@ function serveGraph({
           next: null,
           found: null,
         });
+      }
+      if (asked.get("tips") === "true" && tips) {
+        return json({ head: hash("m"), branch: "main", refs, ...tips, next: null, found: null });
       }
       if (typeof hold === "function") await hold(skip);
       else if (skip > 0 && hold) await hold;
@@ -247,6 +271,47 @@ describe("the Graph View", () => {
     await userEvent.click(screen.getByRole("button", { name: "Topological order" }));
     expect(screen.getByRole("status")).toHaveTextContent("graph?clone=clone-proj&order=date");
     await waitFor(() => expect(asked(requests, "/api/history").get("order")).toBe("date"));
+  });
+
+  it("shows branch tips only once toggled, a row counting the commits between", async () => {
+    const requests = serveGraph({ tips: TIPS });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(screen.getByRole("button", { name: "All commits" }));
+    expect(screen.getByRole("status")).toHaveTextContent("graph?clone=clone-proj&tips=only");
+    const counted = await screen.findByText(/^2 commits, Oct [13] – Oct [34]$/);
+    expect(asked(requests, "/api/history").get("tips")).toBe("true");
+    expect(asked(requests, "/api/history").get("keep")).toBeNull();
+    expect(counted).toHaveAttribute(
+      "title",
+      `2 commits of feature between ${hash("f").slice(0, 7)} and ${hash("b").slice(0, 7)}`,
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj, tips only");
+    expect(listRows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Commit f"),
+      expect.stringContaining("2 commits"),
+      expect.stringContaining("Commit m"),
+      expect.stringContaining("Commit b"),
+    ]);
+    // The stretch has no node; its lane passes it, on that of feature.
+    expect(nodes().map((node) => node.kind)).toEqual(["head", "head", "commit"]);
+  });
+
+  it("keeps, with branch tips only, the HEAD on a hidden branch with something not committed", async () => {
+    const requests = serveGraph({
+      tips: TIPS,
+      clone: { worktrees: [worktree("proj", "feature", { changed: 2 })] },
+    });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"], tips: "only" }} />);
+    await screen.findByText("Uncommitted in feature: 2 changed");
+    expect(asked(requests, "/api/history").getAll("keep")).toEqual([hash("f")]);
+    expect(listRows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Uncommitted in feature"),
+      expect.stringContaining("Commit f"),
+      expect.stringContaining("2 commits"),
+      expect.stringContaining("Commit m"),
+      expect.stringContaining("Commit b"),
+    ]);
   });
 
   it("leaves hidden branches out of the walk, and says so in its title", async () => {

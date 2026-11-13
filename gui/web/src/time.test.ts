@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NOW, secondsAgo } from "./test/server";
 import {
   ago,
+  daysText,
   fullTime,
   preciseTime,
   seconds,
@@ -69,5 +70,15 @@ describe("preciseTime", () => {
     expect(preciseTime(new Date(2026, 9, 5, 14, 3, 21, 7).toISOString())).toBe(
       "2026-10-05 14:03:21.007",
     );
+  });
+});
+
+describe("daysText", () => {
+  const now = new Date(2026, 10, 13, 12).getTime();
+  it("says the days from one time to another, in local time, the year where not this one", () => {
+    const at = (month: number, day: number, year = 2026) => new Date(year, month, day, 9).getTime();
+    expect(daysText(at(9, 3), at(10, 10), now)).toBe("Oct 3 – Nov 10");
+    expect(daysText(at(9, 3), at(9, 3) + 3600_000, now)).toBe("Oct 3");
+    expect(daysText(at(11, 30, 2025), at(0, 2), now)).toBe("Dec 30, 2025 – Jan 2");
   });
 });

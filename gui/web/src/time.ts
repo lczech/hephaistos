@@ -73,3 +73,17 @@ export function preciseTime(at: string | number): string {
 export function timeAndAgo(at: string | number, now: number, precise = false): string {
   return `${precise ? preciseTime(at) : fullTime(at)} (${ago(at, now)})`;
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * The days from one time to another, in local time: `Oct 3 – Nov 10`; one day once, `Oct 3`; the
+ * year said where it is not that of `now`, `Dec 30, 2025 – Jan 2`.
+ */
+export function daysText(from: string | number, to: string | number, now: number): string {
+  const year = new Date(now).getFullYear();
+  const day = (at: Date) =>
+    `${MONTHS[at.getMonth()]} ${at.getDate()}${at.getFullYear() === year ? "" : `, ${at.getFullYear()}`}`;
+  const [start, end] = [new Date(from), new Date(to)];
+  return start.toDateString() === end.toDateString() ? day(start) : `${day(start)} – ${day(end)}`;
+}

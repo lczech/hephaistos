@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hueOf } from "../../hues";
 import {
   branchOf,
+  branchThrough,
   type CheckedOut,
   type Commit,
   type Drawing,
@@ -11,6 +12,7 @@ import {
   type Ref,
   shownRefs,
   tipsAt,
+  tipsEntries,
 } from "./rows";
 
 const person = { name: "L", email: "l@example.org", at: "2026-01-01T00:00:00Z" };
@@ -255,3 +257,101 @@ describe("the tips of a graph's lines above a row", () => {
     expect(tips.map((tip) => tip.id)).toEqual(["t"]);
   });
 });
+
+describe("a graph of branch tips only", () => {
+  // feature (f) merged into main (m) where it was then (g), and gone on; base (b) below both,
+  // the first commit (r) its parent. Real parents are those hidden: f1, m1, b1.
+  const kept = [
+    commit("f", ["f1"], [ref("feature", "branch")]),
+    commit("m", ["m1", "g"], [ref("main", "branch")]),
+    commit("g", ["g1"]),
+    commit("b", ["r"]),
+    commit("r", []),
+  ];
+  const line = (from: string, to: string, count: number) => ({
+    commit: from,
+    parent: to,
+    count,
+    newest: count ? "2026-10-02T00:00:00Z" : null,
+    oldest: count ? "2026-10-01T00:00:00Z" : null,
+  });
+  const lines = [
+    line("f", "g", 2),
+    line("m", "b", 3),
+    line("m", "g", 0),
+    line("g", "b", 1),
+    line("b", "r", 0),
+  ];
+
+  it("gives the commits left out on a line a row below its commit, drawn through it", () => {
+    const { entries: rows, parents } = tipsEntries(kept, lines);
+    expect(rows.map(entryIdOf)).toEqual([
+      "f",
+      "stretch:f",
+      "m",
+      "stretch:m",
+      "g",
+      "stretch:g",
+      "b",
+      "r",
+    ]);
+    expect(rows[1]).toEqual({ type: "stretch", ...line("f", "g", 2) });
+    expect(Object.fromEntries(parents)).toEqual({
+      f: ["stretch:f"],
+      m: ["stretch:m", "g"],
+      g: ["stretch:g"],
+      b: ["r"],
+      r: [],
+    });
+    const drawn = graphOf(rows, null, { heads: new Set(), parents });
+    expect(drawn.layout.rows.map((row) => row.node)).toEqual([
+      "commit",
+      "stretch",
+      "merge",
+      "stretch",
+      "commit",
+      "stretch",
+      "commit",
+      "commit",
+    ]);
+    // Each stretch on the lane of its commit, coming in from it.
+    const lanes = drawn.layout.rows.map((row) => row.lane);
+    expect([lanes[1], lanes[3], lanes[5]]).toEqual([lanes[0], lanes[2], lanes[4]]);
+    expect(drawn.layout.rows[1]?.above).not.toBeNull();
+    // Named by the branch at the tip of its line; none for a line a merge opened.
+    expect(branchThrough(drawn, 1)).toBe("feature");
+    expect(branchThrough(drawn, 3)).toBe("main");
+  });
+
+  it("names the line of a stretch by its branch where what is not committed starts it", () => {
+    const { entries: rows, parents } = tipsEntries(kept, lines);
+    const uncommitted: Entry = {
+      type: "uncommitted",
+      text: "Uncommitted",
+      of: { checkout: { clone: "c" }, head: "m", key: "/m" },
+    };
+    const drawn = graphOf([...rows.slice(0, 2), uncommitted, ...rows.slice(2)], null, {
+      heads: new Set(["m"]),
+      parents,
+    });
+    const at = drawn.rows.get("stretch:m") ?? -1;
+    expect(drawn.layout.rows[at]?.start).toBe(drawn.rows.get("uncommitted:/m"));
+    expect(branchThrough(drawn, at)).toBe("main");
+  });
+
+  it("draws a merge with only its first parent where its sides are not drawn", () => {
+    const { entries: rows, parents } = tipsEntries(
+      [commit("m", ["m1", "t"]), commit("r", [])],
+      [line("m", "r", 4)],
+    );
+    const drawn = graphOf(rows, null, { heads: new Set(), parents });
+    expect(drawn.layout.rows.map((row) => row.node)).toEqual(["commit", "stretch", "commit"]);
+  });
+});
+
+const entryIdOf = (entry: Entry) =>
+  entry.type === "commit"
+    ? entry.commit.hash
+    : entry.type === "stretch"
+      ? `stretch:${entry.commit}`
+      : entry.type;
