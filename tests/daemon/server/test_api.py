@@ -578,6 +578,36 @@ def test_lines_of_a_graph_as_its_history_lays_them_out(client: TestClient, repo:
     assert client.get("/api/graph/lines", params=asked).status_code == 400  # no limit
 
 
+def test_branch_tips_only_of_a_graph(client: TestClient, repo: Path) -> None:
+    [clone] = _cli("clone", "list")
+    aside = _commit(repo.parent / "side", "on side")
+    fork = git(repo, "rev-parse", "HEAD")
+    _commit(repo, "main 1")
+    main = _commit(repo, "main 2")
+    asked: dict[str, Any] = {"clone": clone["id"], "branches": "local", "tips": "true"}
+    answer = client.get("/api/history", params=asked).json()
+    kept = [commit["hash"] for commit in answer["commits"]]
+    assert {main, aside, fork} <= set(kept)
+    assert answer["next"] is None
+    by_commit = {(line["commit"], line["parent"]): line for line in answer["lines"]}
+    line = by_commit[main, fork]
+    assert line["count"] == 1
+    assert line["newest"] == line["oldest"]
+    assert by_commit[aside, fork]["count"] == 0
+    assert by_commit[aside, fork]["newest"] is None
+    hidden = client.get("/api/history", params={**asked, "hide": ["side"]}).json()
+    assert aside not in {commit["hash"] for commit in hidden["commits"]}
+    unmerged = client.get("/api/history", params={**asked, "hide": ["side"], "keep": [aside]})
+    assert aside not in {commit["hash"] for commit in unmerged.json()["commits"]}  # not walked
+    git(repo, "merge", "--quiet", "--no-ff", "--message", "merge side", "side")
+    merged = client.get("/api/history", params={**asked, "hide": ["side"], "keep": [aside]})
+    assert aside in {commit["hash"] for commit in merged.json()["commits"]}
+    for wrong in ({"branches": None}, {"path": "a"}, {"search": "a"}):
+        assert client.get("/api/history", params={**asked, **wrong}).status_code == 400
+    plain = client.get("/api/history", params={"clone": clone["id"]}).json()
+    assert plain["lines"] is None
+
+
 def test_history_in_an_order_writes_the_commit_graph_file(client: TestClient, repo: Path) -> None:
     [clone] = _cli("clone", "list")
     client.get("/api/history", params={"clone": clone["id"]})

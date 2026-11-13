@@ -50,7 +50,7 @@ function page(
   next: Schemas["HistoryNextJson"] | null = null,
   found: Schemas["FoundCommitJson"] | null = null,
 ): Schemas["HistoryJson"] {
-  return { head: HEAD_HASH, branch: "main", refs: REFS, commits, next, found };
+  return { head: HEAD_HASH, branch: "main", refs: REFS, commits, next, found, lines: null };
 }
 
 function serveHistory(answer: (url: URL) => Response | Promise<Response>): Request[] {

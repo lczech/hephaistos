@@ -96,6 +96,10 @@ Each Clone is tried at most once a day in a process, whether it worked or not, a
 `git.write_commit_graph = false` turns it off.
 A graph of a Clone walks its branches (`branches`): all local ones, or those of its Checkouts and the default branch, with the HEADs of all its Checkouts, detached ones too, which `--branches` misses; less those hidden (`hide`).
 Its pages go on by skipping, from the same branches, as everywhere does.
+With branch tips only (`tips`), the walk comes in one page, of the commits where something happens, and `lines` between them (`core/utils/tips.py`).
+Kept are the commits it starts from, those in `keep` where it has them (the HEAD of a Checkout on a hidden branch, with what is not committed above it), the first commits its lines end in, and those where lines part or join; lines go down first parents, and the side of a merge is drawn only between two of them, so that a branch merged and gone draws nothing.
+A line between two commits kept counts the commits it leaves out: those the newer has and the older has not, as ahead and behind count them, the sides not drawn too, with the author dates of the newest and oldest.
+The whole walk is read at once, hashes, parents and dates only, and worked out in memory: on the repository of git, 86,000 commits, about 1.3 s.
 `/api/graph` gives what else the graph shows (`core/utils/graph.py`): the default branch, how far each local branch is ahead of it and behind it, and where the HEAD of each Checkout is, by the IDs of the Clones and Worktrees there.
 `/api/graph/lines` gives the commits of the same walk as the graph lays them out, hashes, parents and refs only (`history.lines`): up to `limit`, and only until each commit of `until` has come, so that the GUI knows the lines of the HEADs of Checkouts before their pages are listed.
 The default branch is the one `origin/HEAD` names, else the one `init.defaultBranch` names, else main, else master, among the local branches.

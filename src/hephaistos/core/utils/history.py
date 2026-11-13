@@ -316,6 +316,15 @@ def history(  # noqa: PLR0913 - the optional ones are keyword-only
     return History(tuple(found), walk)
 
 
+def commits(top: Path, hashes: Sequence[str], known: Refs) -> list[Commit]:
+    """These commits, in this order, with the refs pointing at them."""
+    if not hashes:
+        return []
+    output = git.read(top, *_LOG, "--no-walk=unsorted", "--stdin", stdin="\n".join(hashes))
+    found = {commit.hash: commit for commit in _commits(output, known)}
+    return [found[hash_] for hash_ in hashes if hash_ in found]
+
+
 @dataclass(frozen=True)
 class Line:
     """A commit as a graph lays it out: its parents and the refs pointing at it, nothing else."""

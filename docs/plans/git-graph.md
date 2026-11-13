@@ -100,7 +100,8 @@ Compact lanes are an idea for later (user, 2026-11-13): [ideas](../ideas/views.m
 Settled with the user, 2026-11-13:
 - A toggle in the bar of the Graph View, off by default, kept in the address (`tips=only`): Lucide `unfold-vertical`, "Show all commits", and `fold-vertical`, "Show branch tips only, the commits between counted"; the title says it ("Graph: hephaistos, tips only, 2 hidden"); in both orders; not in History.
 - Kept: the tips of the branches shown, the HEADs of the Checkouts, the tip of the default branch, the first commit, and each commit where lines drawn part or join.
-  A line is drawn only where it leads to a commit kept: the side of a merge whose branch is gone is not, its commits counted in the stretch it was merged into.
+  Lines go down first parents; the side of a merge is drawn only where its parent is on a line too (a branch still there merged, or the default branch merged into another): that of a branch merged and gone is not, its commits counted in the stretch it was merged into.
+  At first, a side was drawn where it led to a commit kept; on the repository of git, every topic merged into `next` led to the tip of `master`, and kept 93 commits rather than 41.
   Hidden branches keep no tips; what is not committed stays above its HEAD.
 - Worked out by the Daemon over the whole walk, in memory, from one `git rev-list --parents` (0.2 s on the repository of git, with its commit-graph file), behind a parameter of the request of the Graph View; tens of commits, in one answer without pages.
   Measured (`.agents/scratch/git-graph/tips-only/`): hephaistos keeps 9 of 387 commits; on the repository of git, keeping every merge and fork kept 31,069 of 86,216, which the rule above avoids.

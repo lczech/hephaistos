@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 29
+    "minor": 30
   },
   "shapes": {
     "components": {
@@ -1519,6 +1519,20 @@
               ],
               "title": "Head"
             },
+            "lines": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/TipsLineJson"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lines"
+            },
             "next": {
               "anyOf": [
                 {
@@ -1543,7 +1557,8 @@
             "refs",
             "commits",
             "next",
-            "found"
+            "found",
+            "lines"
           ],
           "title": "HistoryJson",
           "type": "object"
@@ -2542,6 +2557,54 @@
             "warnings"
           ],
           "title": "TablesJson",
+          "type": "object"
+        },
+        "TipsLineJson": {
+          "description": "With branch tips only: a line from a commit kept to a parent kept, and what it leaves out.",
+          "properties": {
+            "commit": {
+              "title": "Commit",
+              "type": "string"
+            },
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "newest": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Newest"
+            },
+            "oldest": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Oldest"
+            },
+            "parent": {
+              "title": "Parent",
+              "type": "string"
+            }
+          },
+          "required": [
+            "commit",
+            "parent",
+            "count",
+            "newest",
+            "oldest"
+          ],
+          "title": "TipsLineJson",
           "type": "object"
         },
         "UnitJson": {
@@ -4250,7 +4313,7 @@
       },
       "/api/history": {
         "get": {
-          "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of\nthe Clone walks: all local ones (`local`) or those of its Checkouts and the default branch\n(`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With\nHEAD and the refs there are to walk from instead. In `order`, by date or topologically, each\ncommit comes only after all its children, as a graph needs; else in the order of `git log`.\n`path` keeps those that changed a file or folder, following the renames of a file; `search`,\nthose whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds\nits commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and\n`skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and\n`order`.",
+          "description": "The commits of a Clone or Worktree, newest first, as `git log` walks back from HEAD.\n\nOr from `ref`, or `everywhere`: from all branches and tags; or from `branches`, as a graph of\nthe Clone walks: all local ones (`local`) or those of its Checkouts and the default branch\n(`worktrees`), with the HEADs of all, detached ones too, less the branches in `hide`. With\nHEAD and the refs there are to walk from instead. In `order`, by date or topologically, each\ncommit comes only after all its children, as a graph needs; else in the order of `git log`.\n`path` keeps those that changed a file or folder, following the renames of a file; `search`,\nthose whose message has all of its words. A search for one hash (4 to 40 hex digits) also finds\nits commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and\n`skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and\n`order`.\n\nWith `tips` and `branches`, branch tips only, in one page: the commits where something happens\n(tips, HEADs, where lines part or join, the first commits), and in `lines` those between them,\nwith the commits each leaves out (`tips.py`); without a path or search. Those in `keep` are\nkept too, where the walk has them, as if it started from them.",
           "operationId": "history_show_api_history_get",
           "parameters": [
             {
@@ -4394,6 +4457,35 @@
                   }
                 ],
                 "title": "Order"
+              }
+            },
+            {
+              "in": "query",
+              "name": "tips",
+              "required": false,
+              "schema": {
+                "default": false,
+                "title": "Tips",
+                "type": "boolean"
+              }
+            },
+            {
+              "in": "query",
+              "name": "keep",
+              "required": false,
+              "schema": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Keep"
               }
             },
             {

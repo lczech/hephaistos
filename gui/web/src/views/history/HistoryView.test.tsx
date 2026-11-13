@@ -51,6 +51,7 @@ function page(
     commits,
     next,
     found,
+    lines: null,
   };
 }
 

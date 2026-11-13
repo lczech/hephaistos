@@ -57,6 +57,7 @@ from hephaistos.core.utils import (
     history,
     logs,
     times,
+    tips,
 )
 from hephaistos.core.utils.logs import LevelName, ProcessName
 from hephaistos.core.utils.paths import Paths, short_path
@@ -496,6 +497,8 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     branches: graph.Branches | None = None,
     hide: Annotated[list[str] | None, Query()] = None,
     order: history.Order | None = None,
+    tips_only: Annotated[bool, Query(alias="tips")] = False,
+    keep: Annotated[list[str] | None, Query()] = None,
     start: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1)] = DEFAULT_COMMITS,
@@ -512,8 +515,22 @@ def history_show(  # noqa: PLR0913 - one parameter per choice
     its commit, wherever it is, on the first page. The `next` of a page gives `start`, `path` and
     `skip` to go on where it ended, with the same `search`, `everywhere`, `branches`, `hide` and
     `order`.
+
+    With `tips` and `branches`, branch tips only, in one page: the commits where something happens
+    (tips, HEADs, where lines part or join, the first commits), and in `lines` those between them,
+    with the commits each leaves out (`tips.py`); without a path or search. Those in `keep` are
+    kept too, where the walk has them, as if it started from them.
     """
     top = _working_tree(paths, clone, worktree, bare=True)
+    if tips_only:
+        if branches is None or path is not None or search is not None:
+            raise HTTPException(400, "tips need branches, and take no path or search")
+        known = history.refs(top)
+        commit_graph.refresh_soon(top)
+        starts = graph.starts(top, branches, hide or (), known)
+        kept = tips.tips(top, starts, order=order or "topo", keep=keep or ())
+        found = history.History(kept.commits, None)
+        return serialize.history_json(known, found, lines=kept.lines)
     first = start is None and skip == 0
     if not first and start is None and not everywhere and branches is None:
         raise HTTPException(400, "give start to go on, unless everywhere or branches")

@@ -31,7 +31,7 @@ from hephaistos.core.registry.mounts import Mount, mounts_of
 from hephaistos.core.registry.repositories import RepositorySummary
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.state.worktrees import WorktreeState
-from hephaistos.core.utils import changes, file_search, files, git, graph, history, logs
+from hephaistos.core.utils import changes, file_search, files, git, graph, history, logs, tips
 from hephaistos.core.utils.ids import Timestamp, id_datetime
 
 
@@ -45,7 +45,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 29)
+API_VERSION = ApiVersion(0, 30)
 
 
 class Ref(TypedDict):
@@ -815,6 +815,16 @@ class FoundCommitJson(TypedDict):
     refs: list[RefJson]  # for `refs`: the branches and tags leading to it
 
 
+class TipsLineJson(TypedDict):
+    """With branch tips only: a line from a commit kept to a parent kept, and what it leaves out."""
+
+    commit: str
+    parent: str  # the commit kept it ends in, its own parent where `count` is 0
+    count: int  # the commits left out: those `commit` has and `parent` has not
+    newest: str | None  # the author dates of the newest and oldest of them; None without any
+    oldest: str | None
+
+
 class HistoryJson(TypedDict):
     """A page of a Checkout's commits, newest first, with HEAD and the refs to walk from."""
 
@@ -824,12 +834,22 @@ class HistoryJson(TypedDict):
     commits: list[CommitJson]
     next: HistoryNextJson | None  # None at the end
     found: FoundCommitJson | None  # on the first page of a search for a hash
+    # With branch tips only, the lines between the commits kept, by commit in the order of its
+    # parents; None otherwise.
+    lines: list[TipsLineJson] | None
 
 
 def history_json(
-    refs: history.Refs, found: history.History, named: history.Found | None = None
+    refs: history.Refs,
+    found: history.History,
+    named: history.Found | None = None,
+    *,
+    lines: Iterable[tips.Between] | None = None,
 ) -> HistoryJson:
-    """A page of a Checkout's history, as the API gives it, with a commit a search named."""
+    """A page of a Checkout's history, as the API gives it, with a commit a search named.
+
+    With branch tips only, the lines between its commits.
+    """
     after = found.next
     return HistoryJson(
         head=refs.head,
@@ -846,6 +866,18 @@ def history_json(
         next=None
         if after is None
         else HistoryNextJson(start=after.start, path=after.path, skip=after.skip),
+        lines=None
+        if lines is None
+        else [
+            TipsLineJson(
+                commit=line.commit,
+                parent=line.parent,
+                count=line.count,
+                newest=None if line.newest is None else line.newest.isoformat(),
+                oldest=None if line.oldest is None else line.oldest.isoformat(),
+            )
+            for line in lines
+        ],
     )
 
 
