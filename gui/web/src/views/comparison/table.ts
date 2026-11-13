@@ -32,8 +32,8 @@ interface Options {
 /**
  * The changes as a list's rows (`entries`), for a `List`: groups and directories open until
  * folded; new folders closed until opened, their files asked for then; both as `folded` keeps
- * them. Also how to open all, and the list's layout: as the device starts with, as Changes has no
- * choice of it, its narrow look being one line.
+ * them. Also how to open all, to fold or unfold all directories, and the list's layout: as the
+ * device starts with, as Changes has no choice of it, its narrow look being one line.
  */
 export function useChangesTable(options: Options) {
   const { query, groups, sorted, onSortedChange, ungrouped, nested, totalled } = options;
@@ -75,6 +75,7 @@ export function useChangesTable(options: Options) {
   const vars = { "--lines-width": `${linesWidth(listed)}ch` } as const; // the List's
   // Every row that holds rows open, new folders too.
   const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
+  const directories = allDirectories([...holding.values()], expanded, folded, partOf);
   const [layout] = useListLayout("changes");
   const table = useList("changes", layout, {
     columns,
@@ -97,7 +98,57 @@ export function useChangesTable(options: Options) {
       onFoldedChange(changed);
     },
   });
-  return { table, vars, folds, listed, openAll, layout };
+  return {
+    table,
+    vars,
+    folds,
+    listed,
+    openAll,
+    layout,
+    // All directories folded or unfolded at once, if any.
+    directories: directories && {
+      open: directories.open,
+      setOpen: (open: boolean) => onFoldedChange(directories.folds(open)),
+    },
+  };
+}
+
+/**
+ * The directories listed, in every group, to fold or unfold at once: whether all are open, none
+ * (and no new folder opened), or some; and the folds with all open, or all closed. New folders are
+ * closed with them, not opened, as that asks for their files. Undefined without directories.
+ */
+function allDirectories(
+  rows: Entry[],
+  expanded: Record<string, boolean>,
+  folded: Folds,
+  partOf: (group: Group) => string,
+): { open: boolean | undefined; folds: (open: boolean) => Folds } | undefined {
+  const directories = rows.flatMap((row) => (row.type === "directory" ? [row] : []));
+  if (directories.length === 0) return undefined;
+  const folders = rows.flatMap((row) =>
+    row.type === "change" && isFolder(row.change) ? [row] : [],
+  );
+  const opened = (row: Entry) => expanded[entryId(row)] === true;
+  let open: boolean | undefined;
+  if (directories.every(opened)) open = true;
+  else if (!directories.some(opened) && !folders.some(opened)) open = false;
+  const folds = (open: boolean): Folds => {
+    let next: Folds = open
+      ? folded
+      : {
+          ...folded,
+          opened: new Set(
+            [...folded.opened].filter((path) => !folders.some((row) => row.change.path === path)),
+          ),
+        };
+    for (const row of directories) {
+      const part = partOf(row.group);
+      next = withPart(next, part, withFolded(partFolded(next, part), row.path, !open));
+    }
+    return next;
+  };
+  return { open, folds };
 }
 
 /** Whether a row that holds rows is open: a group or directory unless folded, a new folder if

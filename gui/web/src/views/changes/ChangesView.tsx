@@ -5,6 +5,7 @@ import { useState } from "react";
 import { KEYS, useChanges, useRepositories } from "../../api/queries";
 import { List, type Opening } from "../../components/list/List";
 import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
+import { FoldersFolded, FoldersUnfolded } from "../../drawnIcons";
 import { SINCE_HEAD, shortHash } from "../../revisions";
 import { useNow } from "../../useNow";
 import { type Address, type Params, paramValues } from "../address";
@@ -69,7 +70,7 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
 
   const sorted = sortingOf(fragment, SORTS, DEFAULT_SORT);
   const [folded, setFolded] = useFolds("changes", checkout);
-  const { table, vars, folds, layout } = useChangesTable({
+  const { table, vars, folds, layout, directories } = useChangesTable({
     query,
     groups,
     folded,
@@ -161,6 +162,17 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
                       icon: ListIcon,
                       title: "Show all changes since the last commit in one list, each file once",
                     },
+                  ]}
+                />
+              )}
+              {directories && (
+                <Toggle
+                  label="All directories unfolded"
+                  on={directories.open}
+                  onChange={directories.setOpen}
+                  ways={[
+                    { icon: FoldersUnfolded, title: "Unfold all directories" },
+                    { icon: FoldersFolded, title: "Fold all directories" },
                   ]}
                 />
               )}

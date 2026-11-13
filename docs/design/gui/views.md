@@ -9,7 +9,7 @@ Each kind has a folder in `views/` ([layout](layout.md#views-and-dockview)).
 
 A View starts with its bar (`ViewBar`): what it shows or compares first, its toggles and links at its end, as icons alone.
 The buttons at its end come in groups, a line between two (`BarGroup`), always in this order, also in Views to come:
-1. Toggles: buttons that switch a state of the View and show it, find first (hidden files, side by side, all files unfolded, layout).
+1. Toggles: buttons that switch a state of the View and show it, find first (hidden files, side by side, all files or directories unfolded, layout).
 2. Actions: buttons that do something once (close all folders, Refresh).
 3. Other Views: the links to them.
 A group without buttons leaves no line.
@@ -73,6 +73,8 @@ A table's rows come newest first, with their columns as the Server describes the
 
 The Changes View lists the files a comparison changes, grouped and nested as chosen ([comparisons](#comparisons)).
 A file's row opens its Diff; directories and groups fold.
+A toggle in the bar, before that of the tree, folds all directories at once, in every group, in a tree or flat, or unfolds them all; neither is on while mixed.
+Folding closes new folders too; unfolding leaves them closed, as opening one asks for its files.
 Untracked files and new folders, which may be anything left lying about, come last.
 
 ## Diff

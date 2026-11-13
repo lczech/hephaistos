@@ -385,6 +385,46 @@ describe("the Changes View", () => {
     ]);
   });
 
+  it("folds all directories at once, in every group, closing new folders, not opening them", async () => {
+    serveChanges();
+    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    await userEvent.click(await screen.findByText("new/"));
+    await screen.findByTitle("new/a.txt");
+    const all = () => screen.getByRole("button", { name: "All directories unfolded" });
+    expect(all()).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(all());
+    expect(screen.queryByText("main.py")).toBeNull();
+    expect(screen.queryByTitle("new/a.txt")).toBeNull();
+    expect(screen.getByText("README.md")).toBeInTheDocument(); // the groups stay open
+    expect(all()).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(all());
+    expect(screen.getByText("main.py")).toBeInTheDocument();
+    expect(screen.queryByTitle("new/a.txt")).toBeNull(); // its files not asked for again
+    expect(all()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("folds all directories as a tree too, some folded showing neither way", async () => {
+    const group = { name: "changes" as const, from: "HEAD", to: "working-tree", count: 3 };
+    const changes = [change("src/a.py"), change("src/app/main.py"), change("b.txt")];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ branch: BRANCH, groups: [{ ...group, changes }] }),
+    });
+    localStorage.setItem("hephaistos.changes", JSON.stringify({ nested: true }));
+    renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", from: "HEAD", to: "working-tree" }} />,
+    );
+    await screen.findByText("main.py");
+    const all = () => screen.getByRole("button", { name: "All directories unfolded" });
+    await userEvent.click(screen.getByText("app/"));
+    expect(all()).toHaveAttribute("aria-pressed", "mixed");
+    await userEvent.click(all()); // from some folded: all unfolded, as in the Diff
+    expect(screen.getByText("main.py")).toBeInTheDocument();
+    await userEvent.click(all());
+    expect(rows().slice(2)).toEqual(["src/ +2 −0", "modified b.txt +1 −0"]);
+  });
+
   it("nests directories, as chosen in this browser", async () => {
     const group = { name: "changes" as const, from: "HEAD", to: "working-tree", count: 3 };
     const changes = [change("src/a.py"), change("src/app/main.py"), change("b.txt")];
