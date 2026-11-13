@@ -79,7 +79,7 @@ export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: Ref
       )}
       {detached.map((each) => (
         <span
-          key={`head:${each.name}`}
+          key={`head:${each.path}`}
           className={styles.ref}
           title={`HEAD of ${checkoutKind(each)} ${each.name}, detached at ${shortHash(each.commit ?? "")}`}
         >
@@ -105,7 +105,7 @@ export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: Ref
             <Icon aria-hidden="true" />
             {ref.name}
             {where.map((each) => (
-              <Where key={each.name} checkout={each} />
+              <Where key={each.path} checkout={each} />
             ))}
           </span>
         );

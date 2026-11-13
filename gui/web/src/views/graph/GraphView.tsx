@@ -118,6 +118,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const heads = new Set(placed.flatMap(({ head }) => (head.commit ? [head.commit] : [])));
   const checkedOut: CheckedOut[] = placed.map(({ head, name }) => ({
     name,
+    path: head.path,
     worktree: !head.main,
     branch: head.branch,
     commit: head.commit,

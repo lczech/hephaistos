@@ -586,6 +586,28 @@ describe("the Checkouts in the Graph View", () => {
     expect(nodes().map((node) => node.x)).toEqual(["-1px", "11px", "-1px", "-1px"]);
   });
 
+  it("tells apart Checkouts in folders of the same name, detached at one commit", async () => {
+    const twin = (path: string, worktree: string): Head => ({
+      ...elsewhere("twin", "b"),
+      path,
+      worktree,
+    });
+    serveGraph({
+      graph: {
+        ...GRAPH,
+        heads: [MAIN, twin("/home/me/a/twin", "wt-a"), twin("/home/me/b/twin", "wt-b")],
+      },
+      worktrees: ["twin"],
+    });
+    const errors = vi.spyOn(console, "error");
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    const title = `HEAD of worktree twin, detached at ${hash("b").slice(0, 7)}`;
+    expect(screen.getAllByTitle(title)).toHaveLength(2);
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
+    errors.mockRestore();
+  });
+
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
     let release = () => {};
     const hold = new Promise<void>((resolve) => {

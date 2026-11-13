@@ -140,6 +140,7 @@ export interface Drawing {
  * of its own when detached. */
 export interface CheckedOut {
   name: string; // the folder of the Clone or Worktree
+  path: string; // where it is, telling apart Checkouts in folders of the same name
   worktree: boolean; // a Worktree, else the main working tree of the Clone
   branch: string | null; // null when detached
   commit: string | null; // null before the first commit
