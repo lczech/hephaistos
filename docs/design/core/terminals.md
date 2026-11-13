@@ -143,7 +143,7 @@ Each observes first, so that it acts on what the Keeper holds now, then acts on 
 A Terminal whose session is gone, lost or ended, has none, so renaming or killing one changes its row alone; killing forgets it, also one whose session went while being killed, as its server ended meanwhile.
 Killing an ended one with its session closes that, its last screen with it.
 
-A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as text in the database is.
+A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as text in the database is, and holds no separator of our listing (`\x1e`, `\x1f`), as its session would not read back.
 Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.
 A name given that is taken, by an open, ended or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.

@@ -101,6 +101,16 @@ _END = "\x1e\n"
 _FORMAT = _SEPARATOR.join(_FIELDS) + _END.rstrip("\n")
 _ESCAPED = {"\t\\037\t": _SEPARATOR, "\\036\n": _END}  # as newer tmux prints them
 
+
+def listable(path: str) -> bool:
+    """Whether a session that starts in `path` reads back from our listing.
+
+    Not if the path holds a separator of it, as such or as tmux escapes it: its fields would not
+    add up.
+    """
+    return not any(mark in path for mark in ("\x1e", "\x1f", *_ESCAPED))
+
+
 # A failed command is told apart by state, never by the message of tmux, which only goes into
 # ours (docs/development.md): whether the server answers on its socket, whether a session is
 # still listed, whether a name is taken.

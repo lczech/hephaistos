@@ -22,7 +22,7 @@ from hephaistos.core.terminals.keeper import (
     NameTakenError,
     NoSuchSessionError,
 )
-from hephaistos.core.terminals.tmux import TmuxKeeper, login_shell
+from hephaistos.core.terminals.tmux import TmuxKeeper, listable, login_shell
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths, absolute, short_path
@@ -61,6 +61,12 @@ def _directory(directory: Path) -> Path:
     if not is_utf8(str(resolved)):
         path = short_path(resolved)
         raise HephaistosError(f"{path} is not UTF-8, as terminals need; choose another directory")
+    if not listable(str(resolved)):  # tmux would hold a session we cannot read back
+        path = short_path(resolved)
+        raise HephaistosError(
+            f"{path} holds an ASCII separator (\\x1e or \\x1f), which terminals cannot start in;"
+            " choose another directory"
+        )
     return resolved
 
 

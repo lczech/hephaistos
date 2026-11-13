@@ -14,7 +14,7 @@ from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
 from hephaistos.core.state import terminals
 from hephaistos.core.terminals import actions
-from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.terminals.tmux import TmuxKeeper, listable
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.utils.text import escaped, utf8
@@ -81,6 +81,8 @@ def locale(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> s
 @example(name="\x1f\b\x7f", arguments=["\x1b[31m"], value="\n")
 @example(name="#[", arguments=["#["], value="#[")  # tmux keeps `#[` and `##[` as they are
 @example(name="a##[b#[#", arguments=[], value="")
+@example(name="c\x1e\nH", arguments=[], value="")  # the end of a pane in our listing
+@example(name="x\t\\037\ty", arguments=[], value="")  # a separator as newer tmux escapes it
 def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then the examples
     set_up: Paths,
     keeper: TmuxKeeper,
@@ -92,7 +94,8 @@ def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then 
 ) -> None:
     """A Terminal in a directory of any name, running any arguments, with any value passed on:
     its program gets them as they were, tmux and State give them back so, and its default name
-    is a valid one. A path that is not UTF-8 is refused."""
+    is a valid one. A path that is not UTF-8 is refused, and so is one holding a separator of our
+    listing, which would not read back."""
     directory = tmp_path / uuid.uuid4().hex / name
     directory.mkdir(parents=True)
     got = directory.parent / "got"
@@ -102,6 +105,11 @@ def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then 
     if utf8(name) != name:
         with pytest.raises(HephaistosError, match="is not UTF-8"):
             actions.create(set_up, directory, command=command, environment=environment)
+        return
+    if not listable(str(directory)):
+        with pytest.raises(HephaistosError, match="holds an ASCII separator"):
+            actions.create(set_up, directory, command=command, environment=environment)
+        assert keeper.sessions() == []
         return
     created = actions.create(set_up, directory, command=command, environment=environment)
     try:
