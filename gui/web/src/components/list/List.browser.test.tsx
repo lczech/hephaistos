@@ -90,6 +90,7 @@ function Long({ name, width, after = 0 }: { name: string; width: number; after?:
         older="fruits"
         detailsLabel="Fruit details"
         details={(fruit) => fruit.name}
+        widths={{ name: "--name-width" }}
       />
     </div>
   );
@@ -106,6 +107,21 @@ describe("a column's edge", () => {
     await pointer.hover(edge);
     await waitFor(() => expect(size()).toMatch(/^\d+(\.\d+)?px 100%$/));
     expect(size()).not.toMatch(/^1px /);
+  });
+});
+
+describe("a column's edge, dragged", () => {
+  it("gives its width to the stylesheet as it goes, as a variable named", () => {
+    render(<Long name="a fruit" width={800} />);
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    const named = () => frame.style.getPropertyValue("--name-width");
+    expect(named()).toBe("60px");
+    const edge = document.querySelector('[data-column="name"] hr') as HTMLElement;
+    const x = edge.getBoundingClientRect().left;
+    fireEvent.mouseDown(edge, { clientX: x });
+    fireEvent.mouseMove(document, { clientX: x + 40 });
+    expect(named()).toBe("100px");
+    fireEvent.mouseUp(document, { clientX: x + 40 });
   });
 });
 

@@ -130,6 +130,7 @@ One that is part of a page, the Diff's untracked files, scrolls only sideways.
 
 Column widths can be dragged.
 A double click on a column's edge fits it to the cells drawn, those near the view, at most as wide as the list.
+A View whose stylesheet needs a column's width, e.g. the graph's, names a variable for it (`widths`), which the List sets as the column is dragged: the View itself need not draw again meanwhile, and does not.
 A column may be hidden until shown, e.g. one whose values cost to ask for; a View then asks only for the shown columns' (`useHidden`).
 In columns, the header's context menu (the right button; a long press on Android) shows or hides columns, moves the one clicked left or right past those shown, and resets the list's look, its layout too.
 Dragging a header with a mouse moves its column too (React Aria's `useDrag`, the header row its `useDrop`).

@@ -314,6 +314,20 @@ describe("the Graph View", () => {
     ]);
   });
 
+  it("draws the graph as wide as its column as it is dragged, not once the View draws again", async () => {
+    serveGraph();
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    const frame = document.querySelector("[data-layout]") as HTMLElement;
+    const width = () => frame.style.getPropertyValue("--graph-width");
+    const before = Number.parseFloat(width());
+    const edge = document.querySelector('[data-column="graph"] hr') as HTMLElement;
+    fireEvent.mouseDown(edge, { clientX: 100 });
+    fireEvent.mouseMove(document, { clientX: 140 });
+    expect(width()).toBe(`${before + 40}px`);
+    fireEvent.mouseUp(document, { clientX: 140 });
+  });
+
   it("leaves hidden branches out of the walk, and says so in its title", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature", "old"] }} />);

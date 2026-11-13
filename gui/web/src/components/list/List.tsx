@@ -81,6 +81,8 @@ interface Props<TData extends RowData> {
   label: string; // what screen readers call it: `Files`, `Events`
   className?: string; // the View's, e.g. for its look in two lines per row
   vars?: CssVars; // the View's, for its stylesheet: e.g. a column's width, from what it shows
+  widths?: Record<string, `--${string}`>; // the widths of columns, by ID, as variables of the
+  // View's stylesheet, as they are resized: the View draws again only when what it shows changes
   layout: ListLayout;
   embedded?: boolean; // part of a page that scrolls: then it only scrolls sideways itself
   oneLine?: boolean; // its rows stay in one line in the two lines' layout, as high as in columns
@@ -149,6 +151,7 @@ export function List<TData extends RowData>({
   label,
   className,
   vars,
+  widths,
   layout,
   embedded,
   oneLine,
@@ -606,7 +609,7 @@ export function List<TData extends RowData>({
     <div
       ref={frame}
       className={`${styles.frame} ${className ?? ""}`}
-      style={cssVars(vars ?? {})}
+      style={cssVars({ ...vars, ...widthVars(table, widths) })}
       data-stale={stale || undefined}
       data-layout={layout}
       data-embedded={embedded || undefined}
@@ -828,6 +831,19 @@ function cellData(column: { id: string; columnDef: { meta?: ColumnLook } }) {
     "data-figures": meta?.figures || undefined,
     "data-align": meta?.align,
   };
+}
+
+/** The widths of the shown columns named, as variables (`widths`). */
+function widthVars<TData extends RowData>(
+  table: ReactTable<ListFeatures, TData>,
+  widths: Record<string, `--${string}`> | undefined,
+): CssVars {
+  const vars: CssVars = {};
+  for (const [id, name] of Object.entries(widths ?? {})) {
+    const column = table.getColumn(id);
+    if (column?.getIsVisible()) vars[name] = `${column.getSize()}px`;
+  }
+  return vars;
 }
 
 /** The element that scrolls `element`: the nearest around it that scrolls up and down. */

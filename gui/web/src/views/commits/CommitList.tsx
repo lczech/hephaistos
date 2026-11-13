@@ -77,7 +77,7 @@ export function CommitList({
         })
       }
       className={`${styles.list} ${lanes ? styles.graphed : ""}`}
-      vars={column ? { "--graph-width": `${column.getSize()}px` } : undefined}
+      widths={drawn && { graph: "--graph-width" }}
       layout={layout}
       choices={{}}
       message={message}
