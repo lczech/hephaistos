@@ -4,6 +4,8 @@ import logging
 import os
 import shlex
 import sys
+from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -53,6 +55,14 @@ def _command_text(state: TerminalState) -> str:
 
 def _repository(checkout: CheckoutDetails | None) -> str:
     return "-" if checkout is None else checkout.clone.repository.name
+
+
+def _status_text(state: TerminalState) -> str:
+    """Its status, with how an ended one ended: `ended (status 1)`, `ended (SIGKILL)`."""
+    if state.status is not terminals.TerminalStatus.ENDED:
+        return state.status.value
+    how = terminals.ending_text(state)
+    return f"ended ({how.removeprefix('exited with ').removeprefix('ended by ')})"
 
 
 def _attach_text(state: TerminalState) -> str:
@@ -112,6 +122,10 @@ def create(
     typer.echo(
         f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{running}"
     )
+    if created.status is terminals.TerminalStatus.ENDED:
+        typer.echo(f"  it ended at once: {terminals.ending_text(created)}")
+        typer.echo(f"  see its last screen with: {_attach_text(created)}")
+        return
     typer.echo(f"  attach with: {_attach_text(created)}")
 
 
@@ -119,7 +133,8 @@ def create(
 def attach(name: NameArgument) -> None:
     """Attach to a terminal with tmux; a lost one is restored first, as a shell.
 
-    Plain tmux: Ctrl+B d detaches, and leaves the terminal running.
+    Plain tmux: Ctrl+B d detaches, and leaves the terminal running. An ended one shows its last
+    screen, until killed.
     """
     _attached(Paths.from_environment(), name)
 
@@ -142,7 +157,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
         [
             [
                 escaped(state.name),
-                state.status.value,
+                _status_text(state),
                 _repository(checkout),
                 short_path(state.directory),
                 escaped(state.program),
@@ -178,6 +193,7 @@ def show(
             ("name", escaped(state.name)),
             ("id", str(state.id)),
             ("status", state.status.value),
+            *_ending_fields(state, formatted),
             ("directory", short_path(state.directory)),
             ("current", "-" if current is None else short_path(current)),
             ("program", escaped(state.program)),
@@ -191,6 +207,21 @@ def show(
             ("observed", formatted(state.observed_at.datetime)),
         ]
     )
+
+
+def _ending_fields(
+    state: TerminalState, formatted: Callable[[datetime], str]
+) -> list[tuple[str, str]]:
+    """How an ended one ended, and when and why the session of one went, as far as known."""
+    fields: list[tuple[str, str]] = []
+    if state.status is terminals.TerminalStatus.ENDED and state.ended_at is not None:
+        fields.append(("ended", f"{formatted(state.ended_at)}: {terminals.ending_text(state)}"))
+    if state.lost_at is not None and state.lost_because is not None:
+        why = terminals.LOST_TEXTS[state.lost_because]
+        label = "lost" if state.status is terminals.TerminalStatus.LOST else "screen"
+        gone = "" if label == "lost" else "gone "
+        fields.append((label, f"{gone}{formatted(state.lost_at)}: {why}"))
+    return fields
 
 
 @app.command()
@@ -211,7 +242,11 @@ def kill(
         bool, typer.Option("--force", help="SIGKILL first, also for what ignores SIGHUP.")
     ] = False,
 ) -> None:
-    """End a terminal and what runs in it; a lost one is forgotten."""
+    """End a terminal and what runs in it; one ended closes, and one lost is forgotten."""
     killed = actions.kill(Paths.from_environment(), name, force=force)
-    lost = killed.status is terminals.TerminalStatus.LOST
-    typer.echo(f"{'Forgot lost' if lost else 'Killed'} terminal {escaped(killed.name)}")
+    if killed.session_gone:
+        typer.echo(f"Forgot {killed.status.value} terminal {escaped(killed.name)}")
+    elif killed.status is terminals.TerminalStatus.ENDED:
+        typer.echo(f"Closed ended terminal {escaped(killed.name)}")
+    else:
+        typer.echo(f"Killed terminal {escaped(killed.name)}")

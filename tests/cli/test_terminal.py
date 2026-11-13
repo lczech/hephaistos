@@ -316,3 +316,104 @@ def test_attach_from_a_tmux_of_the_user(outer: Outer, proj: Path) -> None:
     # TMUX names the socket of the outer one.
     outer.run("terminal", "attach", "api", in_tmux=True, spread=shown["id"])
     eventually(lambda: "hello there" in outer.screen())
+
+
+# Ended ones, and those whose session went.
+
+
+def kill_server(keeper: TmuxKeeper) -> None:
+    subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
+
+
+def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
+    lines = ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "exit 3")
+    assert lines == [
+        f"Created terminal build in {tmp_path}, running sh -c 'exit 3'",
+        "  it ended at once: exited with status 3",
+        "  see its last screen with: hephaistos terminal attach build",
+    ]
+    assert ok("list")[1].split()[:4] == ["build", "ended", "(status", "3)"]
+    fields = dict(line.split(None, 1) for line in ok("show", "build"))
+    assert fields["status"] == "ended"
+    assert fields["ended"].endswith(": exited with status 3")
+    assert "screen" not in fields
+    data = json.loads("\n".join(ok("show", "build", "--json")))
+    assert data["status"] == "ended"
+
+
+def test_one_a_signal_ended(tmp_path: Path) -> None:
+    ok("create", "-n", "job", "-d", str(tmp_path), "--", "sh", "-c", "kill -KILL $$")
+    status = " ".join(ok("list")[1].split()[1:3])
+    assert status in {"ended (SIGKILL)", "ended (a"}  # tmux before 3.3 does not say which
+    fields = dict(line.split(None, 1) for line in ok("show", "job"))
+    assert fields["ended"].endswith((": ended by SIGKILL", ": ended by a signal"))
+
+
+def test_show_says_when_and_why_a_session_went(
+    keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "exit 3")
+    ok("create", "-n", "api", "-d", str(tmp_path))
+    kill_server(keeper)
+    build = dict(line.split(None, 1) for line in ok("show", "build", "--time-format", "relative"))
+    assert build["status"] == "ended"
+    assert build["ended"].endswith(": exited with status 3")
+    assert build["screen"] == "gone now: the tmux server ended"
+    api = dict(line.split(None, 1) for line in ok("show", "api", "--time-format", "relative"))
+    assert (api["status"], api["lost"]) == ("lost", "now: the tmux server ended")
+    assert "ended" not in api
+    Exec(monkeypatch)  # as if run interactively
+    assert failed("attach", "build") == (
+        "terminal build exited with status 3; its last screen is gone, as the tmux server ended"
+    )
+
+
+def test_kill_ended_ones(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    ok("create", "-n", "a", "-d", str(tmp_path), "--", "true")
+    ok("create", "-n", "b", "-d", str(tmp_path), "--", "true")
+    assert ok("kill", "a") == ["Closed ended terminal a"]
+    kill_server(keeper)
+    assert ok("kill", "b") == ["Forgot ended terminal b"]
+    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+
+
+def test_names_of_ended_ones_stay_taken(tmp_path: Path) -> None:
+    ok("create", "-n", "build", "-d", str(tmp_path), "--", "true")
+    assert failed("create", "-n", "build", "-d", str(tmp_path)) == (
+        "an ended terminal named build exists; kill it, or choose another name"
+    )
+
+
+def test_attach_to_an_ended_one_shows_its_last_screen(outer: Outer, tmp_path: Path) -> None:
+    """Plain tmux, with its line on how it ended; typing does nothing, Ctrl+B d leaves."""
+    script = "echo all built; exit 3"
+    ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", script)
+    outer.run("terminal", "attach", "build")
+    eventually(lambda: "all built" in outer.screen())
+    assert eventually(lambda: "Pane is dead (status 3" in outer.screen())
+    outer.tmux("send-keys", "-t", "=outer:", "-l", "typed")
+    time.sleep(0.2)
+    assert "typed" not in outer.screen()
+    outer.tmux("send-keys", "-t", "=outer:", "C-b", "d")
+    eventually(outer.out.exists)
+    assert ok("list")[1].split()[:2] == ["build", "ended"]
+
+
+def test_create_attaches_to_a_command_that_ends_at_once(outer: Outer, tmp_path: Path) -> None:
+    """E.g. a typo: its message shows, as it would in a terminal emulator."""
+    outer.run("terminal", "create", "-d", str(tmp_path), "-n", "typo", "--", "mkae-hephaistos")
+    assert eventually(lambda: "mkae-hephaistos" in outer.screen() or None)
+    assert eventually(lambda: "Pane is dead (status 127" in outer.screen())
+
+
+def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path) -> None:
+    """As a tab of a terminal emulator closes: tmux says it exited, and the CLI ends."""
+    ok("create", "-n", "sh", "-d", str(tmp_path), "--detached")
+    outer.run("terminal", "attach", "sh")
+    eventually(lambda: "[sh]" in outer.screen().splitlines()[-1])  # the bar of tmux
+    eventually(lambda: "$" in outer.screen())  # its prompt: keys typed before may be lost
+    outer.tmux("send-keys", "-t", "=outer:", "-l", "exit 3")
+    outer.tmux("send-keys", "-t", "=outer:", "Enter")
+    eventually(outer.out.exists)
+    assert "[exited]" in outer.screen()
+    assert ok("list") == ["name  status  repo  directory  program  attached  active"]

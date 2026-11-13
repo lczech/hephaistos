@@ -93,13 +93,18 @@ Files stay untouched.
 `terminal create` starts a shell in a directory, the current one by default, or the command after its options; `--` marks where that starts.
 Without `-n`, its name is the directory name, numbered: `proj-1`, `proj-2`.
 Run interactively, it then attaches to the Terminal, unless `--detached`; otherwise it prints how to attach later.
+A command that ends at once, e.g. a typo, is created ended: attached, its last screen shows its message; detached, it prints how it ended and how to see that screen.
 `terminal attach` becomes `tmux attach-session` to the Terminal: plain tmux, with its status bar and keys, so Ctrl+B d detaches, and leaves the Terminal running.
 It runs only interactively, input and output both a tty, and not at a tty that the Terminal shows, e.g. inside it ([terminals](../core/terminals.md#actions)).
 It logs its end before it becomes tmux.
 Attaching to a lost Terminal restores it first ([terminals](../core/terminals.md#actions)).
+Attaching to an ended one shows its last screen, with tmux's line on how it ended; once that screen is gone too, e.g. after a reboot, attaching says so.
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
-`kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first, and a lost one is forgotten.
+`list` gives the status of an ended one with how it ended, e.g. `ended (status 1)` or `ended (SIGKILL)`.
+`show` gives when and how it ended, and for one whose session is gone, when that was found and why: `lost` for a lost one, `screen` for an ended one, e.g. `gone 3m ago: the machine restarted`.
+`kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first.
+It closes an ended one, its last screen with it, and forgets one whose session is gone.
 How Terminals work: [terminals](../core/terminals.md).
 
 ## scan
