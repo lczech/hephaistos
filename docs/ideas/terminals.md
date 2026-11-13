@@ -7,6 +7,7 @@ For the Terminals work and after it ([roadmap](../plans/roadmap.md)); its plan i
 - Detaching (closing the Panel) and killing both easy, e.g. a kill button next to close or in the bar of the Panel, with killing confirmed.
 - Ctrl+W: the GUI closes Panels with it, but shells delete a word with it. The user leans to Ctrl+W closing the Panel, as in every other Panel, undecided (GNOME Terminal uses Ctrl+Shift+W).
 - Find in Terminals: see [Views](views.md#find).
+- Restarting an ended command Terminal: its command again, in its directory, with its name (user, 2026-11-13: later, as an action of the View, maybe also `terminal restart`).
 
 ## From tmux
 
@@ -15,6 +16,7 @@ The user wants these (2026-11-05):
 - Memory and CPU per Terminal from its own systemd scope, shown in the GUI; limits (`MemoryMax`) for Agents. The user is keen: offer it at the end of the Terminals work.
 - Images in Terminals: `allow-passthrough`, and `@xterm/addon-image` for Sixel and the iTerm2 protocol. tmux keeps no images in its history, so they are gone after attaching again.
 - History kept across reboots, by `pipe-pane` or by `capture-pane` snapshots now and then, with limits on size and rotation.
+  At least the last screen of an ended Terminal, which no longer changes, saved once as it ends: now a reboot loses it, and its row only says how it ended (2026-11-13).
 - `alert-bell` and `monitor-silence` as hints for attention, with [Agents](agents.md).
 - Shell integration (OSC 133) for the commands run inside shells.
 

@@ -34,7 +34,14 @@ The CLI attaches with plain tmux, which shows that it is tmux.
   - [x] tests: the CLI attach run inside a second tmux, its screen read with `capture-pane`.
 - [x] Fixes from a review (branch `terminals-review`): names of Terminals renamed by hand in one pass, sessions listed but not readable, retries of Clones and Terminals apart, systemd failing in the checks, the Status View against an older Daemon, attaching where it cannot loop.
 - [x] Paths in `hephaistos status` and the Status View: the code, config, data and log directories and the Desktop profile, with sizes; the same in `machine show` (API 0.26).
-- [ ] 1c Exit statuses: `remain-on-exit` for every Terminal; a command that ended, or a pane ended by a signal, stays as ended, with its status or signal, until killed.
+- [x] The GUI tests fuzzed (`scripts/test_gui_fuzzed.sh`, weekly in CI): answers in any order, refetches at random; the four bugs found fixed (History, Changes, Diff, Log), lists showing all of an answer while the next loads.
+- [x] 1c Exit statuses, decided with the user (2026-11-13):
+  - [x] a shell that exits closes, whatever its status, as a tab of a terminal emulator does; a command that ends stays, showing its last screen, and so does any program a signal ended, until killed;
+  - [x] `remain-on-exit`, a `pane-died` hook closing the panes of shells, a pane option marking commands, and one marking the panes the hook kept, as a pane counts as dead before tmux knows how it ended;
+  - [x] for tmux before 3.6, built with utempter as Ubuntu's is, a job in the server sends it SIGCHLD twice a second: it missed about one exit in five (tmux 4559), leaving a dead, blank pane;
+  - [x] State: `ended`, with the exit status or signal and when; when and why a session went (`reboot`, `server`), ended ones staying ended with their screen gone; columns added to schema 4;
+  - [x] `create` returns a command that ends at once as ended, e.g. a typo, whose message then shows; attaching to an ended one is plain tmux on its last screen, refused once that is gone; the CLI and the API (0.27) say how and when each ended and why it went;
+  - [x] found on the way: directories holding the separators of our listing refused; no tty of a dead pane counts when refusing an attach; an ended one keeps the program it last ran.
 - [ ] 2 The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode, which passes what it does not know and says so once.
   To find out with tests: whether tmux and xterm.js both answer the queries of a program, e.g. which terminal it is in.
 - [ ] 3 The Terminal View (xterm.js): a Panel whose Terminal ended or was lost says so, with actions; see [ideas](../ideas/terminals.md#the-terminal-view).
