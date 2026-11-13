@@ -15,6 +15,13 @@ Decide then whether closing keeps it in the tray, and where notifications come f
 Ubuntu needs the AppIndicator extension.
 A thin client of the Server API.
 
+## Caches of the Desktop
+
+Seen 2026-11-13: the Desktop profile (`desktop/` in the state directory) held 510 MB, nearly all of it the HTTP cache of Chromium (374 MB) and the V8 code cache (129 MB).
+Each build of the GUI names its assets anew, and the cache keeps every version, so it grows mostly on the Machine of a developer.
+Chromium caps these caches by the free disk space, at hundreds of MB; the GUI comes from localhost, so they gain little.
+Cap them lower (`--disk-cache-size`), or clear them when the GUI changes (`session.clearCache()`, `clearCodeCaches()`).
+
 ## Addresses on the command line
 
 Agreed 2026-10-15: `hephaistos browse <address>` and `hephaistos desktop open <address>`.
