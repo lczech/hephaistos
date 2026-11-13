@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { act } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,8 +31,10 @@ function start() {
 
 // The listings are all marked as changed, and some asked again (`listingsAskedAgain`).
 const keysOf = (names: KeyName[]) =>
-  names.map((name): [object] =>
-    name === "files" ? [{ queryKey: KEYS.files, refetchType: "none" }] : [{ queryKey: KEYS[name] }],
+  names.map((name): [object] | [object, object] =>
+    name === "files"
+      ? [{ queryKey: KEYS.files, refetchType: "none" }]
+      : [{ queryKey: KEYS[name] }, { cancelRefetch: false }],
   );
 
 function wait(ms: number): void {
@@ -70,6 +73,44 @@ describe("the live connection", () => {
     invalidated.mockClear();
     act(() => lastSocket().receive({ heartbeat: new Date().toISOString() }));
     expect(invalidated).not.toHaveBeenCalled();
+  });
+
+  it("lets what loads anew end, then asks again once for the hints meanwhile", async () => {
+    let asked = 0;
+    const waiting: (() => void)[] = [];
+    const aborted: boolean[] = [];
+    function History() {
+      useQuery({
+        queryKey: [...KEYS.history, "x"],
+        queryFn: ({ signal }) => {
+          asked += 1;
+          signal.addEventListener("abort", () => aborted.push(true));
+          return new Promise<number>((resolve) => waiting.push(() => resolve(asked)));
+        },
+      });
+      return createElement(Live);
+    }
+    const { client } = renderWithQueries(createElement(History));
+    act(() => lastSocket().open());
+    const answer = async () => {
+      await act(async () => {
+        for (const done of waiting.splice(0)) done();
+      });
+    };
+    while (client.isFetching() > 0) await answer();
+    const before = asked;
+    aborted.length = 0; // loads the connection's opening cut short
+    act(() => lastSocket().receive({ hints: ["data"] }));
+    expect(asked).toBe(before + 1);
+    // Loading anew, taking longer than the hints a second: not cut short, nor started over.
+    act(() => lastSocket().receive({ hints: ["data"] }));
+    act(() => lastSocket().receive({ hints: ["data"] }));
+    expect([asked, aborted]).toEqual([before + 1, []]);
+    await answer();
+    expect(asked).toBe(before + 2); // once more, for what changed meanwhile
+    await answer();
+    wait(1_000);
+    expect([asked, aborted, client.isFetching()]).toEqual([before + 2, [], 0]);
   });
 
   it("counts as lost after a silence, and reconnects", () => {

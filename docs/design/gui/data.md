@@ -6,6 +6,7 @@ How the GUI gets the Server's answers, keeps them current, and what it keeps in 
 
 The GUI asks the Server again only when its live connection hints at a change, never on a timer (`api/live.ts`).
 `api/live.ts` maps each hint to the queries it covers, by the names in `KEYS`.
+A query still loading anew when a hint or focus asks again is not cut short, but asked again once it ends, once for all that came meanwhile: hints come up to once a second, and a list of many pages may take longer, which would then never end, nor load its next page.
 Connecting asks again for everything.
 Gaining focus asks for a pass, and for what changes by hand: the settings, and Checkouts' changes, as editing a file changes no State.
 Focus is TanStack's `focusManager`, for which the page's window gaining it counts too, e.g. back from the editor.

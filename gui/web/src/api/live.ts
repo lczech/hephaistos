@@ -1,7 +1,7 @@
 // The live connection to this Machine's Server: it hints at what changed, and the queries that
 // show it are asked again. On connecting, everything is, as hints may have been missed.
 
-import { focusManager, type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { focusManager, type Query, type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useSyncExternalStore } from "react";
 import { forgetToken, token } from "../token";
 import type { Schemas } from "./client";
@@ -71,16 +71,55 @@ export function useConnection(): Connection {
   return useSyncExternalStore(subscribe, () => connection);
 }
 
-function invalidate(client: QueryClient, names: KeyName[]): void {
-  for (const name of names) {
-    if (name !== "files") void client.invalidateQueries({ queryKey: KEYS[name] });
-    else {
-      // All marked as maybe changed, as a folder asked for ahead is trusted only until then;
-      // asked again, those `listingsAskedAgain` says.
-      const predicate = listingsAskedAgain(client);
-      void client.invalidateQueries({ queryKey: KEYS.files, refetchType: "none" });
-      void client.refetchQueries({ queryKey: KEYS.files, type: "active", predicate });
+/**
+ * Asks again for the queries named, as hints and focus name them. One already loading anew is
+ * not cut short, as invalidating does by default: a hint a second would do so to one that takes
+ * longer, e.g. a list of many pages, which then never ended, its next page waiting for it
+ * (`Paging`). It is asked again once that ends instead, for what changed meanwhile, once for all
+ * the hints meanwhile.
+ */
+class AskAgain {
+  private readonly waiting = new Set<Query>();
+  private readonly unsubscribe: () => void;
+
+  constructor(private readonly client: QueryClient) {
+    this.unsubscribe = client.getQueryCache().subscribe(({ type, query }) => {
+      if (!this.waiting.has(query)) return;
+      if (type === "removed") this.waiting.delete(query);
+      else if (query.state.fetchStatus === "idle") {
+        this.waiting.delete(query);
+        void client.invalidateQueries(
+          { queryKey: query.queryKey, exact: true },
+          { cancelRefetch: false },
+        );
+      }
+    });
+  }
+
+  names(names: KeyName[]): void {
+    const { client } = this;
+    for (const name of names) {
+      for (const query of client.getQueryCache().findAll({ queryKey: KEYS[name] })) {
+        if (query.state.fetchStatus === "fetching") this.waiting.add(query);
+      }
+      if (name !== "files") {
+        void client.invalidateQueries({ queryKey: KEYS[name] }, { cancelRefetch: false });
+      } else {
+        // All marked as maybe changed, as a folder asked for ahead is trusted only until then;
+        // asked again, those `listingsAskedAgain` says.
+        const predicate = listingsAskedAgain(client);
+        void client.invalidateQueries({ queryKey: KEYS.files, refetchType: "none" });
+        void client.refetchQueries(
+          { queryKey: KEYS.files, type: "active", predicate },
+          { cancelRefetch: false },
+        );
+      }
     }
+  }
+
+  stop(): void {
+    this.unsubscribe();
+    this.waiting.clear();
   }
 }
 
@@ -92,7 +131,10 @@ class LiveConnection {
   private watch: ReturnType<typeof setInterval> | undefined;
   private heard = 0; // when a message last arrived
 
-  constructor(private readonly client: QueryClient) {}
+  constructor(
+    private readonly client: QueryClient,
+    private readonly asking: AskAgain,
+  ) {}
 
   start(): void {
     set({ state: "connecting" });
@@ -130,7 +172,7 @@ class LiveConnection {
     socket.onmessage = (event: MessageEvent) => {
       this.heard = Date.now();
       const message = JSON.parse(String(event.data)) as Partial<Schemas["LiveHintsJson"]>;
-      for (const hint of message.hints ?? []) invalidate(this.client, HINTED[hint] ?? []);
+      for (const hint of message.hints ?? []) this.asking.names(HINTED[hint] ?? []);
     };
     socket.onclose = (event: CloseEvent) => {
       if (socket !== this.socket) return;
@@ -185,7 +227,8 @@ focusManager.setEventListener((changed) => {
 export function useLiveUpdates(): void {
   const client = useQueryClient();
   useEffect(() => {
-    const live = new LiveConnection(client);
+    const asking = new AskAgain(client);
+    const live = new LiveConnection(client, asking);
     live.start();
     let lastPass = Number.NEGATIVE_INFINITY;
     const onFocus = () => {
@@ -193,7 +236,7 @@ export function useLiveUpdates(): void {
       live.reconnectNow();
       if (Date.now() - lastPass < FOCUS_GAP) return;
       lastPass = Date.now();
-      invalidate(client, ON_FOCUS);
+      asking.names(ON_FOCUS);
       // A failed pass shows in the Daemon's status, like any other.
       void observe().catch(() => undefined);
     };
@@ -202,6 +245,7 @@ export function useLiveUpdates(): void {
     return () => {
       unsubscribe();
       live.stop();
+      asking.stop();
     };
   }, [client]);
 }
