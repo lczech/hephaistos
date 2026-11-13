@@ -718,6 +718,42 @@
         "title": "CloneRef",
         "type": "object"
       },
+      "CodeJson": {
+        "description": "Where the code of hephaistos is.",
+        "properties": {
+          "checkout": {
+            "title": "Checkout",
+            "type": "boolean"
+          },
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "required": [
+          "path",
+          "exists",
+          "size",
+          "checkout"
+        ],
+        "title": "CodeJson",
+        "type": "object"
+      },
       "ColumnJson": {
         "description": "A table's column, and what its values are: `clock` values are `\u2026 #3`, `id`s text.",
         "properties": {
@@ -858,6 +894,16 @@
           "daemon": {
             "$ref": "#/components/schemas/ProcessJson"
           },
+          "paths": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HephaistosPathsJson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "server": {
             "anyOf": [
               {
@@ -894,7 +940,8 @@
           "daemon",
           "watcher",
           "server",
-          "checks"
+          "checks",
+          "paths"
         ],
         "title": "DaemonJson",
         "type": "object"
@@ -1683,6 +1730,35 @@
         ],
         "type": "string"
       },
+      "HephaistosPathsJson": {
+        "description": "Where hephaistos keeps its files, as the process that answers sees them.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/CodeJson"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PathJson"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PathJson"
+          },
+          "desktop": {
+            "$ref": "#/components/schemas/PathJson"
+          },
+          "logs": {
+            "$ref": "#/components/schemas/PathJson"
+          }
+        },
+        "required": [
+          "code",
+          "config",
+          "data",
+          "logs",
+          "desktop"
+        ],
+        "title": "HephaistosPathsJson",
+        "type": "object"
+      },
       "HistoryJson": {
         "description": "A page of a Checkout's commits, newest first, with HEAD and the refs to walk from.",
         "properties": {
@@ -2117,6 +2193,37 @@
         "title": "PassJson",
         "type": "object"
       },
+      "PathJson": {
+        "description": "A directory where hephaistos keeps files.",
+        "properties": {
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "required": [
+          "path",
+          "exists",
+          "size"
+        ],
+        "title": "PathJson",
+        "type": "object"
+      },
       "PathsJson": {
         "description": "The paths below a Directory, by name, a folder's ending in `/`.\n\nAt most `files.max_paths`, found within `files.search_seconds`. `stopped` says why there may\nbe more: `max_paths` listed, or `time` up; `limit`, the number of paths or seconds it stopped\nat.",
         "properties": {
@@ -2540,40 +2647,24 @@
       "SetupJson": {
         "description": "How this Machine keeps its files and database.",
         "properties": {
-          "config_dir": {
-            "title": "Config Dir",
-            "type": "string"
-          },
-          "data_dir": {
-            "title": "Data Dir",
-            "type": "string"
-          },
           "data_fstype": {
             "title": "Data Fstype",
-            "type": "string"
-          },
-          "database": {
-            "title": "Database",
             "type": "string"
           },
           "journal_mode": {
             "title": "Journal Mode",
             "type": "string"
           },
+          "paths": {
+            "$ref": "#/components/schemas/HephaistosPathsJson"
+          },
           "schema_version": {
             "title": "Schema Version",
             "type": "integer"
-          },
-          "state_dir": {
-            "title": "State Dir",
-            "type": "string"
           }
         },
         "required": [
-          "config_dir",
-          "data_dir",
-          "state_dir",
-          "database",
+          "paths",
           "journal_mode",
           "data_fstype",
           "schema_version"
@@ -2686,11 +2777,15 @@
           },
           "log": {
             "$ref": "#/components/schemas/LogCountsJson"
+          },
+          "paths": {
+            "$ref": "#/components/schemas/HephaistosPathsJson"
           }
         },
         "required": [
           "checks",
           "about",
+          "paths",
           "log",
           "daemon"
         ],
@@ -3307,7 +3402,7 @@
   "info": {
     "summary": "This machine's server: what the CLI's `--json` shows, for GUIs.",
     "title": "hephaistos",
-    "version": "0.34"
+    "version": "0.35"
   },
   "openapi": "3.1.0",
   "paths": {

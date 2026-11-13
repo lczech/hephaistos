@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -8,6 +9,7 @@ from hephaistos.cli.output import (
     print_fields,
     print_json,
     print_table,
+    size_text,
     time_formatter,
 )
 from hephaistos.core import serialize
@@ -16,19 +18,46 @@ from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
 from hephaistos.core.registry.machines import LocalSetup
 from hephaistos.core.registry.mounts import mounts_of
+from hephaistos.core.serialize import HephaistosPathsJson, PathJson
 from hephaistos.core.utils.ids import id_datetime
 from hephaistos.core.utils.paths import Paths, short_path
 
 app = typer.Typer(no_args_is_help=True, help="Machines: computers running hephaistos.")
 
 
+def path_entries(found: HephaistosPathsJson) -> list[tuple[str, PathJson]]:
+    """Where hephaistos keeps its files, each directory by its name."""
+    return [
+        ("code", found["code"]),
+        ("config", found["config"]),
+        ("data", found["data"]),
+        ("logs", found["logs"]),
+        ("app", found["desktop"]),  # not "desktop": About names the desktop environment so
+    ]
+
+
+def path_text(name: str, entry: PathJson, *, exists: bool | None = None) -> str:
+    """A directory, with its size if given: `~/.local/share/hephaistos/… (1.1 MB)`.
+
+    `exists` replaces what `entry` says, e.g. recorded when the Daemon started.
+    """
+    notes = [] if (entry["exists"] if exists is None else exists) else ["not there yet"]
+    if (size := entry["size"]) is not None:
+        # That of the logs counts the log files alone.
+        notes.append(f"{size_text(size)} of logs" if name == "logs" else size_text(size))
+    shown = short_path(Path(entry["path"]))
+    return f"{shown} ({', '.join(notes)})" if notes else shown
+
+
+def path_fields(found: HephaistosPathsJson) -> list[tuple[str, str]]:
+    """Where hephaistos keeps its files, as fields: `config`, `~/.config/hephaistos`."""
+    return [(name, path_text(name, entry)) for name, entry in path_entries(found)]
+
+
 def _setup_fields(setup: LocalSetup) -> list[tuple[str, str]]:
     """This Machine's setup, as `show` prints it."""
-    paths = setup.paths
     return [
-        ("config", short_path(paths.config_dir)),
-        ("data", short_path(paths.data_dir)),
-        ("logs", short_path(paths.state_dir)),
+        *path_fields(serialize.hephaistos_paths_json(setup.paths)),
         ("database", f"{setup.journal_mode.upper()} journal, on {setup.data_fstype}"),
         ("schema", str(setup.schema_version)),
     ]

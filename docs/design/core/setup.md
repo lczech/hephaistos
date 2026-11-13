@@ -24,9 +24,13 @@ It is stored at setup and updated when the Daemon starts (`machine.changed`).
 Files follow XDG.
 Data and logs are in a per-Machine subdirectory, keyed by `/etc/machine-id`, with the hostname as fallback.
 So home directories shared by several Machines need no configuration.
-- config: `~/.config/hephaistos/`, optional files ([settings](settings.md));
-- data: `~/.local/share/hephaistos/<machine>/`;
-- logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day, e.g. `2026-10-08.jsonl` ([logs](logs.md)).
+- config: `~/.config/hephaistos/`, optional files: `config.toml`, and `config.<hostname>.toml` for one Machine ([settings](settings.md));
+- data: `~/.local/share/hephaistos/<machine>/`: the database, and the token of the Server;
+- logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day, e.g. `2026-10-08.jsonl` ([logs](logs.md)), and `desktop.log`; with the files of the running Daemon (`daemon.json`, `daemon.lock`), the config of our tmux server, and the Desktop profile in `desktop/`: the storage and caches of Chromium, hundreds of MB.
+
+`hephaistos status` and the Status View show these directories with the code, the checkout hephaistos runs from or else its installed package, and the sizes of data, logs and the Desktop profile ([status](../daemon/status.md#paths)); `machine show` shows them without sizes.
+Until Machines sync, the data directory holds the only copy of the Registry: it is the one to back up, with the config directory unless the dotfiles keep it.
+The logs and the Desktop profile can be lost, at the cost of the history of the log and the saved Layout.
 
 `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead.
 A relative one is made absolute against the current directory once at start, so the systemd unit and the launcher entry get the absolute path.

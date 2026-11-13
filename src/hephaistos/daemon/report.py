@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TypedDict
 
-from hephaistos.core import config
+from hephaistos.core import config, serialize
+from hephaistos.core.serialize import HephaistosPathsJson
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status, unit
@@ -149,6 +150,7 @@ class DaemonJson(TypedDict):
     watcher: WatcherJson | None
     server: ServerJson | None
     checks: CheckedJson | None  # its own, as it ran them last
+    paths: HephaistosPathsJson | None  # its own, as it started; None from a Daemon before API 0.26
 
 
 def _at(value: datetime | None) -> str | None:
@@ -223,6 +225,7 @@ def report_json(found: Report, now: datetime) -> DaemonJson:
         watcher=None if current is None else _watcher_json(current, now),
         server=None if current is None or current.server is None else _server_json(current.server),
         checks=None if current is None or current.checks is None else checked_json(current.checks),
+        paths=None if current is None else current.paths,
     )
 
 
@@ -239,6 +242,7 @@ class StatusJson(TypedDict):
 
     checks: list[CheckJson]
     about: AboutJson
+    paths: HephaistosPathsJson  # with sizes
     log: LogCountsJson
     daemon: DaemonJson
 
@@ -259,6 +263,7 @@ def status_json(
     return StatusJson(
         checks=[check_json(check) for check in found],
         about=about,
+        paths=serialize.hephaistos_paths_json(paths, sized=True),
         log=log_counts(paths, now),
         daemon=report_json(daemon, now),
     )

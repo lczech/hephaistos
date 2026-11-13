@@ -9,7 +9,7 @@ Other entities are referred to by ID, with a name for showing them.
 
 import os
 import uuid
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -35,6 +35,7 @@ from hephaistos.core.state.terminals import TerminalState
 from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import changes, file_search, files, git, graph, history, logs, tips
 from hephaistos.core.utils.ids import Timestamp, id_datetime
+from hephaistos.core.utils.paths import DESKTOP_LOG_NAME, Paths, code_directory, tree_size
 
 
 class ApiVersion(NamedTuple):
@@ -47,7 +48,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 34)
+API_VERSION = ApiVersion(0, 35)
 
 
 class Ref(TypedDict):
@@ -71,13 +72,34 @@ class MountJson(TypedDict):
     filesystem: Ref
 
 
+class PathJson(TypedDict):
+    """A directory where hephaistos keeps files."""
+
+    path: str
+    exists: bool
+    size: int | None  # bytes of what it holds; only where measured, as `status` does
+
+
+class CodeJson(PathJson):
+    """Where the code of hephaistos is."""
+
+    checkout: bool  # the checkout it runs from, else the installed package
+
+
+class HephaistosPathsJson(TypedDict):
+    """Where hephaistos keeps its files, as the process that answers sees them."""
+
+    code: CodeJson
+    config: PathJson  # `config.toml`, and `config.<hostname>.toml` for single Machines
+    data: PathJson  # the database and the token of the Server
+    logs: PathJson  # the state directory: the logs, which alone its size counts, and more
+    desktop: PathJson  # the Chromium profile of the Desktop, mostly its caches
+
+
 class SetupJson(TypedDict):
     """How this Machine keeps its files and database."""
 
-    config_dir: str
-    data_dir: str
-    state_dir: str
-    database: str
+    paths: HephaistosPathsJson
     journal_mode: str
     data_fstype: str
     schema_version: int
@@ -299,14 +321,43 @@ def machine_json(
     )
 
 
+def _path_json(path: Path, size: Callable[[Path], int] | None = None) -> PathJson:
+    """A directory, with its size if `size` measures it, and it exists."""
+    exists = path.is_dir()
+    return PathJson(path=str(path), exists=exists, size=size(path) if size and exists else None)
+
+
+def _logs_size(directory: Path) -> int:
+    """The bytes of the logs in the state directory: those of each day, and of the Desktop."""
+    files = [path for _, path in logs.day_files(directory)]
+    total = 0
+    for path in [*files, directory / DESKTOP_LOG_NAME]:
+        try:
+            total += path.stat().st_size
+        except OSError:
+            continue  # deleted meanwhile, or the Desktop never ran
+    return total
+
+
+def hephaistos_paths_json(paths: Paths, *, sized: bool = False) -> HephaistosPathsJson:
+    """Where hephaistos keeps its files; `sized` measures data, logs and the Desktop profile.
+
+    Measuring walks the Desktop profile, thousands of files, so only `status` does it.
+    """
+    code, checkout = code_directory()
+    return HephaistosPathsJson(
+        code=CodeJson(**_path_json(code), checkout=checkout),
+        config=_path_json(paths.config_dir),
+        data=_path_json(paths.data_dir, tree_size if sized else None),
+        logs=_path_json(paths.state_dir, _logs_size if sized else None),
+        desktop=_path_json(paths.desktop_profile, tree_size if sized else None),
+    )
+
+
 def _setup_json(setup: LocalSetup) -> SetupJson:
     """This Machine's setup."""
-    paths = setup.paths
     return SetupJson(
-        config_dir=str(paths.config_dir),
-        data_dir=str(paths.data_dir),
-        state_dir=str(paths.state_dir),
-        database=str(paths.database),
+        paths=hephaistos_paths_json(setup.paths),
         journal_mode=setup.journal_mode,
         data_fstype=setup.data_fstype,
         schema_version=setup.schema_version,

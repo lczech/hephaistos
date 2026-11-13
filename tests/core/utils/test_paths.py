@@ -12,6 +12,7 @@ from hephaistos.core.utils.paths import (
     MountInfo,
     Paths,
     absolute,
+    code_directory,
     displayed,
     machine_key,
     make_private,
@@ -19,6 +20,7 @@ from hephaistos.core.utils.paths import (
     parse_mountinfo,
     private_directory,
     shell_path,
+    tree_size,
 )
 
 MOUNTINFO = r"""
@@ -150,3 +152,19 @@ def test_another_users_directory_is_refused(paths: Paths, monkeypatch: pytest.Mo
     monkeypatch.setattr(os, "getuid", lambda: 4321)  # as if another user held the directory
     with pytest.raises(ForeignDirectoryError, match="belongs to another user"):
         paths.make_private()
+
+
+def test_code_directory_is_this_checkout() -> None:
+    directory, checkout = code_directory()
+    assert checkout
+    assert (directory / "src" / "hephaistos" / "core" / "utils" / "paths.py").is_file()
+
+
+def test_tree_size_counts_files_below_without_links(tmp_path: Path) -> None:
+    (tmp_path / "a").write_bytes(b"x" * 10)
+    (tmp_path / "sub" / "deeper").mkdir(parents=True)
+    (tmp_path / "sub" / "deeper" / "b").write_bytes(b"x" * 5)
+    (tmp_path / "link").symlink_to(tmp_path / "a")
+    (tmp_path / "loop").symlink_to(tmp_path, target_is_directory=True)
+    assert tree_size(tmp_path) == 15
+    assert tree_size(tmp_path / "gone") == 0

@@ -21,7 +21,6 @@ PROFILE_VARIABLE = "HEPHAISTOS_DESKTOP_PROFILE"  # Chromium's profile: storage, 
 TOKEN_VARIABLE = "HEPHAISTOS_TOKEN_FILE"  # noqa: S105 - a name; watched, to follow a renewed token
 AS_NODE_VARIABLE = "ELECTRON_RUN_AS_NODE"  # set by editors built on Electron, e.g. VS Code
 
-LOG_NAME = "desktop.log"  # Electron's output, for when it fails
 LOG_LIMIT = 1_000_000  # bytes, beyond which it starts anew
 STARTUP = 2.0  # seconds a started Electron gets to fail, e.g. without its sandbox
 POLL = 0.1
@@ -70,14 +69,15 @@ def environment(env: Mapping[str, str], paths: Paths, executable: Path) -> dict[
     kept = {name: value for name, value in env.items() if name != AS_NODE_VARIABLE}
     return kept | {
         EXECUTABLE_VARIABLE: str(executable),
-        PROFILE_VARIABLE: str(private_directory(paths.state_dir / "desktop")),
+        PROFILE_VARIABLE: str(private_directory(paths.desktop_profile)),
         TOKEN_VARIABLE: str(paths.token),
     }
 
 
 def _log(paths: Paths) -> Path:
     """Where Electron's output goes; a long one starts anew, the running Desktop keeps its own."""
-    log = private_directory(paths.state_dir) / LOG_NAME
+    private_directory(paths.state_dir)
+    log = paths.desktop_log
     if log.is_file() and log.stat().st_size > LOG_LIMIT:
         log.unlink()
     return log

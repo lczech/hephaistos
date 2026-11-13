@@ -29,8 +29,7 @@ def test_version() -> None:
     assert result.output.strip() == f"hephaistos {__version__}"
 
 
-@pytest.mark.usefixtures("paths")
-def test_setup_then_machine_show() -> None:
+def test_setup_then_machine_show(paths: Paths) -> None:
     result = runner.invoke(app, ["setup", "--name", "laptop"])
     assert result.exit_code == 0, result.output
     assert "Set up machine laptop" in result.output
@@ -40,6 +39,7 @@ def test_setup_then_machine_show() -> None:
     lines = result.output.splitlines()
     assert lines[0].split() == ["name", "laptop"]
     assert any(line.split() == ["mount", "/", "laptop-local"] for line in lines)
+    assert any(line.split() == ["data", short_path(paths.data_dir)] for line in lines)
 
 
 def test_machine_show_json(paths: Paths) -> None:
@@ -47,7 +47,11 @@ def test_machine_show_json(paths: Paths) -> None:
     result = runner.invoke(app, ["machine", "show", "--json"])
     data = json.loads(result.output)
     assert data["name"] == "laptop"
-    assert data["setup"]["database"] == str(paths.database)
+    assert data["setup"]["paths"]["data"] == {
+        "path": str(paths.data_dir),
+        "exists": True,
+        "size": None,  # measured only by `status`
+    }
     [mount] = data["mounts"]
     assert (mount["path"], mount["filesystem"]["name"]) == ("/", "laptop-local")
 

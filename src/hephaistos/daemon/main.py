@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import Protocol
 
-from hephaistos.core import config
+from hephaistos.core import config, serialize
 from hephaistos.core.db.sessions import read_session
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import git
@@ -117,6 +117,7 @@ class Daemon:
             parts=tuple(names),
             server=ServerStatus(address(port), listening=False) if Server.name in names else None,
             checks=Checked(datetime.now(UTC), tuple(found)),
+            paths=serialize.hephaistos_paths_json(paths),
         )
         builders: dict[str, Callable[[], Part]] = {
             Watcher.name: lambda: self._watcher,

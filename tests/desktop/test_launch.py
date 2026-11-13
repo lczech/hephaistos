@@ -84,7 +84,7 @@ def test_says_why_electron_ended_at_start(paths: Paths, tmp_path: Path) -> None:
     ("size", "kept"), [(launch.LOG_LIMIT, True), (launch.LOG_LIMIT + 1, False)]
 )
 def test_a_long_log_starts_anew(paths: Paths, tmp_path: Path, size: int, *, kept: bool) -> None:
-    log = paths.state_dir / launch.LOG_NAME
+    log = paths.desktop_log
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text("x" * (size - 4) + "old\n")
     desktop = launch.find(desktop_checkout(tmp_path, "echo new; exit 1"))

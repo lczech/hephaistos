@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from hephaistos.core import serialize
+from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import status
 from hephaistos.daemon.errors import NotStartedError
 from hephaistos.daemon.status import Check, Checked, PassStatus, ServerStatus, Status
@@ -23,6 +25,7 @@ WRITTEN = Status(
         STARTED,
         (Check("git", "ok", "2.43.0, /usr/bin/git"), Check("ionice", "note", "missing", "install")),
     ),
+    paths=serialize.hephaistos_paths_json(Paths(Path("/c"), Path("/d"), Path("/s"))),
 )
 
 
@@ -31,6 +34,17 @@ def test_written_and_read(tmp_path: Path) -> None:
     assert status.read(tmp_path) == WRITTEN
     assert WRITTEN.last_seen_at == LATER
     assert [path.name for path in tmp_path.iterdir()] == [status.STATUS_NAME]
+
+
+def test_read_from_a_daemon_before_paths(tmp_path: Path) -> None:
+    status.write(tmp_path, WRITTEN)
+    path = tmp_path / status.STATUS_NAME
+    data = json.loads(path.read_text())
+    del data["paths"]
+    path.write_text(json.dumps(data))
+    found = status.read(tmp_path)
+    assert found is not None
+    assert found.paths is None
 
 
 @pytest.mark.parametrize("text", [None, "", "[]", '{"pid": 1}', "not json"])
@@ -49,6 +63,8 @@ def test_unreadable_is_none(tmp_path: Path, text: str | None) -> None:
         ("watcher", "duration", "0.4"),
         ("server", "listening", "false"),
         ("server", "requests", 3.0),
+        ("paths", "data", {"path": "/d", "exists": "no", "size": None}),
+        ("paths", "code", {"path": "/c", "exists": True, "size": None}),  # not saying `checkout`
     ],
 )
 def test_values_of_another_type_are_unreadable(

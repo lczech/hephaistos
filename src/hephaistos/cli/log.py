@@ -9,7 +9,7 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import tty
-from hephaistos.cli.output import JsonOption, LimitOption, ReverseOption, parse_time
+from hephaistos.cli.output import JsonOption, LimitOption, ReverseOption, parse_time, size_text
 from hephaistos.core import config, serialize
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.logs import Entry, LevelName, ProcessName, record_text
@@ -135,21 +135,12 @@ def prune(
     if not yes:
         typer.echo(f"Log files in {short_path(directory)} to delete:")
         typer.echo(f"  {_days_text(old[0][0], old[-1][0])}: {number_text(len(old), 'file')}")
-        tty.confirm(f"Delete them ({_size_text(size)})?", default=False, action="delete them")
+        tty.confirm(f"Delete them ({size_text(size)})?", default=False, action="delete them")
     deleted = logs.delete_older(directory, before)
     log.info("pruned %s", number_text(len(deleted), "file"), extra={"before": before})
-    typer.echo(f"Deleted {number_text(len(deleted), 'log file')} ({_size_text(size)})")
+    typer.echo(f"Deleted {number_text(len(deleted), 'log file')} ({size_text(size)})")
 
 
 def _days_text(first: date, last: date) -> str:
     """A range of days, or one day."""
     return str(first) if first == last else f"{first} to {last}"
-
-
-_KB = 1000
-_MB = 1000 * _KB
-
-
-def _size_text(size: int) -> str:
-    """A file size in kB or MB."""
-    return f"{size / _MB:.1f} MB" if size >= _MB else f"{max(size // _KB, 1)} kB"

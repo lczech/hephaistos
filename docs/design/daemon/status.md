@@ -1,6 +1,6 @@
 # Status
 
-How the setup of this Machine is checked, and what `hephaistos status` and `/api/status` of the Server show: the checks, what runs, and the recent warnings and errors in the log.
+How the setup of this Machine is checked, and what `hephaistos status` and `/api/status` of the Server show: the checks, what runs, where the files are, and the recent warnings and errors in the log.
 The GUI shows the same in its Status View ([views](../gui/views.md#status)).
 
 ## Checks
@@ -40,6 +40,16 @@ A Daemon under systemd starts before any desktop, so it takes the desktop and lo
 The time zone comes from `TZ`, else from where `/etc/localtime` links to.
 It leaves out what identifies the user: paths, the name of the Machine, settings.
 
+## Paths
+
+Where hephaistos keeps its files ([setup](../core/setup.md#files)), as the process that answers sees them: the code, the config, data and log directories, and the Desktop profile.
+Each says whether it exists.
+The code is the checkout hephaistos runs from, or else its installed package.
+Data, logs and the Desktop profile come with their sizes; that of the logs counts the log files alone, not the files of the Daemon beside them.
+Measuring walks the Desktop profile, thousands of files, in tens of ms; so only `/api/status` measures, and `/api/machines` gives the same paths without sizes.
+The Daemon records its own as it starts, in `daemon.json`, and `/api/daemon` gives them, as it does its checks.
+Paths are not in About: they name the user.
+
 ## Log
 
 The warnings and errors of the last 24 hours in the log are counted, errors including critical ones, from both kinds of process.
@@ -48,7 +58,9 @@ The warnings and errors of the last 24 hours in the log are counted, errors incl
 
 `hephaistos status` prints its own checks, under "Setup, checked in this shell".
 While the Daemon runs, the problems and notes it recorded that the checks in the shell lack follow, under "Setup, checked by the daemon" and the time it ran them, e.g. git missing from its PATH.
-Then come About, the lines of `daemon status`, and the counts of the log, naming the `log show` that lists them: the order of the Status View.
-`--json` gives what `/api/status` gives: the checks, About, the counts of the log, and `daemon status --json`.
+Then come About, the paths, the lines of `daemon status`, and the counts of the log, naming the `log show` that lists them: the order of the Status View.
+The paths come with their sizes, but not with what each holds, which the Status View says.
+The paths of the running Daemon follow those of the shell where they differ, under "Paths of the daemon", e.g. its code in another checkout; whether each exists is checked then, not taken from its start.
+`--json` gives what `/api/status` gives: the checks, About, the paths, the counts of the log, and `daemon status --json`.
 It runs on the default settings if the config is broken, to look into that.
 It exits with 0 whatever the checks find, as a report; `daemon status` exits by whether the Daemon runs.

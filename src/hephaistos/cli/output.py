@@ -101,6 +101,18 @@ def time_formatter(
             return full_time
 
 
+_SIZE_UNITS = ((1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
+
+
+def size_text(size: int) -> str:
+    """A size in bytes, as `512 B`, `3.4 kB`, `12 kB`, `1.2 MB`: as the GUI writes it."""
+    for unit, name in _SIZE_UNITS:
+        if size >= unit:
+            value = size / unit
+            return f"{value:.1f} {name}" if value < 10 else f"{round(value)} {name}"  # noqa: PLR2004
+    return f"{size} B"
+
+
 def print_fields(fields: Sequence[tuple[str, str]], indent: str = "") -> None:
     """Prints `label  value` lines, with the values aligned."""
     width = max((len(label) for label, _ in fields), default=0)

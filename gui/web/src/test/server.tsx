@@ -77,6 +77,24 @@ export function info(api = builtFor()): Schemas["InfoJson"] {
   };
 }
 
+/** Where hephaistos keeps its files, in the home directory of `info`; sized as `/api/status`
+ * gives them, else as `/api/daemon` does. */
+export function paths(sized = true): Schemas["PathsJson"] {
+  const key = "d1c604c9";
+  const size = (bytes: number) => (sized ? bytes : null);
+  return {
+    code: { path: "/home/me/Repos/hephaistos", exists: true, size: null, checkout: true },
+    config: { path: "/home/me/.config/hephaistos", exists: true, size: null },
+    data: { path: `/home/me/.local/share/hephaistos/${key}`, exists: true, size: size(1_100_000) },
+    logs: { path: `/home/me/.local/state/hephaistos/${key}`, exists: true, size: size(844_000) },
+    desktop: {
+      path: `/home/me/.local/state/hephaistos/${key}/desktop`,
+      exists: true,
+      size: size(534_000_000),
+    },
+  };
+}
+
 export function daemon(): Schemas["DaemonJson"] {
   return {
     unit: null,
@@ -112,6 +130,7 @@ export function daemon(): Schemas["DaemonJson"] {
       live: 1,
     },
     checks: { checked_at: secondsAgo(7200), checks: [] },
+    paths: paths(false),
   };
 }
 
@@ -138,6 +157,7 @@ export function status(checks: Schemas["CheckJson"][] = []): Schemas["StatusJson
       locale: "en_GB.UTF-8",
       time_zone: "Europe/Berlin",
     },
+    paths: paths(),
     log: { since: secondsAgo(86_400), warnings: 0, errors: 0 },
     daemon: daemon(),
   };

@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from hephaistos.core.serialize import CodeJson, HephaistosPathsJson, PathJson
 from hephaistos.core.utils.paths import private_directory
 from hephaistos.daemon.errors import NotStartedError
 
@@ -87,6 +88,7 @@ class Status:
     watcher: PassStatus | None = None  # its last pass
     server: ServerStatus | None = None
     checks: Checked | None = None  # at its start, and when the GUI asked
+    paths: HephaistosPathsJson | None = None  # where it keeps its files, as it started; unsized
 
     @property
     def last_seen_at(self) -> datetime:
@@ -171,6 +173,28 @@ def _checked_from(data: Any) -> Checked:  # noqa: ANN401 - JSON, checked here
     )
 
 
+def _path_from(data: Any) -> PathJson:  # noqa: ANN401 - JSON, checked here
+    """A directory from JSON."""
+    return PathJson(
+        path=_of(data["path"], str),
+        exists=_of(data["exists"], bool),
+        size=_optional(data["size"], int),
+    )
+
+
+def _paths_from(data: Any) -> HephaistosPathsJson | None:  # noqa: ANN401 - JSON, checked here
+    """The directories of the Daemon from JSON; None from a Daemon before they were recorded."""
+    if data is None:
+        return None
+    return HephaistosPathsJson(
+        code=CodeJson(**_path_from(data["code"]), checkout=_of(data["code"]["checkout"], bool)),
+        config=_path_from(data["config"]),
+        data=_path_from(data["data"]),
+        logs=_path_from(data["logs"]),
+        desktop=_path_from(data["desktop"]),
+    )
+
+
 def _status_json(status: Status) -> dict[str, object]:
     """A status as JSON values."""
     passed, server = status.watcher, status.server
@@ -201,6 +225,7 @@ def _status_json(status: Status) -> dict[str, object]:
             "live": server.live,
         },
         "checks": None if status.checks is None else _checked_json(status.checks),
+        "paths": status.paths,
     }
 
 
@@ -234,6 +259,7 @@ def _status_from(data: Any) -> Status:  # noqa: ANN401 - JSON, checked here
             live=_of(server["live"], int),
         ),
         checks=None if data["checks"] is None else _checked_from(data["checks"]),
+        paths=_paths_from(data.get("paths")),  # `get`: a running Daemon may be older
     )
 
 

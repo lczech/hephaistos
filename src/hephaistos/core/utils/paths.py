@@ -17,8 +17,11 @@ HOME_VARIABLE = "HEPHAISTOS_HOME"  # puts all our files under one directory
 # Variables that choose where our config, database and logs are.
 PATH_VARIABLES = (HOME_VARIABLE, "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME")
 TOKEN_NAME = "server.token"  # noqa: S105 - the file's name, not a token
+DESKTOP_PROFILE_NAME = "desktop"  # the Chromium profile of the Desktop: storage, Layout, caches
+DESKTOP_LOG_NAME = "desktop.log"  # the output of Electron, for when it fails
 PRIVATE_MODE = 0o700  # our data and state directories: only their user may enter them
 SOURCE = Path(__file__).parents[4]  # the checkout, when running from one: `src/hephaistos/…`
+PACKAGE = Path(__file__).parents[2]  # the package `hephaistos`, wherever it is installed
 
 NETWORK_FILESYSTEMS = frozenset(
     {
@@ -34,6 +37,37 @@ def own_checkout(source: Path = SOURCE) -> Path | None:
     if (source / ".git").exists() and (source / "src" / "hephaistos").is_dir():
         return source
     return None
+
+
+def code_directory() -> tuple[Path, bool]:
+    """Where the code of hephaistos is: the checkout it runs from, else the installed package.
+
+    The second value says whether it is a checkout.
+    """
+    checkout = own_checkout()
+    return (PACKAGE, False) if checkout is None else (checkout, True)
+
+
+def tree_size(directory: Path) -> int:
+    """The bytes of the files below `directory`, without following symlinks; 0 if it is gone.
+
+    What cannot be read, e.g. removed meanwhile, counts as nothing.
+    """
+    total, pending = 0, [directory]
+    while pending:
+        try:
+            with os.scandir(pending.pop()) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            pending.append(Path(entry.path))
+                        elif entry.is_file(follow_symlinks=False):
+                            total += entry.stat(follow_symlinks=False).st_size
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return total
 
 
 def os_machine_id() -> str | None:
@@ -118,6 +152,16 @@ class Paths:
     def token(self) -> Path:
         """The Server's token, which its clients read: the Desktop, `daemon token`."""
         return self.data_dir / TOKEN_NAME
+
+    @property
+    def desktop_profile(self) -> Path:
+        """The Chromium profile of the Desktop, mostly its caches."""
+        return self.state_dir / DESKTOP_PROFILE_NAME
+
+    @property
+    def desktop_log(self) -> Path:
+        """Where the output of Electron goes."""
+        return self.state_dir / DESKTOP_LOG_NAME
 
     def make_private(self) -> list[Path]:
         """Lets only the user enter the data and state directories; returns those others could.

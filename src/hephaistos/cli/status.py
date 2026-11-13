@@ -3,11 +3,14 @@
 import os
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 
 import typer
 
 from hephaistos.cli.daemon import status_fields, when_formatter
+from hephaistos.cli.machine import path_entries, path_fields, path_text
 from hephaistos.cli.output import JsonOption, TimeFormatOption, print_fields, print_json
+from hephaistos.core.serialize import HephaistosPathsJson
 from hephaistos.core.utils.paths import Paths
 from hephaistos.core.utils.text import number_text
 from hephaistos.daemon import checks, report
@@ -64,11 +67,30 @@ def _log_text(counts: report.LogCountsJson) -> str:
     )
 
 
+def _print_paths(own: HephaistosPathsJson, daemon: HephaistosPathsJson | None) -> None:
+    """The paths of this shell, then those of the Daemon where they differ."""
+    typer.echo("Paths:")
+    print_fields([(name.capitalize(), text) for name, text in path_fields(own)], INDENT)
+    if daemon is None:  # none runs, or it is older
+        return
+    ours = {name: entry["path"] for name, entry in path_entries(own)}
+    differing = [
+        # Whether it exists now: the Daemon recorded that as it started.
+        (name.capitalize(), path_text(name, entry, exists=Path(entry["path"]).is_dir()))
+        for name, entry in path_entries(daemon)
+        if entry["path"] != ours[name]
+    ]
+    if differing:
+        typer.echo("Paths of the daemon, where they differ:")
+        print_fields(differing, INDENT)
+
+
 def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False) -> None:
     """Check the setup of this machine, and show the daemon and what runs, e.g. for an issue.
 
     The checks run here, with the PATH of this shell; those of the daemon, as it ran them last,
-    are listed where they differ, as its PATH may.
+    are listed where they differ, as its PATH may. So are its paths, e.g. its code in another
+    checkout.
     """
     paths = Paths.from_environment()
     found = checks.run(os.environ)
@@ -91,6 +113,7 @@ def status(time_format: TimeFormatOption = None, *, as_json: JsonOption = False)
             _print_checks(others)
     typer.echo("About:")
     print_fields(_about_fields(shown["about"]), INDENT)
+    _print_paths(shown["paths"], None if current is None else current.paths)
     typer.echo("Running:")
     print_fields(status_fields(daemon, now, when), INDENT)
     typer.echo(f"Log: {_log_text(shown['log'])}")

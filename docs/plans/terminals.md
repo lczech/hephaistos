@@ -33,6 +33,7 @@ The CLI attaches with plain tmux, which shows that it is tmux.
   - [x] attaching is refused when not run interactively, and at a tty that the Terminal shows, e.g. inside it;
   - [x] tests: the CLI attach run inside a second tmux, its screen read with `capture-pane`.
 - [x] Fixes from a review (branch `terminals-review`): names of Terminals renamed by hand in one pass, sessions listed but not readable, retries of Clones and Terminals apart, systemd failing in the checks, the Status View against an older Daemon, attaching where it cannot loop.
+- [x] Paths in `hephaistos status` and the Status View: the code, config, data and log directories and the Desktop profile, with sizes; the same in `machine show` (API 0.26).
 - [ ] 1c Exit statuses: `remain-on-exit` for every Terminal; a command that ended, or a pane ended by a signal, stays as ended, with its status or signal, until killed.
 - [ ] 2 The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode, which passes what it does not know and says so once.
   To find out with tests: whether tmux and xterm.js both answer the queries of a program, e.g. which terminal it is in.
