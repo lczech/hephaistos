@@ -338,7 +338,9 @@ def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
     assert fields["ended"].endswith(": exited with status 3")
     assert "screen" not in fields
     data = json.loads("\n".join(ok("show", "build", "--json")))
-    assert data["status"] == "ended"
+    assert (data["status"], data["exit_status"], data["exit_signal"]) == ("ended", 3, None)
+    assert data["ended_at"] is not None
+    assert (data["lost_at"], data["lost_because"]) == (None, None)
 
 
 def test_one_a_signal_ended(tmp_path: Path) -> None:
@@ -362,6 +364,13 @@ def test_show_says_when_and_why_a_session_went(
     api = dict(line.split(None, 1) for line in ok("show", "api", "--time-format", "relative"))
     assert (api["status"], api["lost"]) == ("lost", "now: the tmux server ended")
     assert "ended" not in api
+    [build_json, api_json] = sorted(
+        json.loads("\n".join(ok("list", "--json"))), key=lambda item: item["name"] != "build"
+    )
+    assert (build_json["status"], build_json["exit_status"]) == ("ended", 3)
+    assert (build_json["lost_because"], api_json["lost_because"]) == ("server", "server")
+    assert (api_json["status"], api_json["ended_at"]) == ("lost", None)
+    assert build_json["lost_at"] is not None
     Exec(monkeypatch)  # as if run interactively
     assert failed("attach", "build") == (
         "terminal build exited with status 3; its last screen is gone, as the tmux server ended"
