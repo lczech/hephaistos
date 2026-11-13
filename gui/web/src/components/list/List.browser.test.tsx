@@ -1226,6 +1226,24 @@ describe("a list's row gone to", () => {
     flashed.mockRestore();
   });
 
+  it("comes to the top and is marked, but leaves the focus where it is, if told so", async () => {
+    const handle: RefObject<ListHandle | null> = { current: null };
+    const flashed = vi.spyOn(Element.prototype, "animate");
+    const many = Array.from({ length: 300 }, (_, at) => `fruit ${at + 1}`);
+    render(<Fruity names={many} handle={handle} />);
+    const away = document.body.appendChild(document.createElement("input"));
+    away.focus();
+    handle.current?.goTo("fruit 250", { focus: false });
+    await waitFor(() => {
+      const row = ownRowOf("fruit 250").getBoundingClientRect();
+      expect(Math.abs(row.top - headOf().getBoundingClientRect().bottom)).toBeLessThan(1);
+    });
+    await waitFor(() => expect(flashed.mock.contexts.at(-1)).toBe(ownRowOf("fruit 250")));
+    expect(document.activeElement).toBe(away);
+    away.remove();
+    flashed.mockRestore();
+  });
+
   it("comes to the top with rows come before it on the way", async () => {
     const handle: RefObject<ListHandle | null> = { current: null };
     const many = Array.from({ length: 300 }, (_, at) => `fruit ${at + 1}`);

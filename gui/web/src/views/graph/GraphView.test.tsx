@@ -435,6 +435,25 @@ describe("the Checkouts in the Graph View", () => {
     });
   });
 
+  it("leaves the focus where it went meanwhile, outside the View, marking the HEAD all the same", async () => {
+    let release = () => {};
+    const hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
+    serveGraph({ graph, pages: [COMMITS, [commit("o", [])]], worktrees: ["old"], hold });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(chip("Worktree old"));
+    const away = document.body.appendChild(document.createElement("input"));
+    away.focus(); // e.g. a terminal in another Group
+    release();
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
+    expect(document.activeElement).toBe(away);
+    away.remove();
+  });
+
   it("goes on to a HEAD with the order toggled on the way, in the walk in the new order", async () => {
     let release = () => {};
     const hold = new Promise<void>((resolve) => {
@@ -610,6 +629,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     await screen.findByText("Commit o");
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
+    await waitFor(() => expect(document.activeElement).toHaveTextContent("Commit o"));
     expect(goTo()).toHaveTextContent("Go to…"); // holding nothing
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // nor kept
     // Its commits are searched for in the Graph's walk; remote branches not offered.

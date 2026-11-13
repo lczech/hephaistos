@@ -195,7 +195,8 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   useEffect(() => {
     if (towards === null || loaded === undefined || previous) return;
     if (reached !== undefined) {
-      list.current?.goTo(reached);
+      // Focused, unless the focus went elsewhere meanwhile, e.g. to a terminal in another Group.
+      list.current?.goTo(reached, { focus: !focusElsewhere(page.current) });
       setTowards(null);
     } else if (!hasNextPage || offWalk) {
       setMissed(towards); // e.g. its branch hidden, or a tag on none walked
@@ -356,6 +357,13 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       />
     </ViewPage>
   );
+}
+
+/** Whether the focus is somewhere else than in this View, or nowhere: in its popovers is in it. */
+function focusElsewhere(page: HTMLElement | null): boolean {
+  const at = document.activeElement;
+  if (at === null || at === document.body || page?.contains(at)) return false;
+  return at.closest("[role=dialog]") === null;
 }
 
 /** Where a HEAD is, by its Clone or Worktree as Repositories knows them, and its name. */

@@ -57,10 +57,11 @@ export interface ListHandle {
   drawn: (id: string) => boolean;
   /**
    * Goes to the row of this ID, as where a click led: brings it to the top, below the header
-   * and the rows holding it, drawn first if it is not; focuses it, as a click on it does; and
-   * marks it for a moment (`flash`). False if it has none.
+   * and the rows holding it, drawn first if it is not; focuses it, as a click on it does, unless
+   * told not to, e.g. with the focus gone elsewhere since; and marks it for a moment (`flash`).
+   * False if it has none.
    */
-  goTo: (id: string) => boolean;
+  goTo: (id: string, how?: { focus?: boolean }) => boolean;
 }
 
 /**
@@ -356,22 +357,25 @@ export function List<TData extends RowData>({
     const lost = focusIn.current && (active === null || active === document.body);
     const id = refocus.current ?? (lost ? focused?.id : undefined);
     const index = id === undefined ? undefined : indexOf.get(id);
-    if (index === undefined) return;
-    const own = document.getElementById(`${list}-${index}`);
-    const row = own?.parentElement;
-    if (!row) return;
-    row.focus({ preventScroll: true });
-    refocus.current = undefined;
-    if (flashing.current === id) {
+    const row = index === undefined ? null : document.getElementById(`${list}-${index}`);
+    if (row?.parentElement) {
+      row.parentElement.focus({ preventScroll: true });
+      refocus.current = undefined;
+    }
+    // The row gone to, marked once drawn: focused first, if it is to be.
+    const marked = flashing.current;
+    const at = marked === undefined || refocus.current === marked ? undefined : indexOf.get(marked);
+    const own = at === undefined ? null : document.getElementById(`${list}-${at}`);
+    if (own) {
       flash(own);
       flashing.current = undefined;
     }
   });
-  const focusRow = (index: number, at: "nearest" | "start" = "nearest") => {
+  const focusRow = (index: number, at: "nearest" | "start" = "nearest", focus = true) => {
     const row = rows[index];
     if (row === undefined) return;
     setFocused(focusOf(row.id));
-    refocus.current = row.id;
+    refocus.current = focus ? row.id : undefined;
     rowsHandle.current?.scrollTo(index, at);
   };
   useImperativeHandle(handle, () => ({
@@ -385,11 +389,11 @@ export function List<TData extends RowData>({
       const index = indexOf.get(id);
       return index !== undefined && (rowsHandle.current?.drawn(index) ?? false);
     },
-    goTo: (id) => {
+    goTo: (id, { focus = true } = {}) => {
       const index = indexOf.get(id);
       if (index === undefined) return false;
       flashing.current = id;
-      focusRow(index, "start");
+      focusRow(index, "start", focus);
       return true;
     },
   }));
