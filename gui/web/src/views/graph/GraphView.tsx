@@ -32,6 +32,7 @@ import {
   entryId,
   graphOf,
   type Laid,
+  type Stretch,
   tipsEntries,
   type Uncommitted,
   uncommittedIn,
@@ -186,6 +187,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   // listed, then it is scrolled to the top, with what is not committed above it. Its chip or the
   // picker says so, once it takes a while. Whether it is on the walk at all, the lines say first,
   // where those laid out ahead do not have it: a tag elsewhere is not looked for page after page.
+  // With branch tips only, one on the walk but not kept shows all commits again, to go to it.
   const [towards, setTowards] = useState<Towards | null>(null);
   const [slow, setSlow] = useState(false);
   const [missedOnce, setMissed] = useState<Towards | null>(null);
@@ -198,14 +200,14 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     );
   };
   const reach = useGraphLines(
-    walk && towards && !tips && !laid?.rows.has(towards.commit)
+    walk && towards && !laid?.rows.has(towards.commit)
       ? { ...walk, until: [towards.commit], limit: LINES_LIMIT }
       : undefined,
   );
+  const reachKnown = reach.data !== undefined && !reach.isPlaceholderData;
   const offWalk =
     towards !== null &&
-    reach.data !== undefined &&
-    !reach.isPlaceholderData &&
+    reachKnown &&
     reach.data.commits.length < LINES_LIMIT &&
     !reach.data.commits.some((line) => line.hash === towards.commit);
   const atHead = placed.find(({ head }) => head.worktree !== null && head.worktree === at);
@@ -234,13 +236,28 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       // Focused, unless the focus went elsewhere meanwhile, e.g. to a terminal in another Group.
       list.current?.goTo(reached, { focus: !focusElsewhere(page.current) });
       setTowards(null);
+    } else if (tipsOnly && !offWalk) {
+      if (reachKnown) setParams(withTipsOnly(params, false)); // left out of those kept
     } else if (!hasNextPage || offWalk) {
       setMissed(towards); // e.g. its branch hidden, or a tag on none walked
       setTowards(null);
     } else if (!isFetching) {
       void fetchNextPage(); // not while all pages load anew: it would cut that short (`Paging`)
     }
-  }, [towards, loaded, previous, reached, hasNextPage, isFetching, fetchNextPage, offWalk]);
+  }, [
+    towards,
+    loaded,
+    previous,
+    reached,
+    hasNextPage,
+    isFetching,
+    fetchNextPage,
+    offWalk,
+    tipsOnly,
+    reachKnown,
+    params,
+    setParams,
+  ]);
   useEffect(() => {
     if (towards === null) return;
     const wait = setTimeout(() => setSlow(true), SLOW);
@@ -294,16 +311,21 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     const branch = picked.revision.startsWith(LOCAL)
       ? picked.revision.slice(LOCAL.length)
       : undefined;
+    let next = params;
     if (branch !== undefined && hidden.includes(branch)) {
-      setParams(
-        withParam(
-          params,
-          "hide",
-          hidden.filter((name) => name !== branch),
-        ),
+      next = withParam(
+        next,
+        "hide",
+        hidden.filter((name) => name !== branch),
       );
     }
+    if (next !== params) setParams(next);
     go({ key: GO_TO, name: picked.name, commit: picked.commit });
+  };
+  // The commits a stretch leaves out: all commits shown again, its commit at the top, they below.
+  const showStretch = (stretch: Stretch) => {
+    setParams(withTipsOnly(params, false));
+    go({ key: GO_TO, name: stretch.commit.slice(0, 7), commit: stretch.commit });
   };
   const going = towards && {
     what: `Loading towards ${towards.name}`,
@@ -394,6 +416,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
         graph={drawing}
         handle={list}
         onTip={(id) => list.current?.goTo(id)}
+        onStretch={showStretch}
       />
     </ViewPage>
   );

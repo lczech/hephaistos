@@ -125,6 +125,7 @@ interface Served {
   hold?: Promise<void> | ((skip: number) => Promise<void> | undefined);
   holdLines?: Promise<void>; // the lines laid out ahead wait for it
   tips?: { commits: Commit[]; lines: Schemas["TipsLineJson"][] }; // with branch tips only
+  holdTips?: Promise<void>; // branch tips only wait for it
 }
 
 function serveGraph({
@@ -136,6 +137,7 @@ function serveGraph({
   hold,
   holdLines,
   tips,
+  holdTips,
 }: Served = {}): Request[] {
   // The pages of a walk hiding these branches: without the commits only on them.
   const walked = (hide: string[]) => {
@@ -173,6 +175,7 @@ function serveGraph({
         });
       }
       if (asked.get("tips") === "true" && tips) {
+        if (holdTips) await holdTips;
         return json({ head: hash("m"), branch: "main", refs, ...tips, next: null, found: null });
       }
       if (typeof hold === "function") await hold(skip);
@@ -284,7 +287,7 @@ describe("the Graph View", () => {
     expect(asked(requests, "/api/history").get("keep")).toBeNull();
     expect(counted).toHaveAttribute(
       "title",
-      `2 commits of feature between ${hash("f").slice(0, 7)} and ${hash("b").slice(0, 7)}`,
+      `2 commits of feature between ${hash("f").slice(0, 7)} and ${hash("b").slice(0, 7)}: a click shows them`,
     );
     expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj, tips only");
     expect(listRows().map((row) => row.textContent)).toEqual([
@@ -326,6 +329,38 @@ describe("the Graph View", () => {
     fireEvent.mouseMove(document, { clientX: 140 });
     expect(width()).toBe(`${before + 40}px`);
     fireEvent.mouseUp(document, { clientX: 140 });
+  });
+
+  it("shows all commits again for a stretch clicked, or Enter on it, its commit at the top", async () => {
+    // Below f, the two commits its stretch left out.
+    const pages = [
+      [
+        commit("f", ["f1"], { refs: [branch("feature", "f")] }),
+        commit("f1", ["f2"]),
+        commit("f2", ["b"]),
+        COMMITS[1] as Commit,
+        COMMITS[2] as Commit,
+      ],
+    ];
+    for (const how of ["click", "Enter"]) {
+      went.mockClear();
+      const requests = serveGraph({ tips: TIPS, pages });
+      const { unmount } = renderWithQueries(
+        <Graph initial={{ clone: "clone-proj", tips: "only" }} />,
+      );
+      const stretch = await screen.findByText(/^2 commits,/);
+      if (how === "click") await userEvent.click(stretch);
+      else {
+        (stretch.closest("[role=row]") as HTMLElement).focus();
+        await userEvent.keyboard("{Enter}");
+      }
+      await screen.findByText("Commit f1");
+      expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
+      expect(asked(requests, "/api/history").get("tips")).toBeNull();
+      await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+      expect(went.mock.contexts[0]).toHaveTextContent("Commit f");
+      unmount();
+    }
   });
 
   it("leaves hidden branches out of the walk, and says so in its title", async () => {
@@ -935,6 +970,85 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     release();
     await screen.findByText("Commit o");
     expect(went).not.toHaveBeenCalled();
+  });
+
+  it("shows all commits again for a commit picked that branch tips only leave out", async () => {
+    const pages = [
+      [
+        commit("f", ["f1"], { refs: [branch("feature", "f")] }),
+        commit("f1", ["f2"]),
+        commit("f2", ["b"]),
+        COMMITS[1] as Commit,
+        COMMITS[2] as Commit,
+      ],
+    ];
+    const requests = serveGraph({ tips: TIPS, pages });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await screen.findByText(/^2 commits,/);
+    await userEvent.click(goTo());
+    const field = within(picker()).getByRole("searchbox");
+    await userEvent.type(field, hash("f2")); // by its hash: no message matches, so resolved
+    await within(picker()).findByText("Nothing matches.");
+    await userEvent.type(field, "{Enter}");
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
+    expect(asked(requests, "/api/history").get("tips")).toBeNull();
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit f2");
+  });
+
+  it("shows all commits again for a commit picked as branch tips only load, once left out", async () => {
+    const pages = [
+      [
+        commit("f", ["f1"], { refs: [branch("feature", "f")] }),
+        commit("f1", ["f2"]),
+        commit("f2", ["b"]),
+        COMMITS[1] as Commit,
+        COMMITS[2] as Commit,
+      ],
+    ];
+    let release = () => {};
+    const holdTips = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    serveGraph({ tips: TIPS, pages, holdTips });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit f2");
+    await userEvent.click(screen.getByRole("button", { name: "All commits" }));
+    // Still among the rows shown, those of all commits, until branch tips only come.
+    await userEvent.click(goTo());
+    const field = within(picker()).getByRole("searchbox");
+    await userEvent.type(field, hash("f2"));
+    await within(picker()).findByText("Nothing matches.");
+    await userEvent.type(field, "{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent("tips=only");
+    release();
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
+    expect(went.mock.contexts[0]).toHaveTextContent("Commit f2");
+  });
+
+  it("keeps branch tips only for a commit picked not on the walk, and says so", async () => {
+    serveGraph({ tips: TIPS });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await screen.findByText(/^2 commits,/);
+    await userEvent.click(goTo());
+    const field = within(picker()).getByRole("searchbox");
+    await userEvent.type(field, "abc1234");
+    await within(picker()).findByText("Nothing matches.");
+    await userEvent.type(field, "{Enter}");
+    expect(await screen.findByText("abc1234 is not among the commits shown")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("tips=only");
+    expect(went).not.toHaveBeenCalled();
+  });
+
+  it("keeps branch tips only for a commit picked among those kept", async () => {
+    serveGraph({ tips: TIPS });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await screen.findByText(/^2 commits,/);
+    await userEvent.click(goTo());
+    await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
+    await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toHaveTextContent("tips=only");
   });
 
   it("says on the button when what was picked is not on the walk", async () => {

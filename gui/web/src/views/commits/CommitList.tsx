@@ -9,7 +9,7 @@ import { CommitBox } from "./CommitBox";
 import styles from "./CommitList.module.css";
 import { commitColumns, type FoundActions } from "./columns";
 import { GraphBeside } from "./Graph";
-import { type Drawing, type Entry, entryId, graphOf } from "./rows";
+import { type Drawing, type Entry, entryId, graphOf, type Stretch } from "./rows";
 import { tipsBand } from "./Tips";
 
 interface Props {
@@ -27,6 +27,7 @@ interface Props {
   // order with every child above its parents, and none left out between
   handle?: RefObject<ListHandle | null>; // to go to a row, by its ID (`entryId`)
   onTip?: (id: string) => void; // with the graph: its tips above stay below the header (`tipsBand`)
+  onStretch?: (stretch: Stretch) => void; // a click on a stretch, or Enter on it: what it shows
 }
 
 /**
@@ -34,7 +35,8 @@ interface Props {
  * changes. A row is marked while the Changes or Diff of its commit is shown. With `graph`, a
  * column draws their lanes, which go on beside the details of a commit opened below its row; with
  * `onTip`, the tips of those passing the row at the top stay below the header, a click going to
- * one.
+ * one. With branch tips only, a click on a stretch, or Enter on it, goes to its commits
+ * (`onStretch`).
  */
 export function CommitList({
   kind,
@@ -50,6 +52,7 @@ export function CommitList({
   graph,
   handle,
   onTip,
+  onStretch,
 }: Props) {
   const isShown = useIsShown();
   const drawn = graph && graphOf(entries, head, graph);
@@ -96,6 +99,9 @@ export function CommitList({
         );
       }}
       plain={(entry) => entry.type !== "commit"}
+      opens={(entry) =>
+        entry.type === "stretch" && onStretch ? () => onStretch(entry) : undefined
+      }
       showing={(entry) =>
         entry.type === "commit" &&
         checkout !== undefined &&

@@ -132,6 +132,10 @@ Settled with the user, 2026-11-13:
 - After the third review (2026-11-13): the band hid not with its tab, as it set its visibility; tips slide into it and are pushed out of it with the rows; badges in one line; lanes without seams between rows. A review for what changes under the Graph found: a jump decided on the rows of the previous walk, the next page cancelling all pages loading anew (and from where they were before), a jump retried by the index of its row, and the focus taken long after a click; each fixed and tested, with tests of rebases, commits, Worktrees removed and HEADs rewritten away.
 - After a review of the whole branch (2026-11-13): no walk from branches without commits yet; lines read without signatures; counts by full ref names; git asked to stop past its timeout before it is killed, which keeps its lock files from staying; the lines laid out ahead wait only for HEADs walked; lane 0 pinned where the rows have the default branch; a query loading anew finishes before a hint asks for it again, rather than starting over; a page past details opened just before is measured first.
   Then: the line of a Checkout keeps its colour as commits are made on it, what is not committed taking that of its branch; Vitest runs one at a time in a checkout.
+- 3: the edges of the columns of a list shown at rest; a toggle in Changes folding all directories.
+- 4.1: branch tips only in the Daemon (`core/utils/tips.py`, `tips` of `/api/history`, API 0.30).
+- 4.2: the toggle in the Graph View, after the order, and the stretches; the graph column follows a drag at once (`widths` of the List), as the list of commits drew only as its times ticked.
+- 4.3: a click on a stretch, or Enter, and "Go to…" a commit not kept show all commits again and go to it.
 
 ## Open
 

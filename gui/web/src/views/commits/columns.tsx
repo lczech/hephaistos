@@ -180,11 +180,12 @@ export function commitColumns(
   ]);
 }
 
-/** What a stretch leaves out, at length: `12 commits of feature between abc1234 and def5678`. */
+/** What a stretch leaves out, at length: `12 commits of feature between abc1234 and def5678: a
+ * click shows them`. */
 function stretchTitle(stretch: Stretch, branch: string | undefined): string {
   const of = branch === undefined ? "" : ` of ${branch}`;
   const between = `${stretch.commit.slice(0, 7)} and ${stretch.parent.slice(0, 7)}`;
-  return `${counted(stretch.count, "commit")}${of} between ${between}`;
+  return `${counted(stretch.count, "commit")}${of} between ${between}: a click shows them`;
 }
 
 /** The branches and tags of a commit, as its row labels them: its branch framed in the colour of
