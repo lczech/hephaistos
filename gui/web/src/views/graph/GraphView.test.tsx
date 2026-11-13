@@ -102,7 +102,8 @@ interface Served {
   only?: Record<string, string[]>; // commits only on a branch, left out of a walk hiding it
   clone?: Partial<Schemas["CloneJson"]>;
   worktrees?: string[];
-  hold?: Promise<void>; // pages after the first wait for it
+  // Pages after the first wait for it; or, as a function, each page asked for, from `skip`.
+  hold?: Promise<void> | ((skip: number) => Promise<void> | undefined);
   holdLines?: Promise<void>; // the lines laid out ahead wait for it
 }
 
@@ -147,21 +148,24 @@ function serveGraph({
           found: null,
         });
       }
-      if (skip > 0 && hold) await hold;
-      let at = 0;
-      let before = 0;
-      while (at < pages.length - 1 && before < skip) before += pages[at++]?.length ?? 0;
+      if (typeof hold === "function") await hold(skip);
+      else if (skip > 0 && hold) await hold;
+      // From `skip` in the walk as it is now, as git skips, to where its page ends: a page
+      // asked for by where the walk was before may start elsewhere in it.
+      const flat = pages.flat();
+      let end = 0;
+      for (const page of pages) if (end <= skip) end += page.length;
+      end = Math.max(end, skip);
       const search = asked.get("search")?.toLowerCase(); // in messages: here their subjects
-      const commits = (pages[at] ?? []).filter(
-        (each) => !search || each.subject.toLowerCase().includes(search),
-      );
+      const commits = flat
+        .slice(skip, end)
+        .filter((each) => !search || each.subject.toLowerCase().includes(search));
       return json({
         head: hash("m"),
         branch: "main",
         refs,
         commits,
-        next:
-          at === pages.length - 1 ? null : { start: null, path: null, skip: skip + commits.length },
+        next: end >= flat.length ? null : { start: null, path: null, skip: end },
         found: null,
       });
     },
@@ -365,6 +369,70 @@ describe("the Checkouts in the Graph View", () => {
       within(items[at] as HTMLElement).getByRole("button", { name: "Uncommitted changes" }),
     ).toBeInTheDocument();
     expect(nodes().map((node) => node.kind)).toEqual(["head", "uncommitted", "head", "commit"]);
+  });
+
+  describe("with the repository changed on the way to a HEAD", () => {
+    const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
+    const OLD = [commit("o", [])];
+
+    /**
+     * Goes to old's HEAD on a page held back, then refreshes with the walk changed so: the walk's
+     * first page held back too, as git takes a while, while the page before may be asked for.
+     */
+    async function refreshedOnTheWay(changed: Commit[][]) {
+      const held = () => {
+        let release = () => {};
+        const promise = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return { promise, release };
+      };
+      const [older, first] = [held(), held()];
+      let now = [COMMITS, OLD];
+      let refreshed = false;
+      const hold = (skip: number) =>
+        skip > 0 ? older.promise : refreshed ? first.promise : undefined;
+      const requests = serveGraph({ graph, pages: () => now, worktrees: ["old"], hold });
+      renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+      await screen.findByText("Commit b");
+      await userEvent.click(chip("Worktree old"));
+      await waitFor(() => expect(asked(requests, "/api/history").get("skip")).toBe("3"));
+      [now, refreshed] = [changed, true];
+      const before = requests.length;
+      await userEvent.click(screen.getByRole("button", { name: /^Refresh/ }));
+      const refetching = () =>
+        requests
+          .slice(before)
+          .some((request) => new URL(request.url).searchParams.get("skip") === null);
+      await waitFor(() => expect(refetching()).toBe(true));
+      await new Promise((done) => setTimeout(done, 100)); // a while, for what git takes
+      first.release();
+      older.release();
+      await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
+      expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
+      // The pages asked for after: from the walk as it is now, none from where it was.
+      return requests
+        .slice(before)
+        .filter((request) => new URL(request.url).pathname === "/api/history")
+        .map((request) => new URL(request.url).searchParams.get("skip") ?? "0");
+    }
+
+    it("lists a commit made meanwhile, its loading not cut short by the next page's", async () => {
+      const skips = await refreshedOnTheWay([[commit("n", ["f"]), ...COMMITS], OLD]);
+      expect(screen.getByText("Commit n")).toBeInTheDocument();
+      expect(skips).not.toContain("3");
+    });
+
+    it("loads on from where the walk is after a reset, not past commits", async () => {
+      const skips = await refreshedOnTheWay([COMMITS.slice(1), OLD]); // f reset away
+      await waitFor(() => expect(screen.queryByText("Commit f")).toBeNull());
+      expect(skips).not.toContain("3");
+      expect(listRows().map((row) => row.textContent?.match(/Commit \w/)?.[0])).toEqual([
+        "Commit m",
+        "Commit b",
+        "Commit o",
+      ]);
+    });
   });
 
   it("goes on to a HEAD with the order toggled on the way, in the walk in the new order", async () => {

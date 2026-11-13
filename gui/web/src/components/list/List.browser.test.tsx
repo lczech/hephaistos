@@ -18,7 +18,13 @@ const column = listColumnHelper<Fruit>();
 const FRUITS = Array.from({ length: 40 }, (_, at) => ({ name: `fruit ${at + 1}` }));
 
 /** Fruits in a Panel as high as a few of them, more of them to load. */
-function Fruits({ fetchNextPage }: { fetchNextPage: () => void }) {
+function Fruits({
+  fetchNextPage,
+  isFetching = false,
+}: {
+  fetchNextPage: () => void;
+  isFetching?: boolean; // all pages loading anew
+}) {
   const columns = column.columns([
     column.display({ id: "square", cell: Chevron }),
     column.accessor("name", { header: "name" }),
@@ -32,7 +38,7 @@ function Fruits({ fetchNextPage }: { fetchNextPage: () => void }) {
         layout="columns"
         choices={{}}
         message={null}
-        paging={{ hasNextPage: true, isFetchingNextPage: false, fetchNextPage }}
+        paging={{ hasNextPage: true, isFetchingNextPage: false, isFetching, fetchNextPage }}
         older="fruits"
         detailsLabel="Fruit details"
         details={(fruit) => fruit.name}
@@ -49,6 +55,16 @@ describe("a list with more to load", () => {
     await new Promise((done) => setTimeout(done, 200)); // the observer's first report
     expect(fetchNextPage).not.toHaveBeenCalled();
     end.scrollIntoView();
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalledOnce());
+  });
+
+  it("waits for all pages loading anew, which the next would cut short", async () => {
+    const fetchNextPage = vi.fn();
+    const { rerender } = render(<Fruits fetchNextPage={fetchNextPage} isFetching />);
+    screen.getByText("Older fruits load as you scroll.").scrollIntoView();
+    await new Promise((done) => setTimeout(done, 200)); // the observer's first report
+    expect(fetchNextPage).not.toHaveBeenCalled();
+    rerender(<Fruits fetchNextPage={fetchNextPage} />);
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalledOnce());
   });
 });

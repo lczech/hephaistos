@@ -180,7 +180,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     go({ key: atHead.head.path, name: atHead.name, commit: atHead.head.commit });
   }
   const loaded = history.data;
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = history;
+  const { hasNextPage, isFetching, fetchNextPage } = history;
   // The row gone to, once listed: what is not committed above its commit, if any, else that.
   const ids = new Set(listed.map(entryId));
   const reached =
@@ -200,10 +200,10 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     } else if (!hasNextPage || offWalk) {
       setMissed(towards); // e.g. its branch hidden, or a tag on none walked
       setTowards(null);
-    } else if (!isFetchingNextPage) {
-      void fetchNextPage();
+    } else if (!isFetching) {
+      void fetchNextPage(); // not while all pages load anew: it would cut that short (`Paging`)
     }
-  }, [towards, loaded, previous, reached, hasNextPage, isFetchingNextPage, fetchNextPage, offWalk]);
+  }, [towards, loaded, previous, reached, hasNextPage, isFetching, fetchNextPage, offWalk]);
   useEffect(() => {
     if (towards === null) return;
     const wait = setTimeout(() => setSlow(true), SLOW);

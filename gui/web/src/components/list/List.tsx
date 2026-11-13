@@ -63,10 +63,15 @@ export interface ListHandle {
   goTo: (id: string) => boolean;
 }
 
-/** Of an endless list: whether there is more, and how to get it (as TanStack Query's). */
+/**
+ * Of an endless list: whether there is more, and how to get it (as TanStack Query's); whether
+ * any page is being fetched, e.g. all anew as what they show changed, which the next page waits
+ * for: asked for meanwhile, it would cut that short, from where the pages were before.
+ */
 export interface Paging {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
+  isFetching?: boolean;
   fetchNextPage: () => unknown;
 }
 
@@ -191,16 +196,21 @@ export function List<TData extends RowData>({
   } | null>(null);
   const rowAnchor = useRef<HTMLSpanElement>(null);
   const list = useId();
-  const { hasNextPage = false, isFetchingNextPage = false, fetchNextPage } = paging ?? {};
+  const {
+    hasNextPage = false,
+    isFetchingNextPage = false,
+    isFetching = false,
+    fetchNextPage,
+  } = paging ?? {};
   // Scrolling to the end of the list loads the page before it.
   useEffect(() => {
-    if (end.current === null || !hasNextPage || isFetchingNextPage) return;
+    if (end.current === null || !hasNextPage || isFetching) return;
     const observer = new IntersectionObserver(([seen]) => {
       if (seen?.isIntersecting) void fetchNextPage?.();
     });
     observer.observe(end.current);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetching, fetchNextPage]);
   // The header's height, as drawn, for the rows stuck below it: in lines its buttons have their
   // own height, and wrap where narrow. Not rounded, as rows are a fraction of a pixel high.
   useEffect(() => {
