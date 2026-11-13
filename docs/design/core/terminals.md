@@ -49,7 +49,7 @@ Listing the sessions finds a server whose marker differs, e.g. one started by ha
 
 A Terminal ends as a terminal emulator does with a tab, except that a death is never hidden:
 - a shell that exits, e.g. by `exit` or Ctrl+D, whatever its status, closes;
-- a command, given at creation, that ends stays, showing its last screen and tmux's line "Pane is dead (status 1, …)";
+- a command, given at creation, that ends stays, showing its last screen and tmux's line "Pane is dead (status 1, …)" (tmux before 3.3 draws that line by scrolling the screen up one line, so the top line, e.g. the only one of a typo's message, moves into the scrollback);
 - a program ended by a signal, e.g. by the OOM killer, stays too, in a shell Terminal as in a command one.
 
 The exit status of a shell says nothing: after Ctrl+D, it is that of the last command run.

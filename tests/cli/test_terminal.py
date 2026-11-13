@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from hephaistos.cli import terminal as terminal_cli
 from hephaistos.cli import tty
 from hephaistos.cli.main import app
-from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.terminals.tmux import TmuxKeeper, installation
 from support import clone, create, eventually, git
 
 pytestmark = pytest.mark.tmux
@@ -393,13 +393,38 @@ def test_names_of_ended_ones_stay_taken(tmp_path: Path) -> None:
     )
 
 
-def test_attach_to_an_ended_one_shows_its_last_screen(outer: Outer, tmp_path: Path) -> None:
+def shown(keeper: TmuxKeeper, outer: Outer, name: str, text: str) -> bool:
+    """Whether `text` shows, attached; tmux before 3.3 draws its line on a dead pane by scrolling
+    the screen up one line, so it is in the scrollback of the Terminal there, e.g. the only line
+    of output."""
+    if text in outer.screen():
+        return True
+    version = installation(keeper.binary).version
+    if version is None or version >= (3, 3):
+        return False
+    command = [
+        keeper.binary,
+        "-L",
+        keeper.socket,
+        "capture-pane",
+        "-p",
+        "-S",
+        "-",
+        "-t",
+        f"={name}:",
+    ]
+    return text in subprocess.run(command, capture_output=True, text=True, check=True).stdout
+
+
+def test_attach_to_an_ended_one_shows_its_last_screen(
+    keeper: TmuxKeeper, outer: Outer, tmp_path: Path
+) -> None:
     """Plain tmux, with its line on how it ended; typing does nothing, Ctrl+B d leaves."""
     script = "echo all built; exit 3"
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", script)
     outer.run("terminal", "attach", "build")
-    eventually(lambda: "all built" in outer.screen())
     assert eventually(lambda: "Pane is dead (status 3" in outer.screen())
+    assert shown(keeper, outer, "build", "all built")
     outer.tmux("send-keys", "-t", "=outer:", "-l", "typed")
     time.sleep(0.2)
     assert "typed" not in outer.screen()
@@ -408,11 +433,13 @@ def test_attach_to_an_ended_one_shows_its_last_screen(outer: Outer, tmp_path: Pa
     assert ok("list")[1].split()[:2] == ["build", "ended"]
 
 
-def test_create_attaches_to_a_command_that_ends_at_once(outer: Outer, tmp_path: Path) -> None:
+def test_create_attaches_to_a_command_that_ends_at_once(
+    keeper: TmuxKeeper, outer: Outer, tmp_path: Path
+) -> None:
     """E.g. a typo: its message shows, as it would in a terminal emulator."""
     outer.run("terminal", "create", "-d", str(tmp_path), "-n", "typo", "--", "mkae-hephaistos")
-    assert eventually(lambda: "mkae-hephaistos" in outer.screen() or None)
     assert eventually(lambda: "Pane is dead (status 127" in outer.screen())
+    assert shown(keeper, outer, "typo", "mkae-hephaistos")
 
 
 def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path) -> None:
