@@ -138,10 +138,16 @@ const languageNames: Record<string, string> = linguist.filenames;
 /** Extensions Linguist leaves to us: those whose languages differ in type. */
 export const UNSETTLED: readonly string[] = linguist.unsettled;
 
+/** The value of a table at a name, if it has one: not what every object has, e.g. `constructor`,
+ * a file name too. */
+function at<T>(table: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
 function ofLanguage(language: string | undefined): FileKind | undefined {
   if (language === undefined) return undefined;
-  const type = types[language];
-  return LANGUAGES[language] ?? (type === undefined ? undefined : TYPES[type]);
+  const type = at(types, language);
+  return at(LANGUAGES, language) ?? (type === undefined ? undefined : at(TYPES, type));
 }
 
 /** A name's extensions, the longest first: `a.tar.gz` → `.tar.gz`, `.gz`. */
@@ -161,16 +167,18 @@ function extensions(name: string): string[] {
  * extensions, ours then Linguist's, the longest first; else a plain file.
  */
 export function fileKind(name: string): FileKind {
-  const named = NAMES[name];
+  const named = at(NAMES, name);
   if (named !== undefined) return named;
   const found = extensions(name);
-  const ours = found.map((extension) => EXTENSIONS[extension]).find((kind) => kind !== undefined);
+  const ours = found
+    .map((extension) => at(EXTENSIONS, extension))
+    .find((kind) => kind !== undefined);
   if (ours === "lock" || ours === "config") return ours;
-  const byName = ofLanguage(languageNames[name]);
+  const byName = ofLanguage(at(languageNames, name));
   if (byName !== undefined) return byName;
   if (ours !== undefined) return ours;
   for (const extension of found) {
-    const kind = ofLanguage(languageExtensions[extension]);
+    const kind = ofLanguage(at(languageExtensions, extension));
     if (kind !== undefined) return kind;
   }
   return "file";

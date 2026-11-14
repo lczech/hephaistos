@@ -13,6 +13,12 @@ describe("a file's kind", () => {
     expect(fileKind("Cargo.lock")).toBe("lock"); // TOML, to Linguist
   });
 
+  it("is that of a plain file for a name of a property every object has", () => {
+    for (const name of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      expect(fileKind(name)).toBe("file");
+    }
+  });
+
   it("then from Linguist's names and extensions, by their language or its type", () => {
     expect(fileKind("Makefile")).toBe("code");
     expect(fileKind(".gitignore")).toBe("config");
