@@ -273,7 +273,8 @@ export function DiffView({
       </section>
     );
   }
-  const stale = error !== null || listed.isPlaceholderData;
+  // The list, or one file whose patch is that of the comparison before, while it loads.
+  const stale = error !== null || listed.isPlaceholderData || fileDiff.isPlaceholderData;
   return (
     <section ref={view} className={styles.view} data-stale={stale || undefined}>
       <ViewBar>

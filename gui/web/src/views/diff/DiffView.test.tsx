@@ -53,7 +53,7 @@ const PATCH = "diff --git a/src/main.py b/src/main.py\n@@ -1 +1 @@\n-a\n+b\n";
 
 /** The Server, answering for the diff and the settings; returns the requests asked. */
 function serveDiff(
-  diff: Schemas["DiffJson"] | (() => Response), // the answer, or how to give it
+  diff: Schemas["DiffJson"] | (() => Response | Promise<Response>), // the answer, or how to give it
   {
     theme = "github-dark",
     changes = [] as Schemas["ChangeGroupJson"][],
@@ -167,6 +167,34 @@ describe("the Diff View", () => {
     expect(asked.find((url) => url.pathname === "/api/diff/files")?.search).toBe(
       "?clone=clone-proj&from=HEAD&to=index&path=src%2Fmain.py",
     );
+  });
+
+  it("dims the patch of the comparison before while that of another loads", async () => {
+    let asked = 0;
+    serveDiff(() =>
+      asked++ === 0 ? json({ change: change(), patch: PATCH }) : new Promise<Response>(() => {}),
+    );
+    const view = (params: Params) => (
+      <DiffView
+        params={params}
+        setParams={() => {}}
+        fragment={{}}
+        setFragment={() => {}}
+        endTyping={() => {}}
+        setTitle={() => {}}
+      />
+    );
+    const { container, client, rerender } = renderWithQueries(view(STAGED));
+    expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
+    expect(container.querySelector("[data-stale]")).toBeNull();
+    rerender(
+      <QueryClientProvider client={client}>
+        {view({ ...STAGED, from: "index", to: "working-tree" })}
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(asked).toBe(2));
+    expect(screen.getByText(/^diff --git/)).toBeInTheDocument(); // kept, as it does not jump
+    expect(container.querySelector("[data-stale]")).not.toBeNull();
   });
 
   it("shows old and new inline in a narrow Panel, side by side still chosen, as while hidden", async () => {
