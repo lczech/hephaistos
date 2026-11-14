@@ -17,8 +17,10 @@ def test_the_entry_runs_this_hephaistos_with_its_directories() -> None:
 
 
 def test_exec_arguments_are_quoted_as_the_specification_asks() -> None:
-    lines = entry.entry_text(Path('/opt/my "tools" $x/50%/hephaistos'), {}).splitlines()
-    assert 'Exec="/opt/my \\"tools\\" \\$x/50%%/hephaistos" desktop open' in lines
+    # The escapes of a string value come first, so the backslashes of the quoting are doubled.
+    path = Path('/opt/my "tools" $x\\y/50%/hephaistos')
+    lines = entry.entry_text(path, {}).splitlines()
+    assert r'Exec="/opt/my \\"tools\\" \\$x\\\\y/50%%/hephaistos" desktop open' in lines
 
 
 def test_installs_and_removes_its_files(tmp_path: Path) -> None:
@@ -50,3 +52,15 @@ def test_another_command_means_another_installation(tmp_path: Path) -> None:
             "env HEPHAISTOS_HOME=/scratch /bin/hephaistos desktop open",
         )
     ]
+
+
+def test_an_entry_quoted_without_the_string_escapes_is_the_same_installation(
+    tmp_path: Path,
+) -> None:
+    # An entry whose quoting backslashes are not doubled.
+    files = entry.Files.from_environment({"XDG_DATA_HOME": str(tmp_path)})
+    mine = entry.entry_text(Path('/opt/$x "y"/hephaistos'), {})
+    files.entry.parent.mkdir(parents=True)
+    files.entry.write_text(mine.replace("\\\\", "\\"))
+    assert files.entry.read_text() != mine
+    assert entry.installation_differences(files, mine) == []

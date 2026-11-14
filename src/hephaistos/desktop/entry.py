@@ -49,6 +49,16 @@ def _argument(value: str) -> str:
     return f'"{escaped}"'
 
 
+def _string(value: str) -> str:
+    """A value of type string, escaped as the specification asks.
+
+    Desktops undo this before the quoting of an Exec line, so its backslashes are doubled.
+    """
+    return value.translate(
+        {ord("\\"): "\\\\", ord("\n"): "\\n", ord("\t"): "\\t", ord("\r"): "\\r"}
+    )
+
+
 def entry_text(executable: Path, env: Mapping[str, str]) -> str:
     """The entry that runs `executable desktop open`, with the path variables set in `env`.
 
@@ -63,7 +73,7 @@ def entry_text(executable: Path, env: Mapping[str, str]) -> str:
             "Type=Application",
             "Name=hephaistos",
             f"Comment={__description__}",
-            f"Exec={' '.join(_argument(word) for word in command)}",
+            f"Exec={_string(' '.join(_argument(word) for word in command))}",
             f"Icon={APP_ID}",
             "Terminal=false",
             "Categories=Development;",
@@ -78,18 +88,51 @@ def _command(text: str) -> str | None:
     return next((line[5:] for line in text.splitlines() if line.startswith("Exec=")), None)
 
 
+_STRING_ESCAPES = {"\\": "\\", "s": " ", "n": "\n", "t": "\t", "r": "\r"}
+
+
+def _words(command: str) -> list[str]:
+    r"""The arguments of an Exec line, read as desktops read it.
+
+    An escape of a string value that is none, e.g. `\$` in an entry whose quoting backslashes
+    are not doubled, stays as it is, so that its quoting still reads. Such an entry that quotes
+    a backslash reads as another command: its `\\` is taken as the string escape of one
+    backslash, which then quotes the next character. The two forms cannot be told apart there.
+    """
+    unescaped = re.sub(r"\\(.)", lambda match: _STRING_ESCAPES.get(match[1], match[0]), command)
+    words: list[str] = []
+    word: str | None = None
+    quoted = False
+    characters = iter(unescaped.replace("%%", "%"))
+    for character in characters:
+        if quoted and character == "\\":
+            word = (word or "") + next(characters, "")
+        elif character == '"':
+            word, quoted = word or "", not quoted
+        elif character.isspace() and not quoted:
+            if word is not None:
+                words.append(word)
+            word = None
+        else:
+            word = (word or "") + character
+    return words if word is None else [*words, word]
+
+
 def installation_differences(files: Files, text: str) -> list[Difference]:
     """Where the installed entry runs another command than `text`, as for the Daemon.
 
     Its command names the hephaistos instance and the directories, so another command means another
-    installation: one to replace only when asked.
+    installation: one to replace only when asked. Commands are compared by their arguments, so
+    that one written with other escapes is the same.
     """
     try:
         installed = _command(files.entry.read_text())
     except FileNotFoundError:
         return []
     wanted = _command(text)
-    return [] if installed == wanted else [Difference("command", installed, wanted)]
+    if installed == wanted or (installed and wanted and _words(installed) == _words(wanted)):
+        return []
+    return [Difference("command", installed, wanted)]
 
 
 def install(files: Files, text: str, icon: Path) -> bool:
