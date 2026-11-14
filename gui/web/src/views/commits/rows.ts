@@ -211,8 +211,8 @@ export function graphOf(
   head: string | null | undefined,
   drawing: Drawing,
 ): Drawn {
-  const { heads, pinned, accent = pinned === undefined ? "first" : "pinned" } = drawing;
-  const layout = new Layout({ heads, pinned, accent });
+  const { heads, pinned, first, accent = pinned === undefined ? "first" : "pinned" } = drawing;
+  const layout = new Layout({ heads, pinned, accent, ...(first ? { branch: first } : {}) });
   const rows = new Map<string, number>();
   const laid: Drawn["laid"] = [];
   const checkedOut = drawing.checkedOut ?? [];

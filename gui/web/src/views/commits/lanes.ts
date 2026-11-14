@@ -59,6 +59,7 @@ export interface RowGraph {
 
 export interface LayoutOptions {
   pinned?: string; // the commit whose first-parent line keeps lane 0, if any
+  branch?: string; // the branch at it, whose uncommitted changes alone lead lane 0 from there
   heads?: ReadonlySet<string>; // the commits HEADs are at, drawn larger: of each Checkout
   accent?: "first" | "pinned"; // which lane takes the accent: lane 0 from the top, or the pinned
 }
@@ -150,9 +151,10 @@ export class Layout {
       node.uncommitted &&
       reserved?.hidden &&
       reserved.expects === node.parents[0] &&
-      this.options.pinned !== undefined
+      this.options.pinned !== undefined &&
+      this.leadsPinned(node)
     ) {
-      lane = 0; // the uncommitted changes on the pinned commit lead its lane
+      lane = 0; // the uncommitted changes on the pinned branch lead its lane
       colour = reserved.colour;
       this.unwait(0);
     } else {
@@ -264,6 +266,13 @@ export class Layout {
     return lines
       .filter(({ lane }) => !seen.has(lane) && seen.add(lane))
       .sort((a, b) => a.lane - b.lane);
+  }
+
+  /** Whether uncommitted changes on the pinned commit are on its branch: not those of a Checkout
+   * on another branch there, or detached, whose line keeps its colour once committed. */
+  private leadsPinned(node: GraphNode): boolean {
+    if (node.checkout !== undefined) return false;
+    return node.branch === undefined || node.branch === this.options.branch;
   }
 
   private kindOf(node: GraphNode): NodeKind {

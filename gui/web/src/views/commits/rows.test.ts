@@ -164,6 +164,48 @@ describe("the colour of a line as commits are made on it", () => {
     );
     expect(after.layout.rows[0]?.colour).toEqual(detached);
   });
+
+  it("keeps lane 0 for the default branch, not for a Checkout on another at its tip", () => {
+    // main pinned at m; a Worktree on feature, and one detached, both at m and not committed.
+    const atMain: CheckedOut[] = [
+      { name: "main", path: "/main", worktree: false, branch: "main", commit: "m" },
+      { name: "f", path: "/f", worktree: true, branch: "feature", commit: "m" },
+      { name: "d", path: "/d", worktree: true, branch: null, commit: "m" },
+    ];
+    const pinned: Drawing = {
+      heads: new Set(["m"]),
+      accent: "pinned",
+      pinned: "m",
+      first: "main",
+      checkedOut: atMain,
+    };
+    const feature = { kind: "hue", hue: hueOf("feature"), muted: false };
+    const detached = { kind: "hue", hue: hueOf("d"), muted: true };
+    const tip = commit("m", ["b"], [ref("main", "branch")]);
+    const main = entries([tip, ...base]);
+    const lay = (listed: Entry[]) => graphOf(listed, undefined, pinned);
+    for (const [key, colour] of [
+      ["/f", feature],
+      ["/d", detached],
+    ] as const) {
+      const { layout, rows } = lay([uncommitted("m", key), ...main]);
+      const own = layout.rows[rows.get(`uncommitted:${key}`) ?? -1];
+      expect(own?.lane).toBe(1);
+      expect(own?.colour).toEqual(colour);
+      expect(layout.rows[rows.get("m") ?? -1]?.lane).toBe(0);
+    }
+    // Listed after one on another branch, that of main still leads lane 0, in the accent.
+    const { layout, rows } = lay([uncommitted("m", "/f"), uncommitted("m", "/main"), ...main]);
+    const own = layout.rows[rows.get("uncommitted:/main") ?? -1];
+    expect(own?.lane).toBe(0);
+    expect(own?.colour).toEqual({ kind: "accent" });
+    // Its first commit keeps the line of feature where it was, in its colour.
+    const committed = lay(entries([commit("f1", ["m"], [ref("feature", "branch")]), tip, ...base]));
+    expect(committed.layout.rows[committed.rows.get("f1") ?? -1]).toMatchObject({
+      lane: 1,
+      colour: feature,
+    });
+  });
 });
 
 describe("the tips of a graph's lines above a row", () => {
