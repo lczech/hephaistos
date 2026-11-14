@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { cells, listRows } from "../../test/list";
@@ -160,6 +160,38 @@ describe("the Repositories View", () => {
     ]);
   });
 
+  it("says how to register Repositories while there are none, and why it shows none", async () => {
+    let failing = false;
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => (failing ? json({ error: "boom" }, 500) : json([])),
+    });
+    const { unmount } = renderWithQueries(<Repositories />);
+    expect(await screen.findByText(/No repositories yet: register them with/)).toHaveTextContent(
+      "hephaistos scan",
+    );
+    unmount();
+    failing = true;
+    renderWithQueries(<Repositories />);
+    expect(await screen.findByText(/^Could not load/)).toHaveTextContent("boom");
+  });
+
+  it("keeps the rows it last had, dimmed, when asking again fails", async () => {
+    let failing = false;
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () =>
+        failing ? json({ error: "boom" }, 500) : json([repository("proj", [clone("proj")])]),
+    });
+    const { client, container } = renderWithQueries(<Repositories />);
+    await screen.findByText("proj");
+    expect(container.querySelector("[data-stale]")).toBeNull();
+    failing = true;
+    await act(() => client.invalidateQueries());
+    await waitFor(() => expect(container.querySelector("[data-stale]")).not.toBeNull());
+    expect(screen.getByText("proj")).toBeInTheDocument();
+  });
+
   it("opens the Explorer of a Clone or Worktree, at its path", async () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
@@ -179,8 +211,11 @@ describe("the Repositories View", () => {
       "Diff of the changes in ~/recent",
     ]);
     await userEvent.click(screen.getByRole("button", { name: "Files of ~/recent" }));
+    await userEvent.click(screen.getByRole("button", { name: "Files of .worktrees/feature" }));
+    const feature = "/home/me/recent/.worktrees/feature";
     expect(open.mock.calls.map(([address]) => address)).toEqual([
       { kind: "explorer", params: { path: "/home/me/recent", root: "/home/me/recent" } },
+      { kind: "explorer", params: { path: feature, root: feature } },
     ]);
   });
 

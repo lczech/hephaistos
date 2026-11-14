@@ -65,6 +65,35 @@ describe("the Explorer View", () => {
     expect(screen.getByText(".bashrc").closest("[data-ignored]")).toBeNull(); // not quieter
   });
 
+  it("says when it cannot ask for the home directory, as a problem", async () => {
+    serve({ "GET /api/info": () => json({ error: "boom" }, 500) });
+    renderWithQueries(<Explorer />);
+    const said = await screen.findByText("Could not ask for the home directory.");
+    expect(said.className).toMatch(/problem/);
+  });
+
+  it("shows the path once the home directory is known, which it names ~", async () => {
+    let answer: () => void = () => {};
+    const known = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    serve({
+      "GET /api/info": async () => {
+        await known;
+        return json(info());
+      },
+      "GET /api/files": () =>
+        json({ path: "/home/me/proj", top: null, entries: DISK["/home/me/proj"], count: 2 }),
+      "GET /api/repositories": () => json([]),
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me/proj" }} />);
+    await screen.findByText("main.py");
+    expect(screen.queryByRole("button", { name: "~" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "home" })).toBeNull(); // nor /home/me/proj
+    await act(async () => answer());
+    expect(await screen.findByRole("button", { name: "~" })).toBeInTheDocument();
+  });
+
   it("drops the chevron of a folder once it is known to show nothing, as VS Code does", async () => {
     serve({
       "GET /api/info": () => json(info()),
