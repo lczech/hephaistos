@@ -162,7 +162,14 @@ DAY = datetime(2026, 10, 8, 12, tzinfo=UTC)
 
 @pytest.mark.parametrize(
     "line",
-    [b"", b"{", b"[1]", b'{"at": "x", "level": "INFO", "message": "m"}', b'{"at": "2026-10-08"}'],
+    [
+        b"",
+        b"{",
+        b"[1]",
+        b'{"at": "x", "level": "INFO", "message": "m"}',
+        b'{"at": "2026-10-08"}',
+        b'{"at": "2026-10-08T10:00:00", "level": "INFO", "message": "a time without its offset"}',
+    ],
 )
 def test_lines_that_arent_records(line: bytes) -> None:
     assert logs.parsed(line) is None

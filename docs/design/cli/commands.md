@@ -137,7 +137,7 @@ Extra fields show as `key=value`.
 `--json` prints each record as stored, with its position: where its line starts, e.g. `2026-10-14:18734` for day file and byte.
 A position stays the same while its file is only appended to.
 `--follow` then waits for new records.
-`log show` skips lines that are not records, and says how many.
+`log show` skips lines that are not records, such as one whose time has no offset, and says how many.
 It pages like git: `$PAGER`, else `less` with `LESS=FRX`.
 The log is not an entity, so `show` shows all of it.
 

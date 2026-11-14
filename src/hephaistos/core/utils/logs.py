@@ -236,10 +236,11 @@ def parsed(line: bytes) -> Record | None:
     if not all(isinstance(fields.get(key), str) for key in ("at", "level", "message")):
         return None
     try:
-        datetime.fromisoformat(str(fields["at"]))
+        at = datetime.fromisoformat(str(fields["at"]))
     except ValueError:
         return None
-    return fields
+    # Ours always say their offset; one that does not cannot be compared with them.
+    return fields if at.tzinfo is not None else None
 
 
 def record_at(record: Record) -> datetime:
