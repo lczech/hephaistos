@@ -191,6 +191,7 @@ Its lane passes its row dashed, without a node; a commit is drawn with the paren
 The HEADs are among those kept, the lines of their chips laid out from the rows themselves; that of a Checkout on a hidden branch only with something not committed, to show above it, where the walk has it (`keep`).
 A click on a stretch, or Enter on it, shows all commits again and goes to its commit, at the top, those it left out below it, as "Go to…" goes (the button saying so while it loads); "Go to…" a commit on the walk but not kept shows all commits again too, once branch tips only have come, and one not on the walk keeps them, said not to be shown; the chips go to their HEADs, all kept, those of hidden branches once shown again.
 Its default branch keeps lane 0 and the accent, pinned to the left from the top, as `/api/graph` names it, unless hidden, when no line has the accent; the HEAD of each Checkout is drawn as HEAD.
+A branch listed above it that merged it draws its side to it in a lane of its own, joining lane 0 where its line starts.
 Its bar has the order, branch tips only, the look of the list and a refresh, which asks again for the commits and for `/api/graph`; both are asked again as History is, and when the GUI regains focus.
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, whether it shows Worktrees only, branch tips only, and how many branches are hidden: `Graph: proj, tips only, 2 hidden`.

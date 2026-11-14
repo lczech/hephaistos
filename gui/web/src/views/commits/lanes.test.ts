@@ -101,6 +101,21 @@ describe("lanes", () => {
     expect(rows[3]?.above?.dashed).toBe(false);
   });
 
+  it("starts the pinned line at its commit when a branch above merged it", () => {
+    // feature, above, merged main at m; main is checked out at m, not committed.
+    const wt = { ...n("wt", "m"), uncommitted: true, branch: "main" };
+    const nodes = [n("mx", "x", "m"), n("x", "b"), wt, n("m", "b"), n("b")];
+    const { rows } = lay(nodes, { pinned: "m", branch: "main", accent: "pinned" });
+    expect(rows[2]).toMatchObject({ lane: 0, colour: { kind: "accent" }, start: 2 });
+    expect(rows[3]).toMatchObject({ lane: 0, colour: { kind: "accent" }, start: 2 });
+    // Clean, the line of main starts at m.
+    const clean = lay(
+      nodes.filter((node) => node !== wt),
+      { pinned: "m", accent: "pinned" },
+    );
+    expect(clean.rows[2]).toMatchObject({ lane: 0, start: 2 });
+  });
+
   it("starts a lane above HEAD for its uncommitted changes, without a pinned commit", () => {
     const wt = { ...n("wt", "h"), uncommitted: true };
     const { rows } = lay([wt, n("h", "a"), n("a")], { heads: new Set(["h"]), accent: "first" });

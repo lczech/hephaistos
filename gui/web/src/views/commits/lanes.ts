@@ -180,14 +180,10 @@ export class Layout {
       others.unshift(firstParent); // the first parent was listed already: the rest open lanes
     }
     for (const parent of others) {
-      let to = this.waiting.get(parent)?.[0];
-      if (to !== undefined) {
-        const awaiting = lanes[to] as Lane;
-        if (awaiting.hidden) {
-          awaiting.hidden = false; // e.g. the pinned branch merged into one listed above it
-          awaiting.from = row;
-        }
-      } else {
+      // A lane of its own to the pinned commit, e.g. the pinned branch merged into one listed
+      // above it: the reserved lane stays hidden, so that its line starts where that comes.
+      let to = this.waiting.get(parent)?.find((i) => !(lanes[i] as Lane).hidden);
+      if (to === undefined) {
         to = this.free(ended);
         this.set(to, {
           expects: parent,
