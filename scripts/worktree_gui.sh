@@ -29,14 +29,19 @@ main_checkout() {
     dirname "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 }
 
-# The directory of an instance, by name; without one, that of this worktree.
+# The directory of an instance, by name; without one, that of this worktree, which another
+# worktree of the same name may hold already.
 instance() {
     if [ -n "${1:-}" ]; then
         [ -e "$root/$1/worktree" ] || die "no instance $1; see \`$0 list\`"
         echo "$root/$1"
     else
         [ "$(main_checkout)" != "$repo" ] || die "this is the main checkout: name an instance"
-        echo "$root/$(basename "$repo")"
+        own="$root/$(basename "$repo")"
+        if [ -e "$own/worktree" ] && [ "$(cat "$own/worktree")" != "$repo" ]; then
+            die "instance $(basename "$repo") is the worktree $(cat "$own/worktree")'s; remove it there, or rename this one"
+        fi
+        echo "$own"
     fi
 }
 
@@ -149,10 +154,7 @@ start() {
     [ "$(main_checkout)" != "$repo" ] ||
         die "this is the main checkout, whose GUI the real daemon serves: \`uv run npm --prefix gui run build\` instead"
     name=$(basename "$repo")
-    dir="$root/$name"
-    if [ -e "$dir/worktree" ] && [ "$(cat "$dir/worktree")" != "$repo" ]; then
-        die "instance $name is the worktree $(cat "$dir/worktree")'s; remove it there, or rename this one"
-    fi
+    dir=$(instance) || exit 1
     if [ -n "$fresh" ] && [ -e "$dir/port" ]; then
         stop_instance "$dir"
         rm -rf "$dir/home"
