@@ -15,14 +15,14 @@ import {
 } from "electron";
 import { onScreen, savedBounds } from "./bounds.js";
 import { Connector } from "./connecting.js";
+import { guard } from "./guard.js";
 import { runner } from "./hephaistos.js";
 import { waitingPage } from "./page.js";
-import { destination, type KeyAction, keyAction } from "./rules.js";
+import type { KeyAction } from "./rules.js";
 import { buttonColours, TITLE_BAR_HEIGHT } from "./titleBar.js";
 
 const BACKGROUND = { light: "#ffffff", dark: "#1e1e1e" }; // as in the GUI, against a white flash
 const ZOOM_STEP = 0.5; // a zoom level is 20%
-const ABORTED = -3; // a load that a newer one replaced
 const SETTLE = 200; // ms after the token file changes, before reading it
 
 /** What `hephaistos desktop open` tells the Desktop. */
@@ -81,33 +81,6 @@ function act(action: KeyAction, contents: WebContents): void {
     quit: () => app.quit(),
   };
   actions[action]();
-}
-
-/** Keeps the page to the Server and our keys; other web pages open in the user's browser. */
-function guard(contents: WebContents): void {
-  contents.on("will-navigate", (event) => {
-    const where = destination(event.url, server);
-    if (where === "window") return;
-    event.preventDefault();
-    if (where === "browser") void shell.openExternal(event.url);
-  });
-  contents.setWindowOpenHandler(({ url }) => {
-    if (destination(url, server) !== "none") void shell.openExternal(url);
-    return { action: "deny" };
-  });
-  contents.on("will-attach-webview", (event) => event.preventDefault());
-  contents.on("before-input-event", (event, input) => {
-    const action = keyAction(input);
-    if (action === null) return;
-    event.preventDefault();
-    act(action, contents);
-  });
-  // E.g. reloading while the Daemon is stopped: start it.
-  contents.on("did-fail-load", (_event, code, _description, url, isMainFrame) => {
-    if (isMainFrame && code !== ABORTED && server !== null && url.startsWith(server)) {
-      void connector.now();
-    }
-  });
 }
 
 /** A renewed token: the GUI takes the new link without reloading, as a browser tab would. */
@@ -174,7 +147,14 @@ if (!app.requestSingleInstanceLock()) {
     if (window?.isMinimized()) window.restore();
     window?.focus();
   });
-  app.on("web-contents-created", (_event, contents) => guard(contents));
+  app.on("web-contents-created", (_event, contents) =>
+    guard(contents, {
+      server: () => server,
+      openExternal: (url) => void shell.openExternal(url),
+      act,
+      reconnect: () => void connector.now(),
+    }),
+  );
   app.on("window-all-closed", () => app.quit());
   void app.whenReady().then(() => {
     // The GUI needs no camera, notifications or the like; each gets allowed when a feature does.
