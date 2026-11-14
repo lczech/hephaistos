@@ -2,7 +2,7 @@
 // with the desktop; hephaistos does the rest. Start it with `hephaistos desktop open`.
 
 import { readFileSync, watch, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 import {
   app,
   BrowserWindow,
@@ -20,10 +20,10 @@ import { runner } from "./hephaistos.js";
 import { waitingPage } from "./page.js";
 import type { KeyAction } from "./rules.js";
 import { buttonColours, TITLE_BAR_HEIGHT } from "./titleBar.js";
+import { followToken } from "./tokenFile.js";
 
 const BACKGROUND = { light: "#ffffff", dark: "#1e1e1e" }; // as in the GUI, against a white flash
 const ZOOM_STEP = 0.5; // a zoom level is 20%
-const SETTLE = 200; // ms after the token file changes, before reading it
 
 /** What `hephaistos desktop open` tells the Desktop. */
 function given(name: string): string {
@@ -83,26 +83,6 @@ function act(action: KeyAction, contents: WebContents): void {
   actions[action]();
 }
 
-/** A renewed token: the GUI takes the new link without reloading, as a browser tab would. */
-function followToken(): void {
-  let last = read(tokenFile);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    watch(dirname(tokenFile), (_event, name) => {
-      if (name !== basename(tokenFile)) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const current = read(tokenFile);
-        if (current === last) return;
-        last = current;
-        void connector.now();
-      }, SETTLE);
-    });
-  } catch {
-    // No data directory yet: `hephaistos setup` makes it, and then the Desktop starts anew.
-  }
-}
-
 function openWindow(): BrowserWindow {
   const areas = screen.getAllDisplays().map((display) => display.workArea);
   const { maximized, ...bounds } = onScreen(savedBounds(read(boundsFile)), areas);
@@ -159,7 +139,8 @@ if (!app.requestSingleInstanceLock()) {
     // The GUI needs no camera, notifications or the like; each gets allowed when a feature does.
     refusePermissions(session.defaultSession);
     window = openWindow();
-    followToken();
+    // A renewed token: the GUI takes the new link without reloading, as a browser tab would.
+    followToken(tokenFile, () => void connector.now(), { watch, read });
     void connector.now();
   });
 }
