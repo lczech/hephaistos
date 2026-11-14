@@ -95,13 +95,14 @@ class Watcher:
 
     async def _worker_pass(self) -> Done | PassFailed:
         """Has the worker run a pass, starting a worker first if there is none."""
-        if self._worker is None:
-            self._worker = await Worker.started(self._paths)
         try:
+            if self._worker is None:  # one dying at start, e.g. on code broken mid-edit, fails too
+                self._worker = await Worker.started(self._paths)
             return await self._worker.run_pass()
         except WorkerDiedError as error:
-            self._worker.stop()
-            self._worker = None
+            if self._worker is not None:
+                self._worker.stop()
+                self._worker = None
             return PassFailed(f"the worker died: {error}")
 
     async def run(self) -> None:

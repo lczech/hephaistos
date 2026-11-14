@@ -29,7 +29,7 @@ from hephaistos.daemon.errors import EX_CONFIG
 from hephaistos.daemon.server import token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.watcher import STOPPING, Watcher
-from hephaistos.daemon.watcher.worker import Done, PassFailed
+from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDiedError
 from support import create, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
@@ -108,6 +108,19 @@ def test_watcher_replaces_a_dead_worker(paths: Paths) -> None:
         "the worker died: killed by SIGKILL",
         None,
     ]
+
+
+def test_a_worker_dying_at_start_fails_the_pass(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def dying(_: Paths) -> Worker:
+        raise WorkerDiedError("exit code 1")  # as with code that fails to import
+
+    monkeypatch.setattr(Worker, "started", dying)
+    reported: list[PassStatus] = []
+    outcome = asyncio.run(Watcher(paths, reported.append).observe("api"))
+    assert outcome == PassFailed("the worker died: exit code 1")
+    assert [done.error for done in reported] == ["the worker died: exit code 1"]
 
 
 DONE = Done(events=0, observed=1, worktrees=0, updated=0, skipped=0)
