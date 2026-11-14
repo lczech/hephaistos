@@ -400,7 +400,7 @@ describe("a list as a tree", () => {
 
 /** A tree part of a page that scrolls, below and above other content, as the Diff's. */
 /** A tree within a page, its folder open; `onDraw` told of each row's name drawn. */
-function PageTree({ onDraw }: { onDraw?: () => void }) {
+function PageTree({ onDraw, above = 100 }: { onDraw?: () => void; above?: number }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true });
   const columns = node.columns([
     node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
@@ -424,7 +424,7 @@ function PageTree({ onDraw }: { onDraw?: () => void }) {
   });
   return (
     <div data-testid="page" style={{ height: 200, overflowY: "auto" }}>
-      <p style={{ height: 100, margin: 0 }}>Above</p>
+      <p style={{ height: above, margin: 0 }}>Above</p>
       <List
         table={table}
         label="Files"
@@ -1133,6 +1133,26 @@ describe("a list's rows, by the keys, as drawn", () => {
     const view = page.getBoundingClientRect();
     expect(row.top).toBeGreaterThanOrEqual(view.top);
     expect(row.bottom).toBeLessThanOrEqual(view.bottom + 0.5);
+  });
+
+  it("brings its first row into view where it is in the page, below much above it", async () => {
+    render(<PageTree above={2000} />);
+    const page = screen.getByTestId("page");
+    page.scrollTop = 1990; // src just below the top
+    await drawn();
+    const at = page.scrollTop;
+    (ownRowOf("file 1").parentElement as HTMLElement).focus();
+    await drawn();
+    for (const key of ["{ArrowUp}", "{ArrowDown}{Home}"]) {
+      await userEvent.keyboard(key);
+      await waitFor(() => expect(focusedText()).toBe("src"));
+      await drawn();
+      const row = ownRowOf("src").getBoundingClientRect();
+      const view = page.getBoundingClientRect();
+      expect(row.top).toBeGreaterThanOrEqual(view.top - 0.5);
+      expect(row.bottom).toBeLessThanOrEqual(view.bottom + 0.5);
+      expect(Math.abs(page.scrollTop - at)).toBeLessThan(20);
+    }
   });
 
   it("enters by Tab where the view is, in tall details, without scrolling", async () => {

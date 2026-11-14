@@ -349,8 +349,8 @@ export function VirtualRows({
     // Rounded so that the whole row shows where scrolling goes by whole pixels, as in WebKit:
     // down to its top, up to its bottom.
     let to: number | undefined;
-    if (index === 0)
-      to = 0; // the first, at the very top
+    // The first at the very top, where the list scrolls itself; part of a page, where it is.
+    if (index === 0 && sticky) to = 0;
     else if (at.start || item.start < top) to = Math.floor(item.start - above);
     else if (end > bottom) to = Math.ceil(end - box.clientHeight);
     if (to === undefined || Math.abs(to - box.scrollTop) < 0.5) {
