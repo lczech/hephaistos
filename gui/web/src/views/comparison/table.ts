@@ -61,15 +61,18 @@ export function useChangesTable(options: Options) {
   const grouped = entries(groups, within, sorted, nested);
   // Directories in new folders too, once their files are there.
   const holding = holdingRows(grouped);
+  // A group folds where there are several; one is just their header, always open.
+  const several = groups.length > 1;
   const expanded = Object.fromEntries(
-    [...holding].map(([id, entry]) => [id, isOpen(entry, folded, partOf)]),
+    [...holding].map(([id, entry]) => [
+      id,
+      (entry.type === "group" && !several) || isOpen(entry, folded, partOf),
+    ]),
   );
   const total: Entry[] =
     totalled && groups.length > 0 ? [{ type: "total", groups, subRows: [] }] : [];
   const listed = [...total, ...(ungrouped ? grouped.flatMap((group) => group.subRows) : grouped)];
   const most = Math.max(0, ...linesListed(grouped));
-  // A group folds where there are several; one is just their header, always open.
-  const several = groups.length > 1;
   const folds = (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry));
   const columns = changesColumns(most, folds, ungrouped ? 0 : 1);
   const vars = { "--lines-width": `${linesWidth(listed)}ch` } as const; // the List's

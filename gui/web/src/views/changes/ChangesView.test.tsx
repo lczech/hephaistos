@@ -516,6 +516,23 @@ describe("the Changes View", () => {
     ]);
   });
 
+  it("lists the files of a lone group folded while there were several", async () => {
+    // Not staged was folded beside Staged, whose files were then committed.
+    localStorage.setItem(
+      "hephaistos.folds.changes",
+      JSON.stringify({ "clone:clone-proj": { groups: ["unstaged"] } }),
+    );
+    const group = { name: "unstaged" as const, from: "index", to: "working-tree", count: 1 };
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () =>
+        json({ branch: BRANCH, groups: [{ ...group, changes: [change("a.txt")] }] }),
+    });
+    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    expect(await screen.findByText("a.txt")).toBeInTheDocument();
+  });
+
   it("says a removed Worktree is gone, in place of its changes, with its Events", async () => {
     const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "worktree" } as const;
     serve({
