@@ -67,8 +67,8 @@ function Linker() {
 }
 
 /** Ctrl+F, as the window gets it; returns the event, to tell whether it was taken. */
-function pressCtrlF(): KeyboardEvent {
-  const event = new KeyboardEvent("keydown", { key: "f", ctrlKey: true, cancelable: true });
+function pressCtrlF(key = "f"): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, ctrlKey: true, cancelable: true });
   act(() => {
     window.dispatchEvent(event);
   });
@@ -161,7 +161,10 @@ describe("the Workbench", () => {
     expect(await screen.findByText("No events yet.")).toBeInTheDocument();
     await userEvent.keyboard("{Control>}w{/Control}");
     expect(groups()).toEqual([["Repositories"], []]);
-    await userEvent.keyboard("{Control>}w{/Control}");
+    // With Caps Lock on, as the key then reads.
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "W", ctrlKey: true }));
+    });
     expect(groups()).toEqual([["Repositories"]]);
     await userEvent.keyboard("{Control>}w{/Control}");
     await userEvent.keyboard("{Control>}w{/Control}");
@@ -557,6 +560,9 @@ describe("the Workbench", () => {
       expect(pressCtrlF().defaultPrevented).toBe(true); // taken from the browser
       expect(field).toHaveFocus();
       expect([field.selectionStart, field.selectionEnd]).toEqual([0, 3]);
+      field.blur();
+      expect(pressCtrlF("F").defaultPrevented).toBe(true); // with Caps Lock on
+      expect(field).toHaveFocus();
       unmount();
       // The View of the search field behind another: Ctrl+F goes to the browser.
       save("probe", "searcher");

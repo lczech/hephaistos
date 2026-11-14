@@ -47,7 +47,9 @@ function keepSaved(api: DockviewApi): { dispose: () => void } {
  */
 function closeByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
-    if (event.key !== "w" || !event.ctrlKey || event.altKey || event.metaKey) return;
+    // By the letter in either case, as Caps Lock gives it.
+    const plain = !event.altKey && !event.metaKey && !event.shiftKey;
+    if (event.key.toLowerCase() !== "w" || !event.ctrlKey || !plain) return;
     event.preventDefault();
     const group = api.activeGroup;
     if (api.activePanel) api.activePanel.api.close();
@@ -64,8 +66,8 @@ function closeByKey(api: DockviewApi): { dispose: () => void } {
  */
 function searchByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
-    if (event.key !== "f" || !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)
-      return;
+    const plain = !event.altKey && !event.metaKey && !event.shiftKey;
+    if (event.key.toLowerCase() !== "f" || !event.ctrlKey || !plain) return;
     const target = keyTarget(api.activePanel, "search");
     if (!(target instanceof HTMLElement)) return;
     event.preventDefault();
