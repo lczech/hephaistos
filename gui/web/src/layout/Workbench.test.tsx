@@ -227,6 +227,24 @@ describe("the Workbench", () => {
     }
   });
 
+  it("saves a change made just before it goes, or the page does", async () => {
+    VIEWS.probe = Probe;
+    try {
+      save("probe");
+      const { unmount } = await renderWorkbench();
+      await userEvent.click(screen.getByRole("button", { name: "probe" }));
+      unmount(); // within the delay of saving
+      expect(savedViews()).toEqual([{ kind: "probe", params: { since: "1h" } }]);
+      save("probe");
+      await renderWorkbench();
+      await userEvent.click(screen.getByRole("button", { name: "probe" }));
+      window.dispatchEvent(new Event("pagehide"));
+      expect(savedViews()).toEqual([{ kind: "probe", params: { since: "1h" } }]);
+    } finally {
+      delete VIEWS.probe;
+    }
+  });
+
   it("restores the saved Layout, saying which Views no longer exist", async () => {
     save("gone", "daemon");
     await renderWorkbench();

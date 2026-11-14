@@ -17,16 +17,25 @@ import { keepVisits, type Visits, VisitsContext } from "./visits";
 
 const SAVE_DELAY = 300; // ms: a drag or resize saves once, when it ends
 
-/** Saves the Layout whenever it changes, until disposed. */
+/** Saves the Layout whenever it changes, until disposed; at once what is due as the page goes,
+ * or it is disposed. */
 function keepSaved(api: DockviewApi): { dispose: () => void } {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const flush = () => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+    saveLayout(api.toJSON());
+  };
   const changes = api.onDidLayoutChange(() => {
     clearTimeout(timer);
-    timer = setTimeout(() => saveLayout(api.toJSON()), SAVE_DELAY);
+    timer = setTimeout(flush, SAVE_DELAY);
   });
+  window.addEventListener("pagehide", flush);
   return {
     dispose: () => {
-      clearTimeout(timer);
+      flush();
+      window.removeEventListener("pagehide", flush);
       changes.dispose();
     },
   };

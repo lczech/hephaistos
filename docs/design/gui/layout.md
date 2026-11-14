@@ -112,6 +112,7 @@ A lint rule (`gui/lint/dock-elements.grit`) rejects reading dockview's elements.
 ## Saving
 
 The Layout is kept per browser, in localStorage, with a format number.
+It is saved 300 ms after it last changed, so that a drag or resize saves once, and at once as the page goes or the Workbench closes.
 A Panel whose kind no longer exists says so.
 A View that fails, e.g. on parameters it no longer understands, shows its error in its Panel only.
 A Layout that cannot be restored gives the default one.
