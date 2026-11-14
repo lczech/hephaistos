@@ -373,11 +373,13 @@ export function DiffView({
             {!query && <NestedToggle />}
           </BarGroup>
           <BarGroup>
+            {/* The list and every patch: those of the files shown are not keyed by the list. */}
             <Refresh
-              busy={listed.isFetching}
-              onClick={() =>
-                void client.invalidateQueries({ queryKey: query ? KEYS.diff : KEYS.changes })
-              }
+              busy={listed.isFetching || fileDiff.isFetching}
+              onClick={() => {
+                void client.invalidateQueries({ queryKey: KEYS.changes });
+                void client.invalidateQueries({ queryKey: KEYS.diff });
+              }}
             />
           </BarGroup>
           <BarGroup>

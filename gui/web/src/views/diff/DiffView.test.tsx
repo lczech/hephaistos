@@ -550,6 +550,17 @@ describe("the Diff View", () => {
       expect(screen.getByRole("button", { name: "Uncommitted changes" })).toBeInTheDocument();
     });
 
+    it("asks again for the list and the patches shown on Refresh", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      const asked = serveAll();
+      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
+      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      asked.diffs.length = 0;
+      await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+      await waitFor(() => expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]));
+    });
+
     it("is not dimmed once one file shows in its place", async () => {
       serveAll();
       const view = (params: Params) => (
