@@ -87,10 +87,12 @@ def git(path: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def create(path: Path, *, commits: int = 1, origin: str | None = None) -> Path:
+def create(
+    path: Path, *, commits: int = 1, origin: str | None = None, object_format: str = "sha1"
+) -> Path:
     """A new repository with empty commits; their messages make its history unique."""
     path.mkdir(parents=True)
-    git(path, "init", "--quiet", "--initial-branch=main")
+    git(path, "init", "--quiet", "--initial-branch=main", f"--object-format={object_format}")
     for number in range(commits):
         git(path, "commit", "--quiet", "--allow-empty", "--message", f"{path} {number}")
     if origin is not None:

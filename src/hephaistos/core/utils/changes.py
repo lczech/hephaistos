@@ -25,7 +25,6 @@ BINARY_PROBE = 8000  # bytes in which a NUL makes a file binary, as git decides 
 
 type GroupName = Literal["staged", "unstaged", "untracked", "unmerged", "changes"]
 
-_NO_OBJECT = "0" * 40  # git's object ID for "none", or "not hashed" for the working tree
 _SAFE = ("--no-ext-diff", "--no-textconv")  # git's own diff of the files' bytes
 _DIFF = ("diff", "--raw", "--numstat", "-z", "--no-abbrev", "-M", *_SAFE)
 _RAW = ("diff", "--raw", "-z", "--no-abbrev", "-M", *_SAFE)
@@ -216,13 +215,18 @@ def _tracked(
     binary = [raw for raw in raws if raw.status != "U" and counts.get(raw.path, (0, 0))[0] is None]
     sizes = _object_sizes(
         top,
-        {name for raw in binary for name in (raw.old_object, raw.new_object) if name != _NO_OBJECT},
+        {
+            name
+            for raw in binary
+            for name in (raw.old_object, raw.new_object)
+            if not git.is_null(name)
+        },
     )
 
     def size(name: str, path: str, *, exists: bool) -> int | None:
         if not exists:
             return None
-        if name == _NO_OBJECT:  # in the working tree, which git did not hash
+        if git.is_null(name):  # "none", or in the working tree, which git did not hash
             return _file_size(top / path)
         return sizes.get(name)
 

@@ -163,6 +163,15 @@ def test_everywhere_walks_all_branches_and_tags(repo: Path) -> None:
     )
 
 
+def test_a_full_sha256_hash_finds_its_commit(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", commits=2, object_format="sha256")
+    head = git(repo, "rev-parse", "HEAD")
+    assert len(head) == 64
+    found = by_hash(repo, head, None, None, everywhere=False)
+    assert found is not None
+    assert (found.commit.hash, found.where) == (head, "listed")
+
+
 def test_a_hash_and_where_its_commit_is(repo: Path) -> None:
     one, two, three = (git(repo, "rev-parse", f"HEAD~{n}") for n in (2, 1, 0))
     git(repo, "switch", "--quiet", "--create", "side", two)

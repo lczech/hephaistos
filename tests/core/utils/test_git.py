@@ -414,6 +414,15 @@ def test_worktrees(tmp_path: Path) -> None:
     ]
 
 
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_a_worktree_on_an_unborn_branch_has_no_head(tmp_path: Path, object_format: str) -> None:
+    repo = create(tmp_path / "repo", object_format=object_format)
+    git(repo, "worktree", "add", "--quiet", "-b", "feature", str(tmp_path / "feature"))
+    git(tmp_path / "feature", "checkout", "--quiet", "--orphan", "pages")
+    [linked] = worktrees(repo, locate(repo).common_dir)
+    assert (linked.head, linked.branch) == (None, "pages")
+
+
 def test_broken_worktrees(tmp_path: Path) -> None:
     repo = create(tmp_path / "old")
     for name in ("inside", "locked"):

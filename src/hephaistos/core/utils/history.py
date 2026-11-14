@@ -33,7 +33,7 @@ _FORMAT = "%H%x00%P%x00%aN%x00%aE%x00%aI%x00%cN%x00%cE%x00%cI%x00%s%x00%b"
 _FIELDS = 10
 _LOG = ("log", "--no-color", "--no-show-signature", "-z", f"--format={_FORMAT}")
 _EVERYWHERE = ("--branches", "--remotes", "--tags")  # `--all` would add stashes and notes
-_HASH = re.compile(r"[0-9a-fA-F]{4,40}")
+_HASH = re.compile(r"[0-9a-fA-F]{4,64}")  # 40 digits in SHA-1, 64 in SHA-256
 
 
 class HistoryError(HephaistosError):
@@ -469,7 +469,7 @@ def by_hash(
     *,
     everywhere: bool = False,
 ) -> Found | None:
-    """The commit whose hash starts with `search`, if that is one word of 4 to 40 hex digits.
+    """The commit whose hash starts with `search`, if that is one word of 4 to 64 hex digits.
 
     Where it is, against the commits `history` walks with the same `ref`, `path` and
     `everywhere`. None if no commit, or several, have such a hash.

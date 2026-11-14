@@ -474,7 +474,9 @@ def branches(top: Path) -> tuple[str, ...]:
     return tuple(sorted(line.removeprefix("refs/heads/") for line in output.splitlines()))
 
 
-_NO_COMMIT = "0" * 40
+def is_null(object_id: str) -> bool:
+    """Whether an object ID is git's for "none": all zeros, 40 of them in SHA-1, 64 in SHA-256."""
+    return set(object_id) == {"0"}
 
 
 @dataclass(frozen=True)
@@ -527,7 +529,7 @@ def worktrees(top: Path, common_dir: Path) -> tuple[LinkedWorktree, ...]:
             LinkedWorktree(
                 name=name,
                 path=path,
-                head=None if head in (None, _NO_COMMIT) else head,
+                head=None if head is None or is_null(head) else head,
                 branch=attributes["branch"].removeprefix("refs/heads/")
                 if "branch" in attributes
                 else None,

@@ -95,7 +95,9 @@ def test_nothing_changed(repo: Path) -> None:
     assert _changes(repo).groups == ()
 
 
-def test_binary_files_have_sizes(repo: Path) -> None:
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_binary_files_have_sizes(tmp_path: Path, object_format: str) -> None:
+    repo = create(tmp_path / "repo", object_format=object_format)
     _commit(repo, {"image.bin": b"\0" * 10, "removed.bin": b"\0" * 7})
     _write(repo, "image.bin", b"\0" * 25)
     git(repo, "add", "image.bin")
