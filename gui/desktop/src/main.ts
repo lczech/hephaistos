@@ -15,7 +15,7 @@ import {
 } from "electron";
 import { onScreen, savedBounds } from "./bounds.js";
 import { Connector } from "./connecting.js";
-import { guard } from "./guard.js";
+import { guard, refusePermissions, WEB_PREFERENCES } from "./guard.js";
 import { runner } from "./hephaistos.js";
 import { waitingPage } from "./page.js";
 import type { KeyAction } from "./rules.js";
@@ -116,8 +116,7 @@ function openWindow(): BrowserWindow {
       ...buttonColours(null, nativeTheme.shouldUseDarkColors),
       height: TITLE_BAR_HEIGHT,
     },
-    // Electron's defaults, stated: the page gets no Node and runs in Chromium's sandbox.
-    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    webPreferences: WEB_PREFERENCES,
   });
   if (maximized) opened.maximize();
   // The GUI says its bar's colour as its theme colour; the window's buttons take it.
@@ -158,8 +157,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on("window-all-closed", () => app.quit());
   void app.whenReady().then(() => {
     // The GUI needs no camera, notifications or the like; each gets allowed when a feature does.
-    session.defaultSession.setPermissionRequestHandler((_contents, _name, answer) => answer(false));
-    session.defaultSession.setPermissionCheckHandler(() => false);
+    refusePermissions(session.defaultSession);
     window = openWindow();
     followToken();
     void connector.now();

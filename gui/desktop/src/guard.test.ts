@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
-import type { WebContents } from "electron";
+import type { Session, WebContents } from "electron";
 import { describe, expect, it, vi } from "vitest";
-import { guard } from "./guard.js";
+import { guard, refusePermissions, WEB_PREFERENCES } from "./guard.js";
 
 const SERVER = "http://127.0.0.1:8264";
 
@@ -81,5 +81,36 @@ describe("the guard of the window", () => {
     expect(deps.reconnect).not.toHaveBeenCalled();
     fail(-102, `${SERVER}/`); // refused: the Daemon stopped
     expect(deps.reconnect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the page of the window", () => {
+  it("gets no Node, runs sandboxed, and loads no preload script", () => {
+    expect(WEB_PREFERENCES).toEqual({
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+    });
+  });
+
+  it("is refused every permission it asks for, or checks", () => {
+    type Request = (contents: object, name: string, answer: (granted: boolean) => void) => void;
+    type Check = (contents: object, name: string) => boolean;
+    const handlers: { request?: Request; check?: Check } = {};
+    const session = {
+      setPermissionRequestHandler: (handler: Request) => {
+        handlers.request = handler;
+      },
+      setPermissionCheckHandler: (handler: Check) => {
+        handlers.check = handler;
+      },
+    };
+    refusePermissions(session as unknown as Session);
+    for (const name of ["media", "notifications", "geolocation"]) {
+      const answer = vi.fn();
+      handlers.request?.({}, name, answer);
+      expect(answer).toHaveBeenCalledWith(false);
+      expect(handlers.check?.({}, name)).toBe(false);
+    }
   });
 });
