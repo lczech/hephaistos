@@ -45,7 +45,7 @@ export function PanelView({ api, containerApi, params }: IDockviewPanelProps) {
   const open = (other: Address, opening?: Opening) =>
     openView(containerApi, other, opening, api.group);
   const noteTarget: NoteKeyTarget = (target, element) => noteKeyTarget(api.id, target, element);
-  const sideButtons = useSideButtons(api.group);
+  const sideButtons = useSideButtons(() => api.group);
   const View = address && viewComponent(address.kind);
   if (!shown) return null;
   return (

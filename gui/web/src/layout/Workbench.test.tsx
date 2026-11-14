@@ -1,9 +1,9 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchField } from "../components/SearchField";
-import { saveViews as save } from "../test/layout";
+import { saveViews as save, saveGrid } from "../test/layout";
 import { daemon, json, renderWithQueries, serve, setting } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
@@ -11,6 +11,7 @@ import { useKeyTarget } from "../views/keys";
 import { useIsShown } from "../views/opening";
 import { ViewLink } from "../views/ViewLink";
 import { savedLayout } from "./saved";
+import { useDock, ViewOpener } from "./ViewOpener";
 import { Workbench } from "./Workbench";
 
 const savedViews = () => Object.values(savedLayout()?.panels ?? {}).map((panel) => panel.params);
@@ -73,6 +74,13 @@ function pressCtrlF(key = "f"): KeyboardEvent {
     window.dispatchEvent(event);
   });
   return event;
+}
+
+/** Passes on the dock, once there. */
+function DockOf({ found }: { found: (api: ReturnType<typeof useDock>) => void }) {
+  const api = useDock();
+  useEffect(() => found(api));
+  return null;
 }
 
 /** A frame passing: dockview shows Views over their Groups at the next. */
@@ -324,6 +332,36 @@ describe("the Workbench", () => {
         preview: true,
       }),
     );
+  });
+
+  it("goes back by the mouse's side button in the Group a Panel moved to", async () => {
+    saveGrid([{ tabs: ["p", "q"] }, { tabs: ["r"] }], "HORIZONTAL");
+    let dock: ReturnType<typeof useDock> = null;
+    renderWithQueries(
+      <ViewOpener>
+        <Workbench />
+        <DockOf
+          found={(api) => {
+            dock = api;
+          }}
+        />
+      </ViewOpener>,
+    );
+    await nextFrame();
+    await userEvent.click(screen.getByRole("tab", { name: "q" })); // Group 1: p, then q
+    await userEvent.click(screen.getByRole("tab", { name: "r" }));
+    const api = dock as unknown as NonNullable<ReturnType<typeof useDock>>;
+    act(() => api.getPanel("q")?.api.moveTo({ group: api.groups.find(({ id }) => id === "2") }));
+    await nextFrame();
+    expect(groups()).toEqual([["p"], ["r", "q"]]); // Group 2: r, then q
+    const q = screen.getByRole("tab", { name: "q" });
+    fireEvent.mouseUp(within(q).getByText("q"), { button: 3 }); // over its tab
+    await nextFrame();
+    const shown = (group: Element) =>
+      [...group.querySelectorAll("[role=tab]")]
+        .find((tab) => tab.closest(".dv-tab")?.classList.contains("dv-active-tab"))
+        ?.getAttribute("aria-label");
+    expect([...document.querySelectorAll(".dv-groupview")].map(shown)).toEqual(["p", "r"]);
   });
 
   describe("with previews", () => {

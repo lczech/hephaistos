@@ -11,7 +11,7 @@ import { useSideButtons } from "./visits";
 
 /** A Group's buttons next to its tabs: "+" opens a View at hand in it; the View menu has all. */
 export function GroupActions({ containerApi, group }: IDockviewHeaderActionsProps) {
-  const sideButtons = useSideButtons(group);
+  const sideButtons = useSideButtons(() => group);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.actions} onMouseUp={sideButtons}>

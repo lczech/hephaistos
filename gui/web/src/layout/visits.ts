@@ -43,11 +43,13 @@ export const VisitsContext = createContext<RefObject<Visits | null> | null>(null
 /**
  * The mouse's side buttons over a part of a Group, its tabs, its View, or its placeholder: back
  * and forward there. The Group is the part's own, as dockview gives it, not found by where its
- * elements are: dockview draws Views over their Groups, not in them.
+ * elements are: dockview draws Views over their Groups, not in them. Asked for as the button
+ * is pressed: a Panel moved to another Group is not drawn anew.
  */
-export function useSideButtons(group: IDockviewGroupPanel | undefined) {
+export function useSideButtons(groupOf: () => IDockviewGroupPanel | undefined) {
   const visits = useContext(VisitsContext);
   return (event: MouseEvent) => {
+    const group = groupOf();
     if (group === undefined || (event.button !== BACK && event.button !== FORWARD)) return;
     visits?.current?.go(group, event.button === BACK);
   };

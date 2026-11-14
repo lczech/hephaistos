@@ -17,7 +17,7 @@ export function ViewTab(props: IDockviewPanelHeaderProps) {
   const address = asAddress(props.params);
   const Icon = address && viewIcon(address);
   const preview = isPreview(props.params);
-  const sideButtons = useSideButtons(props.api.group);
+  const sideButtons = useSideButtons(() => props.api.group);
   const { api } = props;
   const title = useSyncExternalStore(
     (changed) => {

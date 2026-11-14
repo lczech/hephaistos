@@ -23,7 +23,7 @@ function useGroupCount(api: DockviewApi): number {
 /** What an empty Group shows: Views at hand to open in it, and, unless it is the last, closing it. */
 export function Placeholder({ containerApi, group }: IWatermarkPanelProps) {
   const groups = useGroupCount(containerApi);
-  const sideButtons = useSideButtons(group);
+  const sideButtons = useSideButtons(() => group);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the mouse's side buttons; Alt+←/→ by keyboard
     <div className={styles.placeholder} onMouseUp={sideButtons}>
