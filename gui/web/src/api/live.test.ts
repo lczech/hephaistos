@@ -168,13 +168,20 @@ describe("the live connection", () => {
     expect(token()).toBeNull();
   });
 
-  it("keeps a newer token than the one refused", () => {
-    start();
+  it("keeps a newer token than the one refused, and connects with it", () => {
+    const { connection } = start();
     act(() => lastSocket().open());
     window.history.replaceState(null, "", "/#token=renewed");
     takeTokenFromUrl();
-    act(() => lastSocket().drop(4401, "wrong token"));
+    const refused = lastSocket();
+    act(() => refused.drop(4401, "wrong token"));
     expect(token()).toBe("renewed");
+    // Connected again with it, not live meanwhile.
+    expect(connection().state).toBe("disconnected");
+    wait(FIRST_DELAY);
+    expect(lastSocket()).not.toBe(refused);
+    act(() => lastSocket().open());
+    expect(lastSocket().sent).toEqual([JSON.stringify({ token: "renewed" })]);
   });
 
   it("asks again on focus for what no hint covers", () => {

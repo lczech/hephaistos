@@ -177,9 +177,10 @@ class LiveConnection {
     socket.onclose = (event: CloseEvent) => {
       if (socket !== this.socket) return;
       this.socket = null;
-      // Refused: the page then shows how to get the token.
+      // Refused: the page then shows how to get the token; unless a newer one came meanwhile,
+      // tried next.
       if (event.code === REFUSED) forgetToken(sent);
-      else this.lost();
+      if (event.code !== REFUSED || token() !== null) this.lost();
     };
   }
 
