@@ -1,4 +1,4 @@
-import { linkSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, linkSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -44,9 +44,21 @@ async function oneRunAtATime(): Promise<void> {
       if (holderOf() === holder) unlinkSync(LOCK);
       continue;
     }
-    if (!said) console.error(`Waiting for the test run ${holder} in this checkout to end…`);
+    if (!said) say(`Waiting for the test run ${holder} in this checkout to end…`);
     said = true;
     await sleep(1000);
+  }
+}
+
+/** Says so on the terminal too, where the output is kept, e.g. by the pre-push hook until it
+ * fails: else a push would wait without saying why. */
+function say(message: string): void {
+  console.error(message);
+  if (process.stderr.isTTY) return;
+  try {
+    appendFileSync("/dev/tty", `${message}\n`);
+  } catch {
+    // No terminal, e.g. in CI or an editor.
   }
 }
 
