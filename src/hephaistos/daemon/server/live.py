@@ -298,6 +298,8 @@ class Live:
                 for client in list(self._clients):
                     client.close(FAILED, "live hints failed; see the log")
             finally:
+                # Before the next await: a client joining while this one closes starts its own.
+                self._loop = None
                 await loop.run_in_executor(thread, looker.close)
 
 

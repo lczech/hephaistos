@@ -4,6 +4,7 @@ import shutil
 import stat
 import sys
 import threading
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -344,6 +345,36 @@ def test_a_failing_live_loop_closes_connections(
     assert closed.code == live.FAILED
     assert closed.reason == "live hints failed; see the log"
     assert "live hints failed" in caplog.text
+
+
+def test_a_client_joining_as_the_loop_ends_gets_a_loop(
+    client: TestClient,
+    paths: Paths,
+    counts: Counts,
+    looked: threading.Event,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    closing, closed = threading.Event(), threading.Event()
+    close = live.Looker.close
+
+    def slow_close(self: live.Looker) -> None:
+        closing.set()
+        assert closed.wait(10)
+        close(self)
+
+    monkeypatch.setattr(live.Looker, "close", slow_close)
+    with _connect(client) as socket:
+        _admitted(socket, paths, looked)
+    assert closing.wait(10), "the loop did not end"
+    looked.clear()
+    with _connect(client) as socket:
+        socket.send_json({"token": token.token(paths)})
+        deadline = time.monotonic() + 10
+        while counts.live == 0:  # joined while the first loop still closes
+            assert time.monotonic() < deadline
+            time.sleep(0.01)
+        closed.set()
+        assert looked.wait(10), "no loop looks for the client that joined"
 
 
 def test_closes_a_client_that_falls_behind(caplog: pytest.LogCaptureFixture) -> None:
