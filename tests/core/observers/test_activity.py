@@ -472,3 +472,23 @@ def test_removed_worktree_is_kept_and_its_name_reused(
         [current] = clones.find(session, repo).worktrees
         assert current.id == again.subject
         assert subjects.paths(session, [added]) == {added.subject: side}
+
+
+def test_commits_in_a_worktree_of_a_bare_clone_are_the_worktrees_only(
+    paths: Paths, origin: Path, tmp_path: Path
+) -> None:
+    # A bare Clone keeps no HEAD reflog; git would list HEAD's branch's reflog instead.
+    machines.set_up(paths, "laptop")
+    bare = clone(origin, tmp_path / "bare.git", bare=True)
+    _add(paths, bare)
+    observer.observe(paths)
+    with read_session(paths) as session:
+        active_at = clones.find(session, bare).state.active_at
+    wt = tmp_path / "wt"
+    git(bare, "worktree", "add", "--quiet", str(wt), "main")
+    _commit(wt, "In wt")
+    assert _kinds(observer.observe(paths)) == ["worktree.added", "worktree.committed"]
+    _commit(wt, "Again in wt")
+    assert _kinds(observer.observe(paths)) == ["worktree.committed"]
+    with read_session(paths) as session:
+        assert clones.find(session, bare).state.active_at == active_at

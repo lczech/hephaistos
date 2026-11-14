@@ -91,15 +91,26 @@ class Known:
         return None if name in self.worktree_logs else self.removed_logs.get(name)
 
 
-def _unread(top: Path, cursor: Cursor) -> tuple[list[git.ReflogEntry], bool]:
+def _head_reflog(top: Path, git_dir: Path, limit: int | None = None) -> list[git.ReflogEntry]:
+    """The newest entries of the HEAD reflog of the Checkout at `top`, or all.
+
+    Without a HEAD reflog, as in a bare repository, git would list the reflog of HEAD's
+    branch, which a Worktree on that branch writes to; none is read then.
+    """
+    if not (git_dir / "logs" / "HEAD").is_file():
+        return []
+    return git.reflog(top, limit=limit)
+
+
+def _unread(top: Path, git_dir: Path, cursor: Cursor) -> tuple[list[git.ReflogEntry], bool]:
     """The HEAD reflog's entries after `cursor`, oldest first, and whether its entry is there.
 
     If it is not, e.g. expired, the entries after its time.
     """
-    entries = git.reflog(top, limit=PAGE)
+    entries = _head_reflog(top, git_dir, PAGE)
     found = activity.unread(entries, cursor)
     if found is None and len(entries) == PAGE:
-        entries = git.reflog(top)
+        entries = _head_reflog(top, git_dir)
         found = activity.unread(entries, cursor)
     return (activity.newer(entries, cursor), False) if found is None else (found, True)
 
@@ -134,8 +145,8 @@ def head_activity(top: Path, git_dir: Path, cursor: Cursor | None) -> CheckoutAc
     Without a cursor, reading starts at the end: nothing was done yet.
     """
     if cursor is None:
-        return CheckoutActivity((), activity.end(git.reflog(top, limit=1)))
-    entries, _ = _unread(top, cursor)
+        return CheckoutActivity((), activity.end(_head_reflog(top, git_dir, 1)))
+    entries, _ = _unread(top, git_dir, cursor)
     return _with_bodies(top, _activity(entries, git_dir, cursor))
 
 
@@ -144,7 +155,7 @@ def continued_activity(top: Path, git_dir: Path, cursor: Cursor) -> CheckoutActi
 
     That tells whether a Checkout's history continues from the cursor.
     """
-    entries, found = _unread(top, cursor)
+    entries, found = _unread(top, git_dir, cursor)
     return _with_bodies(top, _activity(entries, git_dir, cursor)) if found else None
 
 

@@ -52,6 +52,7 @@ A new branch's reflog gives its creation time and start, or shows that it was re
 
 Reflog messages are git's text, stable in practice but unspecified; tests pin them with real git.
 Bare repositories keep no reflogs by default.
+A Checkout without a HEAD reflog, as a bare Clone, gives no HEAD activity, although git would read the reflog of its branch instead.
 
 ## Activity
 
