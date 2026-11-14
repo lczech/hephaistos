@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { act } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { lastSocket } from "../test/live";
+import { FakeSocket, lastSocket } from "../test/live";
 import { renderWithQueries, serve } from "../test/server";
 import { takeTokenFromUrl, token } from "../token";
 import {
@@ -159,6 +159,21 @@ describe("the live connection", () => {
     const lost = lastSocket();
     act(() => window.dispatchEvent(new Event("focus")));
     expect(lastSocket()).not.toBe(lost);
+  });
+
+  it("keeps one connection when focused while connecting again", () => {
+    const { connection } = start();
+    act(() => lastSocket().drop());
+    wait(FIRST_DELAY); // tried again: connecting
+    const retry = lastSocket();
+    // Coming back to the page tells of focus twice: its window, and the page shown.
+    act(() => window.dispatchEvent(new Event("focus")));
+    act(() => document.dispatchEvent(new Event("visibilitychange", { bubbles: true })));
+    const sockets = FakeSocket.opened.slice(FakeSocket.opened.indexOf(retry));
+    expect(sockets.filter((socket) => !socket.closed)).toEqual([lastSocket()]);
+    // One left behind cannot say it is live.
+    act(() => retry.open());
+    expect(connection().state).toBe("disconnected");
   });
 
   it("forgets a token the Server refuses", () => {

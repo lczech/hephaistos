@@ -153,6 +153,7 @@ class LiveConnection {
     if (connection.state !== "disconnected") return;
     clearTimeout(this.retry);
     this.delay = FIRST_DELAY;
+    this.drop(); // one still connecting, maybe stuck: else both would act
     this.connect();
   }
 
