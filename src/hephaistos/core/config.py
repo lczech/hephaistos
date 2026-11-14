@@ -304,7 +304,7 @@ def _checked(leaf: _Leaf, value: object, where: str) -> object:
     """A value of the setting's type within its limits; raises ConfigError otherwise."""
     kind = leaf.kind
     if issubclass(kind, StrEnum):
-        if value not in set(kind):
+        if not isinstance(value, str) or value not in set(kind):
             choices = ", ".join(kind)
             raise ConfigError(f"{where} must be one of {choices}, not {_value_text(value)}")
         return kind(value)

@@ -126,6 +126,8 @@ def test_files_for() -> None:
             'time_format = "long"\n',
             'time_format must be one of auto, relative, recent, short, full, not "long"',
         ),
+        ('time_format = ["auto"]\n', r'time_format must be one of .*, not \["auto"\]'),
+        ("[machine]\nchassis = {a = 1}\n", r'machine.chassis must be one of .*, not \{"a": 1\}'),
         ('[git]\ntimeout = "1m"\n', 'git.timeout must be a number, not "1m"'),
         ("[git]\ntimeout = 0\n", "git.timeout must be more than 0, not 0.0"),
         ("[observe]\nworkers = 0\n", "observe.workers must be at least 1, not 0"),
