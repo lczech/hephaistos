@@ -39,6 +39,12 @@ describe("the window's keys", () => {
     expect(keyAction(key("q", control))).toBe("quit");
   });
 
+  it("are the same with Caps Lock on, which turns the case of letters", () => {
+    expect(keyAction(key("R", control))).toBe("reload");
+    expect(keyAction(key("Q", control))).toBe("quit");
+    expect(keyAction(key("i", { control: true, shift: true }))).toBe("devTools");
+  });
+
   it("leave all others to the page", () => {
     expect(keyAction(key("w", control))).toBeNull();
     expect(keyAction(key("t", control))).toBeNull();

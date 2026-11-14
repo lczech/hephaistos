@@ -47,5 +47,8 @@ const WITH_CONTROL_SHIFT: Record<string, KeyAction> = { I: "devTools", "+": "zoo
 export function keyAction(key: Key): KeyAction | null {
   if (key.type !== "keyDown" || key.alt || key.meta) return null;
   if (!key.control) return key.shift ? null : (PLAIN[key.key] ?? null);
-  return (key.shift ? WITH_CONTROL_SHIFT : WITH_CONTROL)[key.key] ?? null;
+  // A letter in the case Shift gives it, whatever Caps Lock makes of it; a named key as it is.
+  const single = key.key.length === 1;
+  if (key.shift) return WITH_CONTROL_SHIFT[single ? key.key.toUpperCase() : key.key] ?? null;
+  return WITH_CONTROL[single ? key.key.toLowerCase() : key.key] ?? null;
 }
