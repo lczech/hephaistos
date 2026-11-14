@@ -247,6 +247,16 @@ def _log_observed(path: Path, observation: object, started: float) -> None:
     log.debug("observed %s", path, extra={"outcome": outcome, "duration": duration})
 
 
+def _unborn_start(top: Path) -> Cursor:
+    """Where to read the HEAD reflog from, at the first observation of an unborn HEAD.
+
+    git cannot list that reflog until HEAD has a commit, so reading starts after this
+    moment, by git's clock; the entries already there, e.g. before `checkout --orphan`,
+    are not activity. Without a reflog, all of it is new.
+    """
+    return Cursor(int(time.time()), "") if git.has_reflog(top) else BEGINNING
+
+
 def _observed_clone(known: Known) -> CloneObservation:
     """`clone_observation`, raising GitError where git fails."""
     path = known.path
@@ -260,7 +270,9 @@ def _observed_clone(known: Known) -> CloneObservation:
     snapshot = git.snapshot(location)
     listed = git.worktrees(path, location.common_dir)
     if snapshot.head is None:
-        read = CloneActivity((), known.head_log or BEGINNING, (), known.push_log or {}, {})
+        head_log = known.head_log or _unborn_start(path)
+        push_log = push_activity(path, None)[1] if known.push_log is None else known.push_log
+        read = CloneActivity((), head_log, (), push_log, {})
     else:
         head = head_activity(path, location.common_dir, known.head_log)
         pushes, push_cursors = push_activity(path, known.push_log)

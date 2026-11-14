@@ -19,7 +19,10 @@ from hephaistos.core.utils.git import ReflogEntry
 
 @dataclass(frozen=True)
 class Cursor:
-    """Where reading a reflog stopped: the last entry read, by its time and digest."""
+    """Where reading a reflog stopped: the last entry read, by its time and digest.
+
+    Without a digest, before any entry was read: what follows `seconds` is unread.
+    """
 
     seconds: int
     digest: str  # empty before the first entry

@@ -606,6 +606,11 @@ def reflog(top: Path, ref: str = "HEAD", *, limit: int | None = None) -> list[Re
     return _reflog(top, *([f"--max-count={limit}"] if limit else []), ref)
 
 
+def has_reflog(top: Path, ref: str = "HEAD") -> bool:
+    """Whether a ref has a reflog, which it can have before it has a commit."""
+    return run(top, "reflog", "exists", ref).returncode == 0
+
+
 def bodies(top: Path, commits: Collection[str]) -> dict[str, str]:
     """The messages of these commits after their subjects, by commit; missing ones left out."""
     if not commits:

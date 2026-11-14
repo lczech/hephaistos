@@ -492,3 +492,20 @@ def test_commits_in_a_worktree_of_a_bare_clone_are_the_worktrees_only(
     assert _kinds(observer.observe(paths)) == ["worktree.committed"]
     with read_session(paths) as session:
         assert clones.find(session, bare).state.active_at == active_at
+
+
+def test_clone_added_on_an_unborn_branch_counts_from_the_first_observation(
+    paths: Paths, origin: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    machines.set_up(paths, "laptop")
+    repo = clone(origin, tmp_path / "repo")
+    _push(repo, "origin", "main", "Before")
+    git(repo, "checkout", "--quiet", "--orphan", "pages")
+    _add(paths, repo)
+    assert observer.observe(paths).events == []
+    monkeypatch.setenv("GIT_COMMITTER_DATE", "2090-01-01T00:00:00Z")
+    commit = _commit(repo, "First page")
+    result = observer.observe(paths)
+    assert _kinds(result) == ["clone.branch_created", "clone.committed"]
+    assert result.events[1].payload["head"]["new"] == commit
+    assert observer.observe(paths).events == []

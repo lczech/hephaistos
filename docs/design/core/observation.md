@@ -35,6 +35,7 @@ Git activity comes from git's reflogs (`git log --walk-reflogs`).
 Each Checkout has a cursor per reflog: the last entry read, by its time and a digest, so that expiry does not move it.
 If its entry is gone, reading continues after its time.
 The first read starts at the end, as `clone register` observes right away.
+On an unborn branch, where git cannot list the HEAD reflog, it starts after the time of the first read, by git's clock.
 With `clone register --import-history`, it starts at the beginning.
 A Worktree found later starts at the beginning, as all of its reflog is new.
 
