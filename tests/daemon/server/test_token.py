@@ -1,6 +1,8 @@
 import os
 import stat
 
+import pytest
+
 from hephaistos.core.utils.paths import TOKEN_NAME, Paths
 from hephaistos.daemon.server import token
 from hephaistos.daemon.server.token import TokenFile
@@ -50,6 +52,23 @@ def test_the_server_sees_a_renewed_token(paths: Paths) -> None:
     assert known.current() == renewed
     os.unlink(paths.token)  # noqa: PTH108 - as a user might
     assert known.current() not in {first, renewed}
+
+
+def test_a_token_renewed_while_read_is_seen(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
+    known = TokenFile(paths)
+    known.current()
+    token.renew(paths)
+    read = token.token
+
+    def renewed_right_after(paths: Paths) -> str:
+        value = read(paths)
+        token.renew(paths)  # as a concurrent `daemon token --renew` would
+        return value
+
+    monkeypatch.setattr(token, "token", renewed_right_after)
+    known.current()
+    monkeypatch.setattr(token, "token", read)
+    assert known.current() == token.token(paths)
 
 
 def test_matches() -> None:

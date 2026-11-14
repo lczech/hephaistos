@@ -92,6 +92,9 @@ class TokenFile:
         seen = None if info is None else (info.st_ino, info.st_mtime_ns)
         if seen is None or seen != self._seen:
             self._value = token(self._paths)
-            info = self._paths.token.stat()
-            self._seen = (info.st_ino, info.st_mtime_ns)
+            if seen is None:  # created just now
+                info = self._paths.token.stat()
+                seen = (info.st_ino, info.st_mtime_ns)
+            # As seen before reading: a renewal while reading makes the next call read again.
+            self._seen = seen
         return self._value
