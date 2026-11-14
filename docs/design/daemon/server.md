@@ -15,7 +15,7 @@ A client learns another Machine's port by asking over SSH (`daemon status --json
 
 Any user of a Machine can listen on a free port of 127.0.0.1, also on 8264 before our Daemon starts.
 Clients connecting there would send that user the token.
-So our clients send the token only to a port that Linux lists as the user's (`/proc/net/tcp`).
+So our clients send the token only to a port that Linux lists as the user's (`/proc/net/tcp` and `/proc/net/tcp6`, as a dual-stack IPv6 socket takes connections to 127.0.0.1 too).
 `daemon token --url` refuses otherwise.
 A Server that finds its port taken says by whom, and to renew the token.
 Our links name `127.0.0.1`, as `localhost` may first try IPv6, where someone else could listen.

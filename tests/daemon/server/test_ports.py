@@ -16,14 +16,42 @@ TABLE = """\
 """
 
 
-def test_holder_from_the_table(tmp_path: Path) -> None:
-    table = tmp_path / "tcp"
+TABLE6 = """\
+  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
+   0: 00000000000000000000000000000000:2048 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1237        0 5 1
+   1: 0000000000000000FFFF00000100007F:204B 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1238        0 6 1
+   2: 00000000000000000000000001000000:204C 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1239        0 7 1
+"""  # noqa: E501 - as Linux prints it
+
+
+def test_holder_from_the_tables(tmp_path: Path) -> None:
+    table, table6, missing = tmp_path / "tcp", tmp_path / "tcp6", tmp_path / "missing"
     table.write_text(TABLE)
-    assert ports.holder(8264, table) == 1234  # 127.0.0.1, listening
-    assert ports.holder(8265, table) == 1235  # 0.0.0.0 also takes 127.0.0.1's connections
-    assert ports.holder(8266, table) is None  # 192.168.1.1 does not
-    assert ports.holder(8267, table) is None
-    assert ports.holder(8264, tmp_path / "missing") is None
+    table6.write_text(TABLE6)
+    assert ports.holder(8264, table, missing) == 1234  # 127.0.0.1, listening
+    assert ports.holder(8265, table, missing) == 1235  # 0.0.0.0 also takes 127.0.0.1's
+    assert ports.holder(8266, table, missing) is None  # 192.168.1.1 does not
+    assert ports.holder(8267, table, missing) is None
+    assert ports.holder(8264, missing, missing) is None
+    assert ports.holder(8264, missing, table6) == 1237  # ::, dual-stack as by default
+    assert ports.holder(8264, table, table6) == 1234  # IPv4 first: our own Server
+    assert ports.holder(8267, missing, table6) == 1238  # ::ffff:127.0.0.1
+    assert ports.holder(8268, missing, table6) is None  # ::1 takes no IPv4
+
+
+def test_holder_of_a_real_dual_stack_socket() -> None:
+    try:
+        listening = socket.socket(socket.AF_INET6)
+    except OSError as error:
+        pytest.skip(f"no IPv6 here: {error}")
+    with listening:
+        try:
+            listening.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            listening.bind(("::", 0))
+        except OSError as error:
+            pytest.skip(f"no IPv6 here: {error}")
+        listening.listen()
+        assert ports.holder(listening.getsockname()[1]) == os.getuid()
 
 
 def test_holder_of_a_real_socket() -> None:
