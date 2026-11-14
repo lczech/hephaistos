@@ -14,7 +14,15 @@ from typing import Any
 import pytest
 
 from hephaistos.cli.main import run
+from hephaistos.core.db.sessions import write_session
+from hephaistos.core.db.tables import Table
+from hephaistos.core.events.kinds import EventKind
+from hephaistos.core.registry import clones, records, repositories
+from hephaistos.core.registry.clones import Clone
+from hephaistos.core.registry.filesystems import Filesystem
+from hephaistos.core.state import clones as clone_states
 from hephaistos.core.utils import logs
+from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
@@ -137,6 +145,27 @@ def needs_git(*version: int) -> pytest.MarkDecorator:
     """Skips a test with an older git; `scripts/test_git_versions.sh` runs newer ones."""
     shown = ".".join(map(str, version))
     return pytest.mark.skipif(git_version() < version, reason=f"needs git {shown}")
+
+
+def foreign_clone(paths: Paths, repository: str, path: Path) -> Clone:
+    """The repository at `path`, registered as a Clone of `repository` on a Filesystem that this
+    Machine does not mount, as a Peer would have registered it."""
+    filesystem = Filesystem(id=new_id(), name="peer")
+    candidate = clones.inspect(path)
+    with write_session(paths) as session:
+        records.add(
+            session, Table.REGISTRY_FILESYSTEMS, EventKind.FILESYSTEM_REGISTERED, filesystem
+        )
+        clone = Clone(
+            id=new_id(),
+            repository_id=repositories.by_name(session, repository).id,
+            filesystem_id=filesystem.id,
+            resolved_path=candidate.resolved_path,
+            display_path=candidate.display_path,
+        )
+        records.add(session, Table.REGISTRY_CLONES, EventKind.CLONE_REGISTERED, clone)
+        clone_states.add(session, clone.id, candidate.snapshot)
+    return clone
 
 
 def run_cli(monkeypatch: pytest.MonkeyPatch, *args: str, program: str = "hephaistos") -> object:

@@ -16,11 +16,11 @@ from hephaistos.cli.main import app as cli
 from hephaistos.core import config, serialize
 from hephaistos.core.utils import commit_graph, logs
 from hephaistos.core.utils.paths import Paths, short_path
-from hephaistos.daemon.server import token
+from hephaistos.daemon.server import token, web
 from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.watcher.worker import PassFailed
-from support import FakeWatcher, git
+from support import FakeWatcher, foreign_clone, git
 from support import clone as clone_of
 
 VERSION = "0.1.0 (test)"
@@ -221,6 +221,27 @@ def test_events_of_several_repositories_and_machines(client: TestClient) -> None
     assert client.get("/api/events", params={"machine": nobody}).json() == []
 
 
+def test_events_of_a_checkout_or_priority_as_the_cli_lists_them(
+    client: TestClient, repo: Path
+) -> None:
+    """The filters that the Events View links to, which only the CLI's tests cover otherwise."""
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "two")  # of low priority
+    assert runner.invoke(cli, ["observe"]).exit_code == 0
+    [clone] = _cli("clone", "list")
+    [worktree] = _cli("worktree", "list")
+    every = _cli("event", "list", "--limit", "0", "--reverse")
+    side = str(repo.parent / "side")
+    chosen = [
+        ({"clone": clone["id"]}, ["--clone", str(repo)]),
+        ({"worktree": worktree["id"]}, ["--worktree", side]),
+        ({"priority": "normal"}, ["--priority", "normal"]),
+    ]
+    for params, options in chosen:
+        expected = _cli("event", "list", "--limit", "0", "--reverse", *options)
+        assert 0 < len(expected) < len(every), options
+        assert client.get("/api/events", params={"limit": 0, **params}).json() == expected
+
+
 @pytest.mark.parametrize(
     ("path", "status", "error"),
     [
@@ -374,6 +395,34 @@ def test_changes_refused(client: TestClient, repo: Path) -> None:
         {
             "error": f"the clone at {short_path(repo)} is missing: nothing is at its path",
             "checkout": {"clone": clone["id"], "worktree": None, "gone": None},
+        },
+    )
+
+
+def test_checkouts_on_another_machine_or_away_are_refused(
+    client: TestClient, repo: Path, paths: Paths
+) -> None:
+    peer = foreign_clone(paths, "proj", clone_of(repo, repo.parent / "peer"))
+    elsewhere = client.get("/api/changes", params={"clone": str(peer.id)})
+    assert (elsewhere.status_code, elsewhere.json()) == (
+        404,
+        {
+            "error": f"the clone at {short_path(peer.display_path)} is on another machine",
+            "checkout": {"clone": str(peer.id), "worktree": None, "gone": None},
+        },
+    )
+    [clone] = [found for found in _cli("clone", "list") if found["id"] != str(peer.id)]
+    [worktree] = _cli("worktree", "list")
+    side = repo.parent / "side"
+    git(repo, "worktree", "lock", "--reason", "away", str(side))
+    assert runner.invoke(cli, ["observe"]).exit_code == 0  # which reads the lock
+    shutil.rmtree(side)
+    away = client.get("/api/changes", params={"worktree": worktree["id"]})
+    assert (away.status_code, away.json()) == (
+        404,
+        {
+            "error": f"the worktree at {short_path(side)} is missing (locked: away)",
+            "checkout": {"clone": clone["id"], "worktree": worktree["id"], "gone": None},
         },
     )
 
@@ -701,6 +750,13 @@ def test_an_unexpected_error_is_logged_not_shown(
     [record] = [record for record in caplog.records if record.levelno == logging.ERROR]
     assert record.getMessage() == "failed: GET /api/machines"
     assert record.exc_info is not None
+    assert {name: response.headers[name] for name in web.HEADERS} == web.HEADERS
+
+
+def test_api_answers_have_the_security_headers(client: TestClient) -> None:
+    response = client.get("/api/info")
+    assert response.status_code == 200
+    assert {name: response.headers[name] for name in web.HEADERS} == web.HEADERS
 
 
 def test_observe_has_the_watcher_pass(client: TestClient, watcher: FakeWatcher) -> None:
@@ -727,3 +783,25 @@ def test_no_docs_but_the_schema_with_the_token(client: TestClient) -> None:
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 200
     assert client.get("/openapi.json", headers={"Authorization": ""}).status_code == 401
+
+
+@pytest.mark.parametrize(
+    "asked",
+    [
+        {"ref": "--output=X"},
+        {"start": "--output=X", "skip": 1},
+        {"ref": "--output=X", "search": "x"},
+        {"branches": "local", "hide": ["--output=X"]},
+        {"branches": "local", "tips": "true", "keep": ["--output=X"]},
+        {"branches": "local", "order": "topo", "until": ["--output=X"], "limit": 10},
+    ],
+)
+def test_revisions_that_look_like_options_reach_git_as_revisions(
+    client: TestClient, repo: Path, asked: dict[str, Any]
+) -> None:
+    [clone] = _cli("clone", "list")
+    where = "/api/graph/lines" if "until" in asked else "/api/history"
+    response = client.get(where, params={"clone": clone["id"], **asked})
+    assert response.status_code != 500, response.text
+    assert not (repo / "X").exists()
+    assert not Path("X").exists()

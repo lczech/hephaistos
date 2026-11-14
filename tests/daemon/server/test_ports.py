@@ -82,6 +82,7 @@ def test_a_squatter_is_named(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_port_0_takes_a_free_one() -> None:
+def test_port_0_takes_a_free_one_on_127_0_0_1_only() -> None:
     with server.bind(0) as bound:
-        assert bound.getsockname()[1] > 0
+        host, port = bound.getsockname()
+    assert (host, port > 0) == ("127.0.0.1", True)

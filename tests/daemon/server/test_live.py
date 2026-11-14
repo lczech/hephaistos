@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import shutil
+import stat
 import sys
 import threading
 from collections.abc import Iterator
@@ -124,6 +125,28 @@ def test_opens_a_replaced_database_again(paths: Paths) -> None:
     assert looker.changes() == ["data"]
     _write(paths)
     assert looker.changes() == ["data"]
+    looker.close()
+
+
+def test_an_unreadable_database_is_logged_once(
+    paths: Paths, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+
+    def warnings() -> int:
+        return sum("cannot read the database" in r.getMessage() for r in caplog.records)
+
+    looker = live.Looker(paths)
+    looker.changes()
+    kept = paths.database.rename(paths.database.with_name("kept"))
+    assert looker.changes() == ["data"]
+    assert looker.changes() == []
+    assert warnings() == 1
+    kept.rename(paths.database)
+    assert looker.changes() == ["data"]
+    paths.database.rename(kept)
+    looker.changes()
+    assert warnings() == 2  # again, as it could read it meanwhile
     looker.close()
 
 
@@ -303,6 +326,26 @@ def test_renewing_the_token_closes_connections(
     assert "renewed" in closed.reason
 
 
+def test_a_failing_live_loop_closes_connections(
+    client: TestClient,
+    paths: Paths,
+    looked: threading.Event,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with _connect(client) as socket:
+        _admitted(socket, paths, looked)
+
+        def broken(_: live.Looker, *, check: bool = False) -> list[live.Hint]:
+            raise RuntimeError(check)
+
+        monkeypatch.setattr(live.Looker, "changes", broken)
+        closed = _until_closed(socket)
+    assert closed.code == live.FAILED
+    assert closed.reason == "live hints failed; see the log"
+    assert "live hints failed" in caplog.text
+
+
 def test_closes_a_client_that_falls_behind(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.WARNING)
     behind = live.Client("127.0.0.1", "token")
@@ -341,3 +384,16 @@ def test_the_server_needs_the_websocket_library(
         asyncio.run(server.run())
     assert reported[-1].error is not None
     assert "websockets" in reported[-1].error
+
+
+def test_the_server_makes_the_token_private_at_start(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    token.token(paths)
+    paths.token.chmod(0o644)
+    monkeypatch.setitem(sys.modules, "websockets", None)  # to stop right after
+    server = Server(paths, "0.1.0", lambda _: None, FakeWatcher().observe)
+    with pytest.raises(PartError):
+        asyncio.run(server.run())
+    assert stat.S_IMODE(paths.token.stat().st_mode) == 0o600
+    assert f"others could read {paths.token}; now only you can" in caplog.messages
