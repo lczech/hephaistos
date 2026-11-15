@@ -41,7 +41,7 @@ export interface DiffShow {
   large: number | undefined; // lines changed above which a diff waits to be shown
 }
 
-const AHEAD = "1500px"; // how far beyond the scrolled area a diff is asked for
+export const AHEAD = "1500px"; // how far beyond the scrolled area a diff is asked for
 
 /** A diff's place until it is asked for, as high as it is likely to be. */
 function Waiting({ height }: { height: CssVars }) {

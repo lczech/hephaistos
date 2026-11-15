@@ -8,6 +8,7 @@ import { json, renderWithQueries, serve } from "../../test/server";
 import type { Params } from "../address";
 import { DiffView } from "./DiffView";
 import styles from "./DiffView.module.css";
+import { AHEAD } from "./FileSection";
 
 // What the renderer draws, as a browser lays it out: guards against its upgrades, of what the
 // GUI counts on but the renderer does not promise.
@@ -170,6 +171,45 @@ async function drawn(path: string): Promise<HTMLElement> {
   );
 }
 
+/** The element that scrolls the stack holding this section (or what is in it). */
+function scrollerOf(element: Element): HTMLElement {
+  return element.parentElement?.closest("[class*=diff]") as HTMLElement;
+}
+
+/** Two animation frames: the browser laid out and painted what changed before. */
+const twoFrames = () =>
+  new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+
+/**
+ * Once each of these files near the scrolled area (`AHEAD`) was asked for and, unless folded,
+ * drawn, and which are near, and how high, stayed so over two frames: then their places are
+ * final, so no other file comes near, e.g. after folding one.
+ */
+async function nearAsked(asked: string[], paths: string[]): Promise<void> {
+  // The files near, each with its height; throws until each was asked for and drawn.
+  const near = () => {
+    const sections = paths.map((name) => screen.getByRole("region", { name }));
+    const view = scrollerOf(sections[0] as HTMLElement).getBoundingClientRect();
+    const ahead = Number.parseFloat(AHEAD);
+    return sections.flatMap((section, at) => {
+      const { top, bottom, height } = section.getBoundingClientRect();
+      if (bottom < view.top - ahead || top > view.bottom + ahead) return [];
+      expect(asked).toContain(paths[at]);
+      const folded = section.querySelector("[aria-expanded=false]") !== null;
+      if (!folded) expect(section.querySelector("diffs-container")).not.toBeNull();
+      return [[paths[at], height]];
+    });
+  };
+  await waitFor(
+    async () => {
+      const before = near();
+      await twoFrames();
+      expect(near()).toEqual(before);
+    },
+    { timeout: 10_000 },
+  );
+}
+
 /** The text of what a highlight of the page marks: matches found, or the current one. */
 function marked(name: "hephaistos-found" | "hephaistos-found-current"): string[] {
   return [...(CSS.highlights.get(name) ?? [])].map((range) => (range as Range).toString());
@@ -219,9 +259,7 @@ describe("finding in a file's diff", () => {
     serveFiles({ "f.txt": MANY });
     renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "LINE 290", case: "1" });
     await drawnAlone("f.txt");
-    const scroller = screen
-      .getByRole("region", { name: "f.txt" })
-      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const scroller = scrollerOf(screen.getByRole("region", { name: "f.txt" }));
     await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["LINE 290"]));
     // Drawn a little ahead of the view: in it once scrolled.
     await waitFor(() => {
@@ -275,7 +313,7 @@ describe("finding in a file's diff, its lines moved", () => {
     const panel = screen.getByTestId("panel");
     await act(async () => {
       panel.style.width = "500px"; // inline
-      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+      await twoFrames();
     });
     await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 12"]));
   });
@@ -322,9 +360,7 @@ describe("finding in all files' diffs", () => {
     ).toBeNull();
     await userEvent.keyboard("{Shift>}{Enter}{/Shift}"); // round, to the last
     expect(count()).toHaveTextContent("6 of 6");
-    const scroller = screen
-      .getByRole("region", { name: "a.txt" })
-      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const scroller = scrollerOf(screen.getByRole("region", { name: "a.txt" }));
     const file = screen.getByRole("region", { name: "f.txt" });
     await waitFor(
       () => {
@@ -367,9 +403,7 @@ describe("finding in untracked files' diffs", () => {
     await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
     await userEvent.keyboard("{Shift>}{Enter}{/Shift}"); // round, to the last
     expect(count()).toHaveTextContent("31 of 31");
-    const scroller = screen
-      .getByRole("region", { name: "a.txt" })
-      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const scroller = scrollerOf(screen.getByRole("region", { name: "a.txt" }));
     await waitFor(
       () => {
         const [range] = [...(CSS.highlights.get("hephaistos-found-current") ?? [])] as Range[];
@@ -410,9 +444,7 @@ describe("finding in an untracked file's diff, stepped through", () => {
     await drawn("a.txt");
     await userEvent.click(await screen.findByRole("button", { name: "Show all" }));
     await waitFor(() => expect(count()).toHaveTextContent("1 of 2"), { timeout: 10_000 });
-    const scroller = screen
-      .getByRole("region", { name: "a.txt" })
-      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const scroller = scrollerOf(screen.getByRole("region", { name: "a.txt" }));
     const current = () => [...(CSS.highlights.get("hephaistos-found-current") ?? [])][0] as Range;
     const inView = () => {
       const line = current()?.getBoundingClientRect();
@@ -453,9 +485,7 @@ describe("finding in an untracked file's diff, scrolled away and back", () => {
     await drawn("a.txt");
     await userEvent.click(await screen.findByRole("button", { name: "Show all" }));
     await waitFor(() => expect(count()).toHaveTextContent("1 of 1"), { timeout: 10_000 });
-    const scroller = screen
-      .getByRole("region", { name: "a.txt" })
-      .parentElement?.closest("[class*=diff]") as HTMLElement;
+    const scroller = scrollerOf(screen.getByRole("region", { name: "a.txt" }));
     const current = () => [...(CSS.highlights.get("hephaistos-found-current") ?? [])][0] as Range;
     await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
     await userEvent.keyboard("{Enter}"); // stepped to, in a file not drawn yet: brought into view
@@ -545,7 +575,10 @@ describe("the renderer draws a diff", () => {
       `b${at}.txt`,
       changed(`b${at}.txt`, 40, [20]),
     ]);
-    serveFiles({ "a.txt": changed("a.txt", 400, [100, 200, 300]), ...Object.fromEntries(below) });
+    const asked = serveFiles({
+      "a.txt": changed("a.txt", 400, [100, 200, 300]),
+      ...Object.fromEntries(below),
+    });
     renderDiff({ width: 1000, height: 600 });
     const body = await drawn("a.txt");
     body.scrollIntoView({ block: "center" }); // its header stuck at the top
@@ -555,6 +588,32 @@ describe("the renderer draws a diff", () => {
     expect(section.getBoundingClientRect().top).toBeLessThan(top);
     await userEvent.click(within(section).getByRole("button", { name: "Diff of a.txt" }));
     expect(header.getBoundingClientRect().top).toBeCloseTo(top, 0); // scrolled by whole pixels
+    // The files folding brought near, before the test ends.
+    await nearAsked(asked, ["a.txt", ...below.map(([path]) => path as string)]);
+  });
+
+  it("in a directory with its header above the file's, both stuck at the top", async () => {
+    const below = Array.from({ length: 10 }, (_, at) => [
+      `src/app/b${at}.txt`,
+      changed(`src/app/b${at}.txt`, 40, [20]),
+    ]);
+    serveFiles({
+      "src/app/a.txt": changed("src/app/a.txt", 400, [100, 200, 300]),
+      ...Object.fromEntries(below),
+    });
+    renderDiff({ width: 1000, height: 600 });
+    const body = await drawn("src/app/a.txt");
+    body.scrollIntoView({ block: "center" });
+    const file = screen.getByRole("region", { name: "src/app/a.txt" });
+    const directory = screen.getByRole("region", { name: "src/app/" });
+    const scroller = scrollerOf(directory);
+    const folder = directory.firstElementChild as HTMLElement;
+    const header = file.firstElementChild as HTMLElement;
+    const box = (element: Element) => element.getBoundingClientRect();
+    expect(box(directory).top).toBeLessThan(box(scroller).top); // scrolled into it
+    expect(box(folder).top).toBeCloseTo(box(scroller).top, 0);
+    expect(box(header).top).toBeCloseTo(box(folder).bottom, 0);
+    expect([box(header).left, box(header).right]).toEqual([box(folder).left, box(folder).right]);
   });
 
   it("inline in a narrow Panel, and as it was while hidden", async () => {
@@ -568,7 +627,7 @@ describe("the renderer draws a diff", () => {
     const resize = (change: Partial<CSSStyleDeclaration>) =>
       act(async () => {
         Object.assign(panel.style, change);
-        await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+        await twoFrames();
       });
     await resize({ width: "500px" });
     await waitFor(() => expect(style()).not.toBe("split"));
