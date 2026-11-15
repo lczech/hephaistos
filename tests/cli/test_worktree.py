@@ -143,6 +143,11 @@ def test_clone_remove_refuses_an_unobserved_worktree(repo: Path) -> None:
     git(repo, "worktree", "add", "--quiet", "-b", "new", str(inside))
     result = runner.invoke(app, ["clone", "unregister", str(inside)])
     assert "is in a worktree" in str(result.exception)
+    observed = runner.invoke(app, ["clone", "unregister", str(repo / ".worktrees" / "feature")])
+    assert str(observed.exception) == (
+        f"{repo / '.worktrees' / 'feature'} is in a worktree of the clone at {repo};"
+        " run this in the clone"
+    )
     assert runner.invoke(app, ["clone", "unregister", str(repo)]).exit_code == 0
 
 

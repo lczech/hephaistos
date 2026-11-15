@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -316,12 +317,14 @@ def test_our_directories_are_made_private(
 ) -> None:
     assert run_cli(monkeypatch, "setup", "--name", "laptop") == 0
     paths.state_dir.chmod(0o755)
+    paths.config_dir.chmod(0o755)  # left as the user keeps it
     capsys.readouterr()
     assert run_cli(monkeypatch, "machine", "show") == 0
     shown = short_path(paths.state_dir)
     assert capsys.readouterr().err == f"warning: others could enter {shown}; now only you can\n"
     assert run_cli(monkeypatch, "machine", "show") == 0
     assert capsys.readouterr().err == ""
+    assert stat.S_IMODE(paths.config_dir.stat().st_mode) == 0o755
 
 
 def test_another_users_directory_is_refused(

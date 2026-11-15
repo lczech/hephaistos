@@ -195,3 +195,25 @@ def test_summaries_say_when_head_last_moved_in_any_checkout(
     assert details.state.active_at is not None
     assert details.state.active_at < later
     assert proj.active_at == later
+    git(repo, "worktree", "remove", str(tmp_path / "feature"))
+    observer.observe(set_up)
+    with read_session(set_up) as session:
+        _, proj = repositories.summaries(session)
+    assert proj.active_at == details.state.active_at  # not that of the removed Worktree
+
+
+def test_summaries_leave_out_unregistered_clones(set_up: Paths, tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo", origin="https://github.com/me/proj.git")
+    with write_session(set_up) as session:
+        repositories.register(session, "proj")
+        clones.register(session, "proj", clones.inspect(repo))
+    observer.observe(set_up)
+    with read_session(set_up) as session:
+        [proj] = repositories.summaries(session)
+    assert proj.remotes
+    assert proj.active_at is not None
+    with write_session(set_up) as session:
+        clones.unregister(session, clones.find_to_unregister(session, repo))
+    with read_session(set_up) as session:
+        [proj] = repositories.summaries(session)
+    assert (proj.clones, proj.remotes, proj.active_at) == (0, (), None)

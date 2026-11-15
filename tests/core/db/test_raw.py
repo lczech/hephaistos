@@ -46,6 +46,14 @@ def test_every_category_but_local_has_its_time_column() -> None:
         assert column is None or column in raw.DECODERS[table]
 
 
+def test_times_end_in_at_and_machines_in_by() -> None:
+    for table in Table:
+        for column, decoder in raw.DECODERS[table].items():
+            kind = values.TYPES[decoder]
+            assert (kind in {"clock", "time"}) == column.endswith("_at"), (table, column)
+            assert not column.endswith("_by") or kind == "id", (table, column)
+
+
 def test_tables(set_up: Paths) -> None:
     with read_session(set_up) as session:
         found = {table.name: table for table in raw.tables(session)}

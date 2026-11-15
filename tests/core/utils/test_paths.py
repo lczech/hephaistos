@@ -1,9 +1,11 @@
 import os
+import socket
 import stat
 from pathlib import Path
 
 import pytest
 
+from hephaistos.core.utils import paths as paths_module
 from hephaistos.core.utils.paths import (
     PRIVATE_MODE,
     ForeignDirectoryError,
@@ -54,6 +56,15 @@ def test_xdg_variables_and_relative_ones_ignored(
     paths = Paths.from_environment({"XDG_DATA_HOME": "/local/data", "XDG_STATE_HOME": "relative"})
     assert paths.data_dir == Path("/local/data/hephaistos", machine_key())
     assert paths.state_dir == tmp_path / ".local/state/hephaistos" / machine_key()
+
+
+def test_machine_key_is_the_os_machine_id_else_the_hostname(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(paths_module, "os_machine_id", lambda: "4c4c4544")
+    assert machine_key() == "4c4c4544"
+    monkeypatch.setattr(paths_module, "os_machine_id", lambda: None)
+    assert machine_key() == socket.gethostname()
 
 
 def test_parse_mountinfo() -> None:

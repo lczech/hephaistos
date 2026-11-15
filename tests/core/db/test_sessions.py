@@ -73,6 +73,17 @@ def test_failed_setup_leaves_nothing_set_up(paths: Paths, monkeypatch: pytest.Mo
     assert paths.database.exists()
 
 
+def test_leftovers_of_a_killed_setup_are_removed(paths: Paths) -> None:
+    paths.data_dir.mkdir(parents=True)
+    building = paths.database.with_name(paths.database.name + ".new")
+    for leftover in (building, Path(f"{building}-wal"), Path(f"{building}-shm")):
+        leftover.write_bytes(b"not a database")
+    machines.set_up(paths)
+    with read_session(paths) as session:
+        assert repositories.summaries(session) == []
+    assert not [path for path in paths.data_dir.iterdir() if ".new" in path.name]
+
+
 def test_journal_mode_follows_filesystem(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
     def network(_: Paths) -> bool:
         return True
