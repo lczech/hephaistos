@@ -3,9 +3,10 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
+import { Copy } from "lucide-react";
 import { type RefObject, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent as pointer } from "vitest/browser"; // real input, as a person's
+import { userEvent as pointer, server } from "vitest/browser"; // real input, as a person's
 import type { ListLayout } from "./kept";
 import { Chevron, List, type ListHandle, type Tone } from "./List";
 import { listColumnHelper, useList } from "./table";
@@ -1024,6 +1025,7 @@ interface Fruity {
   handle?: RefObject<ListHandle | null>;
   tone?: (name: string) => Tone | undefined;
   band?: boolean; // a band below the header, naming the row at the top
+  menu?: boolean; // a menu on each row, and the header sorting by name, with its menu
 }
 
 const FORTY = Array.from({ length: 40 }, (_, at) => `fruit ${at + 1}`);
@@ -1038,11 +1040,12 @@ function Fruity({
   handle,
   tone,
   band,
+  menu,
 }: Fruity) {
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set(open));
   const columns = column.columns([
     column.display({ id: "square", cell: Chevron }),
-    column.accessor("name", { header: "name" }),
+    column.accessor("name", { header: "name", enableSorting: menu === true }),
   ]);
   const table = useList(`fruity-${layout}`, layout, {
     columns,
@@ -1065,6 +1068,14 @@ function Fruity({
         onOpenedChange={setOpened}
         handle={handle}
         tone={tone && ((fruit) => tone(fruit.name))}
+        menu={
+          menu
+            ? (fruit) => ({
+                label: `Actions on ${fruit.name}`,
+                groups: [[{ id: "eat", label: "Eat", icon: Copy, onAction: () => {} }]],
+              })
+            : undefined
+        }
         band={
           band
             ? (fruit, next) => ({
@@ -1095,6 +1106,27 @@ describe("a list's rows, by the keys, as drawn", () => {
     await waitFor(() => expect(focusedText()).not.toBe(down));
     expect(focusedText()).not.toMatch(/^(own|top)/); // back up, not further down
   });
+
+  // Chromium gives a menu asked for by the keyboard the focused element's place, not (0, 0); the
+  // others do not make one of a key pressed by Playwright.
+  it.runIf(server.browser === "chromium")(
+    "opens a row's menu and the header's by Shift+F10 on their first item",
+    async () => {
+      render(<Fruity menu />);
+      (ownRowOf("fruit 1").parentElement as HTMLElement).focus();
+      await pointer.keyboard("{Shift>}{F10}{/Shift}");
+      const menu = await screen.findByRole("menu", { name: "Actions on fruit 1" });
+      expect(within(menu).getByRole("menuitem", { name: "Eat" })).toHaveFocus();
+      await pointer.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+      within(headOf()).getByRole("button", { name: /name/ }).focus();
+      await pointer.keyboard("{Shift>}{F10}{/Shift}");
+      const columns = await screen.findByRole("menu", { name: "Columns" });
+      // The first that can be picked: the only column shown cannot be hidden.
+      const first = columns.querySelector("[role^=menuitem]:not([aria-disabled=true])");
+      expect(first).toHaveFocus();
+    },
+  );
 
   it("goes to the very top by Home", async () => {
     render(<Fruity />);

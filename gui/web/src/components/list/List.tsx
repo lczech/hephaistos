@@ -198,6 +198,15 @@ export function List<TData extends RowData>({
     keyboard: boolean;
     copy: boolean; // asked for on its copy stuck, not on the row itself
   } | null>(null);
+  // Whether the last key pressed in the list asks for a menu (the menu key, Shift+F10): told apart
+  // by the key, as Chromium places such a menu at the element focused, as a click there; jsdom at
+  // (0, 0).
+  const menuKey = useRef(false);
+  const byKeyboard = (event: Clicked) => {
+    const keyed = menuKey.current;
+    menuKey.current = false;
+    return keyed || (event.clientX === 0 && event.clientY === 0);
+  };
   const rowAnchor = useRef<HTMLSpanElement>(null);
   const list = useId();
   const {
@@ -255,7 +264,7 @@ export function List<TData extends RowData>({
     const target = below.closest<HTMLElement>("[data-column]");
     const id = target?.dataset.column;
     const column = id === undefined ? undefined : table.getColumn(id);
-    const keyboard = event.clientX === 0 && event.clientY === 0;
+    const keyboard = byKeyboard(event);
     const at =
       keyboard && target
         ? { x: target.getBoundingClientRect().left, y: target.getBoundingClientRect().bottom }
@@ -277,7 +286,7 @@ export function List<TData extends RowData>({
     if (rowMenu?.(row) === undefined) return;
     event.preventDefault();
     const box = own.getBoundingClientRect();
-    const keyboard = event.clientX === 0 && event.clientY === 0;
+    const keyboard = byKeyboard(event);
     const [x, y] = keyboard ? [0, box.height] : [event.clientX - box.left, event.clientY - box.top];
     setRowMenuAt({ id, x, y, keyboard, copy });
   };
@@ -623,8 +632,14 @@ export function List<TData extends RowData>({
         role="treegrid"
         aria-label={label}
         aria-rowcount={rows.length + 1} // the header too
-        onKeyDown={onKeyDown}
-        onPointerDown={() => grid.current && delete grid.current.dataset.keys}
+        onKeyDown={(event) => {
+          menuKey.current = event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey);
+          onKeyDown(event);
+        }}
+        onPointerDown={() => {
+          menuKey.current = false;
+          if (grid.current) delete grid.current.dataset.keys;
+        }}
         onFocus={() => {
           focusIn.current = true;
         }}
