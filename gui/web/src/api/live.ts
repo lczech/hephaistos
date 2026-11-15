@@ -1,5 +1,5 @@
 // The live connection to this Machine's Server: it hints at what changed, and the queries that
-// show it are asked again. On connecting, everything is, as hints may have been missed.
+// show it are asked again. On connecting, everything shown is, as hints may have been missed.
 
 import { focusManager, type Query, type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useSyncExternalStore } from "react";
@@ -131,10 +131,7 @@ class LiveConnection {
   private watch: ReturnType<typeof setInterval> | undefined;
   private heard = 0; // when a message last arrived
 
-  constructor(
-    private readonly client: QueryClient,
-    private readonly asking: AskAgain,
-  ) {}
+  constructor(private readonly asking: AskAgain) {}
 
   start(): void {
     set({ state: "connecting" });
@@ -168,7 +165,8 @@ class LiveConnection {
       this.heard = Date.now();
       this.delay = FIRST_DELAY;
       set({ state: "live", since: Date.now() });
-      void this.client.invalidateQueries();
+      // As hints are asked again: what is shown, letting what loads end.
+      this.asking.names(Object.keys(KEYS) as KeyName[]);
     };
     socket.onmessage = (event: MessageEvent) => {
       this.heard = Date.now();
@@ -230,7 +228,7 @@ export function useLiveUpdates(): void {
   const client = useQueryClient();
   useEffect(() => {
     const asking = new AskAgain(client);
-    const live = new LiveConnection(client, asking);
+    const live = new LiveConnection(asking);
     live.start();
     let lastPass = Number.NEGATIVE_INFINITY;
     const onFocus = () => {

@@ -67,8 +67,39 @@ describe("the live connection", () => {
     invalidated.mockClear();
     act(() => lastSocket().open());
     expect(lastSocket().sent).toEqual([JSON.stringify({ token: "secret" })]);
-    expect(invalidated.mock.calls).toEqual([[]]);
+    expect(invalidated.mock.calls).toEqual(keysOf(Object.keys(KEYS) as KeyName[]));
     expect(connection()).toEqual({ state: "live", since: Date.now() });
+  });
+
+  it("asks again on connecting as hints do, cutting short nothing loading", async () => {
+    let asked = 0;
+    const waiting: (() => void)[] = [];
+    const aborted: boolean[] = [];
+    function History() {
+      useQuery({
+        queryKey: [...KEYS.history, "x"],
+        queryFn: ({ signal }) => {
+          asked += 1;
+          signal.addEventListener("abort", () => aborted.push(true));
+          return new Promise<number>((resolve) => waiting.push(() => resolve(asked)));
+        },
+      });
+      return createElement(Live);
+    }
+    const { client } = renderWithQueries(createElement(History));
+    const answer = async () => {
+      await act(async () => {
+        for (const done of waiting.splice(0)) done();
+      });
+    };
+    await answer();
+    // Loading anew, with an answer shown, as the connection opens.
+    act(() => void client.refetchQueries({ queryKey: KEYS.history }));
+    expect(asked).toBe(2);
+    await act(async () => lastSocket().open());
+    expect([asked, aborted]).toEqual([2, []]);
+    await answer();
+    expect([asked, aborted]).toEqual([3, []]); // once more, for what was missed meanwhile
   });
 
   it("asks again for what each hint names, and only that", () => {
@@ -126,7 +157,6 @@ describe("the live connection", () => {
     };
     while (client.isFetching() > 0) await answer();
     const before = asked;
-    aborted.length = 0; // loads the opening of the connection cut short
     act(() => lastSocket().receive({ hints: ["data"] }));
     expect(asked).toBe(before + 1);
     // Loading anew, taking longer than the hints a second: not cut short, nor started over.
