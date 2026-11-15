@@ -786,7 +786,7 @@ describe("the Diff View", () => {
       };
 
       /** The Server, with the diffs of all tracked files a page each; returns the pages asked. */
-      function serveFinding(large?: number): string[] {
+      function serveFinding(large?: number, diffs?: () => Promise<Response>): string[] {
         const pages: string[] = [];
         const tracked = ["README.md", "src/b.py"];
         const diffOf = (path: string) => ({ change: change({ path }), patch: PATCHES[path] });
@@ -796,6 +796,7 @@ describe("the Diff View", () => {
           "GET /api/diff": (request) =>
             json(diffOf(new URL(request.url).searchParams.get("path") ?? "")),
           "GET /api/diffs": (request) => {
+            if (diffs) return diffs();
             const skip = Number(new URL(request.url).searchParams.get("skip"));
             pages.push(String(skip));
             const path = tracked[skip] ?? "";
@@ -816,6 +817,21 @@ describe("the Diff View", () => {
 
       const bar = () => screen.getByLabelText("Find", { selector: "search" });
       const status = () => within(bar()).getByRole("status");
+
+      it("says it searches while the files load, and why it cannot once they fail", async () => {
+        vi.stubGlobal("IntersectionObserver", Near);
+        const held: ((answer: Response) => void)[] = [];
+        serveFinding(undefined, () => new Promise<Response>((resolve) => held.push(resolve)));
+        renderWithQueries(<Diff initial={SINCE_HEAD} fragment={{ find: "found" }} />);
+        await waitFor(() => expect(status()).toHaveTextContent("Searching…"));
+        expect(bar()).toHaveAttribute("data-busy");
+        await waitFor(() => expect(held.length).toBeGreaterThan(0));
+        await act(async () => {
+          for (const answer of held) answer(json({ error: "git failed" }, 500));
+        });
+        await waitFor(() => expect(status()).toHaveTextContent("git failed"));
+        expect(bar()).not.toHaveAttribute("data-busy");
+      });
 
       it("finds in all files in the stack's order, untracked ones once open", async () => {
         vi.stubGlobal("IntersectionObserver", Near);

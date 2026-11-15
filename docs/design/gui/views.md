@@ -131,6 +131,7 @@ Turned off, Whole file starts the diff anew, as the renderer cannot collapse lin
 A Diff finds in the lines of its diffs ([interaction](interaction.md#find)): those of one file or of a stack, wherever the diff is scrolled and whether its file is folded.
 A drawn diff's renderer says which lines it has.
 A stack's files are asked for all at once as the find row opens, with their new versions, page by page (`/api/diffs`).
+The find row says it is searching until they come, and why it cannot search if they fail.
 They are searched in the stack's order, untracked files only while their rows are open, after the others.
 Stepping to a match in a folded file unfolds it, and in a large diff shows it, for good, as a click would; typing leaves them.
 Matches are marked in the renderer's shadow DOM, again as it draws.

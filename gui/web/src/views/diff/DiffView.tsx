@@ -222,6 +222,8 @@ export function DiffView({
     setFolded(withPart(folded, part, withFolded(paths, path, false)));
   };
   const found = useDiffFind(files, finding, show.look.whole, reveal);
+  // Why it cannot search the stack, its files not loaded, rather than searching on.
+  const unsearched = query === undefined && all.error ? all.error.message : undefined;
 
   let body: ReactNode;
   if (checkout === undefined || base === undefined) {
@@ -422,7 +424,11 @@ export function DiffView({
           query={finding}
           onChange={setFinding}
           onTypingEnd={endTyping}
-          finding={found.finding}
+          finding={
+            unsearched === undefined
+              ? found.finding
+              : { error: `Could not search: ${unsearched}`, busy: false, in: [] }
+          }
           count={found.count}
           current={found.current}
           onStep={found.step}
