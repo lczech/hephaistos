@@ -496,6 +496,19 @@ def test_versions_larger_than_max_bytes(repo: Path) -> None:
         versions(repo, "HEAD", "index", "a.txt", max_bytes=1000)
 
 
+def test_versions_stay_within_the_checkout(repo: Path, tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("secret\n")
+    (repo / "linked").symlink_to(outside)
+    with pytest.raises(ChangesError, match="path must lie within the checkout"):
+        versions(repo, "HEAD", "working-tree", "linked/secret.txt", max_bytes=1000)
+    (repo / "link.txt").symlink_to(outside / "secret.txt")  # as git shows it: its target
+    assert versions(repo, "HEAD", "working-tree", "link.txt", max_bytes=1000) == Versions(
+        None, str(outside / "secret.txt")
+    )
+
+
 def test_text_that_isnt_utf8(repo: Path) -> None:
     _write(repo, "latin.txt", "café\n".encode("latin-1"))
     found = diff(repo, "index", "working-tree", "latin.txt", max_bytes=1000)

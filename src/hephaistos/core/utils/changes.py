@@ -89,8 +89,13 @@ def pathspec_for(path: str | None) -> list[str]:
         return []
     parts = PurePosixPath(path).parts
     if not parts or PurePosixPath(path).is_absolute() or ".." in parts:
-        raise ChangesError(f"path must lie within the checkout, not be {path!r}")
+        raise _outside(path)
     return ["--", path]
+
+
+def _outside(path: str) -> ChangesError:
+    """The error for a path that does not lie within the Checkout."""
+    return ChangesError(f"path must lie within the checkout, not be {path!r}")
 
 
 def _empty_tree(top: Path) -> str:
@@ -524,9 +529,16 @@ def diff(  # noqa: PLR0913 - the comparison, then how
 
 
 def _contents(top: Path, revision: str, path: str, max_bytes: int) -> str | None:
-    """A file's contents in a resolved revision; None if it is not there; raises if too large."""
+    """A file's contents in a resolved revision; None if it is not there.
+
+    Raises ChangesError if too large, or if its folders in the working tree lead out of the
+    Checkout through a symlink; a symlink itself reads as its target.
+    """
     if revision == WORKING_TREE:
         file = top / path
+        # `pathspec_for` checks the path as written; a symlinked folder may still lead out.
+        if not file.parent.resolve().is_relative_to(top.resolve()):
+            raise _outside(path)
         if file.is_symlink():
             return str(file.readlink())  # as git shows a symlink: its target
         size = _file_size(file)
