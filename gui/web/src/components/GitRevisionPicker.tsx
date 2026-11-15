@@ -29,7 +29,15 @@ import {
 import type { Schemas } from "../api/client";
 import { type HistoryQuery, resolveRevision, useHistory } from "../api/queries";
 import { COMMIT_ICON, HEAD_ICON, REF_ICONS } from "../icons";
-import { HEAD, headText, INDEX, revisionText, shortHash, WORKING_TREE } from "../revisions";
+import {
+  ABBREVIATED_HASH,
+  HEAD,
+  headText,
+  INDEX,
+  revisionText,
+  shortHash,
+  WORKING_TREE,
+} from "../revisions";
 import { atLeast, numberText, searchWords } from "../text";
 import { useDebounced } from "../useDebounced";
 import { loadErrorText } from "../views/CheckoutError";
@@ -64,7 +72,6 @@ const REF_TABS: Record<Ref["kind"], PickerTab> = {
 // How many of each kind All shows, before a row leading to their tab.
 const ALL_SHOWS = { refs: 5, commits: 10 };
 const MORE = "more:"; // a row leading to a tab, `more:<tab>:<section>`: an ID no Revision has
-const SHORT_HASH = /^[0-9a-f]{4,40}$/i;
 
 /** Whose commits are offered: those of HEAD, of every branch and tag, or of the walk of a graph,
  * in its order, as it lists them. */
@@ -574,7 +581,7 @@ export function tabOf(
     found = REF_TABS.tag; // by its name, before refs come
   else if (value.startsWith("refs/remotes/")) found = REF_TABS.remote;
   else if (value.startsWith("refs/heads/")) found = REF_TABS.branch;
-  else if (SHORT_HASH.test(value)) found = "commits";
+  else if (ABBREVIATED_HASH.test(value)) found = "commits";
   return found !== undefined && tabs.includes(found) ? found : undefined;
 }
 
@@ -596,7 +603,7 @@ function PickedIcon({ value, refs }: { value: string; refs: KnownRefs | undefine
     if (ref !== undefined) Icon = REF_ICONS[ref.kind];
     else if (value.startsWith("refs/tags/")) Icon = REF_ICONS.tag;
     else if (value.startsWith("refs/remotes/")) Icon = REF_ICONS.remote;
-    else if (SHORT_HASH.test(value)) Icon = COMMIT_ICON;
+    else if (ABBREVIATED_HASH.test(value)) Icon = COMMIT_ICON;
   }
   return <TextIcon icon={Icon} className={styles.icon} />;
 }

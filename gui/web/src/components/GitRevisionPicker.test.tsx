@@ -346,6 +346,8 @@ describe("what the picker shows", () => {
     expect(tabOf("refs/tags/v1", known, all)).toBe("tags");
     expect(tabOf("origin/main", known, all)).toBe("branches");
     expect(tabOf("abc1234", known, all)).toBe("commits");
+    expect(tabOf("abc1234".repeat(9).slice(0, 64), known, all)).toBe("commits"); // SHA-256
+    expect(tabOf("abc1234".repeat(10), known, all)).toBeUndefined();
     expect(tabOf("abc1234", known, ["branches"])).toBeUndefined();
     expect(tabOf("HEAD", known, all)).toBeUndefined();
     // By its full name, before refs are known, as Changes and Diff open it: not later.

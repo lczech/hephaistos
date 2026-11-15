@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { headText, revisionText, WORKING_TREE } from "./revisions";
 
 const HASH = "0123456789abcdef0123456789abcdef01234567";
+const HASH256 = "0123456789abcdef".repeat(4);
 
 describe("revisions", () => {
   it("names HEAD by its branch, or detached by its commit, or alone before the first", () => {
@@ -16,6 +17,8 @@ describe("revisions", () => {
     expect(revisionText("refs/remotes/origin/main")).toBe("origin/main");
     expect(revisionText("refs/tags/v1.0")).toBe("v1.0");
     expect(revisionText(HASH)).toBe("0123456");
+    expect(revisionText(HASH256)).toBe("0123456"); // SHA-256
+    expect(revisionText(HASH.slice(0, 39))).toBe(HASH.slice(0, 39)); // as named
     expect(revisionText(WORKING_TREE)).toBe("working tree");
     expect(revisionText("HEAD~2")).toBe("HEAD~2");
   });

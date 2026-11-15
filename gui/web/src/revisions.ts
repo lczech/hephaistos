@@ -8,7 +8,9 @@ export const HEAD = "HEAD";
 export const SINCE_HEAD = { from: HEAD, to: WORKING_TREE };
 
 const SHORTENED = ["refs/heads/", "refs/remotes/", "refs/tags/"];
-const FULL_HASH = /^[0-9a-f]{40}$/;
+// A commit hash: 40 hex digits with SHA-1, 64 with SHA-256; git abbreviates it to 4 at least.
+const FULL_HASH = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+export const ABBREVIATED_HASH = /^[0-9a-f]{4,64}$/i;
 
 /** A commit's hash as git shortens it at least: `abc1234`. */
 export function shortHash(hash: string): string {
