@@ -4,6 +4,7 @@ import os
 import socket
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -42,6 +43,29 @@ def test_without_parts_doesnt_start(
     assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
     message = "nothing to do: watcher.interval is 0 and server.enabled is false"
     assert capsys.readouterr().err == f"error: {message}\n"
+
+
+@pytest.mark.parametrize("git", [None, "#!/bin/sh\nexit 1\n"])
+def test_without_a_working_git_it_doesnt_start(
+    paths: Paths,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    git: str | None,
+) -> None:
+    machines.set_up(paths, "laptop")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    if git is not None:
+        (bin_dir / "git").write_text(git)
+        (bin_dir / "git").chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    assert run_cli(monkeypatch, "daemon", "run") == EX_CONFIG
+    error = capsys.readouterr().err
+    if git is None:
+        assert error == "error: git is not installed\n"
+    else:
+        assert error.startswith(f"error: {bin_dir / 'git'} does not run: ")
 
 
 def test_a_missing_package_doesnt_start_it(

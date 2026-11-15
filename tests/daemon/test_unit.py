@@ -192,6 +192,23 @@ def test_a_unit_of_another_installation_is_replaced_or_removed_only_when_asked(
 
 
 @pytest.mark.usefixtures("repo")
+def test_the_unit_runs_hephaistos_by_the_path_it_was_run_as(
+    systemd: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    link = tmp_path / "linked" / "hephaistos"  # as `uv tool` links its scripts
+    link.parent.mkdir()
+    link.symlink_to(systemd)
+    assert run_cli(monkeypatch, "daemon", "install", program=str(link)) == 0
+    assert unit.installed_executable(unit.unit_file().read_text()) == link
+    capsys.readouterr()
+    assert run_cli(monkeypatch, "daemon", "install", "--yes", program="gone") == 1
+    assert capsys.readouterr().err == "error: cannot tell which hephaistos instance runs (gone)\n"
+
+
+@pytest.mark.usefixtures("repo")
 def test_linger(
     systemd: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -216,6 +233,13 @@ def test_a_foreign_unit_is_left_alone(
     assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 1
     assert "was not written by hephaistos; leaving it alone" in capsys.readouterr().err
     assert unit.unit_file().read_text() == "[Service]\nExecStart=/bin/true\n"
+    assert run_cli(monkeypatch, "daemon", "uninstall", "--yes", program=str(systemd)) == 1
+    assert "was not written by hephaistos" in capsys.readouterr().err
+    assert unit.unit_file().read_text() == "[Service]\nExecStart=/bin/true\n"
+    calls = Path(os.environ["FAKE_SYSTEMD"]) / "calls"
+    assert not calls.exists() or not any(" disable" in call for call in _calls())
+    run_cli(monkeypatch, "daemon", "status", program=str(systemd))
+    assert "was not written by hephaistos" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("repo")

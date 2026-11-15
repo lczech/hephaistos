@@ -7,7 +7,9 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
+import types
 import urllib.error
 import urllib.request
 from collections.abc import Awaitable, Callable
@@ -30,7 +32,7 @@ from hephaistos.daemon.server import token
 from hephaistos.daemon.status import PassStatus, ServerStatus, Status
 from hephaistos.daemon.watcher.watcher import STOPPING, Watcher
 from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDiedError
-from support import create, git, logged
+from support import SlowGit, create, git, logged
 
 WAIT = 20.0  # seconds a test waits for the Daemon at most
 
@@ -85,6 +87,46 @@ def test_crashed_parts_restart_ever_later(
         "restarting crashing in 0.02 s",
     ]
     assert caplog.records[0].exc_info is not None
+
+
+def test_restart_delays_stop_growing_and_start_again_once_steady(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(main, "FIRST_RESTART_DELAY", 0.01)
+    monkeypatch.setattr(main, "LAST_RESTART_DELAY", 0.04)
+    now = [0.0]  # what the Daemon takes for time.monotonic(); the event loop keeps the real one
+    monkeypatch.setattr(main, "time", types.SimpleNamespace(monotonic=lambda: now[0]))
+    runs = 0
+    steady = asyncio.Event()
+
+    class Part:
+        name = "crashing"
+
+        async def run(self) -> None:
+            nonlocal runs
+            runs += 1
+            if runs == 6:
+                now[0] += main.STEADY_TIME  # ran steadily, then crashed
+            if runs <= 6:
+                raise RuntimeError(runs)
+            steady.set()
+            await asyncio.Event().wait()
+
+        def kill(self) -> None:
+            pass
+
+    async def restarted() -> None:
+        task = asyncio.create_task(main.keep_running(Part()))
+        await asyncio.wait_for(steady.wait(), WAIT)
+        task.cancel()
+
+    caplog.set_level(logging.INFO)
+    asyncio.run(restarted())
+    messages = [record.getMessage() for record in caplog.records]
+    delays = [message for message in messages if message.startswith("restarting")]
+    assert delays == [
+        f"restarting crashing in {delay} s" for delay in (0.01, 0.02, 0.04, 0.04, 0.04, 0.01)
+    ]
 
 
 @pytest.mark.usefixtures("repo")
@@ -172,6 +214,38 @@ def test_requests_share_the_pass_after_the_running_one(
     asyncio.run(asyncio.wait_for(requested(), WAIT))
     assert [done.trigger for done in reported] == ["api", "api"]
     assert [getattr(record, "trigger", None) for record in caplog.records] == ["api", "api"]
+
+
+def test_passes_are_logged_by_what_they_did(
+    paths: Paths, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    outcomes = [
+        DONE,
+        dataclasses.replace(DONE, events=2),
+        PassFailed("boom", "Traceback (most recent call last): ..."),
+    ]
+
+    async def next_outcome(_: Watcher) -> Done | PassFailed:
+        return outcomes.pop(0)
+
+    monkeypatch.setattr(Watcher, "_worker_pass", next_outcome)
+    caplog.set_level(logging.DEBUG, "hephaistos.daemon.watcher")
+
+    async def observed() -> None:
+        watcher = Watcher(paths, lambda _: None)
+        for _ in range(3):
+            await watcher.observe("api")
+
+    asyncio.run(observed())
+    logged_passes = [
+        (record.levelno, record.getMessage(), getattr(record, "error", None))
+        for record in caplog.records
+    ]
+    assert logged_passes == [
+        (logging.DEBUG, "pass: 0 events", None),
+        (logging.INFO, "pass: 2 events", None),
+        (logging.ERROR, "pass failed: boom", "Traceback (most recent call last): ..."),
+    ]
 
 
 def test_the_timer_counts_from_any_pass(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -445,3 +519,69 @@ def test_observes_on_request_only(paths: Paths) -> None:
         _, err = daemon.communicate(timeout=WAIT)
     assert daemon.returncode == 0, err
     assert err == "Running: server; Ctrl+C stops the daemon\n"
+
+
+def _listening(port: int) -> bool | None:
+    """True while the Server on `port` accepts connections; None once it stopped listening."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=WAIT):
+            return True
+    except ConnectionRefusedError:
+        return None
+
+
+def _in_thread(port: int, path: str, headers: dict[str, str], method: str = "GET") -> list[Any]:
+    """Sends a request from a thread; the list gets its status and JSON, or what it raised."""
+    answered: list[Any] = []
+
+    def send() -> None:
+        try:
+            answered.append(_get(port, path, headers, method))
+        except OSError as error:
+            answered.append(error)
+
+    threading.Thread(target=send, daemon=True).start()
+    return answered
+
+
+@pytest.mark.usefixtures("repo")
+def test_a_second_signal_exits_at_once(paths: Paths, slow_git: SlowGit) -> None:
+    daemon = _daemon(port=0, interval=0)
+    try:
+        port = _until(lambda: _server(paths, daemon)).port
+        headers = {"Authorization": f"Bearer {token.token(paths)}"}
+        _, (clone,) = _get(port, "/api/clones", headers)
+        slow_git.hang.touch()
+        _in_thread(port, f"/api/changes?clone={clone['id']}", headers)  # git runs in the Server
+        _until(lambda: slow_git.started.exists() or None)
+        daemon.send_signal(signal.SIGTERM)
+        _until(lambda: None if _listening(port) else True)  # it waits for the request
+        daemon.send_signal(signal.SIGTERM)
+        daemon.communicate(timeout=WAIT)
+    finally:
+        daemon.kill()
+        daemon.communicate()
+    assert daemon.returncode == 128 + signal.SIGTERM
+    assert "SIGTERM while stopping: exiting at once" in _messages(paths)
+
+
+@pytest.mark.usefixtures("repo")
+def test_open_requests_finish_when_stopping(paths: Paths, slow_git: SlowGit) -> None:
+    daemon = _daemon(port=0, interval=0)
+    try:
+        port = _until(lambda: _server(paths, daemon)).port
+        headers = {"Authorization": f"Bearer {token.token(paths)}"}
+        slow_git.hang.touch()
+        answered = _in_thread(port, "/api/observe", headers, method="POST")
+        _until(lambda: slow_git.started.exists() or None)  # in the pass it waits for
+        daemon.send_signal(signal.SIGTERM)
+        _, err = daemon.communicate(timeout=WAIT)
+    finally:
+        daemon.kill()
+        daemon.communicate()
+    assert daemon.returncode == 0, err
+    assert _until(lambda: answered or None) == [
+        (503, {"error": "the pass failed: the daemon is stopping", "checkout": None})
+    ]
+    errors = [record for record in logged(paths) if record["level"] in {"ERROR", "CRITICAL"}]
+    assert errors == []

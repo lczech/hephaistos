@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import shutil
 import signal
 import stat
 import sys
@@ -13,7 +14,7 @@ from hephaistos.core.db.sessions import write_session
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon import unit
-from support import clone, create
+from support import SlowGit, clone, create
 
 
 @pytest.fixture
@@ -26,6 +27,25 @@ def repo(paths: Paths, tmp_path: Path) -> Path:
         repositories.register(session, "proj")
         clones.register(session, "proj", candidate)
     return repo
+
+
+@pytest.fixture
+def slow_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[SlowGit]:
+    """A SlowGit, also for the Daemons that tests start; killed at the end if it still sleeps."""
+    bin_dir = tmp_path / "slow"
+    bin_dir.mkdir()
+    slow = SlowGit(tmp_path / "hang", tmp_path / "git.pid")
+    _script(
+        bin_dir / "git",
+        f'#!/bin/sh\n[ -e {slow.hang} ] || exec {shutil.which("git")} "$@"\n'
+        f"echo $$ > {slow.started}.new && mv {slow.started}.new {slow.started}\n"
+        "exec sleep 60 >/dev/null 2>&1\n",  # holding no pipe of the Daemon open
+    )
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    yield slow
+    if slow.started.exists():
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(int(slow.started.read_text()), signal.SIGKILL)
 
 
 FAKE = Path(__file__).with_name("fake_systemd.py")

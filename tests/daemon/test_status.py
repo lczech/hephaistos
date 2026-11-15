@@ -1,4 +1,6 @@
+import fcntl
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -64,3 +66,20 @@ def test_lock_held_once(tmp_path: Path) -> None:
             pass
     with status.held_lock(tmp_path):  # released
         pass
+
+
+def test_a_starting_daemon_waits_while_the_lock_is_looked_at(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    looking = os.open(tmp_path / status.LOCK_NAME, os.O_RDWR | os.O_CREAT, 0o644)
+    fcntl.flock(looking, fcntl.LOCK_SH)  # as `is_running` takes it, for a moment
+    waited: list[float] = []
+
+    def done_looking(seconds: float) -> None:
+        waited.append(seconds)
+        os.close(looking)
+
+    monkeypatch.setattr(status.time, "sleep", done_looking)
+    with status.held_lock(tmp_path):
+        pass
+    assert waited == [status.LOCK_RETRY]

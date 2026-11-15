@@ -4,6 +4,7 @@ import os
 import shutil
 import signal
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from hephaistos.core.utils.errors import DatabaseBusyError
 from hephaistos.core.utils.paths import Paths
 from hephaistos.daemon.watcher import worker
 from hephaistos.daemon.watcher.worker import Done, PassFailed, Worker, WorkerDiedError
-from support import git
+from support import SlowGit, git
 
 
 def _alive(pid: int) -> bool:
@@ -47,6 +48,40 @@ def test_passes_run_at_low_priority_in_its_own_group(paths: Paths, repo: Path) -
     pid, done = asyncio.run(passes())
     assert done == [Done(0, 1, 0, 1, 0), Done(1, 1, 0, 1, 0)]
     assert not _alive(pid)
+
+
+def _gone(pid: int) -> bool:
+    """Whether `pid` ended and was reaped, within a few seconds: init reaps an orphan soon."""
+    for _ in range(100):
+        try:
+            state = Path(f"/proc/{pid}/stat").read_text().rpartition(")")[2].split()[0]
+        except FileNotFoundError:
+            return True
+        if state == "Z" and not _alive(pid):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+@pytest.mark.usefixtures("repo")
+def test_stopping_ends_the_git_a_pass_runs(paths: Paths, slow_git: SlowGit) -> None:
+    hang, started = slow_git.hang, slow_git.started
+
+    async def stopped_in_a_pass() -> int:
+        running = await Worker.started(paths)
+        hang.touch()
+        task = asyncio.ensure_future(running.run_pass())
+        try:
+            while not started.exists():
+                assert not task.done(), task.result()
+                await asyncio.sleep(0.01)
+            return int(started.read_text())
+        finally:
+            running.stop()
+            task.cancel()  # as the Watcher does when stopping
+            await asyncio.gather(task, return_exceptions=True)
+
+    assert _gone(asyncio.run(stopped_in_a_pass()))
 
 
 @pytest.mark.usefixtures("paths")
@@ -132,3 +167,19 @@ def test_logs_as_the_daemon_does(paths: Paths, capfd: pytest.CaptureFixture[str]
     finally:
         logs.stop()
     assert f"DEBUG daemon[{pid}] git " in capfd.readouterr().err
+
+
+def test_a_failing_ionice_only_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    lowered: list[tuple[int, int, int]] = []
+
+    def setpriority(which: int, who: int, priority: int) -> None:  # not for this process
+        lowered.append((which, who, priority))
+
+    monkeypatch.setattr(os, "setpriority", setpriority)
+    monkeypatch.setenv("PATH", str(tmp_path))  # no ionice
+    caplog.set_level(logging.WARNING)
+    worker._lower_priority()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage] - as the worker starts
+    assert lowered == [(os.PRIO_PROCESS, 0, worker.NICENESS)]
+    assert "git runs at normal I/O priority: ionice failed: " in caplog.text

@@ -8,6 +8,7 @@ import re
 import socket
 import subprocess
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -183,6 +184,15 @@ def logged(paths: Paths) -> list[dict[str, object]]:
         for _, path in logs.day_files(paths.state_dir)
         for line in path.read_text().splitlines()
     ]
+
+
+@dataclass(frozen=True)
+class SlowGit:
+    """A git on the PATH that is the real one until `hang` exists, then writes its pid to
+    `started` and sleeps."""
+
+    hang: Path
+    started: Path
 
 
 def desktop_checkout(tmp_path: Path, electron: str | None, *, built: bool = True) -> Path:
