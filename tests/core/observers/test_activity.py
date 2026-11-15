@@ -12,7 +12,7 @@ from hephaistos.core.events.kinds import Priority
 from hephaistos.core.observers import clones as observer
 from hephaistos.core.registry import clones, machines, repositories
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, git
+from support import clone, create, git, needs_git
 
 
 @pytest.fixture
@@ -64,6 +64,20 @@ def test_first_commit_of_a_clone_added_without_commits(paths: Paths, tmp_path: P
         commit,
     )
     assert observer.observe(paths).events == []
+
+
+@needs_git(2, 45)
+def test_commits_in_a_clone_with_reftable_refs(paths: Paths, tmp_path: Path) -> None:
+    # The reftable backend keeps reflogs in its tables, with no `logs/` directory.
+    machines.set_up(paths, "laptop")
+    repo = tmp_path / "new"
+    repo.mkdir()
+    git(repo, "init", "--quiet", "--initial-branch=main", "--ref-format=reftable")
+    _commit(repo, "First")
+    _add(paths, repo)
+    assert observer.observe(paths).events == []
+    _commit(repo, "Second")
+    assert _kinds(observer.observe(paths)) == ["clone.committed"]
 
 
 def test_worktree_without_commits(paths: Paths, repo: Path, tmp_path: Path) -> None:
@@ -131,7 +145,16 @@ def test_more_entries_than_a_page(
     # Dated before the cursor, so that only finding it on a further page reads them.
     monkeypatch.setenv("GIT_COMMITTER_DATE", "2001-01-01T00:00:00Z")
     commits = [_commit(repo, f"Commit {number}") for number in range(5)]
+    checked: list[Path] = []
+    has_reflog = observer.git.has_reflog
+
+    def counted(top: Path) -> bool:
+        checked.append(top)
+        return has_reflog(top)
+
+    monkeypatch.setattr(observer.git, "has_reflog", counted)
     result = observer.observe(paths)
+    assert len(checked) == 1  # whether HEAD has a reflog, asked once, not per page
     assert _kinds(result) == ["clone.committed"] * 5
     assert [event.payload["head"]["new"] for event in result.events] == commits
     assert observer.observe(paths).events == []
