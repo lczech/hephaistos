@@ -132,10 +132,9 @@ export function keepVisits(api: DockviewApi): Visits {
   const onKey = (event: KeyboardEvent) => {
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault(); // also with no Group active: the browser would leave the page
     const group = api.activeGroup;
-    if (!group) return;
-    event.preventDefault();
-    go(group, event.key === "ArrowLeft");
+    if (group) go(group, event.key === "ArrowLeft");
   };
 
   note();

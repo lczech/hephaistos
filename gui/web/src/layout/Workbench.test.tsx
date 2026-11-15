@@ -256,6 +256,18 @@ describe("the Workbench", () => {
     }
   });
 
+  it("takes Alt+← and Alt+→ from the browser, also with nothing to go to", async () => {
+    save("daemon");
+    await renderWorkbench();
+    for (const key of ["ArrowLeft", "ArrowRight"]) {
+      const event = new KeyboardEvent("keydown", { key, altKey: true, cancelable: true });
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(true); // else the browser leaves the page
+    }
+  });
+
   it("restores the saved Layout, saying which Views no longer exist", async () => {
     save("gone", "daemon");
     await renderWorkbench();
