@@ -75,6 +75,27 @@ describe("a diff's lines", () => {
     ]);
   });
 
+  it("are numbered on after hunks without context, of lines only added or only removed", () => {
+    // Of 10 lines: two added after line 5, lines 8 and 9 removed (`git diff -U0`).
+    const patch = "@@ -5,0 +6,2 @@\n+a\n+b\n@@ -8,2 +9,0 @@\n-8\n-9\n";
+    const now = "1\n2\n3\n4\n5\na\nb\n6\n7\n10\n";
+    const numbers = diffLines(patch, now).map((line) => [line.text, line.old, line.new]);
+    expect(numbers).toEqual([
+      ["1", 1, 1],
+      ["2", 2, 2],
+      ["3", 3, 3],
+      ["4", 4, 4],
+      ["5", 5, 5],
+      ["a", null, 6],
+      ["b", null, 7],
+      ["6", 6, 8],
+      ["7", 7, 9],
+      ["8", 8, null],
+      ["9", 9, null],
+      ["10", 10, 10],
+    ]);
+  });
+
   it("leave out git's notes, e.g. of no newline at the end", () => {
     const patch = "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n\\ No newline at end of file\n+b\n";
     expect(text(diffLines(patch))).toEqual(["a", "b"]);

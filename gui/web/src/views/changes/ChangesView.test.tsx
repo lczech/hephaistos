@@ -131,6 +131,40 @@ describe("the Changes View", () => {
     expect(screen.getByRole("button", { name: "Compare to: Working tree" })).toBeInTheDocument();
   });
 
+  it("shows files renamed, copied and conflicted as such, conflicts as unmerged", async () => {
+    const groups: Schemas["ChangesJson"]["groups"] = [
+      {
+        name: "unmerged",
+        from: "index",
+        to: "working-tree",
+        changes: [change("both.txt", { status: "U" })],
+        count: 1,
+      },
+      {
+        name: "staged",
+        from: "HEAD",
+        to: "index",
+        changes: [
+          change("b.py", { status: "R", original: "a.py" }),
+          change("d.py", { status: "C", original: "c.py" }),
+        ],
+        count: 2,
+      },
+    ];
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": () => json({ branch: BRANCH, commit: null, groups }),
+    });
+    renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    expect(await screen.findByRole("row", { name: /Unmerged/ })).toBeInTheDocument();
+    expect(screen.getByTitle("b.py renamed from a.py")).toBeInTheDocument();
+    expect(screen.getByTitle("d.py renamed from c.py")).toBeInTheDocument();
+    expect(screen.getByTitle("renamed")).toHaveAttribute("data-kind", "renamed");
+    expect(screen.getByTitle("copied")).toHaveAttribute("data-kind", "renamed");
+    expect(screen.getByTitle("unmerged")).toHaveAttribute("data-kind", "conflict");
+  });
+
   it("compares Revisions picked or swapped, grouping only HEAD's to the working tree", async () => {
     const requests = serve({
       "GET /api/info": () => json(info()),
@@ -320,6 +354,11 @@ describe("the Changes View", () => {
       kind: "diff",
       params: { clone: "clone-proj", commit: hash, path: "a.txt" },
     });
+    await userEvent.click(screen.getByRole("button", { name: "Diff of these changes" }));
+    expect(opened.at(-1)?.[0]).toEqual({
+      kind: "diff",
+      params: { clone: "clone-proj", commit: hash },
+    });
     expect(screen.getByRole("heading")).toHaveTextContent("Changes: proj, ccccccc Fix it");
     expect(screen.queryByRole("button", { name: "Groups" })).toBeNull();
     expect(screen.getByText(/^Not on any branch or tag/)).toBeInTheDocument();
@@ -350,6 +389,44 @@ describe("the Changes View", () => {
     });
     renderWithQueries(<Changes initial={{ clone: "clone-proj", commit: "abc1234" }} />);
     expect(await screen.findByText("abc1234 is no longer in this checkout.")).toBeInTheDocument();
+  });
+
+  it("names the commit a gone one was amended as, and marks a merge", async () => {
+    const person = { name: "Lucas", email: "lucas@example.org", at: "2026-10-13T10:00:00Z" };
+    const merge = {
+      hash: "e".repeat(40),
+      parents: ["b".repeat(40), "f".repeat(40)],
+      subject: "Merge feature",
+      body: "",
+      author: person,
+      committer: person,
+      refs: [],
+      renamed_from: null,
+    };
+    const shown = (commit: string) =>
+      commit === "abc1234"
+        ? { name: commit, commit: null, reachable: false, amended_as: "d".repeat(40) }
+        : { name: commit, commit: merge, reachable: true, amended_as: null };
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/changes": (request) =>
+        json({
+          branch: null,
+          groups: [],
+          commit: shown(new URL(request.url).searchParams.get("commit") ?? ""),
+        }),
+    });
+    const { unmount } = renderWithQueries(
+      <Changes initial={{ clone: "clone-proj", commit: "abc1234" }} />,
+    );
+    expect(
+      await screen.findByText("abc1234 is no longer in this checkout.", { exact: false }),
+    ).toHaveTextContent(/Amended as ddddddd/);
+    expect(screen.getByRole("button", { name: "Changes in commit ddddddd" })).toBeInTheDocument();
+    unmount();
+    renderWithQueries(<Changes initial={{ clone: "clone-proj", commit: merge.hash }} />);
+    expect(await screen.findByLabelText("Merge commit")).toBeInTheDocument();
   });
 
   it("shows the changes since HEAD together, as chosen in this browser, also after swapping", async () => {

@@ -125,6 +125,29 @@ describe("the rows", () => {
       ["new folder", 1],
       ["deleted", 1],
     ]);
+    // Renamed and copied alike; conflicts first.
+    const moved = [
+      change("r", { status: "R", original: "q" }),
+      change("c", { status: "C", original: "q" }),
+      change("u", { status: "U" }),
+    ];
+    expect(kindCounts(moved)).toEqual([
+      ["conflict", 1],
+      ["renamed", 2],
+    ]);
+  });
+
+  // The doc (views.md, Changes) puts untracked files and new folders last, as the stacked Diff
+  // does; the list puts new folders first and untracked files among the others by path. Which
+  // is right is for the user to decide; until then this fails.
+  it.fails("lists untracked files and new folders last, as the stacked Diff does", () => {
+    const listed = [
+      change("b.txt"),
+      change("a.txt", { status: "?" }),
+      change("new/", { status: "?", added: null, removed: null, files: 1 }),
+    ];
+    const [row] = entries([group("changes", listed)], nothingWithin, []);
+    expect(row?.subRows.map(entryId)).toEqual(["changes:b.txt", "changes:a.txt", "changes:new/"]);
   });
 
   it("say how many more there are than listed, and that a setting stops them", () => {
@@ -230,6 +253,12 @@ describe("the rows", () => {
       "untracked:new/a",
       "untracked:new/b",
     ]);
+    // Cut at gui.diff.max_files: how many more, below its files.
+    const cut = entries([untracked], () => ({ items: [change("new/a")], count: 5 }), []);
+    expect(cut[0]?.subRows[0]?.subRows.at(-1)).toMatchObject({
+      type: "note",
+      text: "4 more not listed, as the setting gui.diff.max_files allows 1 per list",
+    });
   });
 });
 

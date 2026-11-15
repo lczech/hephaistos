@@ -3,15 +3,20 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Diff, { bothSides, withVersions } from "./Diff";
 
-// The renderer's diffs, as given: each new one draws the file anew.
+// The renderer's diffs, as given: each new one draws the file anew; and how often it was made.
 const drawn = vi.hoisted(() => new Set<unknown>());
-vi.mock("@pierre/diffs/react", async (original) => ({
-  ...(await original<typeof import("@pierre/diffs/react")>()),
-  FileDiff: ({ fileDiff }: { fileDiff: unknown }) => {
-    drawn.add(fileDiff);
-    return null;
-  },
-}));
+const made = vi.hoisted(() => ({ count: 0 }));
+vi.mock("@pierre/diffs/react", async (original) => {
+  const { useState } = await import("react");
+  return {
+    ...(await original<typeof import("@pierre/diffs/react")>()),
+    FileDiff: ({ fileDiff }: { fileDiff: unknown }) => {
+      useState(() => made.count++);
+      drawn.add(fileDiff);
+      return null;
+    },
+  };
+});
 
 const OLD = "1\n2\n3\n4\n5\n6\n7\n8\n";
 const NEW = "1\n2\n3\nfour\n5\n6\n7\n8\n";
@@ -72,5 +77,19 @@ describe("a diff shown", () => {
     expect(drawn.size).toBe(1);
     rerender(<Diff {...shown} themes={themes} versions={{ old: OLD, new: `${NEW}9\n` }} />);
     expect(drawn.size).toBe(2);
+  });
+
+  it("starts anew once Whole file is turned on or off, as it cannot collapse lines again", () => {
+    const shown = { patch: PATCH, scheme: "light" as const, versions: { old: OLD, new: NEW } };
+    const themes = { light: "github-light", dark: "github-dark" };
+    const look = { split: true, wrap: false, whole: false };
+    const { rerender } = render(<Diff {...shown} themes={themes} look={look} />);
+    const first = made.count;
+    rerender(<Diff {...shown} themes={themes} look={{ ...look, split: false }} />);
+    expect(made.count).toBe(first); // drawn again, not made anew
+    rerender(<Diff {...shown} themes={themes} look={{ ...look, whole: true }} />);
+    expect(made.count).toBe(first + 1);
+    rerender(<Diff {...shown} themes={themes} look={look} />);
+    expect(made.count).toBe(first + 2);
   });
 });

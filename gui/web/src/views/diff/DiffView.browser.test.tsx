@@ -46,6 +46,28 @@ interface File {
   changed?: number; // lines changed each way, as its list says; 1 unless given
 }
 
+/** A file of 10 lines with two lines added after line 5 and lines 8 and 9 removed, its patch
+ * without context, as `git diff -U0` gives it. */
+const ZERO: File = {
+  status: "M",
+  patch: [
+    "diff --git a/zero.txt b/zero.txt",
+    "--- a/zero.txt",
+    "+++ b/zero.txt",
+    "@@ -5,0 +6,2 @@",
+    "+added a",
+    "+added b",
+    "@@ -8,2 +9,0 @@",
+    "-line 8",
+    "-line 9",
+    "",
+  ].join("\n"),
+  old: text(10),
+  new: [1, 2, 3, 4, 5, "added a", "added b", 6, 7, 10]
+    .map((line) => (typeof line === "number" ? `line ${line}\n` : `${line}\n`))
+    .join(""),
+};
+
 /** A changed file: its lines changed, of so many, and its two versions. */
 function changed(path: string, count: number, lines: number[]): File {
   return {
@@ -221,6 +243,64 @@ describe("finding in a file's diff", () => {
     await waitFor(() => expect(count()).toHaveTextContent("1 of 1"));
     // Unchanged, on both sides.
     await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 2", "line 2"]));
+  });
+});
+
+describe("finding in a file's diff, its lines moved", () => {
+  // Two lines added before line 10: line 12 is 14 in the new version.
+  const MOVED: File = {
+    status: "M",
+    patch: [
+      "diff --git a/m.txt b/m.txt",
+      "--- a/m.txt",
+      "+++ b/m.txt",
+      "@@ -7,6 +7,8 @@",
+      ...[7, 8, 9].map((at) => ` line ${at}`),
+      "+added 1",
+      "+added 2",
+      ...[10, 11, 12].map((at) => ` line ${at}`),
+      "",
+    ].join("\n"),
+    old: text(20),
+    new: text(20).replace("line 10\n", "added 1\nadded 2\nline 10\n"),
+  };
+
+  it("marks a match on an unchanged line on both sides, or once inline", async () => {
+    serveFiles({ "m.txt": MOVED });
+    renderDiff({ width: 1000, height: 600 }, "m.txt", { find: "line 12", word: "1" });
+    await drawnAlone("m.txt");
+    await waitFor(() => expect(count()).toHaveTextContent("1 of 1"));
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 12", "line 12"]));
+    const panel = screen.getByTestId("panel");
+    await act(async () => {
+      panel.style.width = "500px"; // inline
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    });
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["line 12"]));
+  });
+});
+
+describe("finding in a file's diff, ended", () => {
+  it("takes its marks away once closed", async () => {
+    serveFiles({ "f.txt": changed("f.txt", 40, [20]) });
+    renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "LINE", case: "1" });
+    await drawnAlone("f.txt");
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual(["LINE"]));
+    await userEvent.click(screen.getByRole("textbox", { name: "Find in the diff" }));
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual([]));
+    expect(marked("hephaistos-found")).toEqual([]);
+  });
+
+  it("takes the marks of a file away once it folds, in a stack", async () => {
+    serveFiles({ "a.txt": changed("a.txt", 40, [20]), "b.txt": changed("b.txt", 40, [20]) });
+    renderDiff({ width: 1000, height: 600 }, undefined, { find: "LINE", case: "1" });
+    await drawn("a.txt");
+    await drawn("b.txt");
+    await waitFor(() => expect(marked("hephaistos-found")).toEqual(["LINE"])); // b's, a's current
+    await userEvent.click(within(screen.getByRole("region", { name: "a.txt" })).getByText("a.txt"));
+    await waitFor(() => expect(marked("hephaistos-found-current")).toEqual([]));
+    expect(marked("hephaistos-found")).toEqual(["LINE"]); // b's, still drawn
   });
 });
 
@@ -427,6 +507,7 @@ describe("the renderer draws a diff", () => {
       "whole.txt": changed("whole.txt", 7, [4]),
       // A line alone between hunks, and at the start: shown, not collapsed.
       "alone.txt": changed("alone.txt", 40, [5, 13]),
+      "zero.txt": ZERO,
     };
     serveFiles(files);
     const look = { split: true, wrap: false, whole: false };

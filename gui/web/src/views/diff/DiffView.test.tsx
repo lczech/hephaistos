@@ -1,11 +1,19 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
-import { json, renderWithQueries, serve, setting } from "../../test/server";
+import {
+  clone,
+  info,
+  json,
+  renderWithQueries,
+  repository,
+  serve,
+  setting,
+} from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
 import type { Address, Params } from "../address";
 import { OpenViewContext } from "../opening";
@@ -538,6 +546,63 @@ describe("the Diff View", () => {
       disconnect() {}
     }
 
+    it("shows all files of a commit, named by it, linking to its Changes", async () => {
+      const hash = "c".repeat(40);
+      const person = { name: "Lucas", email: "lucas@example.org", at: new Date().toISOString() };
+      const shown = {
+        name: hash,
+        commit: {
+          hash,
+          parents: ["b".repeat(40)],
+          subject: "Fix the parser",
+          body: "",
+          author: person,
+          committer: person,
+          refs: [],
+          renamed_from: null,
+        },
+        reachable: true,
+        amended_as: null,
+      };
+      vi.stubGlobal("IntersectionObserver", Near);
+      const group = { name: "changes" as const, from: "b".repeat(40), to: hash, count: 1 };
+      const requests = serve({
+        "GET /api/info": () => json(info()),
+        "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+        "GET /api/changes": () =>
+          json({ branch: null, groups: [{ ...group, changes: [change()] }], commit: shown }),
+        "GET /api/diff": () => json({ change: change(), patch: PATCH }),
+        "GET /api/config": () =>
+          json({
+            host: "laptop",
+            settings: [],
+            sources: [],
+            other_hosts: [],
+            unknown_variables: [],
+          }),
+      });
+      const opened: Address[] = [];
+      renderWithQueries(
+        <OpenViewContext value={(address) => opened.push(address)}>
+          <Diff initial={{ clone: "clone-proj", commit: hash }} />
+        </OpenViewContext>,
+      );
+      expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
+      const asked = requests.map((request) => new URL(request.url));
+      const listed = asked.find((url) => url.pathname === "/api/changes");
+      expect(listed?.searchParams.get("commit")).toBe(hash);
+      expect(asked.find((url) => url.pathname === "/api/diff")?.searchParams.get("commit")).toBe(
+        hash,
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("heading")).toHaveTextContent("Diff: proj, ccccccc"),
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Changes in commit ccccccc" }));
+      expect(opened).toEqual([
+        expect.objectContaining({ kind: "changes", params: { clone: "clone-proj", commit: hash } }),
+      ]);
+    });
+
     it("shows them one under the other as Changes lists them, untracked ones listed", async () => {
       vi.stubGlobal("IntersectionObserver", Near);
       const asked = serveAll();
@@ -575,7 +640,33 @@ describe("the Diff View", () => {
       await waitFor(() => expect(within(untracked).getAllByRole("figure")).toHaveLength(2));
       expect(asked.within).toEqual(["tmp/"]);
       expect(asked.diffs).toContain("tmp/a.log");
+      // One closed after all were shown: it alone.
+      await userEvent.click(within(untracked).getByText("notes.txt"));
+      await waitFor(() => expect(within(untracked).getAllByRole("figure")).toHaveLength(1));
+      expect(within(untracked).getByRole("figure")).toHaveTextContent("tmp/a.log");
       expect(screen.getByRole("button", { name: "Uncommitted changes" })).toBeInTheDocument();
+    });
+
+    it("folds a file by its header, not by a click on its links or ending a selection", async () => {
+      vi.stubGlobal("IntersectionObserver", Near);
+      serveAll();
+      renderWithQueries(
+        <OpenViewContext value={() => {}}>
+          <Diff initial={SINCE_HEAD} />
+        </OpenViewContext>,
+      );
+      const file = await screen.findByRole("region", { name: "src/b.py" });
+      expect(await within(file).findByRole("figure")).toBeInTheDocument();
+      await userEvent.click(within(file).getByRole("button", { name: "Diff of src/b.py alone" }));
+      expect(within(file).getByRole("figure")).toBeInTheDocument();
+      const name = within(file).getByText("b.py");
+      // The click ending a drag over it, the text selected: userEvent would select anew.
+      document.getSelection()?.selectAllChildren(name);
+      fireEvent.click(name);
+      expect(within(file).getByRole("figure")).toBeInTheDocument();
+      document.getSelection()?.removeAllRanges();
+      await userEvent.click(name);
+      expect(within(file).queryByRole("figure")).toBeNull();
     });
 
     it("asks again for the list and the patches shown on Refresh", async () => {
@@ -786,15 +877,22 @@ describe("the Diff View", () => {
       };
 
       /** The Server, with the diffs of all tracked files a page each; returns the pages asked. */
-      function serveFinding(large?: number, diffs?: () => Promise<Response>): string[] {
+      function serveFinding(
+        large?: number,
+        diffs?: () => Promise<Response>,
+        asked: string[] = [], // the files whose own diff is asked for
+      ): string[] {
         const pages: string[] = [];
         const tracked = ["README.md", "src/b.py"];
         const diffOf = (path: string) => ({ change: change({ path }), patch: PATCHES[path] });
         serve({
           "GET /api/changes": () =>
             json({ branch: null, groups: [{ ...GROUP, count: 4 }], commit: null }),
-          "GET /api/diff": (request) =>
-            json(diffOf(new URL(request.url).searchParams.get("path") ?? "")),
+          "GET /api/diff": (request) => {
+            const path = new URL(request.url).searchParams.get("path") ?? "";
+            asked.push(path);
+            return json(diffOf(path));
+          },
           "GET /api/diffs": (request) => {
             if (diffs) return diffs();
             const skip = Number(new URL(request.url).searchParams.get("skip"));
@@ -831,6 +929,39 @@ describe("the Diff View", () => {
         });
         await waitFor(() => expect(status()).toHaveTextContent("git failed"));
         expect(bar()).not.toHaveAttribute("data-busy");
+      });
+
+      it("keeps each file's diff from those found in, its section asking for it no more", async () => {
+        // Near only once told, after the files came for the find.
+        const observers: [IntersectionObserverCallback, Element[]][] = [];
+        vi.stubGlobal(
+          "IntersectionObserver",
+          class {
+            seen: [IntersectionObserverCallback, Element[]];
+            constructor(report: IntersectionObserverCallback) {
+              this.seen = [report, []];
+              observers.push(this.seen);
+            }
+            observe(target: Element) {
+              this.seen[1].push(target);
+            }
+            unobserve() {}
+            disconnect() {}
+          },
+        );
+        const asked: string[] = [];
+        const pages = serveFinding(undefined, undefined, asked);
+        renderWithQueries(<Diff initial={SINCE_HEAD} fragment={{ find: "found" }} />);
+        await waitFor(() => expect(status()).toHaveTextContent("1 of 2"));
+        act(() => {
+          for (const [report, targets] of observers) {
+            const entries = targets.map((target) => ({ isIntersecting: true, target }));
+            report(entries as IntersectionObserverEntry[], {} as IntersectionObserver);
+          }
+        });
+        await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
+        expect(pages).toEqual(["0", "1"]);
+        expect(asked).toEqual([]);
       });
 
       it("finds in all files in the stack's order, untracked ones once open", async () => {
