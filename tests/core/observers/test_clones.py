@@ -16,7 +16,7 @@ from hephaistos.core.state.worktrees import WorktreeState
 from hephaistos.core.utils import git as git_facts
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, git, needs_git
+from support import clone, create, foreign_clone, git, needs_git
 
 
 @pytest.fixture
@@ -125,6 +125,22 @@ def test_other_repository_at_the_path_fails(paths: Paths, repo: Path) -> None:
     assert _state(paths, repo).error is not None
 
 
+def test_other_repository_at_the_path_keeps_the_last_known_state(paths: Paths, repo: Path) -> None:
+    observer.observe(paths)
+    known = _state(paths, repo)
+    shutil.rmtree(repo)
+    create(repo, commits=2)  # whose activity is not this Clone's
+    assert _kinds(observer.observe(paths)) == ["clone.failed"]
+    assert _kinds(observer.observe(paths)) == []
+    failed = _state(paths, repo)
+    assert failed.error is not None
+    assert (failed.root_commits, failed.head, failed.head_log) == (
+        known.root_commits,
+        known.head,
+        known.head_log,
+    )
+
+
 def test_shallow_clone_deepened(paths: Paths, tmp_path: Path) -> None:
     machines.set_up(paths, "laptop")
     origin = create(tmp_path / "origin", commits=3)
@@ -206,6 +222,22 @@ def test_only_given_clones(paths: Paths, repo: Path, tmp_path: Path) -> None:
     assert observer.observe(paths, [repo_id]).observed == 1
 
 
+def test_clones_on_filesystems_of_other_machines_are_left_alone(
+    paths: Paths, repo: Path, tmp_path: Path
+) -> None:
+    """Only the Machine that mounts a Filesystem writes the State of its Clones (ADR 001)."""
+    observer.observe(paths)
+    peer = foreign_clone(paths, "proj", clone(repo, tmp_path / "peer"))
+    shutil.rmtree(tmp_path / "peer")  # missing, were it looked at here
+    with read_session(paths) as session:
+        [before] = clones.details(session, clone_id=peer.id)
+    result = observer.observe(paths)
+    assert (result.events, result.observed) == ([], 1)
+    with read_session(paths) as session:
+        [after] = clones.details(session, clone_id=peer.id)
+    assert after.state == before.state
+
+
 def test_fresher_observation_is_kept(
     paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -224,6 +256,26 @@ def test_fresher_observation_is_kept(
     with read_session(paths) as session:
         kinds = [row[0] for row in session.conn.execute("SELECT kind FROM events")]
     assert kinds.count("clone.branch_created") == 1
+
+
+def test_clone_unregistered_meanwhile_is_skipped(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = observer.clone_observation
+
+    def observe_while_it_is_unregistered(known: observer.Known) -> observer.CloneObservation:
+        observed = real(known)
+        with write_session(paths) as session:
+            clones.unregister(session, clones.find_to_unregister(session, known.path))
+        return observed
+
+    monkeypatch.setattr(observer, "clone_observation", observe_while_it_is_unregistered)
+    git(repo, "branch", "feature")
+    result = observer.observe(paths)
+    assert (result.events, result.observed, result.skipped) == ([], 0, 1)
+    with read_session(paths) as session:
+        kinds = [row[0] for row in session.conn.execute("SELECT kind FROM events ORDER BY id")]
+    assert kinds[-1] == "clone.unregistered"
 
 
 def test_clone_moved_meanwhile_is_left_alone(

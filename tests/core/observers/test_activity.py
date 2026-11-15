@@ -109,6 +109,21 @@ def test_import_history(paths: Paths, origin: Path, tmp_path: Path) -> None:
     assert kinds == ["clone.head_moved", "clone.committed", "worktree.added", "worktree.committed"]
 
 
+def test_worktrees_there_at_the_first_observation_count_from_it(
+    paths: Paths, origin: Path, tmp_path: Path
+) -> None:
+    machines.set_up(paths, "laptop")
+    repo = clone(origin, tmp_path / "repo")
+    side = tmp_path / "side"
+    git(repo, "worktree", "add", "--quiet", "-b", "side", str(side))
+    for number in range(3):
+        _commit(side, f"before {number}")
+    _add(paths, repo)
+    assert _kinds(observer.observe(paths)) == ["worktree.added"]
+    _commit(side, "after")
+    assert _kinds(observer.observe(paths)) == ["worktree.committed"]
+
+
 def test_more_entries_than_a_page(
     paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -189,6 +204,27 @@ def test_merge_push_and_pull(paths: Paths, repo: Path, origin: Path, tmp_path: P
     git(repo, "pull", "--quiet", "--ff-only")
     [pulled] = observer.observe(paths).events  # the fetch it made is no push
     assert (pulled.kind, pulled.payload["how"]) == ("clone.pulled", "fast-forward")
+
+
+def test_pushes_and_commits_come_in_time_order(
+    paths: Paths, repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def at(second: int) -> None:  # git's time for reflog entries; later than the observation
+        monkeypatch.setenv("GIT_COMMITTER_DATE", f"2030-01-01T00:00:0{second}Z")
+
+    at(1)
+    first = _commit(repo, "First")
+    at(2)
+    git(repo, "push", "--quiet", "origin", "main")
+    at(3)
+    second = _commit(repo, "Second")
+    result = observer.observe(paths)
+    moved = {"clone.committed": "head", "clone.pushed": "commit"}  # what each moved
+    assert [(event.kind, event.payload[moved[event.kind]]["new"]) for event in result.events] == [
+        ("clone.committed", first),
+        ("clone.pushed", first),
+        ("clone.committed", second),
+    ]
 
 
 def _pushed(result: observer.Result) -> list[tuple[str, str]]:
@@ -408,6 +444,14 @@ def test_branch_created_and_renamed(paths: Paths, repo: Path) -> None:
     assert renamed.kind == "clone.branch_renamed"
     assert renamed.payload == {"branch": {"old": "feature", "new": "renamed"}}
     assert (renamed.occurred_at is not None, renamed.key is not None) == (True, True)
+
+
+def test_branch_created_without_a_reflog(paths: Paths, repo: Path) -> None:
+    git(repo, "-c", "core.logAllRefUpdates=false", "branch", "quiet")
+    [created] = observer.observe(paths).events
+    assert created.kind == "clone.branch_created"
+    assert created.payload == {"branch": "quiet", "start": None}
+    assert (created.occurred_at, created.key) == (None, None)
 
 
 def test_worktree_activity(paths: Paths, repo: Path, tmp_path: Path) -> None:

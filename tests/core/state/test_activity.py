@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -18,7 +19,9 @@ from hephaistos.core.state.activity import (
     ResetPayload,
     SwitchedPayload,
 )
+from hephaistos.core.utils import git
 from hephaistos.core.utils.git import ReflogEntry
+from support import create
 
 AT = datetime(2026, 10, 7, 12, tzinfo=UTC)
 
@@ -236,3 +239,29 @@ def test_key_tells_apart_where_and_what() -> None:
     assert key == activity.key(clone_id, "", "HEAD", AT, Change("a", "b"))
     assert key != activity.key(clone_id, "feature", "HEAD", AT, head)
     assert key != activity.key(clone_id, "", "HEAD", AT, Change(None, "b"))
+
+
+def test_cursors_and_keys_are_the_same_in_any_time_zone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Machines in other time zones read the same facts, which keys must match across."""
+    monkeypatch.setenv("TZ", "America/New_York")  # where the commits are made
+    repo = create(tmp_path / "repo", commits=2)
+
+    def read(zone: str) -> list[tuple[str, activity.Cursor, bytes]]:
+        monkeypatch.setenv("TZ", zone)
+        return [
+            (
+                entry.at.isoformat(),
+                activity.cursor_after(entry),
+                activity.key(
+                    uuid.UUID(int=1), "", entry.ref, entry.at, Change(entry.old, entry.new)
+                ),
+            )
+            for entry in git.reflog(repo)
+        ]
+
+    in_utc = read("UTC")
+    assert len(in_utc) == 2
+    assert in_utc == read("Asia/Tokyo")
+    assert all(at.endswith(("-05:00", "-04:00")) for at, _, _ in in_utc)  # as recorded
