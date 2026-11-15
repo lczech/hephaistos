@@ -248,6 +248,7 @@ def _unborn_start(top: Path) -> Cursor:
     moment, by git's clock; the entries already there, e.g. before `checkout --orphan`,
     are not activity. Without a reflog, all of it is new.
     """
+    # Reflog times are in whole seconds: a commit made in this same second is not recorded.
     return Cursor(int(time.time()), "") if git.has_reflog(top) else BEGINNING
 
 
