@@ -66,15 +66,22 @@ def unit_file() -> Path:
     return Path.home() / ".config" / "systemd" / "user" / UNIT_NAME
 
 
-def _quoted(value: str) -> str:
-    """A value as one word for systemd, `%` escaped as it would be a specifier."""
+def _quoted(value: str, *, command: bool = False) -> str:
+    """A value as one word for systemd, `%` escaped as it would be a specifier.
+
+    In a `command`, `$` is escaped too, as systemd expands variables there; it does not in
+    `Environment=`, where `$$` would stay two.
+    """
     escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("%", "%%")
+    if command:
+        escaped = escaped.replace("$", "$$")
     return f'"{escaped}"'
 
 
-def _unquoted(words: str) -> list[str]:
+def _unquoted(words: str, *, command: bool = False) -> list[str]:
     """The words of a unit's value, as `_quoted` wrote them."""
-    return [word.replace("%%", "%") for word in shlex.split(words)]
+    unescaped = [word.replace("%%", "%") for word in shlex.split(words)]
+    return [word.replace("$$", "$") for word in unescaped] if command else unescaped
 
 
 def unit_text(executable: Path, env: Mapping[str, str]) -> str:
@@ -89,7 +96,7 @@ def unit_text(executable: Path, env: Mapping[str, str]) -> str:
             "Description=hephaistos daemon: observes this machine in the background",
             "",
             "[Service]",
-            f"ExecStart={_quoted(str(executable))} daemon run",
+            f"ExecStart={_quoted(str(executable), command=True)} daemon run",
             *variables,
             "Restart=on-failure",
             "RestartSec=5",
@@ -113,15 +120,19 @@ def installed_text() -> str | None:
     return text
 
 
-def _values(text: str, key: str) -> list[list[str]]:
-    """The words of each `key=` line of a unit."""
+def _values(text: str, key: str, *, command: bool = False) -> list[list[str]]:
+    """The words of each `key=` line of a unit, a `command` as `_quoted` wrote it."""
     prefix = f"{key}="
-    return [_unquoted(line[len(prefix) :]) for line in text.splitlines() if line.startswith(prefix)]
+    return [
+        _unquoted(line[len(prefix) :], command=command)
+        for line in text.splitlines()
+        if line.startswith(prefix)
+    ]
 
 
 def installed_executable(text: str) -> Path | None:
     """The hephaistos that an installed unit runs."""
-    commands = _values(text, "ExecStart")
+    commands = _values(text, "ExecStart", command=True)
     return Path(commands[0][0]) if commands and commands[0] else None
 
 
