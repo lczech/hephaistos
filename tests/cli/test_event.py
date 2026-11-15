@@ -16,7 +16,7 @@ from hephaistos.core.db.sessions import write_session
 from hephaistos.core.events import events
 from hephaistos.core.events.kinds import EventKind, Priority, PriorityName
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.ids import new_id
+from hephaistos.core.utils.ids import new_id, short_id
 from hephaistos.core.utils.paths import Paths
 
 runner = CliRunner()
@@ -35,6 +35,12 @@ def _rows(*args: str) -> list[list[str]]:
     result = runner.invoke(app, ["event", "list", *args])
     assert result.exit_code == 0, result.output
     return [line.split() for line in result.output.splitlines()[1:]]
+
+
+def _lines(*args: str) -> list[str]:
+    result = runner.invoke(app, ["event", "list", *args])
+    assert result.exit_code == 0, result.output
+    return result.output.splitlines()[1:]
 
 
 def test_list() -> None:
@@ -190,3 +196,36 @@ def test_list_shortens_long_summaries() -> None:
     line = runner.invoke(app, ["event", "list", "-n", "1"]).output.splitlines()[1]
     summary = re.split(r"\s{2,}", line)[-1]
     assert summary == f"name: project → {name}"[: SUMMARY_WIDTH - 1] + "…"
+
+
+def test_a_kind_of_a_newer_version_is_shown_raw(paths: Paths) -> None:
+    # A newer Peer's Event, of a kind and subject type this version does not know.
+    subject = new_id()
+    with write_session(paths) as session:
+        session.conn.execute(
+            "INSERT INTO events VALUES (?, ?, ?, 'terminal.opened', ?, 30, '{\"name\": \"x\"}',"
+            " NULL, NULL)",
+            (new_id().bytes, session.tick(), session.machine_id.bytes, subject.bytes),
+        )
+    [row] = [re.split(r"\s{2,}", line) for line in _lines("-n", "1")]
+    assert row[1:] == ["now", "high", "terminal.opened", "laptop", short_id(subject)]
+    assert [found[0] for found in _rows("-k", "terminal")] == [row[0]]
+
+    [event] = json.loads(runner.invoke(app, ["event", "list", "-n", "1", "--json"]).output)
+    assert (event["kind"], event["priority"], event["summary"]) == ("terminal.opened", 30, "")
+    assert event["subject"] == {
+        "id": str(subject),
+        "type": "terminal",
+        "name": None,
+        "path": None,
+        "chassis": None,
+    }
+    assert event["repository"] is None
+    assert event["payload"] == {"name": "x"}
+
+    result = runner.invoke(app, ["event", "show", row[0]])
+    assert result.exit_code == 0, result.output
+    lines = [line.split(maxsplit=1) for line in result.output.splitlines()]
+    assert ["kind", "terminal.opened"] in lines
+    assert ["subject", short_id(subject)] in lines
+    assert lines[-2:] == [["payload"], ["name", "x"]]

@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import shutil
+import sqlite3
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -14,7 +15,9 @@ from typer.testing import CliRunner
 
 from hephaistos.cli.main import app as cli
 from hephaistos.core import config, serialize
-from hephaistos.core.utils import commit_graph, logs
+from hephaistos.core.db import sessions
+from hephaistos.core.db.sessions import write_session
+from hephaistos.core.utils import commit_graph, files, logs
 from hephaistos.core.utils.paths import Paths, short_path
 from hephaistos.daemon.server import token, web
 from hephaistos.daemon.server.app import create_app
@@ -113,12 +116,23 @@ def test_the_token_counts_only_in_the_header(
     assert value not in logged
 
 
-def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
+def test_endpoints_return_what_the_cli_prints(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     def api(path: str) -> Any:  # noqa: ANN401 - parsed JSON
         response = client.get(path)
         assert response.status_code == 200, response.text
         return response.json()
 
+    # Viewing takes only read sessions: no command or endpoint below opens a write session.
+    opened: list[bool] = []
+
+    def opening(paths: Paths, *, read_only: bool, check_schema: bool = True) -> sqlite3.Connection:
+        opened.append(read_only)
+        return open_database(paths, read_only=read_only, check_schema=check_schema)
+
+    open_database = sessions._open  # noqa: SLF001  # pyright: ignore[reportPrivateUsage] - where every session opens
+    monkeypatch.setattr(sessions, "_open", opening)
     [machine] = _cli("machine", "list")
     assert api("/api/machines") == [machine]
     assert api(f"/api/machines/{machine['id']}") == _cli("machine", "show")
@@ -144,6 +158,8 @@ def test_endpoints_return_what_the_cli_prints(client: TestClient) -> None:
     assert api(rows) == _cli(
         "db", "dump", "events", "-c", "kind", "-c", "id", "-n", "2", "--offset", "1", "--reverse"
     )
+    assert opened
+    assert all(opened)
 
 
 def test_log_as_log_show_prints_it(paths: Paths, client: TestClient) -> None:
@@ -297,6 +313,29 @@ def test_files_refused(
     response = client.get("/api/files", params=params)
     assert response.status_code == status
     assert error in response.json()["error"]
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root may list anything")
+def test_files_refused_by_the_system(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    closed = tmp_path / "closed"
+    closed.mkdir(mode=0o000)
+    try:
+        denied = client.get("/api/files", params={"path": str(closed)})
+    finally:
+        closed.chmod(0o700)
+    assert (denied.status_code, denied.json()["error"]) == (403, f"not allowed to list {closed}")
+
+    def unreadable(*_: object, **__: object) -> files.Listing:
+        raise files.FilesError("cannot list /x: Input/output error", "unreadable")
+
+    monkeypatch.setattr(files, "listing", unreadable)
+    failed = client.get("/api/files", params={"path": str(tmp_path)})
+    assert (failed.status_code, failed.json()["error"]) == (
+        500,
+        "cannot list /x: Input/output error",
+    )
 
 
 def test_file_paths_as_the_cli_lists_them(client: TestClient, repo: Path) -> None:
@@ -805,3 +844,32 @@ def test_revisions_that_look_like_options_reach_git_as_revisions(
     assert response.status_code != 500, response.text
     assert not (repo / "X").exists()
     assert not Path("X").exists()
+
+
+def test_events_of_a_kind_of_a_newer_version_as_the_cli_lists_them(
+    paths: Paths, client: TestClient
+) -> None:
+    with write_session(paths) as session:
+        session.conn.execute(
+            "INSERT INTO events VALUES (?, ?, ?, 'terminal.opened', ?, 30, '{}', NULL, NULL)",
+            (uuid.uuid4().bytes, session.tick(), session.machine_id.bytes, uuid.uuid4().bytes),
+        )
+    [event] = client.get("/api/events", params={"kind": "terminal"}).json()
+    assert [event] == _cli("event", "list", "--kind", "terminal")
+    assert (event["kind"], event["subject"]["type"]) == ("terminal.opened", "terminal")
+    assert client.get(f"/api/events/{event['id']}").json() == event
+
+
+def test_an_outdated_database_is_shown_with_warnings(paths: Paths, client: TestClient) -> None:
+    conn = sqlite3.connect(paths.database)
+    with conn:
+        conn.execute("UPDATE meta SET value = 'outdated' WHERE key = 'schema_hash'")
+        conn.execute("CREATE TABLE old_things (note TEXT)")
+    conn.close()
+    tables = client.get("/api/db/tables")
+    assert tables.status_code == 200, tables.text
+    assert tables.json() == _cli("db", "tables")
+    assert len(tables.json()["warnings"]) == 2
+    rows = client.get("/api/db/tables/old_things").json()
+    assert rows == _cli("db", "dump", "old_things", "--reverse")
+    assert rows["warnings"] == tables.json()["warnings"][:1]
