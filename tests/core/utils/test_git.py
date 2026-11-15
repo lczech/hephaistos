@@ -1,5 +1,6 @@
 import contextlib
 import dataclasses
+import os
 import time
 from pathlib import Path
 
@@ -267,6 +268,34 @@ def test_status(tmp_path: Path) -> None:
     found = status(repo)
     assert (found.upstream, found.ahead, found.behind) == ("origin/main", 1, 0)
     assert (found.staged, found.changed, found.untracked, found.conflicted) == (1, 0, 1, 0)
+
+
+def test_status_with_a_gone_upstream(tmp_path: Path) -> None:
+    origin = create(tmp_path / "origin")
+    git(origin, "branch", "x")
+    repo = clone(origin, tmp_path / "repo")
+    git(repo, "switch", "--quiet", "x")
+    git(origin, "branch", "--delete", "x")
+    git(repo, "fetch", "--quiet", "--prune")
+    found = status(repo)
+    assert (found.upstream, found.ahead, found.behind) == ("origin/x", None, None)
+
+
+def test_status_leaves_the_index_alone(tmp_path: Path) -> None:
+    """Reading takes no lock that the git of the user would wait for: no stale index refreshed."""
+    repo = create(tmp_path / "repo")
+    (repo / "file").write_text("x")
+    git(repo, "add", "file")
+    git(repo, "commit", "--quiet", "--message", "file")
+    later = time.time() + 10
+    os.utime(repo / "file", (later, later))  # same content, stale stat data in the index
+    index = repo / ".git" / "index"
+    os.utime(index, (later - 20, later - 20))
+    before = index.stat().st_mtime_ns
+    assert status(repo).changed == 0
+    assert index.stat().st_mtime_ns == before
+    git(repo, "status", "--porcelain")  # which refreshes it, without GIT_OPTIONAL_LOCKS=0
+    assert index.stat().st_mtime_ns != before
 
 
 def test_branches(tmp_path: Path) -> None:
@@ -596,3 +625,25 @@ def test_a_timed_out_git_that_does_not_stop_is_killed(
     with pytest.raises(GitTimeoutError):
         git_facts.run(repo, "-c", "alias.stays=!trap '' TERM; sleep 30", "stays", timeout=0.5)
     assert time.monotonic() - started < 5
+
+
+def test_a_timed_out_reading_that_does_not_stop_is_killed_with_its_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What git started holds the output open too, unless killed along with it."""
+    repo = create(tmp_path / "repo")
+    monkeypatch.setattr(git_facts, "STOP_GRACE", 0.5)
+    config.activate(
+        dataclasses.replace(
+            config.DEFAULTS, git=dataclasses.replace(config.DEFAULTS.git, timeout=0.5)
+        )
+    )
+    stays = "alias.stays=!trap '' TERM; sleep 30"  # sleep ignores SIGTERM too
+    for read in (
+        lambda: git_facts.run_bounded(repo, "-c", stays, "stays", max_bytes=10),
+        lambda: list(git_facts.read_lines(repo, "-c", stays, "stays")),
+    ):
+        started = time.monotonic()
+        with pytest.raises(GitTimeoutError):
+            read()
+        assert time.monotonic() - started < 5

@@ -198,6 +198,9 @@ def test_a_hash_and_where_its_commit_is(repo: Path) -> None:
     assert where(three[:7], everywhere=True) == (three, "none", ())
     for search in ("two", "abc", f"{two[:7]} two", "0000000", ""):
         assert where(search) is None
+    hex_like = next(word for word in ("beef", "cafe", "dead") if not two.startswith(word))
+    git(repo, "branch", hex_like, two)  # a branch is no hash
+    assert where(hex_like) is None
 
 
 def test_refs_of_a_clone(repo: Path, tmp_path: Path) -> None:
@@ -217,6 +220,22 @@ def test_refs_of_a_clone(repo: Path, tmp_path: Path) -> None:
     assert [kind for kind, _ in names] == ["branch", "branch", "remote", "tag"]
     git(copy, "switch", "--quiet", "--detach")
     assert refs(copy).branch is None
+
+
+def test_refs_come_most_recent_first_within_each_kind(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, date in (("b-new", "2030-01-02T00:00:00Z"), ("a-old", "2030-01-01T00:00:00Z")):
+        monkeypatch.setenv("GIT_COMMITTER_DATE", date)
+        git(repo, "switch", "--quiet", "--create", name, "main")
+        _commit(repo, name)
+    for name, date in (("y-old", "2030-01-01T00:00:00Z"), ("z-new", "2030-01-02T00:00:00Z")):
+        monkeypatch.setenv("GIT_COMMITTER_DATE", date)  # annotated: dated by when tagged
+        git(repo, "tag", "--annotate", "--message", name, name)
+    found = [(ref.kind, ref.name) for ref in refs(repo).refs]
+    branches = [name for kind, name in found if kind == "branch"]
+    assert branches[:2] == ["b-new", "a-old"]
+    assert [name for kind, name in found if kind == "tag"] == ["z-new", "y-old"]
 
 
 def test_a_commit_and_whether_anything_leads_to_it(repo: Path) -> None:

@@ -501,3 +501,27 @@ def test_text_that_isnt_utf8(repo: Path) -> None:
     found = diff(repo, "index", "working-tree", "latin.txt", max_bytes=1000)
     assert _patch_lines(found.patch) == ["@@ -0,0 +1 @@", "+caf\ufffd"]
     assert versions(repo, "index", "working-tree", "latin.txt", max_bytes=1000).new == "caf\ufffd\n"
+
+
+def _paths(found: Changes) -> list[str]:
+    return [change.path for group in found.groups for change in group.changes]
+
+
+def test_index_and_working_tree_win_over_branches_of_their_names(repo: Path) -> None:
+    for name in ("index", "working-tree"):
+        git(repo, "branch", name)
+    _write(repo, "a.txt", "staged\n")
+    git(repo, "add", "a.txt")
+    _write(repo, "b.txt", "not staged\n")
+    assert _paths(_changes(repo, "index", "working-tree")) == ["b.txt"]
+    assert _paths(_changes(repo, "refs/heads/index", "index")) == ["a.txt"]
+    assert _paths(_changes(repo, "refs/heads/working-tree", "working-tree")) == ["a.txt", "b.txt"]
+
+
+def test_revisions_compared_below_a_path_list_only_it(repo: Path) -> None:
+    _write(repo, "new/a", "a\n")
+    _write(repo, "new/b", "b\n")
+    _write(repo, "other.txt", "o\n")
+    _write(repo, "a.txt", "changed\n")
+    assert _paths(_changes(repo, "HEAD", "working-tree", path="new/")) == ["new/a", "new/b"]
+    assert _paths(_changes(repo, "HEAD", "working-tree", path="a.txt")) == ["a.txt"]

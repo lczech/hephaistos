@@ -5,7 +5,7 @@ import pytest
 
 from hephaistos.core.utils import graph, history, tips
 from hephaistos.core.utils.tips import Between
-from support import create, git
+from support import clone, create, git
 
 
 def _commit(repo: Path, message: str, at: int | None = None) -> str:
@@ -164,3 +164,13 @@ def test_reads_commits_in_the_order_asked(repo: Path) -> None:
     hashes = [git(repo, "rev-parse", name) for name in ("main~3", "feature", "main")]
     assert [commit.hash for commit in history.commits(repo, hashes, known)] == hashes
     assert history.commits(repo, [], known) == []
+
+
+def test_a_shallow_clone_ends_at_its_oldest_commit(tmp_path: Path) -> None:
+    source = create(tmp_path / "source", commits=0)
+    for number in range(4):
+        _commit(source, f"c{number}")
+    shallow = clone(source, tmp_path / "shallow", depth=2)
+    found = _tips(shallow)  # no parent cut off is looked up
+    assert _subjects(found) == {"c3", "c2"}
+    assert _counts(found) == [("c3", "c2", 0)]
