@@ -44,7 +44,7 @@ export const ON_CONNECT: KeyName[] = ["info", "eventKinds"];
 export const SILENCE = 25_000; // without any message, the connection counts as lost
 export const FIRST_DELAY = 1_000; // before reconnecting; doubles with each failure
 export const LAST_DELAY = 30_000;
-export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus
+export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus, not between queries
 const WATCH_INTERVAL = 1_000;
 const REFUSED = 4401; // the Server's close code for a wrong or renewed token
 
@@ -223,8 +223,8 @@ focusManager.setEventListener((changed) => {
 
 /**
  * Keeps the live connection while mounted, and acts on the page gaining focus (TanStack's
- * `focusManager`): asks for a pass (at most every FOCUS_GAP), asks again for what no hint
- * covers, and reconnects at once.
+ * `focusManager`): reconnects at once, asks again for what no hint covers, and asks for a pass,
+ * at most every FOCUS_GAP.
  */
 export function useLiveUpdates(): void {
   const client = useQueryClient();
@@ -236,9 +236,9 @@ export function useLiveUpdates(): void {
     const onFocus = () => {
       if (!focusManager.isFocused()) return;
       live.reconnectNow();
+      asking.names(ON_FOCUS);
       if (Date.now() - lastPass < FOCUS_GAP) return;
       lastPass = Date.now();
-      asking.names(ON_FOCUS);
       // A failed pass shows in the Daemon's status, like any other.
       void observe().catch(() => undefined);
     };

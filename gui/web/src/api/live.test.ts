@@ -7,6 +7,7 @@ import { renderWithQueries, serve } from "../test/server";
 import { takeTokenFromUrl, token } from "../token";
 import {
   FIRST_DELAY,
+  FOCUS_GAP,
   HINTED,
   LAST_DELAY,
   ON_CONNECT,
@@ -270,17 +271,20 @@ describe("the live connection", () => {
     expect(asked).toHaveBeenCalledTimes(1);
   });
 
-  // FOCUS_GAP holds back what is asked again on focus, not only the pass: a file edited and the
-  // page focused again within 10 s leaves Changes and Diff stale until a hint. Whether only the
-  // pass is meant to wait is for the user to decide; until then this fails.
-  it.fails("asks again on each focus for what no hint covers, within the gap too", () => {
+  it("asks again on each focus for what no hint covers, and for a pass only after the gap", async () => {
+    const passes = vi.fn(() => new Response(null, { status: 204 }));
+    serve({ "POST /api/observe": passes });
     const { invalidated } = start();
     wait(60_000);
     act(() => window.dispatchEvent(new Event("focus")));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(passes).toHaveBeenCalledTimes(2); // on starting, and past the gap
     invalidated.mockClear();
-    wait(5_000);
+    wait(FOCUS_GAP / 2);
     act(() => window.dispatchEvent(new Event("focus")));
     expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(passes).toHaveBeenCalledTimes(2);
   });
 
   it("asks again when the page is shown, as when its window gains focus", () => {
