@@ -240,6 +240,23 @@ describe("finding in the Explorer", () => {
     expect(listed).toEqual(["false", "true"]);
   });
 
+  it("lists the folder and the paths below it again on Refresh", async () => {
+    const requests = serveDisk();
+    await finding("");
+    await expectSettled();
+    const asked = () =>
+      requests.map((request) => {
+        const url = new URL(request.url);
+        return `${url.pathname} ${url.searchParams.get("path")}`;
+      });
+    const before = asked();
+    expect(before).toContain("/api/files/paths /home/me");
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await expectSettled();
+    const again = asked().slice(before.length);
+    expect(new Set(again)).toEqual(new Set(["/api/files /home/me", "/api/files/paths /home/me"]));
+  });
+
   it("says when what is typed is an invalid expression, the tree as it was", async () => {
     serveDisk();
     await finding("");
