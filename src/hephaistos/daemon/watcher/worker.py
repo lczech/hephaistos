@@ -41,7 +41,7 @@ class Done:
     observed: int  # Clones
     worktrees: int
     updated: int  # Checkouts whose State changed
-    skipped: int  # Clones observed by another process meanwhile
+    skipped: int  # Clones moved, unregistered or observed by another process meanwhile
 
 
 @dataclass(frozen=True)

@@ -45,4 +45,6 @@ def observe(
         typer.echo(f"No changes ({observed} observed)")
     if result.skipped:
         skipped = number_text(result.skipped, "clone")
-        typer.echo(f"{skipped} skipped: observed by another process meanwhile")
+        typer.echo(
+            f"{skipped} skipped: moved, unregistered or observed by another process meanwhile"
+        )

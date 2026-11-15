@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 from hephaistos.cli.clone import status_text
 from hephaistos.cli.main import app
+from hephaistos.core.observers import clones as observer
 from hephaistos.core.state.checkouts import CheckoutState
 from hephaistos.core.utils.ids import Timestamp
 from support import clone, create, git
@@ -115,3 +116,18 @@ BASE = CheckoutState(
 )
 def test_status_text(changes: dict[str, object], expected: str) -> None:
     assert status_text(dataclasses.replace(BASE, **changes)) == expected
+
+
+def test_says_why_clones_were_skipped(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    real = observer.clone_observation
+
+    def unregistered_meanwhile(known: observer.Known) -> observer.CloneObservation:
+        assert runner.invoke(app, ["clone", "unregister", str(repo)]).exit_code == 0
+        return real(known)
+
+    monkeypatch.setattr(observer, "clone_observation", unregistered_meanwhile)
+    result = runner.invoke(app, ["observe"])
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[-1] == (
+        "1 clone skipped: moved, unregistered or observed by another process meanwhile"
+    )
