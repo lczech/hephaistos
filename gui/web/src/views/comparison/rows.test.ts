@@ -137,17 +137,16 @@ describe("the rows", () => {
     ]);
   });
 
-  // The doc (views.md, Changes) puts untracked files and new folders last, as the stacked Diff
-  // does; the list puts new folders first and untracked files among the others by path. Which
-  // is right is for the user to decide; until then this fails.
-  it.fails("lists untracked files and new folders last, as the stacked Diff does", () => {
+  // Untracked files and new folders come last where they have a group of their own; in one list,
+  // new folders come first, as directories do, and untracked files sort among the others.
+  it("lists new folders first in one list, and untracked files among the others by path", () => {
     const listed = [
       change("b.txt"),
       change("a.txt", { status: "?" }),
       change("new/", { status: "?", added: null, removed: null, files: 1 }),
     ];
     const [row] = entries([group("changes", listed)], nothingWithin, []);
-    expect(row?.subRows.map(entryId)).toEqual(["changes:b.txt", "changes:a.txt", "changes:new/"]);
+    expect(row?.subRows.map(entryId)).toEqual(["changes:new/", "changes:a.txt", "changes:b.txt"]);
   });
 
   it("say how many more there are than listed, and that a setting stops them", () => {

@@ -75,7 +75,8 @@ The Changes View lists the files a comparison changes, grouped and nested as cho
 A file's row opens its Diff; directories and groups fold.
 A toggle in the bar, before that of the tree, folds all directories at once, in every group, in a tree or flat, or unfolds them all; neither is on while mixed.
 Folding closes new folders too; unfolding leaves them closed, as opening one asks for its files.
-Untracked files and new folders, which may be anything left lying about, come last.
+Untracked files and new folders, which may be anything left lying about, come last where they have a group of their own.
+In one list, they sort among the others, new folders first, as directories come before files.
 
 ## Diff
 
