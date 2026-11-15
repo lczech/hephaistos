@@ -363,6 +363,32 @@ describe("the Graph View", () => {
     }
   });
 
+  it("says on Go to that it loads towards a stretch clicked, until its commit shows", async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pages = [
+      [
+        commit("f", ["f1"], { refs: [branch("feature", "f")] }),
+        commit("f1", ["f2"]),
+        commit("f2", ["b"]),
+        COMMITS[1] as Commit,
+        COMMITS[2] as Commit,
+      ],
+    ];
+    serveGraph({ tips: TIPS, pages, hold: () => held }); // all commits wait
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await userEvent.click(await screen.findByText(/^2 commits,/));
+    const goTo = () => screen.getByRole("button", { name: /^(Go to|Stop loading towards)/ });
+    await waitFor(() => expect(goTo()).toHaveAttribute("data-busy", "true"));
+    expect(goTo()).toHaveAccessibleName(`Stop loading towards ${hash("f").slice(0, 7)}`);
+    release();
+    await screen.findByText("Commit f1");
+    await waitFor(() => expect(goTo()).not.toHaveAttribute("data-busy"));
+    expect(went).toHaveBeenCalledTimes(1);
+  });
+
   it("leaves hidden branches out of the walk, and says so in its title", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature", "old"] }} />);
@@ -424,6 +450,20 @@ describe("the Checkouts in the Graph View", () => {
     expect(
       screen.getByTitle(`HEAD of worktree loose, detached at ${hash("b").slice(0, 7)}`),
     ).toHaveTextContent("detachedloose");
+  });
+
+  it("marks each chip from the rows with branch tips only, asking for no lines ahead", async () => {
+    const requests = serveGraph({ tips: TIPS, holdLines: new Promise(() => {}) });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await screen.findByText(/^2 commits,/);
+    const feature = screen.getByTitle("branch, checked out in worktree feature");
+    await waitFor(() =>
+      expect(colour(chip("Worktree feature"))).toBe(feature.style.getPropertyValue("--ref-colour")),
+    );
+    expect(colour(chip("Worktree feature"))).not.toBe("");
+    expect(colour(chip("Clone proj"))).toBe("var(--accent)");
+    const paths = requests.map((request) => new URL(request.url).pathname);
+    expect(paths).not.toContain("/api/graph/lines");
   });
 
   it("marks each chip in the colour of its HEAD's line, as its badge is framed", async () => {
@@ -932,6 +972,41 @@ describe("going to a branch, tag or commit in the Graph View", () => {
       .map((request) => new URL(request.url))
       .filter((url) => url.pathname === "/api/history" && url.searchParams.has("everywhere"));
     expect(searched).toEqual([]);
+  });
+
+  it("offers no remote branches, and searches commits in the walk of the Graph", async () => {
+    // Searching by a message: its commits found and picked are tested by hash, below.
+    const remote = { ...branch("origin/main", "m"), full: "refs/remotes/origin/main" };
+    const pages = [
+      [
+        COMMITS[0] as Commit,
+        commit("m", ["b"], { refs: [branch("main", "m"), { ...remote, kind: "remote" }] }),
+        COMMITS[2] as Commit,
+      ],
+    ];
+    const requests = serveGraph({ pages, only: { feature: ["f"] } });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
+    await screen.findByText("Commit b");
+    await userEvent.click(goTo());
+    const field = within(picker()).getByRole("searchbox");
+    await within(picker()).findByRole("option", { name: "main" });
+    expect(within(picker()).queryByRole("option", { name: "origin/main" })).toBeNull();
+    await userEvent.type(field, "main");
+    expect(within(picker()).queryByRole("option", { name: "origin/main" })).toBeNull();
+    await userEvent.clear(field);
+    await userEvent.type(field, "Nowhere");
+    const walked = (url: URL) =>
+      ["branches", "order", "hide"].map((name) => url.searchParams.getAll(name).join());
+    const urls = () =>
+      requests
+        .map((request) => new URL(request.url))
+        .filter((url) => url.pathname === "/api/history");
+    const searched = () => urls().filter((url) => url.searchParams.get("search") === "Nowhere");
+    await waitFor(() => expect(searched().length).toBeGreaterThan(0));
+    await within(picker()).findByText("Nothing matches.");
+    const walk = walked(urls().find((url) => !url.searchParams.has("search")) as URL);
+    expect(walk[2]).toBe("feature");
+    for (const url of searched()) expect(walked(url)).toEqual(walk);
   });
 
   it("shows a hidden branch picked again, then goes to it", async () => {

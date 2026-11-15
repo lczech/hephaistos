@@ -10,6 +10,7 @@ import {
   entries,
   graphOf,
   type Ref,
+  searchedEntries,
   shownRefs,
   tipsAt,
   tipsEntries,
@@ -397,3 +398,11 @@ const entryIdOf = (entry: Entry) =>
     : entry.type === "stretch"
       ? `stretch:${entry.commit}`
       : entry.type;
+
+describe("the rows of commits searched for", () => {
+  it("name a commit found by its hash first, once, where it is listed too", () => {
+    const [c2, c3] = [commit("c2", []), commit("c3", ["c2"])];
+    const rows = searchedEntries({ where: "listed", commit: c2, refs: [] }, [c3, c2]);
+    expect(rows.map(entryIdOf)).toEqual(["c2", "c3"]);
+  });
+});

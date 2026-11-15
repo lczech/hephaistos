@@ -183,6 +183,32 @@ describe("GitRevisionPicker", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/^refs\/heads\/main$/);
   });
 
+  it("matches fixed rows by their own words, not the branch HEAD names", async () => {
+    serveHistory(() => json(page([commit(3)])));
+    renderWithQueries(<Picker />);
+    const field = await openPicker();
+    await waitFor(() => expect(options()).toContain("main"));
+    await userEvent.type(field, "mai");
+    expect(options()).not.toContain("HEAD (main)");
+    expect(options()[0]).toBe("main");
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("status")).toHaveTextContent(/^refs\/heads\/main$/);
+  });
+
+  it("marks the Revision picked, and opens afresh each time, nothing typed", async () => {
+    serveHistory(() => json(page([commit(3)])));
+    renderWithQueries(<Picker initial="refs/heads/main" />);
+    let field = await openPicker();
+    expect(await screen.findByRole("option", { name: "main" })).toHaveAttribute("data-current");
+    expect(screen.getByRole("option", { name: "feature" })).not.toHaveAttribute("data-current");
+    await userEvent.type(field, "zz");
+    await userEvent.click(document.body); // closed with the text typed, not cleared by Escape
+    await waitFor(() => expect(screen.queryByRole("searchbox")).toBeNull());
+    field = await openPicker();
+    expect(field).toHaveValue("");
+    expect(selectedTab()).toMatch(/^Branches/);
+  });
+
   it("picks the first row on Enter where none is focused, e.g. after switching tabs", async () => {
     serveHistory(() => json(page([commit(3)])));
     renderWithQueries(<Picker rows={[]} tabs={["branches", "tags"]} />);

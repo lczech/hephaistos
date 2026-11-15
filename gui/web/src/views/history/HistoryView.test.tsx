@@ -106,6 +106,16 @@ describe("the History View", () => {
     ).toHaveLength(2);
   });
 
+  it("names no committer who wrote the commit, and the first commit's parents as none", async () => {
+    serveHistory(() => json(page([commit(1, { parents: [] })])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await userEvent.click(await screen.findByText("Commit 1"));
+    const details = screen.getByRole("region", { name: "Commit details" });
+    expect(within(details).queryByText("committer")).toBeNull();
+    expect(within(details).getByText("committed")).toBeInTheDocument();
+    expect(within(details).getByText("none: the first")).toBeInTheDocument();
+  });
+
   it("shows a few of a commit's refs, main first, and all in its details", async () => {
     const { refs } = page([]);
     serveHistory(() => json(page([{ ...HEAD, refs: [...refs.slice(1), ...refs.slice(0, 1)] }])));
@@ -118,6 +128,21 @@ describe("the History View", () => {
     expect(within(details).getByText("refs").nextSibling).toHaveTextContent(
       "mainfeatureorigin/mainv1",
     );
+  });
+
+  it("shows two labels of a row without HEAD, master first, then branches, the rest counted", async () => {
+    const at = "".padStart(40, "c");
+    const refs: Commit["refs"] = [
+      { name: "v1", full: "refs/tags/v1", kind: "tag", commit: at },
+      { name: "origin/x", full: "refs/remotes/origin/x", kind: "remote", commit: at },
+      { name: "feature", full: "refs/heads/feature", kind: "branch", commit: at },
+      { name: "master", full: "refs/heads/master", kind: "branch", commit: at },
+    ];
+    serveHistory(() => json(page([HEAD, commit(2, { refs })])));
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Commit 2");
+    expect(rows()[1]).toBe("ccccccc masterfeature+2Commit 2 Lucas 2h ago");
+    expect(screen.getByText("+2")).toHaveAttribute("title", "origin/x, v1");
   });
 
   it("opens a commit's Changes and Diff from beside its hash, as previews", async () => {
@@ -235,6 +260,35 @@ describe("the History View", () => {
     ]);
   });
 
+  it("asks for the next page with neither start nor path where it names none", async () => {
+    let scrolledToEnd = () => {};
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(seen: IntersectionObserverCallback) {
+          scrolledToEnd = () =>
+            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const next = { start: null, path: null, skip: 50 };
+    const requests = serveHistory((url) =>
+      url.searchParams.has("skip") ? json(page([commit(1)])) : json(page([HEAD], next)),
+    );
+    renderWithQueries(<History initial={{ clone: "clone-proj" }} />);
+    expect(await screen.findByText("Older commits load as you scroll.")).toBeInTheDocument();
+    act(() => scrolledToEnd());
+    expect(await screen.findByText("Commit 1")).toBeInTheDocument();
+    const older = new URL(requests.at(-1)?.url ?? "").searchParams;
+    expect([older.has("start"), older.has("path"), older.get("skip")]).toEqual([
+      false,
+      false,
+      "50",
+    ]);
+  });
+
   it("says what is not committed above HEAD's commits, of all files or the path", async () => {
     serve({
       "GET /api/info": () => json(info()),
@@ -337,6 +391,37 @@ describe("the History View", () => {
     // There, listed: as one of its commits.
     await waitFor(() => expect(screen.queryByText("not on main, but on:")).toBeNull());
     expect(rows()).toEqual(["ccccccc Aside Lucas 2h ago"]);
+  });
+
+  it("says of a commit found by its hash where no branch or tag leads, or a few that do", async () => {
+    const aside = commit(7, { subject: "Aside" });
+    const branch = (name: string) => ({
+      name,
+      full: `refs/heads/${name}`,
+      kind: "branch" as const,
+      commit: aside.hash,
+    });
+    const on = ["a", "b", "c", "d"].map(branch);
+    serveHistory((url) =>
+      json(
+        url.searchParams.get("search") === "ccccccc7"
+          ? page([], null, { commit: aside, where: "refs", refs: on })
+          : page([], null, { commit: aside, where: "none", refs: [] }),
+      ),
+    );
+    const { unmount } = renderWithQueries(
+      <History initial={{ clone: "clone-proj", search: "ccccccc7" }} />,
+    );
+    expect(await screen.findByText("not on main, but on:")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^[abcd]$/ }).map((b) => b.textContent)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+    expect(screen.getByText("+1 more")).toHaveAttribute("title", "d");
+    unmount();
+    renderWithQueries(<History initial={{ clone: "clone-proj", search: "cccccc7" }} />);
+    expect(await screen.findByText("no branch or tag leads to it any more")).toBeInTheDocument();
   });
 
   it("offers all files for a commit found by its hash that does not change the path", async () => {
@@ -472,3 +557,29 @@ function orderAsked(requests: Request[]): string | null {
   const asked = requests.filter((request) => request.url.includes("/api/history")).at(-1);
   return new URL(asked?.url ?? "http://none").searchParams.get("order");
 }
+
+describe("the History View of a Checkout gone", () => {
+  it("says so, and keeps saying it while asking again", async () => {
+    const checkout = { clone: "clone-proj", worktree: "wt-side", gone: "worktree" } as const;
+    const gone = () => json({ error: "the worktree at ~/side was removed", checkout }, 410);
+    let answer = (): Response | Promise<Response> => gone();
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+      "GET /api/history": () => answer(),
+    });
+    const { client } = renderWithQueries(<History initial={{ worktree: "wt-side" }} />);
+    expect(await screen.findByText(/^The worktree at ~\/side was removed\.$/)).toBeInTheDocument();
+    expect(screen.queryByRole("treegrid")).toBeNull();
+    let reply = (_: Response) => {};
+    answer = () => new Promise((resolve) => (reply = resolve));
+    await act(async () => {
+      void client.invalidateQueries(); // answered below
+      await new Promise((resolve) => setTimeout(resolve, 50)); // the View updated meanwhile
+    });
+    expect(screen.getByText(/was removed/)).toBeInTheDocument();
+    expect(screen.queryByRole("treegrid")).toBeNull();
+    await act(async () => reply(gone()));
+    expect(screen.getByText(/was removed/)).toBeInTheDocument();
+  });
+});

@@ -25,6 +25,39 @@ function bar(busy: boolean) {
 }
 
 describe("the find row", () => {
+  it("says it searches until something is found, and when there are more", () => {
+    const props = { label: "Find", query, onChange: () => {}, onTypingEnd: () => {}, current: 0 };
+    const more = { onStep: () => {}, onClose: () => {} };
+    const { rerender } = render(
+      <FindBar {...props} {...more} finding={{ busy: true }} count={0} />,
+    );
+    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    const matches = Array.from({ length: 3 }, (_, line) => ({ line, start: 0, end: 1 }));
+    const found = { matches, more: true, busy: false, in: ["a", "a", "a"] };
+    rerender(<FindBar {...props} {...more} finding={found} count={3} />);
+    expect(screen.getByText("1 of 3+")).toBeInTheDocument();
+  });
+
+  it("steps once on Enter on its next button", async () => {
+    const onStep = vi.fn();
+    render(
+      <FindBar
+        label="Find"
+        query={query}
+        onChange={() => {}}
+        onTypingEnd={() => {}}
+        finding={{ matches: [{ line: 0, start: 0, end: 1 }], more: false, busy: false, in: ["a"] }}
+        count={1}
+        current={0}
+        onStep={onStep}
+        onClose={() => {}}
+      />,
+    );
+    screen.getByRole("button", { name: "Next match" }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(onStep.mock.calls).toEqual([[1]]);
+  });
+
   it("turns its search icon while busy, and says why there may be more", () => {
     const { container, rerender } = render(bar(false));
     const search = container.querySelector("search") as HTMLElement; // jsdom knows no role for it
