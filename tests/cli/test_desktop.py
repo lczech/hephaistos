@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -117,3 +118,33 @@ def test_the_apparmor_profile_takes_root_only_when_asked(
         f"  sudo rm {installed}",
         "Run them to remove it",
     ]
+
+
+@pytest.mark.usefixtures("checkout")
+@pytest.mark.parametrize(("answer", "code"), [("n", None), ("y", 0), ("y", 1)])
+def test_sudo_runs_once_agreed(
+    monkeypatch: pytest.MonkeyPatch, answer: str, code: int | None
+) -> None:
+    _restricted(monkeypatch, installed=False)
+    monkeypatch.setattr(terminal, "interactive", lambda: True)
+    ran: list[list[str]] = []
+
+    def sudo_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        ran.append(command)
+        return subprocess.CompletedProcess(command, code or 0)
+
+    monkeypatch.setattr(subprocess, "run", sudo_run)
+    result = runner.invoke(app, ["desktop", "install"], input=f"{answer}\n")
+    assert "Run them with sudo now? [y/N]" in result.output
+    if code is None:
+        assert ran == []
+        assert result.output.endswith("Run them, then `hephaistos desktop open`\n")
+        return
+    [command] = ran
+    assert command[:4] == ["sudo", "-k", "sh", "-c"]
+    assert f"apparmor_parser -r {apparmor.INSTALLED}" in command[4]
+    if code:
+        assert result.exit_code == 1
+        assert str(result.exception) == "sudo failed (exit code 1); nothing changed"
+    else:
+        assert result.exit_code == 0, result.output

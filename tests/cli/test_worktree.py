@@ -79,10 +79,26 @@ def test_names_in_several_clones(
     assert "several worktrees are named feature" in str(result.exception)
 
     monkeypatch.setattr(terminal, "interactive", lambda: True)
-    result = runner.invoke(app, ["worktree", "show", "feature"], input="1\n")
+    result = runner.invoke(app, ["worktree", "show", "feature"], input="3\n0\n1\n")  # asked again
     assert result.exit_code == 0, result.output
     assert f"  1  {tmp_path / 'feature'}\n  2  {repo / '.worktrees' / 'feature'}\n" in result.output
     assert "branch       feature2" in result.output
+
+
+def test_lists_by_repository(repo: Path, tmp_path: Path) -> None:
+    runner.invoke(app, ["repo", "register", "other"])
+    other = create(tmp_path / "other")
+    runner.invoke(app, ["clone", "register", str(other), "--repo", "other"])
+    git(other, "worktree", "add", "--quiet", "-b", "side", str(tmp_path / "side"))
+    runner.invoke(app, ["observe"])
+    for name, clone_path, worktree in (("proj", repo, "feature"), ("other", other, "side")):
+        for command, shown in (("clone", str(clone_path)), ("worktree", worktree)):
+            rows = runner.invoke(app, [command, "list", "--repo", name]).output.splitlines()[1:]
+            assert len(rows) == 1, rows
+            assert shown in rows[0].split()
+            listed = runner.invoke(app, [command, "list", "--repo", name, "--json"]).output
+            [found] = json.loads(listed)
+            assert found["repository"]["name"] == name
 
 
 def _branch(output: str) -> str:

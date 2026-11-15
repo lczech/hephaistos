@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from hephaistos.cli.main import app
 from hephaistos.core import config
 from hephaistos.core.utils.file_search import PatternError
-from support import create
+from support import create, git
 
 runner = CliRunner()
 
@@ -22,6 +22,32 @@ def _directory(tmp_path: Path) -> Path:
     (directory / "README").write_text("hello\n")
     (directory / "to-src").symlink_to("src")
     return directory
+
+
+def test_git_fields_say_ignored_changed_below_and_both_sides(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    (repo / ".gitignore").write_text("build/\n")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "a.md").write_text("one\n")
+    git(repo, "add", "--all")
+    git(repo, "commit", "--quiet", "--message", "files")
+    (repo / "build").mkdir()
+    (repo / "docs" / "a.md").write_text("two\n")
+    (repo / "both.txt").write_text("staged\n")
+    git(repo, "add", "both.txt")
+    (repo / "both.txt").write_text("then edited\n")
+    result = runner.invoke(app, ["files", "list", str(repo), "--fields", "git"])
+    assert result.exit_code == 0, result.output
+    shown = dict(line.split() for line in result.output.splitlines()[1:] if len(line.split()) == 2)
+    assert (shown["build/"], shown["docs/"], shown["both.txt"]) == ("!!", "*", "AM")
+
+
+def test_broken_links_and_empty_directories_say_so(tmp_path: Path) -> None:
+    (tmp_path / "empty").mkdir()
+    assert runner.invoke(app, ["files", "list", str(tmp_path / "empty")]).output == "Empty.\n"
+    (tmp_path / "empty" / "link").symlink_to("nowhere")
+    listed = runner.invoke(app, ["files", "list", str(tmp_path / "empty")]).output
+    assert listed.splitlines()[1:] == ["link -> nowhere (broken)"]
 
 
 @pytest.mark.usefixtures("paths")

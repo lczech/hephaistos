@@ -83,3 +83,22 @@ def test_starts_the_daemon_and_waits_for_its_server(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(browse, "LISTEN_WAIT", 0.0)
     asked.clear()
     assert str(runner.invoke(app, ["browse"]).exception) == "the server is not running"
+
+
+def test_an_x11_session_is_graphical_too(
+    opened: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("WAYLAND_DISPLAY")
+    monkeypatch.setenv("DISPLAY", ":0")
+    assert runner.invoke(app, ["browse"]).output == "Opened the GUI in your browser\n"
+    assert opened == [LINK]
+
+
+@pytest.mark.usefixtures("opened")
+def test_prints_the_link_without_a_browser(monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_browser(_link: str) -> bool:
+        return False
+
+    monkeypatch.setattr(browse.webbrowser, "open", no_browser)
+    shown = runner.invoke(app, ["browse"]).output
+    assert shown == f"Found no browser; open this link in one:\n{LINK}\n"

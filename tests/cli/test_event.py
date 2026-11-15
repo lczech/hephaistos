@@ -96,6 +96,16 @@ def test_bad_since() -> None:
     assert "neither a duration" in result.output
 
 
+def test_list_shows_the_newest_20_oldest_first() -> None:
+    for number in range(20):
+        runner.invoke(app, ["repo", "register", f"r{number}"])
+    shown = _rows()
+    assert len(shown) == 20
+    assert shown[0] != _rows("-n", "21")[0]
+    assert shown == _rows("--reverse")[::-1]
+    assert shown[-1][3:5] == ["repository.registered", "r19"]
+
+
 @pytest.mark.usefixtures("paths")
 def test_time_format_option_and_setting() -> None:
     full = r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d"

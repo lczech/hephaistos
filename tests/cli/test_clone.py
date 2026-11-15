@@ -56,6 +56,14 @@ def test_yes_registers_without_asking(repo: Path) -> None:
     assert result.output == f"Registered clone {repo} of a new repository hephaistos\n"
 
 
+def test_register_counts_the_worktrees_found(repo: Path, tmp_path: Path) -> None:
+    git(repo, "worktree", "add", "--quiet", str(tmp_path / "side"))
+    result = runner.invoke(app, ["clone", "register", "--repo", "proj", "--import-history"])
+    assert result.output == (
+        f"Registered clone {repo} of proj, with 1 worktree; imported 1 event of its history\n"
+    )
+
+
 def test_repository_without_clones_matches_by_name(repo: Path) -> None:
     runner.invoke(app, ["repo", "register", "Hephaistos"])
     result = runner.invoke(app, ["clone", "register", "--yes"])

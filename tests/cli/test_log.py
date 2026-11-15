@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -69,6 +70,21 @@ def test_pages_on_a_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("PAGER", f"sh -c 'cat > {paged}'")
     terminal.page("one\ntwo")
     assert paged.read_text() == "one\ntwo\n"
+
+
+def test_pages_with_less_without_a_pager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A `less` that writes what it gets and the LESS it runs with: FRX, unless the user set one.
+    (tmp_path / "less").write_text(f'#!/bin/sh\n{{ echo "$LESS"; cat; }} > {tmp_path / "paged"}\n')
+    (tmp_path / "less").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setenv("PAGER", "")
+    monkeypatch.delenv("LESS", raising=False)
+    terminal.page("one")
+    assert (tmp_path / "paged").read_text() == "FRX\none\n"
+    monkeypatch.setenv("LESS", "S")
+    terminal.page("one")
+    assert (tmp_path / "paged").read_text() == "S\none\n"
 
 
 def test_prune(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> None:

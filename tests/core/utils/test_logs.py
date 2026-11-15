@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -291,7 +292,7 @@ def test_start_shows_records_on_stderr_and_is_remembered(
     assert [line["message"] for line in _lines(path)] == ["shown 1"]
 
 
-def test_record_text() -> None:
+def test_record_text(monkeypatch: pytest.MonkeyPatch) -> None:
     at = datetime(2026, 10, 8, 12, 0, 1, 5000, tzinfo=UTC)
     record: logs.Record = {
         "at": at.isoformat(),
@@ -304,15 +305,21 @@ def test_record_text() -> None:
         "count": 2,
         "error": "Traceback (most recent call last):\n  File \"x.py\", line 1\nKeyError: 'branch'",
     }
-    local = at.astimezone()
     head = "ERROR cli[7] unexpected KeyError path=/x count=2"
-    assert logs.record_text(record).splitlines() == [
-        f"{local:%H:%M:%S}.005 {head}",
-        "    Traceback (most recent call last):",
-        '      File "x.py", line 1',
-        "    KeyError: 'branch'",
-    ]
-    assert logs.record_text(record, dated=True, brief=True).splitlines() == [
-        f"{local:%Y-%m-%d %H:%M:%S}.005 {head}",
-        "    ↳ KeyError: 'branch'",
-    ]
+    with monkeypatch.context() as zone:
+        zone.setenv("TZ", "Asia/Tokyo")  # local times, not UTC, whatever the zone of the tests
+        time.tzset()
+        try:
+            assert logs.record_text(record).splitlines() == [
+                f"21:00:01.005 {head}",
+                "    Traceback (most recent call last):",
+                '      File "x.py", line 1',
+                "    KeyError: 'branch'",
+            ]
+            assert logs.record_text(record, dated=True, brief=True).splitlines() == [
+                f"2026-10-08 21:00:01.005 {head}",
+                "    ↳ KeyError: 'branch'",
+            ]
+        finally:
+            zone.undo()
+            time.tzset()

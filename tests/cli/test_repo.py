@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 from hephaistos.cli import terminal
 from hephaistos.cli.main import app
 from hephaistos.core.utils.errors import HephaistosError
-from support import clone, create
+from support import clone, create, git
 
 runner = CliRunner()
 
@@ -59,6 +59,19 @@ def test_show() -> None:
     data = json.loads(runner.invoke(app, ["repo", "show", "proj", "--json"]).output)
     assert data["name"] == "proj"
     assert data["clones"] == []
+
+
+def test_show_says_when_the_repository_and_its_clones_were_active(tmp_path: Path) -> None:
+    repo = create(tmp_path / "repo")
+    runner.invoke(app, ["scan", str(tmp_path), "--yes"])
+    git(repo, "commit", "--quiet", "--allow-empty", "--message", "two")
+    assert runner.invoke(app, ["observe"]).exit_code == 0
+    data = json.loads(runner.invoke(app, ["repo", "show", "repo", "--json"]).output)
+    [clone_data] = data["clones"]
+    assert data["active_at"] is not None
+    assert clone_data["active_at"] == data["active_at"]
+    [listed] = json.loads(runner.invoke(app, ["repo", "list", "--json"]).output)
+    assert listed["active_at"] == data["active_at"]
 
 
 def test_show_unknown() -> None:
