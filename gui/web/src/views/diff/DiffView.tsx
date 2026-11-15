@@ -14,8 +14,9 @@ import type { Schemas } from "../../api/client";
 import {
   type ChangesQuery,
   type DiffQuery,
-  KEYS,
+  refreshComparison,
   useChanges,
+  useChangesNow,
   useDiff,
   useDiffFiles,
   useDiffs,
@@ -189,7 +190,7 @@ export function DiffView({
   // as its section asked for them (read here only), the patch's until then. A stack's: all its
   // files', asked for at once as the find row opens, in the stack's order; untracked ones only
   // while open, after them. A match stepped to in a folded file unfolds it, for good.
-  const versions = useDiffFiles(fileQuery, fileDiff.dataUpdatedAt, false);
+  const versions = useDiffFiles(fileQuery, fileDiff, false);
   const stack = query === undefined && checkout && base ? { ...checkout, ...base } : undefined;
   const all = useDiffs(finding && stack);
   const [untrackedOpen, setUntrackedOpen] = useState<readonly string[]>([]);
@@ -376,13 +377,11 @@ export function DiffView({
             {!query && <NestedToggle />}
           </BarGroup>
           <BarGroup>
-            {/* The list and every patch: those of the files shown are not keyed by the list. */}
+            {/* The list and every patch of the comparison: those of the files shown are not
+                keyed by the list. One file: also where its changes are now (`Unchanged`). */}
             <Refresh
               busy={listed.isFetching || fileDiff.isFetching}
-              onClick={() => {
-                void client.invalidateQueries({ queryKey: KEYS.changes });
-                void client.invalidateQueries({ queryKey: KEYS.diff });
-              }}
+              onClick={() => refreshComparison(client, { ...checkout, ...base }, path)}
             />
           </BarGroup>
           <BarGroup>
@@ -474,8 +473,8 @@ interface UnchangedProps {
 
 /** A file without changes compared so: where its changes are now, to show them instead. */
 function Unchanged({ query, params, setParams }: UnchangedProps) {
-  const { from: _, to: __, path, ...checkout } = query;
-  const now = useChanges({ ...checkout, path });
+  const { path } = query;
+  const now = useChangesNow(query);
   if (now.data === undefined) {
     return <p className={styles.note}>{noChanges(query)}</p>;
   }

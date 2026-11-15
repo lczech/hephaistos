@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "@tanstack/react-store";
 import { LayoutList, List as ListIcon } from "lucide-react";
 import { useState } from "react";
-import { KEYS, useChanges, useRepositories } from "../../api/queries";
+import { refreshChanges, useChanges, useRepositories } from "../../api/queries";
 import { List, type Opening } from "../../components/list/List";
 import { BarEnd, BarGroup, Refresh, Toggle, ViewBar, ViewPage } from "../../components/ViewBar";
 import { FoldersFolded, FoldersUnfolded } from "../../drawnIcons";
@@ -181,7 +181,8 @@ export function ChangesView({ params, setParams, fragment, setFragment, setTitle
             <BarGroup>
               <Refresh
                 busy={changes.isFetching}
-                onClick={() => void client.invalidateQueries({ queryKey: KEYS.changes })}
+                // This query alone: its list and its folders, not other comparisons or Checkouts.
+                onClick={() => refreshChanges(client, query)}
               />
             </BarGroup>
             <BarGroup>

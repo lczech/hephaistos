@@ -119,7 +119,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find, large 
   // Both versions, where both are and the patch shows; an added or deleted file is all patch.
   const twoSided = change && !change.binary && !["A", "?", "D"].includes(change.status);
   const due = Boolean(twoSided && patch && !waiting && !diff.isPlaceholderData);
-  const versions = useDiffFiles(query, diff.dataUpdatedAt, due);
+  const versions = useDiffFiles(query, diff, due);
   // The patch shown and its versions: kept until a new patch's versions came too.
   const [shown, setShown] = useState<{ patch: string; versions: Versions | undefined }>();
   const asking = estimate ? (

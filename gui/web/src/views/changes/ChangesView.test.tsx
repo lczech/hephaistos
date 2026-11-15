@@ -1,7 +1,8 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
+import { KEYS } from "../../api/queries";
 import { cells, listRows, ownRow } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
@@ -108,6 +109,26 @@ function rowText(row: HTMLElement): string {
 const rows = () => listRows().map(rowText);
 
 describe("the Changes View", () => {
+  it("asks again on Refresh for the changes of its Checkout only", async () => {
+    serveChanges();
+    const { client } = renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
+    await screen.findByText("Staged");
+    const own = [...KEYS.changes, { clone: "clone-proj" }];
+    const folder = [...KEYS.changes, { clone: "clone-proj", path: "new/" }];
+    await userEvent.click(screen.getByText("new/"));
+    await screen.findByTitle("new/a.txt");
+    const others = [
+      [...KEYS.changes, { clone: "clone-other" }],
+      [...KEYS.changes, { clone: "clone-proj", from: "HEAD", to: "index" }],
+      [...KEYS.changes, { clone: "clone-proj", from: "HEAD", to: "index", path: "new/" }],
+    ];
+    for (const key of others) client.setQueryData(key, {}); // as other Views left them
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(client.getQueryState(own)?.dataUpdateCount).toBe(2));
+    await waitFor(() => expect(client.getQueryState(folder)?.dataUpdateCount).toBe(2));
+    for (const key of others) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  });
+
   it("lists the changes in git's groups, with the branch and totals", async () => {
     serveChanges();
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);

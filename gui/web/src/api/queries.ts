@@ -2,11 +2,13 @@
 // (`live.ts`), never on a timer.
 
 import {
+  hashKey,
   keepPreviousData,
   type Query,
   type QueryClient,
   type QueryClientConfig,
   type QueryKey,
+  type UseQueryResult,
   useInfiniteQuery,
   useMutation,
   useQueries,
@@ -80,9 +82,14 @@ export function useRepositories() {
 /** Which Checkout's changes, compared how: `/api/changes`'s parameters. */
 export type ChangesQuery = NonNullable<paths["/api/changes"]["get"]["parameters"]["query"]>;
 
+/** The key of the changes `query` names. */
+function changesKey(query: ChangesQuery): QueryKey {
+  return [...KEYS.changes, query];
+}
+
 function changesQuery(query: ChangesQuery) {
   return {
-    queryKey: [...KEYS.changes, query],
+    queryKey: changesKey(query),
     queryFn: async () => unwrap(await api.GET("/api/changes", { params: { query } })),
   };
 }
@@ -197,10 +204,17 @@ function useDiffContext(): { context?: number } | undefined {
   return typeof context === "number" ? { context } : {};
 }
 
-// Undefined while it cannot be asked yet, for a disabled query.
+/**
+ * The key of the patch of a file, of all patches of a comparison, or of the versions of a file,
+ * as `asked`; undefined while it cannot be asked yet, for a disabled query.
+ */
+function diffKey(kind: "patch" | "all" | "files", asked: DiffQuery | DiffsQuery | undefined) {
+  return [...KEYS.diff, kind, asked];
+}
+
 function diffQuery(asked: DiffQuery | undefined) {
   return {
-    queryKey: [...KEYS.diff, "patch", asked],
+    queryKey: diffKey("patch", asked),
     queryFn: async () =>
       unwrap(await api.GET("/api/diff", { params: { query: asked as DiffQuery } })),
   };
@@ -244,7 +258,7 @@ export function useDiffs(query: DiffsQuery | undefined) {
   const client = useQueryClient();
   const asked = query && context && { ...query, ...context };
   return useQuery({
-    queryKey: [...KEYS.diff, "all", asked],
+    queryKey: diffKey("all", asked),
     queryFn: async () => {
       const diffs: Schemas["DiffJson"][] = [];
       const texts: Record<string, string | null> = {};
@@ -268,16 +282,93 @@ export function useDiffs(query: DiffsQuery | undefined) {
 }
 
 /**
- * The file's two versions, asked for after each patch (`patchAt`, when it came), so that they
- * match it: they show where the file ends, and more of it than its patch has.
+ * The file's two versions, asked for after each patch (`patchAt`), so that they match it: they
+ * show where the file ends, and more of it than its patch has. Also after a patch that could
+ * not come, as the file may have changed all the same.
  */
-export function useDiffFiles(query: DiffQuery | undefined, patchAt: number, enabled: boolean) {
+export function useDiffFiles(
+  query: DiffQuery | undefined,
+  patch: Pick<UseQueryResult, "dataUpdatedAt" | "errorUpdatedAt">,
+  enabled: boolean,
+) {
+  const client = useQueryClient();
+  const patchAt = Math.max(patch.dataUpdatedAt, patch.errorUpdatedAt);
+  const file = diffKey("files", query);
   return useQuery({
-    queryKey: [...KEYS.diff, "files", query, patchAt],
-    queryFn: async () =>
-      unwrap(await api.GET("/api/diff/files", { params: { query: query as DiffQuery } })),
+    queryKey: [...file, patchAt],
+    queryFn: async () => {
+      const versions = unwrap(
+        await api.GET("/api/diff/files", { params: { query: query as DiffQuery } }),
+      );
+      // Those after patches before, which nothing shows any more: not kept until collected.
+      const cache = client.getQueryCache();
+      for (const before of cache.findAll({ queryKey: file })) {
+        const at = before.queryKey[file.length];
+        const same = hashKey(before.queryKey.slice(0, file.length)) === hashKey(file);
+        if (same && at !== patchAt && before.getObserversCount() === 0) cache.remove(before);
+      }
+      return versions;
+    },
     enabled: query !== undefined && enabled,
   });
+}
+
+/**
+ * The hash of `key` up to `length`, its last part a query without `path` and `context`: the same
+ * for a list and for each file or folder within it (its `path`), with any lines around
+ * (`context`), whatever comes after.
+ */
+function hashWithin(key: QueryKey, length: number): string | undefined {
+  const asked = key[length - 1];
+  if (typeof asked !== "object" || asked === null) return undefined;
+  const { path: _, context: __, ...query } = asked as { path?: unknown; context?: unknown };
+  return hashKey([...key.slice(0, length - 1), query]);
+}
+
+/**
+ * Asks again for the queries of `own` and those within it, as `hashWithin` makes them alike;
+ * an `own` with a `path` or `context` stands for its whole query. Keys are matched so, not
+ * partially: a partial match of `{ clone }` would match every comparison.
+ */
+function refreshWithin(client: QueryClient, own: QueryKey) {
+  const hash = hashWithin(own, own.length);
+  void client.invalidateQueries({
+    queryKey: own.slice(0, -1),
+    predicate: ({ queryKey }) => hashWithin(queryKey, own.length) === hash,
+  });
+}
+
+/** Asks again for the changes `query` names and those within its folders, as a list shows. */
+export function refreshChanges(client: QueryClient, query: ChangesQuery) {
+  refreshWithin(client, changesKey(query));
+}
+
+/**
+ * The changes of a file in its Checkout, compared in no way, which say where its changes are now
+ * when it has none compared as `query` asks: between two revisions only, as a commit's file
+ * never says so.
+ */
+function changesNowQuery({ from, to, commit: _, ...file }: DiffQuery): ChangesQuery | undefined {
+  return from && to ? file : undefined;
+}
+
+/** Where the changes of a file are now, when it has none compared as `query` asks. */
+export function useChangesNow(query: DiffQuery) {
+  return useChanges(changesNowQuery(query) ?? {});
+}
+
+/**
+ * Asks again for the changes and the diffs of this comparison in this Checkout: its lists and
+ * each file's patch, not those of others. Each file's versions follow its patch
+ * (`useDiffFiles`), so are not asked for here, which would ask twice. With a `path`, also where
+ * the changes of that file are now (`useChangesNow`).
+ */
+export function refreshComparison(client: QueryClient, compared: DiffsQuery, path?: string) {
+  refreshChanges(client, compared);
+  refreshWithin(client, diffKey("patch", compared));
+  refreshWithin(client, diffKey("all", compared));
+  const now = path === undefined ? undefined : changesNowQuery({ ...compared, path });
+  if (now) void client.invalidateQueries({ queryKey: changesKey(now), exact: true });
 }
 
 export const HISTORY_PAGE = 50;

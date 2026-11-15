@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
+import { KEYS } from "../../api/queries";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import {
   clone,
@@ -268,6 +269,30 @@ describe("the Diff View", () => {
     expect(await screen.findByText(/^versions:/)).toBeInTheDocument();
   });
 
+  it("asks again on Refresh for the versions once, also when the patch could not come", async () => {
+    let fails = false;
+    const requests = serve({
+      ...ASIDE,
+      "GET /api/diff": () =>
+        fails ? json({ detail: "busy" }, 500) : json({ change: change(), patch: PATCH }),
+      "GET /api/changes": () => json({ branch: null, groups: [], commit: null }),
+    });
+    const { client } = renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText(/^versions:/)).toBeInTheDocument();
+    await expectSettled();
+    const versions = () =>
+      requests.filter((request) => new URL(request.url).pathname === "/api/diff/files").length;
+    const kept = () => client.getQueryCache().findAll({ queryKey: [...KEYS.diff, "files"] });
+    for (fails of [false, true]) {
+      const before = versions();
+      await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+      await waitFor(() => expect(versions()).toBe(before + 1));
+      await expectSettled();
+      expect(versions()).toBe(before + 1);
+      expect(kept()).toHaveLength(1); // not those of the patch before
+    }
+  });
+
   it("asks no versions of an added file, all of which its patch has", async () => {
     const requests = serveDiff({ change: change({ status: "A" }), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);
@@ -314,6 +339,42 @@ describe("the Diff View", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "diff?clone=clone-proj&from=HEAD&path=src%2Fmain.py&to=index",
     );
+  });
+
+  it("asks again on Refresh where an unchanged file's changes are now", async () => {
+    let groups: Schemas["ChangeGroupJson"][] = [
+      { name: "unstaged", from: "index", to: "working-tree", changes: [change()], count: 1 },
+    ];
+    serve({
+      ...ASIDE,
+      "GET /api/diff": () => json({ change: null, patch: null }),
+      "GET /api/changes": () => json({ branch: null, groups, commit: null }),
+    });
+    renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText(/The changes are now in/)).toBeInTheDocument();
+    groups = []; // committed meanwhile
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(await screen.findByText(/Nothing left/)).toBeInTheDocument();
+    await expectSettled();
+  });
+
+  it("asks not on Refresh where the changes of a commit's file are now, which it never shows", async () => {
+    const hash = "c".repeat(40);
+    const requests = serveDiff({ change: change(), patch: PATCH });
+    const { client } = renderWithQueries(
+      <Diff initial={{ clone: "clone-proj", commit: hash, path: "src/main.py" }} />,
+    );
+    expect(await screen.findByText(/^diff --git/)).toBeInTheDocument();
+    await expectSettled();
+    const now = [...KEYS.changes, { clone: "clone-proj", path: "src/main.py" }];
+    client.setQueryData(now, {}); // as another View left it
+    requests.length = 0;
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() =>
+      expect(requests.map((request) => new URL(request.url).pathname)).toContain("/api/diff"),
+    );
+    expect(client.getQueryState(now)?.isInvalidated).toBe(false);
+    await expectSettled();
   });
 
   it("says when nothing is left to show", async () => {
@@ -519,16 +580,23 @@ describe("the Diff View", () => {
 
     /**
      * The Server, answering each file's diff with its patch, its list cut short of `count`;
-     * returns the paths asked.
+     * returns what was asked: how many lists, and the paths of diffs, versions and folders.
      */
-    function serveAll(count = GROUP.count): { diffs: string[]; within: string[] } {
-      const asked = { diffs: [] as string[], within: [] as string[] };
+    function serveAll(count = GROUP.count) {
+      const asked = {
+        lists: 0,
+        diffs: [] as string[],
+        versions: [] as string[],
+        within: [] as string[],
+      };
       serve({
         ...ASIDE,
         "GET /api/changes": (request) => {
           const path = new URL(request.url).searchParams.get("path");
-          if (path === null)
+          if (path === null) {
+            asked.lists++;
             return json({ branch: null, groups: [{ ...GROUP, count }], commit: null });
+          }
           asked.within.push(path);
           const files = [change({ path: "tmp/a.log", status: "?", added: 3, removed: 0 })];
           return json({ branch: null, groups: [{ ...GROUP, changes: files, count: 1 }] });
@@ -537,6 +605,10 @@ describe("the Diff View", () => {
           const path = new URL(request.url).searchParams.get("path") ?? "";
           asked.diffs.push(path);
           return json({ change: change({ path }), patch: `diff --git a/${path} b/${path}\n` });
+        },
+        "GET /api/diff/files": (request) => {
+          asked.versions.push(new URL(request.url).searchParams.get("path") ?? "");
+          return json({ old: "a\n", new: "b\n" });
         },
         "GET /api/config": () =>
           json({
@@ -685,15 +757,28 @@ describe("the Diff View", () => {
       expect(within(file).queryByRole("figure")).toBeNull();
     });
 
-    it("asks again for the list and the patches shown on Refresh", async () => {
+    it("asks again on Refresh for the list, patches and versions of its comparison only", async () => {
       vi.stubGlobal("IntersectionObserver", Near);
       const asked = serveAll();
-      renderWithQueries(<Diff initial={SINCE_HEAD} />);
+      const { client } = renderWithQueries(<Diff initial={SINCE_HEAD} />);
       await waitFor(() => expect(screen.getAllByRole("figure")).toHaveLength(2));
-      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
-      asked.diffs.length = 0;
+      await waitFor(() => expect(asked.versions).toHaveLength(2));
+      const other = { clone: "clone-other", from: "HEAD", to: "working-tree" };
+      const staged = { clone: "clone-proj", from: "HEAD", to: "index" };
+      const keys = [
+        [...KEYS.changes, other],
+        [...KEYS.changes, staged],
+        [...KEYS.diff, "patch", { ...other, path: "src/b.py" }],
+        [...KEYS.diff, "patch", { ...staged, path: "src/b.py" }],
+      ];
+      for (const key of keys) client.setQueryData(key, {}); // as their Views left them
+      Object.assign(asked, { lists: 0, diffs: [], versions: [] });
       await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
-      await waitFor(() => expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]));
+      await waitFor(() => expect(asked.versions.sort()).toEqual(["README.md", "src/b.py"]));
+      expect(asked.lists).toBe(1);
+      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+      await expectSettled();
     });
 
     it("is not dimmed once one file shows in its place", async () => {
