@@ -49,7 +49,10 @@ describe("the Config View", () => {
   });
 
   it("says when the Daemon does not answer", async () => {
-    serve({ "GET /api/config": () => json({ error: "gone" }, 500) });
+    serve({
+      "GET /api/config": () => json({ error: "gone" }, 500),
+      "GET /api/info": () => json({ error: "gone" }, 500),
+    });
     renderWithQueries(<ConfigView />);
     expect(await screen.findByText("Could not load: gone")).toBeInTheDocument();
   });

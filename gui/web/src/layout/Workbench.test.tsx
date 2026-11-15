@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchField } from "../components/SearchField";
 import { saveViews as save, saveGrid } from "../test/layout";
-import { daemon, json, renderWithQueries, serve, setting } from "../test/server";
+import { daemon, info, json, renderWithQueries, serve, setting } from "../test/server";
 import { VIEWS, type ViewProps } from "../views";
 import { addressText } from "../views/address";
 import { useKeyTarget } from "../views/keys";
@@ -125,6 +125,10 @@ const ROUTES = {
   "GET /api/daemon": () => json(daemon()),
   "GET /api/events": () => json([]),
   "GET /api/repositories": () => json([]),
+  "GET /api/config": () => json({ settings: [] }),
+  "GET /api/info": () => json(info()),
+  "GET /api/machines": () => json([]),
+  "GET /api/events/kinds": () => json([]),
 };
 
 /** With `gui.keep_empty_groups` on; rendered once the GUI knows it. */
@@ -326,8 +330,7 @@ describe("the Workbench", () => {
 
   it("lets a View open another beside it by Alt, splitting its Group off when alone", async () => {
     serve({
-      "GET /api/daemon": () => json(daemon()),
-      "GET /api/events": () => json([]),
+      ...ROUTES,
       "GET /api/log": () => json({ entries: [], skipped: 0 }),
     });
     save("daemon", "events");

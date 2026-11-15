@@ -97,6 +97,7 @@ function serveFiles(files: Record<string, File>): string[] {
   const paths = Object.keys(files);
   const pathOf = (request: Request) => new URL(request.url).searchParams.get("path") ?? "";
   serve({
+    "GET /api/repositories": () => json([]), // naming the Checkout in the title
     "GET /api/changes": () =>
       json({
         branch: null,

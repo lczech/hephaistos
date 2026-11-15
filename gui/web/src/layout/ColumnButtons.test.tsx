@@ -58,7 +58,10 @@ beforeEach(() => {
     ...page,
     toJSON: () => page,
   });
-  serve({ "GET /api/daemon": () => json(daemon()) });
+  serve({
+    "GET /api/daemon": () => json(daemon()),
+    "GET /api/config": () => json({ settings: [] }),
+  });
 });
 
 describe("the column buttons", () => {

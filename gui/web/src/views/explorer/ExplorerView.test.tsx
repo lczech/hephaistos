@@ -66,7 +66,10 @@ describe("the Explorer View", () => {
   });
 
   it("says when it cannot ask for the home directory, as a problem", async () => {
-    serve({ "GET /api/info": () => json({ error: "boom" }, 500) });
+    serve({
+      "GET /api/info": () => json({ error: "boom" }, 500),
+      "GET /api/repositories": () => json([]),
+    });
     renderWithQueries(<Explorer />);
     const said = await screen.findByText("Could not ask for the home directory.");
     expect(said.className).toMatch(/problem/);

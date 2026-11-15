@@ -20,6 +20,9 @@ const ok = {
   "GET /api/repositories": () => json([]),
   "GET /api/events": () => json([]),
   "POST /api/observe": () => new Response(null, { status: 204 }),
+  "GET /api/config": () => json({ settings: [] }),
+  "GET /api/machines": () => json([]),
+  "GET /api/events/kinds": () => json([]),
 };
 
 describe("the GUI", () => {
@@ -104,7 +107,9 @@ describe("the GUI", () => {
 
   it("forgets a token the Server refuses", async () => {
     signIn();
-    serve({ "GET /api/info": () => json({ error: "wrong token" }, 401) });
+    // All it asks for before it knows: the Server refuses each.
+    const refused = () => json({ error: "wrong token" }, 401);
+    serve(Object.fromEntries(Object.keys(ok).map((route) => [route, refused])));
     renderWithQueries(<App />);
     expect(await screen.findByText("hephaistos daemon token --url")).toBeInTheDocument();
     expect(token()).toBeNull();

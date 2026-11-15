@@ -35,7 +35,10 @@ const widths = () =>
 const even = (sizes: number[]) => Math.max(...sizes) - Math.min(...sizes) <= 2;
 
 beforeEach(() => {
-  serve({ "GET /api/daemon": () => json(daemon()) });
+  serve({
+    "GET /api/daemon": () => json(daemon()),
+    "GET /api/config": () => json({ settings: [] }),
+  });
 });
 
 describe("the column buttons, as shown", () => {

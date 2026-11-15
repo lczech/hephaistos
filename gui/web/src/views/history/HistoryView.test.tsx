@@ -60,6 +60,8 @@ function serveHistory(answer: (url: URL) => Response): Request[] {
     "GET /api/info": () => json(info()),
     "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
     "GET /api/history": (request) => answer(new URL(request.url)),
+    // A path's uncommitted changes, above its commits.
+    "GET /api/changes": () => json({ branch: null, groups: [], commit: null }),
   });
 }
 

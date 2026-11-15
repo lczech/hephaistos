@@ -48,7 +48,10 @@ const within = (way: "horizontal" | "vertical") =>
   document.querySelector(`.dv-view > .dv-branch-node > .dv-split-view-container.dv-${way}`);
 
 beforeEach(() => {
-  serve({ "GET /api/daemon": () => json(daemon()) });
+  serve({
+    "GET /api/daemon": () => json(daemon()),
+    "GET /api/config": () => json({ settings: [] }),
+  });
 });
 
 describe("dockview's dividers, as dividers.ts reads them", () => {

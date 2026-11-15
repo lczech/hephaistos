@@ -59,6 +59,16 @@ function change(fields: Partial<Change> = {}): Change {
 
 const PATCH = "diff --git a/src/main.py b/src/main.py\n@@ -1 +1 @@\n-a\n+b\n";
 
+/**
+ * What a Diff View asks for beside its diffs, unless a test answers otherwise: the Repositories,
+ * naming the Checkout in its title, the settings, and the versions of a changed file.
+ */
+const ASIDE = {
+  "GET /api/repositories": () => json([]),
+  "GET /api/config": () => json({ settings: [] }),
+  "GET /api/diff/files": () => json({ old: "a\n", new: "b\n" }),
+};
+
 /** The Server, answering for the diff and the settings; returns the requests asked. */
 function serveDiff(
   diff: Schemas["DiffJson"] | (() => Response | Promise<Response>), // the answer, or how to give it
@@ -69,6 +79,7 @@ function serveDiff(
   } = {},
 ): Request[] {
   return serve({
+    ...ASIDE,
     "GET /api/diff": () => (typeof diff === "function" ? diff() : json(diff)),
     "GET /api/diff/files": () => json({ old: "a\n", new: "b\n" }),
     "GET /api/changes": () => json({ branch: null, groups: changes, commit }),
@@ -242,6 +253,7 @@ describe("the Diff View", () => {
   it("shows a diff first with its versions, so that it does not grow once they come", async () => {
     let answer: ((response: Response) => void) | undefined;
     serve({
+      ...ASIDE,
       "GET /api/diff": () => json({ change: change(), patch: PATCH }),
       "GET /api/diff/files": () => new Promise((resolve) => (answer = resolve)),
       "GET /api/config": () =>
@@ -369,7 +381,7 @@ describe("the Diff View", () => {
   });
 
   it("says when nothing is compared", () => {
-    serve({});
+    serve(ASIDE);
     renderWithQueries(<Diff initial={{ clone: "clone-proj" }} />);
     expect(screen.getByText(/Nothing compared/)).toBeInTheDocument();
   });
@@ -390,6 +402,7 @@ describe("the Diff View", () => {
 
     function serveFound() {
       serve({
+        ...ASIDE,
         "GET /api/diff": () => json({ change: change(), patch: FOUND }),
         "GET /api/diff/files": () =>
           json({ old: OLD, new: OLD.replace("alpha beta", "alpha Beta") }),
@@ -455,6 +468,7 @@ describe("the Diff View", () => {
 +d
 `;
       serve({
+        ...ASIDE,
         "GET /api/diff": () => json({ change: change(), patch }),
         "GET /api/diff/files": () => json({ old: "a\nx\nbeta\nx\nc\n", new: "b\nx\nbeta\nx\nd\n" }),
         "GET /api/config": () =>
@@ -510,6 +524,7 @@ describe("the Diff View", () => {
     function serveAll(count = GROUP.count): { diffs: string[]; within: string[] } {
       const asked = { diffs: [] as string[], within: [] as string[] };
       serve({
+        ...ASIDE,
         "GET /api/changes": (request) => {
           const path = new URL(request.url).searchParams.get("path");
           if (path === null)
@@ -567,6 +582,7 @@ describe("the Diff View", () => {
       vi.stubGlobal("IntersectionObserver", Near);
       const group = { name: "changes" as const, from: "b".repeat(40), to: hash, count: 1 };
       const requests = serve({
+        ...ASIDE,
         "GET /api/info": () => json(info()),
         "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
         "GET /api/changes": () =>
@@ -723,6 +739,7 @@ describe("the Diff View", () => {
         change({ path: "top.txt" }),
       ];
       serve({
+        ...ASIDE,
         "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 3 }] }),
         "GET /api/diff": (request) => {
           const path = new URL(request.url).searchParams.get("path") ?? "";
@@ -784,7 +801,8 @@ describe("the Diff View", () => {
         change({ path: "src/app/main.py" }),
         change({ path: "top.txt" }),
       ];
-      serve({
+      const requests = serve({
+        ...ASIDE,
         "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 3 }] }),
         "GET /api/diff": (request) => {
           const path = new URL(request.url).searchParams.get("path") ?? "";
@@ -832,12 +850,19 @@ describe("the Diff View", () => {
         "clone:clone-proj": { "paths:stack": ["top.txt"] },
       });
       expect(localStorage.getItem("hephaistos.folds.changes")).toBeNull();
+      // Its files' diffs, all near, asked for before the test ends.
+      const diffsOf = (clone: string) =>
+        requests
+          .map((request) => new URL(request.url))
+          .filter((url) => url.pathname === "/api/diff" && url.searchParams.get("clone") === clone);
+      await waitFor(() => expect(diffsOf("clone-other")).toHaveLength(3));
     });
 
     it("folds a directory in the stack apart from the same in the untracked files", async () => {
       vi.stubGlobal("IntersectionObserver", Near);
       const changes = [change({ path: "src/a.py" }), change({ path: "src/new.txt", status: "?" })];
       serve({
+        ...ASIDE,
         "GET /api/changes": () => json({ branch: null, groups: [{ ...GROUP, changes, count: 2 }] }),
         "GET /api/diff": (request) => {
           const path = new URL(request.url).searchParams.get("path") ?? "";
@@ -886,6 +911,7 @@ describe("the Diff View", () => {
         const tracked = ["README.md", "src/b.py"];
         const diffOf = (path: string) => ({ change: change({ path }), patch: PATCHES[path] });
         serve({
+          ...ASIDE,
           "GET /api/changes": () =>
             json({ branch: null, groups: [{ ...GROUP, count: 4 }], commit: null }),
           "GET /api/diff": (request) => {
@@ -988,6 +1014,7 @@ describe("the Diff View", () => {
           patch: `diff --git a/${path} b/${path}\n@@ -0,0 +1 @@\n+${path === "src/b.py" ? "other" : "found"}\n`,
         });
         serve({
+          ...ASIDE,
           "GET /api/changes": () =>
             json({ branch: null, groups: [{ ...GROUP, changes, count: 2 }], commit: null }),
           "GET /api/diff": (request) =>

@@ -695,7 +695,7 @@ describe("the Changes View", () => {
   });
 
   it("says when a Checkout is not named", () => {
-    serve({});
+    serve({ "GET /api/repositories": () => json([]) });
     renderWithQueries(<Changes initial={{}} />);
     expect(screen.getByText(/No checkout/)).toBeInTheDocument();
   });

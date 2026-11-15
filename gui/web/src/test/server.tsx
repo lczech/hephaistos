@@ -17,13 +17,31 @@ export function json(body: unknown, status = 200): Response {
   });
 }
 
-/** Answers requests by `METHOD /path`; returns those asked so far. */
+// Requests no test answered, as `METHOD /path`, until the setup fails the test with them.
+const unanswered: string[] = [];
+
+/** Notes a request no test answered, to fail the test it came in, or the next one once ended. */
+export function noteUnanswered(method: string, url: string) {
+  unanswered.push(`${method} ${new URL(url, location.href).pathname}`);
+}
+
+/** The requests no test answered since last asked; they are then forgotten. */
+export function takeUnanswered(): string[] {
+  return unanswered.splice(0);
+}
+
+/**
+ * Answers requests by `METHOD /path`; returns those asked so far.
+ * Any other gets a 404, and fails the test (`takeUnanswered` in the setup).
+ */
 export function serve(routes: Record<string, Route>): Request[] {
   const requests: Request[] = [];
   vi.stubGlobal("fetch", async (request: Request) => {
     requests.push(request);
     const route = routes[`${request.method} ${new URL(request.url).pathname}`];
-    return route ? route(request) : json({ error: "no such route" }, 404);
+    if (route) return route(request);
+    noteUnanswered(request.method, request.url);
+    return json({ error: "no such route" }, 404);
   });
   return requests;
 }

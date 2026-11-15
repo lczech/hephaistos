@@ -34,6 +34,13 @@ function serveDb(): Request[] {
         ],
         warnings: [],
       }),
+    // A table this version does not know, yet stored: the Server shows its rows still.
+    "GET /api/db/tables/old_things": () =>
+      json({
+        columns: [{ name: "what", type: "plain" }],
+        rows: [{ what: "a thing" }],
+        warnings: [],
+      }),
   });
 }
 
@@ -84,7 +91,7 @@ describe("the Database View", () => {
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "old_things (1)" }));
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
-    expect(await screen.findByText(/Cannot show this/)).toBeInTheDocument();
+    expect(await screen.findByText("a thing")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");

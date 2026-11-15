@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach, beforeEach, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, vi } from "vitest";
 import { forgetKept } from "../kept";
 import { forgetToken } from "../token";
 import { FakeSocket } from "./live";
+import { noteUnanswered, takeUnanswered } from "./server";
 
 // Stand-ins for what jsdom lacks; in a real browser, its own.
 
@@ -55,21 +56,46 @@ Element.prototype.checkVisibility ??= function (this: Element, options?: CheckVi
 // No test reaches a Server: requests fail unless a test answers them (`serve`), and live
 // connections stay connecting unless it opens them. Set once rather than stubbed, so that what
 // the GUI asks for after a test ended, e.g. a diff scrolled near, meets them too, not the
-// browser's own.
-globalThis.fetch = async (input: RequestInfo | URL) => {
+// browser's own. A request no test answered fails the test, or the next one once it ended,
+// whose message names the test before.
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input);
+  noteUnanswered(input instanceof Request ? input.method : (init?.method ?? "GET"), url);
   throw new Error(`no server in tests: ${url}; answer it with serve()`);
 };
 globalThis.WebSocket = FakeSocket as unknown as typeof WebSocket;
 
+// The test of this file that ended last, which a request coming late may be from.
+let before: string | undefined;
+
+const ended = (test: string) => `after the test "${test}" ended`;
+
+/** Fails with the requests no test answered, saying when they came (`when`). */
+function failUnanswered(when: string) {
+  const counts = new Map<string, number>();
+  for (const request of takeUnanswered()) counts.set(request, (counts.get(request) ?? 0) + 1);
+  const named = [...counts].map(([request, n]) => (n > 1 ? `${request} (${n} times)` : request));
+  if (named.length > 0) throw new Error(`requests no test answered ${when}: ${named.join(", ")}`);
+}
+
 beforeEach(() => {
   FakeSocket.opened = [];
+  if (before !== undefined) failUnanswered(ended(before));
 });
 
 afterEach(() => {
+  // First, so that a cleanup that throws still leaves the next test naming this one.
+  const earlier = before;
+  before = expect.getState().currentTestName;
   cleanup();
   forgetToken();
   localStorage.clear();
   forgetKept();
   vi.unstubAllGlobals();
+  failUnanswered(earlier === undefined ? "in this test" : `in this test, or ${ended(earlier)}`);
+});
+
+// What came after the last test of a file ended.
+afterAll(() => {
+  if (before !== undefined) failUnanswered(ended(before));
 });

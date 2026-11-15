@@ -358,7 +358,14 @@ describe("the Events View's filters", () => {
   });
 
   it("keep other parameters, and say what the Server refuses", async () => {
-    serve({ "GET /api/events": () => json({ error: "since: 'soon' is no time" }, 400) });
+    serve({
+      "GET /api/events": () => json({ error: "since: 'soon' is no time" }, 400),
+      // The filters' choices.
+      "GET /api/info": () => json(info()),
+      "GET /api/machines": () => json([]),
+      "GET /api/events/kinds": () => json([]),
+      "GET /api/repositories": () => json([]),
+    });
     renderWithQueries(<Events at={{ since: "soon", other: "kept" }} />);
     expect(
       await screen.findByText("Cannot show this: since: 'soon' is no time"),

@@ -11,7 +11,10 @@ import { Workbench } from "./Workbench";
 // it, e.g. the band of a List, which inherits its visibility so as to hide with them.
 
 beforeEach(() => {
-  serve({ "GET /api/daemon": () => json(daemon()) });
+  serve({
+    "GET /api/daemon": () => json(daemon()),
+    "GET /api/config": () => json({ settings: [] }),
+  });
 });
 
 describe("a View of a tab not shown, kept drawn", () => {

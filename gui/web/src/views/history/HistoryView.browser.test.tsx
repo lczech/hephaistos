@@ -30,6 +30,7 @@ async function history() {
   serve({
     "GET /api/info": () => json(info()),
     "GET /api/repositories": () => json([repository("proj", [clone("proj")])]),
+    "GET /api/changes": () => json({ branch: null, groups: [], commit: null }), // a path's uncommitted
     "GET /api/history": () =>
       json({ head: commits[0]?.hash, branch: "main", refs: [], commits, next: null, found: null }),
   });
