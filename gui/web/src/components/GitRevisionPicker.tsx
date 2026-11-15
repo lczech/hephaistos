@@ -570,6 +570,10 @@ export function tabOf(
   const ref = refs?.refs.find((known) => known.full === value || known.name === value);
   let found: PickerTab | undefined;
   if (ref !== undefined) found = REF_TABS[ref.kind];
+  else if (value.startsWith("refs/tags/"))
+    found = REF_TABS.tag; // by its name, before refs come
+  else if (value.startsWith("refs/remotes/")) found = REF_TABS.remote;
+  else if (value.startsWith("refs/heads/")) found = REF_TABS.branch;
   else if (SHORT_HASH.test(value)) found = "commits";
   return found !== undefined && tabs.includes(found) ? found : undefined;
 }

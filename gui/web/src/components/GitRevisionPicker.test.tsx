@@ -322,6 +322,11 @@ describe("what the picker shows", () => {
     expect(tabOf("abc1234", known, all)).toBe("commits");
     expect(tabOf("abc1234", known, ["branches"])).toBeUndefined();
     expect(tabOf("HEAD", known, all)).toBeUndefined();
+    // By its full name, before refs are known, as Changes and Diff open it: not later.
+    const none = { head: "h", branch: "main", refs: [] };
+    expect(tabOf("refs/tags/v2", none, all)).toBe("tags");
+    expect(tabOf("refs/remotes/origin/x", none, all)).toBe("branches");
+    expect(tabOf("refs/heads/x", none, all)).toBe("branches");
   });
 
   it("ranks names: the same, starting with it, at a word's start, within, apart", () => {
