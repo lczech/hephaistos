@@ -5,7 +5,7 @@ import re
 import shlex
 import socket
 import stat
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +45,16 @@ def os_machine_id() -> str | None:
         if value:
             return value
     return None
+
+
+def absolute_home(env: MutableMapping[str, str] = os.environ) -> None:
+    """Makes a relative HEPHAISTOS_HOME absolute against the current directory.
+
+    Done once at start, so that the systemd unit, the launcher entry and the processes started get
+    a path that means the same directory from any other directory.
+    """
+    if (home := env.get(HOME_VARIABLE)) and not Path(home).is_absolute():
+        env[HOME_VARIABLE] = str(Path(home).absolute())
 
 
 def machine_key() -> str:

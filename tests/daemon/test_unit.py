@@ -209,6 +209,18 @@ def test_the_unit_runs_hephaistos_by_the_path_it_was_run_as(
 
 
 @pytest.mark.usefixtures("repo")
+def test_a_relative_home_is_installed_as_absolute(
+    paths: Paths, systemd: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # systemd starts the Daemon in another directory, where the relative path means another one.
+    monkeypatch.chdir(paths.config_dir.parent)
+    monkeypatch.setenv("HEPHAISTOS_HOME", paths.config_dir.name)
+    assert run_cli(monkeypatch, "daemon", "install", program=str(systemd)) == 0
+    installed = unit.installed_variables(unit.unit_file().read_text())
+    assert installed["HEPHAISTOS_HOME"] == str(paths.config_dir)
+
+
+@pytest.mark.usefixtures("repo")
 def test_linger(
     systemd: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

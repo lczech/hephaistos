@@ -32,7 +32,7 @@ from hephaistos.core.config import ConfigError
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import ForeignDirectoryError, Paths, short_path
+from hephaistos.core.utils.paths import ForeignDirectoryError, Paths, absolute_home, short_path
 from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 
 DEBUG_OPTION = "--debug"
@@ -122,12 +122,14 @@ def _invoke(
 def run() -> None:
     """Entry point: runs a command and logs it; our own errors are messages, not tracebacks.
 
-    Settings are loaded first; a broken config stops all commands but `--help`, `--version` and
+    A relative HEPHAISTOS_HOME is made absolute first.
+    Settings are loaded next; a broken config stops all commands but `--help`, `--version` and
     those in ON_DEFAULTS. With `--debug`, this run logs at debug level and also shows its records
     on stderr.
     `log` commands log only what goes wrong, so that showing the log does not add to it.
     """
     args, debug = without_debug(sys.argv[1:])
+    absolute_home()
     paths = Paths.from_environment()
     try:
         opened = paths.make_private()

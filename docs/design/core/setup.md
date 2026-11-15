@@ -29,6 +29,7 @@ So home directories shared by several Machines need no configuration.
 - logs: `~/.local/state/hephaistos/<machine>/`, one file per UTC day, e.g. `2026-10-08.jsonl` ([logs](logs.md)).
 
 `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead.
+A relative one is made absolute against the current directory once at start, so the systemd unit and the launcher entry get the absolute path.
 Tests always set it, and so can experiments.
 
 Only the user may enter the data and log directories (mode 0700), as home directories on clusters are often open to others.
