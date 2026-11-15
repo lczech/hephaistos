@@ -356,6 +356,8 @@ describe("a list, by the keys", () => {
     await userEvent.click(screen.getByText("kiwi"));
     again(<Basket fruits={["fig", "lime"]} />);
     expect(itemOf("lime")).toHaveAttribute("aria-selected", "true");
+    again(<Basket fruits={["fig"]} />); // the last gone: the one before it
+    expect(itemOf("fig")).toHaveAttribute("aria-selected", "true");
   });
 
   it("opens a row's menu by the menu key on the row focused", async () => {
@@ -393,6 +395,19 @@ describe("a list, by the keys", () => {
     expect(fireEvent.keyDown(itemOf("apple"), { key: "ArrowLeft", altKey: true })).toBe(true);
     expect(itemOf("apple")).toHaveAttribute("aria-expanded", "true");
     expect(fireEvent.keyDown(itemOf("apple"), { key: "ArrowDown", altKey: true })).toBe(true);
+    expect(itemOf("apple")).toHaveFocus();
+  });
+
+  it("opens a row's details by ArrowRight and closes them by ArrowLeft, the row kept focused", async () => {
+    render(<Basket fruits={["apple", "pear"]} />);
+    await userEvent.tab();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(itemOf("apple")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: "Fruit details" })).toBeInTheDocument();
+    expect(itemOf("apple")).toHaveFocus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(itemOf("apple")).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("region", { name: "Fruit details" })).toBeNull();
     expect(itemOf("apple")).toHaveFocus();
   });
 

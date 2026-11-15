@@ -258,6 +258,32 @@ function drag(from: Element, to: Element, x: number) {
   fire(from, "dragend");
 }
 
+/** Fruits by a graph staying first, then name, colour (hidden) and taste. */
+function Tasted() {
+  const columns = column.columns([
+    column.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
+    column.display({ id: "graph", header: "graph", cell: () => "|", meta: { stays: true } }),
+    column.accessor("name", { header: "name" }),
+    column.display({ id: "colour", header: "colour", cell: () => "red" }),
+    column.display({ id: "taste", header: "taste", cell: () => "sweet" }),
+  ]);
+  const table = useList("tasted", "columns", { columns, data: [{ name: "apple" }] });
+  return (
+    <div style={{ width: 600, height: 200, display: "flex", flexDirection: "column" }}>
+      <List
+        table={table}
+        label="Tasted"
+        layout="columns"
+        choices={{}}
+        message={null}
+        older="fruits"
+        detailsLabel="Fruit details"
+        details={(fruit) => fruit.name}
+      />
+    </div>
+  );
+}
+
 describe("a header dragged", () => {
   const headers = () =>
     [...document.querySelectorAll("[data-column]")]
@@ -272,6 +298,39 @@ describe("a header dragged", () => {
     expect(localStorage.getItem("hephaistos.lists.coloured.order")).toBe('["colour","name"]');
     drag(header("colour"), header("name"), 140); // after it
     await waitFor(() => expect(headers()).toEqual(["square", "name", "colour"]));
+  });
+
+  it("moves its column among those hidden, past none that stays, only in its own kind of list", async () => {
+    localStorage.setItem("hephaistos.lists.tasted.hidden", '["colour"]');
+    render(
+      <>
+        <Tasted />
+        <Coloured />
+      </>,
+    );
+    const [tasted, coloured] = screen.getAllByRole("treegrid");
+    const headersOf = (list: HTMLElement | undefined) =>
+      [...(list?.querySelectorAll("[data-column]") ?? [])]
+        .filter((cell) => cell.closest("[role=rowgroup]") === null)
+        .map((cell) => cell.getAttribute("data-column"));
+    const headerOf = (list: HTMLElement | undefined, id: string) =>
+      list?.querySelector(`[data-column="${id}"]`) as Element;
+    expect(headersOf(tasted)).toEqual(["square", "graph", "name", "taste"]);
+    drag(headerOf(tasted, "taste"), headerOf(tasted, "name"), 4); // before the name
+    await waitFor(() => expect(headersOf(tasted)).toEqual(["square", "graph", "taste", "name"]));
+    // The hidden one where it was, after the name.
+    expect(localStorage.getItem("hephaistos.lists.tasted.order")).toBe(
+      '["graph","taste","name","colour"]',
+    );
+    drag(headerOf(tasted, "name"), headerOf(tasted, "graph"), 4); // before the graph, which stays
+    await waitFor(() => expect(headersOf(tasted)).toEqual(["square", "graph", "name", "taste"]));
+    // Another kind of list: its header changes nothing, of those hidden either.
+    const order = localStorage.getItem("hephaistos.lists.tasted.order");
+    drag(headerOf(coloured, "colour"), headerOf(tasted, "graph"), 4);
+    await new Promise((done) => setTimeout(done, 100));
+    expect(localStorage.getItem("hephaistos.lists.tasted.order")).toBe(order);
+    expect(headersOf(tasted)).toEqual(["square", "graph", "name", "taste"]);
+    expect(headersOf(coloured)).toEqual(["square", "name", "colour"]);
   });
 
   it("not by its edge, which resizes it", () => {
@@ -293,7 +352,7 @@ const FOLDER: Node = {
 };
 
 /** A tree in a Panel as high as a few rows, its folder open, quiet and marked as shown. */
-function Tree({ embedded = false }: { embedded?: boolean }) {
+function Tree({ embedded = false, menu = false }: { embedded?: boolean; menu?: boolean }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ src: true });
   const columns = node.columns([
     node.display({ id: "square", cell: Chevron, meta: { width: "var(--square)" } }),
@@ -325,6 +384,14 @@ function Tree({ embedded = false }: { embedded?: boolean }) {
         folds={(row) => row.subRows.length > 0}
         tone={(row) => (row.subRows.length > 0 ? "muted" : undefined)}
         showing={(row) => row.subRows.length > 0}
+        menu={
+          menu
+            ? (row) => ({
+                label: `Actions on ${row.name}`,
+                groups: [[{ id: "copy", label: "Copy", icon: Copy, onAction: () => {} }]],
+              })
+            : undefined
+        }
       />
     </div>
   );
@@ -396,6 +463,27 @@ describe("a list as a tree", () => {
       0,
     );
     await waitFor(() => expect(ownRowOf("src").parentElement).toHaveFocus()); // the row, not its copy
+  });
+});
+
+describe("a list as a tree, its row stuck", () => {
+  it("opens the menu of the row where its copy is clicked, leaving the list where it is", async () => {
+    render(<Tree menu />);
+    const frame = document.querySelector("[data-tree]") as HTMLElement;
+    const head = frame.firstElementChild?.firstElementChild as HTMLElement;
+    frame.scrollTop = 200;
+    await drawn();
+    const y = head.getBoundingClientRect().bottom + 2;
+    const copy = document.elementFromPoint(head.getBoundingClientRect().left + 100, y) as Element;
+    expect(copy.closest("[aria-hidden]")).not.toBeNull(); // the copy, not the row
+    await pointer.click(copy, { button: "right" });
+    const menu = await screen.findByRole("menu", { name: "Actions on src" });
+    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    const copied = (copy.closest("[role=row]") as HTMLElement).getBoundingClientRect();
+    const box = menu.getBoundingClientRect();
+    expect(box.top).toBeGreaterThanOrEqual(copied.top);
+    expect(box.top).toBeLessThanOrEqual(copied.bottom + 10); // where clicked, in or by the copy
+    expect(frame.scrollTop).toBe(200);
   });
 });
 

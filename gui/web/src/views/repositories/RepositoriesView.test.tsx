@@ -108,6 +108,18 @@ describe("the Repositories View", () => {
       "title",
       expect.stringContaining("Sort by active"),
     );
+    const header = screen.getByRole("columnheader", { name: "name" });
+    expect(header).toHaveAttribute("aria-sort", "ascending");
+    expect(header.querySelector(".lucide-arrow-up")).not.toBeNull();
+    // The other way round: the arrow, its title and the rows following.
+    await userEvent.click(screen.getByRole("button", { name: "name" }));
+    expect(names().filter((name) => !name?.includes("/"))).toEqual(["recent", "old", "idle"]);
+    expect(screen.getByRole("button", { name: "name" })).toHaveAttribute(
+      "title",
+      expect.stringContaining("Sorted by name, descending"),
+    );
+    expect(header).toHaveAttribute("aria-sort", "descending");
+    expect(header.querySelector(".lucide-arrow-down")).not.toBeNull();
   });
 
   it("opens the Events of a Repository, Clone or Worktree", async () => {

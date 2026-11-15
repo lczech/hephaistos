@@ -25,6 +25,11 @@ describe("finding text", () => {
     expect(found(lines, { text: "кот", wholeWord: true })).toEqual(["кот"]);
   });
 
+  it("finds whole words of a regular expression, its alternatives as a whole", () => {
+    const query = { regex: true, wholeWord: true };
+    expect(found(["ab a b ba"], { text: "a|b", ...query })).toEqual(["a", "b"]);
+  });
+
   it("finds a regular expression, its shorthands meaning any script's words and digits", () => {
     const lines = ["naïve café ٣٤ x_1"];
     expect(found(lines, { text: "\\w+", regex: true })).toEqual(["naïve", "café", "٣٤", "x_1"]);

@@ -1,6 +1,28 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useCurrentMatch } from "./useFind";
+import type { FindQuery } from "./pattern";
+import { useCurrentMatch, useFind } from "./useFind";
+
+const QUERY: FindQuery = { text: "b", matchCase: false, wholeWord: false, regex: false };
+
+describe("a find", () => {
+  it("keeps what it found while it finds again, in the lines it found it in", async () => {
+    const before = ["a", "b"];
+    const after = ["b", "a", "b"];
+    const { result, rerender } = renderHook(({ lines }) => useFind(lines, QUERY), {
+      initialProps: { lines: before },
+    });
+    expect(result.current).toEqual({ busy: true }); // nothing found yet
+    await waitFor(() => expect(result.current).toMatchObject({ busy: false, in: before }));
+    const found = result.current && "matches" in result.current ? result.current.matches : [];
+    expect(found.map((match) => match.line)).toEqual([1]);
+    rerender({ lines: after });
+    expect(result.current).toMatchObject({ busy: true, in: before, matches: found });
+    await waitFor(() => expect(result.current).toMatchObject({ busy: false, in: after }));
+    const again = result.current && "matches" in result.current ? result.current.matches : [];
+    expect(again.map((match) => match.line)).toEqual([0, 2]);
+  });
+});
 
 describe("the current match", () => {
   it("steps round, and is the first again once the matches are others", () => {

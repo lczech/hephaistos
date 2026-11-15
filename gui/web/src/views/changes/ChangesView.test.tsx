@@ -129,6 +129,8 @@ describe("the Changes View", () => {
     expect(screen.getByRole("button", { name: "Groups" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Compare from: HEAD (main)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Compare to: Working tree" })).toBeInTheDocument();
+    // Its rows stay in one line, so it offers no layout toggle.
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
   });
 
   it("shows files renamed, copied and conflicted as such, conflicts as unmerged", async () => {

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { cells, findListRows } from "../../test/list";
@@ -95,5 +95,22 @@ describe("the Database View", () => {
     await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));
     await userEvent.click(screen.getByRole("menuitemradio", { name: "All tables" }));
     expect(screen.getByRole("status").textContent).toBe("db");
+  });
+
+  it("keeps the widths of each table apart, and shows rows only in columns", async () => {
+    localStorage.setItem("hephaistos.lists.db.registry_repositories.layout", '"lines"');
+    serveDb();
+    renderWithQueries(<Db at={{ table: "registry_repositories" }} />);
+    await screen.findByText("two");
+    const list = screen.getByRole("rowgroup");
+    expect(list.closest("[data-layout]")).toHaveAttribute("data-layout", "columns");
+    expect(screen.queryByRole("button", { name: "Columns" })).toBeNull();
+    const [first] = screen.getAllByRole("separator");
+    fireEvent.mouseDown(first as HTMLElement, { clientX: 100 });
+    fireEvent.mouseMove(document, { clientX: 130 });
+    fireEvent.mouseUp(document, { clientX: 130 });
+    expect(Object.keys(localStorage).filter((key) => key.endsWith(".widths"))).toEqual([
+      "hephaistos.lists.db.registry_repositories.widths",
+    ]);
   });
 });

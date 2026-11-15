@@ -74,17 +74,19 @@ function Held({
   query,
   onChange,
   onStep,
+  onTypingEnd = () => {},
 }: {
   query: FindQuery;
-  onChange: (query: FindQuery) => void;
+  onChange: (query: FindQuery, typing: boolean) => void;
   onStep: () => void;
+  onTypingEnd?: () => void;
 }) {
   return (
     <FindBar
       label="Find"
       query={query}
       onChange={onChange}
-      onTypingEnd={() => {}}
+      onTypingEnd={onTypingEnd}
       finding={undefined}
       count={0}
       current={0}
@@ -119,6 +121,32 @@ describe("what is typed in the find row", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Find" }), "ab{Enter}");
     expect(onChange).toHaveBeenCalledWith({ ...empty, text: "ab" }, true);
     expect(onStep).not.toHaveBeenCalled();
+  });
+
+  it("goes at once on leaving the field, ending the typing", async () => {
+    const [onChange, onTypingEnd] = [vi.fn(), vi.fn()];
+    render(<Held query={empty} onChange={onChange} onStep={() => {}} onTypingEnd={onTypingEnd} />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Find" }), "ab");
+    await userEvent.tab();
+    expect(onChange.mock.calls).toEqual([[{ ...empty, text: "ab" }, true]]);
+    expect(onTypingEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes at once with an option turned on, not as typing", async () => {
+    const onChange = vi.fn();
+    render(<Held query={empty} onChange={onChange} onStep={() => {}} />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Find" }), "ab");
+    await userEvent.click(screen.getByRole("button", { name: "Match case" }));
+    // Not necessarily last: the pause may pass on the text too, the query here not changing.
+    expect(onChange).toHaveBeenCalledWith({ ...empty, text: "ab", matchCase: true }, false);
+  });
+
+  it("keeps a key typed before the View has the text passed on", async () => {
+    const { rerender } = render(<Held query={empty} onChange={() => {}} onStep={() => {}} />);
+    const field = screen.getByRole("textbox", { name: "Find" });
+    await userEvent.type(field, "ab{Enter}c"); // "ab" passed on, the View not drawn again yet
+    rerender(<Held query={{ ...empty, text: "ab" }} onChange={() => {}} onStep={() => {}} />);
+    expect(field).toHaveValue("abc");
   });
 
   it("gives way to a text the View has otherwise, e.g. going back", async () => {
