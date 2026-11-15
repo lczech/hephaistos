@@ -98,6 +98,21 @@ describe("the column buttons", () => {
     await waitFor(() => expect(savedGroups()?.ids[0]).toBe("1"));
   });
 
+  it("leave the Group reused one step back to the tab shown before", async () => {
+    saveGrid([{ tabs: ["a", "b", "c"] }], "HORIZONTAL");
+    await renderShell();
+    await userEvent.click(screen.getByRole("tab", { name: "b" }));
+    await userEvent.click(screen.getByRole("tab", { name: "c" }));
+    await press("2 columns");
+    expect(groups()).toEqual([["[a]", "b"], ["[c]"]]); // the first Group now shows a
+    await userEvent.click(screen.getByRole("tab", { name: "a" }));
+    // Back in it: to c, shown in it before, now in the second Group; no steps the moves made.
+    await userEvent.keyboard("{Alt>}{ArrowLeft}{/Alt}");
+    await nextFrame();
+    expect(groups()).toEqual([["[a]", "b"], ["[c]"]]);
+    expect(focused()).toBe("c");
+  });
+
   it("make columns of rows and of splits within them, side by side at the top", async () => {
     // A wide Group on top of three side by side.
     saveGrid([{ tabs: ["a"] }, [{ tabs: ["b"] }, { tabs: ["c"] }, { tabs: ["d"] }]], "VERTICAL");

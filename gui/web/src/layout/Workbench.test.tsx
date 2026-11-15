@@ -308,6 +308,37 @@ describe("the Workbench", () => {
     }
   });
 
+  it("asks nothing for a restored Diff never shown, its tab keeping the title saved", async () => {
+    const requests = serve(ROUTES);
+    const diff = { clone: "clone-proj", from: "HEAD", to: "worktree" };
+    const panels = {
+      a: {
+        id: "a",
+        contentComponent: "view",
+        title: "Daemon",
+        params: { kind: "daemon", params: {} },
+      },
+      b: {
+        id: "b",
+        contentComponent: "view",
+        title: "Diff: proj",
+        params: { kind: "diff", params: diff },
+      },
+    };
+    const leaf = { type: "leaf", data: { views: ["a", "b"], activeView: "a", id: "1" }, size: 800 };
+    const grid = { root: { type: "branch", data: [leaf], size: 600 }, width: 800, height: 600 };
+    localStorage.setItem(
+      "hephaistos.layout",
+      JSON.stringify({ format: 2, dock: { grid: { ...grid, orientation: "HORIZONTAL" }, panels } }),
+    );
+    await renderWorkbench();
+    const asked = () => requests.map((request) => new URL(request.url).pathname);
+    await waitFor(() => expect(asked()).toContain("/api/daemon")); // the Daemon shown
+    await nextFrame();
+    expect(tabs()).toEqual(["Daemon", "Diff: proj"]);
+    expect(asked().filter((path) => /changes|diff/.test(path))).toEqual([]);
+  });
+
   it("starts anew from a Layout it cannot restore", async () => {
     localStorage.setItem("hephaistos.layout", '{"format": 2, "dock": {"grid": 5}}');
     await renderWorkbench();
@@ -377,6 +408,58 @@ describe("the Workbench", () => {
         .find((tab) => tab.closest(".dv-tab")?.classList.contains("dv-active-tab"))
         ?.getAttribute("aria-label");
     expect([...document.querySelectorAll(".dv-groupview")].map(shown)).toEqual(["p", "r"]);
+  });
+
+  it('opens a View by the "+" of a Group not active in that Group', async () => {
+    saveGrid([{ tabs: ["a"] }, { tabs: ["b"] }], "HORIZONTAL");
+    await renderWorkbench();
+    await userEvent.click(screen.getByRole("tab", { name: "a" }));
+    const [, second] = screen.getAllByRole("button", { name: "Open a view" });
+    await userEvent.click(second as HTMLElement);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Events" }));
+    expect(groups()).toEqual([["a"], ["b", "Events"]]);
+  });
+
+  it("keeps a preview moved to another Group", async () => {
+    saveGrid([{ tabs: ["a", "b*"] }, { tabs: ["c"] }], "HORIZONTAL");
+    let dock: ReturnType<typeof useDock> = null;
+    renderWithQueries(
+      <ViewOpener>
+        <Workbench />
+        <DockOf
+          found={(api) => {
+            dock = api;
+          }}
+        />
+      </ViewOpener>,
+    );
+    await nextFrame();
+    const api = dock as unknown as NonNullable<ReturnType<typeof useDock>>;
+    expect(groups()).toEqual([["a", "b*"], ["c"]]);
+    act(() => api.getPanel("b")?.api.moveTo({ group: api.groups.find(({ id }) => id === "2") }));
+    await nextFrame();
+    expect(groups()).toEqual([["a"], ["c", "b"]]);
+    await waitFor(() => expect(savedLayout()?.panels.b?.params).toEqual({ kind: "b", params: {} }));
+  });
+
+  it("shows the error of a View that fails in its own Panel only", async () => {
+    VIEWS.broken = () => {
+      throw new Error("bad param");
+    };
+    VIEWS.probe = Probe;
+    const failing = vi.spyOn(console, "error").mockImplementation(() => {}); // React says so
+    try {
+      save("broken", "probe");
+      await renderWorkbench();
+      expect(await screen.findByText("Could not show this: bad param")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("tab", { name: "probe" }));
+      expect(await screen.findByRole("button", { name: "probe" })).toBeInTheDocument();
+      expect(tabs()).toEqual(["broken", "probe"]);
+    } finally {
+      failing.mockRestore();
+      delete VIEWS.broken;
+      delete VIEWS.probe;
+    }
   });
 
   describe("with previews", () => {
@@ -506,6 +589,19 @@ describe("the Workbench", () => {
       expect(groups()).toEqual([["linker", "probe*"]]);
     });
 
+    it("goes back to a View whose Panel was closed, shown again as a preview", async () => {
+      await renderWorkbench();
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      await userEvent.dblClick(screen.getByText("probe", { selector: ".dv-default-tab *" }));
+      expect(groups()).toEqual([["linker", "probe"]]);
+      const tab = screen.getByRole("tab", { name: "probe" });
+      await userEvent.click(within(tab).getByRole("button", { name: "Close tab" }));
+      expect(groups()).toEqual([["linker"]]);
+      await userEvent.keyboard("{Alt>}{ArrowLeft}{/Alt}");
+      expect(await screen.findByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
+      expect(groups()).toEqual([["linker", "probe*"]]);
+    });
+
     it("goes back by the mouse's side button through a View's changes, in its Panel", async () => {
       await renderWorkbench();
       await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
@@ -525,6 +621,20 @@ describe("the Workbench", () => {
       expect(side(4)).toBe(false);
       expect(await screen.findByRole("button", { name: "probe?since=1h" })).toBeInTheDocument();
       expect(groups()).toEqual([["linker", "probe"]]);
+    });
+
+    it("goes back by the mouse's side button over an empty Group's placeholder", async () => {
+      await renderKeepingEmptyGroups();
+      await userEvent.click(screen.getByRole("button", { name: "Probe 1" }));
+      for (const name of ["probe", "linker"]) {
+        const tab = screen.getByRole("tab", { name });
+        await userEvent.click(within(tab).getByRole("button", { name: "Close tab" }));
+      }
+      expect(groups()).toEqual([[]]);
+      // Back from the linker, shown once the probe closed, to the probe, as a preview.
+      expect(fireEvent.mouseUp(screen.getByText("Open a view:"), { button: 3 })).toBe(false);
+      expect(await screen.findByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
+      expect(groups()).toEqual([["probe*"]]);
     });
 
     it("takes keys typed in a row as one step", async () => {

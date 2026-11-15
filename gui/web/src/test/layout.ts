@@ -23,15 +23,23 @@ export interface TabsSpec {
   size?: number; // across the split it is in, in pixels as dockview saves them
 }
 
+/** A split of Groups, sized across the one it is in as a Group is. */
+export interface SplitSpec {
+  split: GridSpec[];
+  size?: number;
+}
+
 /** A Group, or a split of them: across the one it is in, starting side by side at the top. */
-export type GridSpec = TabsSpec | GridSpec[];
+export type GridSpec = TabsSpec | SplitSpec | GridSpec[];
 
 /** A saved Layout of Groups as `spec` places them, its top side by side or one above another. */
 export function saveGrid(spec: GridSpec[], orientation: "HORIZONTAL" | "VERTICAL"): void {
   const panels: Record<string, object> = {};
   let groups = 0;
   const node = (part: GridSpec): object => {
-    if (Array.isArray(part)) return { type: "branch", data: part.map(node), size: 100 };
+    if (Array.isArray(part)) return node({ split: part });
+    if ("split" in part)
+      return { type: "branch", data: part.split.map(node), size: part.size ?? 100 };
     const views = part.tabs.map((tab) => {
       const kind = tab.replace(/\*$/, "");
       const preview = tab.endsWith("*") ? { preview: true } : {};

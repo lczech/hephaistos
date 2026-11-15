@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { App } from "./App";
 import { Boundary } from "./components/Boundary";
-import { saveViews } from "./test/layout";
+import { saveGrid, saveViews } from "./test/layout";
 import { lastSocket } from "./test/live";
 import { daemon, event, info, json, renderWithQueries, serve, setting } from "./test/server";
 import { takeTokenFromUrl, token } from "./token";
@@ -64,6 +64,24 @@ describe("the GUI", () => {
     expect(health).toHaveAttribute("data-health", "good");
     await userEvent.click(health);
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+  });
+
+  it("opens the Daemon from the status bar in the active Group", async () => {
+    signIn();
+    saveGrid([{ tabs: ["repositories"] }, { tabs: ["events"] }], "HORIZONTAL");
+    serve(ok);
+    renderWithQueries(<App />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Events" }));
+    await waitFor(() => lastSocket());
+    act(() => lastSocket().open());
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Daemon: running; open the Daemon view" }),
+    );
+    expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
+    const tabsByGroup = [...document.querySelectorAll(".dv-groupview")].map((group) =>
+      [...group.querySelectorAll("[role=tab]")].map((tab) => tab.getAttribute("aria-label")),
+    );
+    expect(tabsByGroup).toEqual([["repositories"], ["Events", "Daemon"]]); // the first not drawn
   });
 
   it("takes its fonts and sizes from the settings", async () => {

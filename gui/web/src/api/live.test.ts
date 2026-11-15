@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { act } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +20,12 @@ import { KEYS, type KeyName, listingsAskedAgain } from "./queries";
 function Live() {
   useLiveUpdates();
   return createElement("p", { "data-testid": "connection" }, JSON.stringify(useConnection()));
+}
+
+/** A View asking once for its answer, by the key `old`. */
+function Answer({ ask }: { ask: () => string }) {
+  useQuery({ queryKey: ["old"], queryFn: ask });
+  return null;
 }
 
 function start() {
@@ -73,6 +79,26 @@ describe("the live connection", () => {
     invalidated.mockClear();
     act(() => lastSocket().receive({ heartbeat: new Date().toISOString() }));
     expect(invalidated).not.toHaveBeenCalled();
+  });
+
+  it("asks again on a data hint for what State and Events show, written out", () => {
+    const { invalidated } = start();
+    act(() => lastSocket().open());
+    invalidated.mockClear();
+    act(() => lastSocket().receive({ hints: ["data"] }));
+    expect(invalidated.mock.calls).toEqual(
+      keysOf([
+        "repositories",
+        "machines",
+        "events",
+        "db",
+        "changes",
+        "diff",
+        "history",
+        "graph",
+        "files",
+      ]),
+    );
   });
 
   it("lets what loads anew end, then asks again once for the hints meanwhile", async () => {
@@ -203,6 +229,56 @@ describe("the live connection", () => {
     const { invalidated } = start();
     invalidated.mockClear();
     wait(60_000); // past the gap since the page opened
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+  });
+
+  it("asks again on focus for the settings and what editing a file changes, written out", () => {
+    expect([...ON_FOCUS].sort()).toEqual(
+      ["changes", "config", "daemon", "diff", "files", "graph", "history", "paths"].sort(),
+    );
+  });
+
+  it("asks nothing again for being old, however long it waits", async () => {
+    const { invalidated } = start();
+    act(() => lastSocket().open());
+    invalidated.mockClear();
+    for (let minute = 0; minute < 60; minute += 1) {
+      wait(20_000);
+      act(() => lastSocket().receive({ heartbeat: new Date().toISOString() }));
+      wait(20_000);
+      act(() => lastSocket().receive({ heartbeat: new Date().toISOString() }));
+      wait(20_000);
+      act(() => lastSocket().receive({ heartbeat: new Date().toISOString() }));
+    }
+    expect(invalidated).not.toHaveBeenCalled();
+
+    // Another View showing the same an hour on takes the answer kept (`staleTime: Infinity`).
+    const asked = vi.fn(() => "answer");
+    const { client, rerender } = renderWithQueries(createElement(Answer, { ask: asked }));
+    await act(async () => vi.advanceTimersByTimeAsync(3_600_000));
+    expect(asked).toHaveBeenCalledTimes(1);
+    rerender(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(Answer, { ask: asked }),
+        createElement(Answer, { key: "other", ask: asked }),
+      ),
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(asked).toHaveBeenCalledTimes(1);
+  });
+
+  // FOCUS_GAP holds back what is asked again on focus, not only the pass: a file edited and the
+  // page focused again within 10 s leaves Changes and Diff stale until a hint. Whether only the
+  // pass is meant to wait is for the user to decide; until then this fails.
+  it.fails("asks again on each focus for what no hint covers, within the gap too", () => {
+    const { invalidated } = start();
+    wait(60_000);
+    act(() => window.dispatchEvent(new Event("focus")));
+    invalidated.mockClear();
+    wait(5_000);
     act(() => window.dispatchEvent(new Event("focus")));
     expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
   });
