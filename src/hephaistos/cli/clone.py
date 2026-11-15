@@ -63,6 +63,15 @@ def observe_checkout(paths: Paths, path: Path, *, refresh: bool) -> None:
         note_observed(result, "git knows more than the record")
 
 
+def imported_text(result: observer.Result, of: str) -> str:
+    """How many Events of `of` history an observation read from reflogs, as `; imported …`.
+
+    Only Events that reflogs dated count: a Worktree found now, for one, is no history.
+    """
+    imported = sum(event.occurred_at is not None for event in result.events)
+    return f"; imported {number_text(imported, 'event')} of {of} history"
+
+
 def branch_text(state: CheckoutState) -> str:
     """The branch as shown in lists: its name, or `(detached)`."""
     return state.branch or "(detached)"
@@ -224,7 +233,7 @@ def register(
     if result.worktrees:
         registered += f", with {number_text(result.worktrees, 'worktree')}"
     if import_history:
-        registered += f"; imported {number_text(len(result.events), 'event')} of its history"
+        registered += imported_text(result, "its")
     typer.echo(registered)
 
 

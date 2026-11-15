@@ -5,7 +5,7 @@ from typing import Annotated
 import typer
 
 from hephaistos.cli import terminal
-from hephaistos.cli.clone import ImportHistoryOption
+from hephaistos.cli.clone import ImportHistoryOption, imported_text
 from hephaistos.cli.output import print_table
 from hephaistos.core import config
 from hephaistos.core.db.sessions import read_session, write_session
@@ -123,5 +123,5 @@ def scan(
     result = observer.observe(paths, {*registered, *observing})
     done = _changes_text(counts, done=True)
     if import_history:
-        done += f"; imported {number_text(len(result.events), 'event')} of their history"
+        done += imported_text(result, "their")
     typer.echo(done)

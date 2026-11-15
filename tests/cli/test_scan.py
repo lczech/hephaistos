@@ -95,3 +95,15 @@ def test_new_worktree_is_observed(root: Path) -> None:
     assert lines[-1] == "Observed 1 new worktree"
     result = runner.invoke(app, ["worktree", "list"])
     assert "proj-fix" in result.output
+
+
+def test_import_history_counts_only_what_the_reflogs_held(tmp_path: Path) -> None:
+    runner.invoke(app, ["setup", "--name", "laptop"])
+    root = tmp_path / "Repos"
+    first = create(root / "a", commits=2)
+    git(first, "worktree", "add", "--quiet", str(root / "a-side"))  # added now: not history
+    create(root / "b", commits=2)
+    lines = _lines(str(root), "--yes", "--import-history")
+    assert lines[-1].endswith("; imported 4 events of their history")
+    committed = runner.invoke(app, ["event", "list", "--kind", "clone.committed"]).output
+    assert len(committed.splitlines()) == 1 + 4  # with the header
