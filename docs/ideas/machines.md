@@ -13,7 +13,8 @@ For the step of other Machines and Sync, with the Machines View ([roadmap](../pl
 - A removed Repository (2026-10-08): Machine A removes a Repository while B registers a Clone in it; after Sync, the Clone points to a deleted Repository.
   The last write per row cannot resolve it; the user thinks it very unlikely, so fix it in the merge rules only if easy (revive the Repository, or flag the Clone).
 - The Links of Sync as a [transition function](development.md#transition-functions).
-- `scripts/worktree_gui.sh` instances copy the real database and keep the identity of this Machine, so the script must turn Sync off and drop the Peers in the copy.
+- `scripts/worktree_gui.sh` instances copy the real config and database and keep the identity of this Machine, so the script must turn Sync off and drop the Peers in the copy; such an instance must never sync, which Sync guards once it lands (2026-11-16).
+- Checkouts matched by path only, in the Explorer and in "Files of", would match a Clone at the same path on another Machine: match the Machine too (2026-11-16).
 - A Machine set up twice (2026-11-16): after Sync, the old record and the new one, with the same `os_machine_id`, could be offered for merging.
 - Work in progress across Machines (user, 2026-10-20): `git stash create`, carried under a private ref and applied on the other Machine, as an explicit action.
 

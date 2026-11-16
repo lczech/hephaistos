@@ -22,6 +22,10 @@ Each build of the GUI names its assets anew, and the cache keeps every version, 
 Chromium caps these caches by the free disk space, at hundreds of MB; the GUI comes from localhost, so they gain little.
 Cap them lower (`--disk-cache-size`), or clear them when the GUI changes (`session.clearCache()`, `clearCodeCaches()`).
 
+## Testing the start-up
+
+The start-up of the Desktop (one instance per `HEPHAISTOS_HOME`, the label in the title, the saved bounds) could be taken apart from Electron, so that it can be tested, as `guard.ts` was (2026-11-16).
+
 ## Addresses on the command line
 
 Agreed 2026-10-15: `hephaistos browse <address>` and `hephaistos desktop open <address>`.

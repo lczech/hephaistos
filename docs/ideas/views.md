@@ -30,6 +30,9 @@ From the git graph (2026-11-13), in History and the Graph View:
 - Paging past `gui.diff.max_files` (user: "when bored"): `skip` in the Core, an API parameter, "N more" as a button, and live hints that fetch all pages again; one or two hours.
 - Speed: folding big stacks still spends about 340 ms in layout reads by the virtualizer of Pierre.
 - The bundle: lazy loading of the popover in `GitRevisionPicker` (+47 kB gzipped); the user has not decided.
+- Groups by steps for a comparison that ends at the working tree (2026-11-16): committed since `<from>` (from it to HEAD), staged, not staged and untracked, which make up the whole comparison, as the groups of git status do from HEAD.
+  In the one list, untracked files and new folders would come last too, as they do where they have a group of their own, and in the stacked Diff.
+- A single-file Diff View subscribes to the Repositories only for the title of its stack, so it redraws whenever they change (2026-11-16).
 
 ## Find
 
