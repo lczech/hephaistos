@@ -76,14 +76,18 @@ export function keepVisits(api: DockviewApi): Visits {
     return trail;
   };
 
-  // Notes each Group's View: another one is a step, but for another key typed into it; so is
-  // none, in a Group kept once its last View closed, so that Back shows that View again.
-  const note = () => {
+  // Notes each Group's View: another one is a step, but for another key typed into it. None is
+  // a step only in a Group emptied by closing its last View (`closed`), so that Back shows that
+  // View again; else it is a moment between two, e.g. while the last tab is dragged out.
+  const note = (closed?: string) => {
     for (const group of api.groups) {
       const trail = trailOf(group);
-      const visit = visitOf(group);
+      // As a Panel is removed, its Group may still name it active.
+      const visit = group.panels.length === 0 ? undefined : visitOf(group);
       const { now } = trail;
       if (same(visit, now)) continue;
+      const emptied = group.panels.length === 0 && now !== undefined && now.panel === closed;
+      if (visit === undefined && !emptied) continue;
       const typing =
         now?.panel === visit?.panel && now?.typed !== undefined && now.typed === visit?.typed;
       if (!moving && now !== undefined && !typing) {
@@ -139,7 +143,12 @@ export function keepVisits(api: DockviewApi): Visits {
   };
 
   note();
-  const changes = [api.onDidLayoutChange(note), api.onDidActivePanelChange(note)];
+  const changes = [
+    api.onDidLayoutChange(() => note()),
+    api.onDidActivePanelChange(() => note()),
+    // Not for a Panel moved: dockview tells of none removed then.
+    api.onDidRemovePanel((panel) => note(panel.id)),
+  ];
   window.addEventListener("mousedown", onMouse);
   window.addEventListener("mouseup", onMouse);
   window.addEventListener("keydown", onKey);

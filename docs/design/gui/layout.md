@@ -85,6 +85,7 @@ Each address a Group shows is a step: one in another Panel, or another in the sa
 Keys typed in a row, e.g. a search, make one step, until typing is done: Enter, or leaving the field (a run's number in `layout/dock.ts`).
 Going back shows a View again in its Panel, or as a preview where the Panel is gone.
 A Group kept once its last View closed ([empty Groups](#empty-groups)) keeps its steps, so going back there shows that View again, as a preview.
+Only closing makes a Group empty as a step: a Group empty for a moment, e.g. while its last tab is dragged out, keeps Forward.
 The steps are kept until the page is left.
 
 ## Empty Groups

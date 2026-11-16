@@ -655,6 +655,46 @@ describe("the Workbench", () => {
       expect(groups()).toEqual([["probe*"]]);
     });
 
+    it("keeps Forward in a Group left empty a moment by moving its View out", async () => {
+      saveGrid([{ tabs: ["probe"] }, { tabs: ["linker"] }], "HORIZONTAL");
+      const requests = serve({
+        ...ROUTES,
+        "GET /api/config": () => json({ settings: [setting("gui.keep_empty_groups", true)] }),
+      });
+      let dock: ReturnType<typeof useDock> = null;
+      renderWithQueries(
+        <ViewOpener>
+          <Workbench />
+          <DockOf
+            found={(api) => {
+              dock = api;
+            }}
+          />
+        </ViewOpener>,
+      );
+      await waitFor(() =>
+        expect(requests.map((request) => new URL(request.url).pathname)).toContain("/api/config"),
+      );
+      await nextFrame();
+      const api = dock as unknown as NonNullable<ReturnType<typeof useDock>>;
+      const group = (id: string) => api.groups.find((group) => group.id === id);
+      await userEvent.click(await screen.findByRole("button", { name: "probe" })); // narrowed
+      act(() => api.getPanel("probe")?.api.setActive());
+      await userEvent.keyboard("{Alt>}{ArrowLeft}{/Alt}");
+      expect(await screen.findByRole("button", { name: "probe" })).toBeInTheDocument();
+      // Out to the other Group, as a drag does, and back: Group 1 is empty meanwhile.
+      act(() => api.getPanel("probe")?.api.moveTo({ group: group("2") }));
+      await nextFrame();
+      const panels = () => api.groups.map((group) => group.panels.map((panel) => panel.id));
+      expect(panels()).toEqual([[], ["linker", "probe"]]);
+      act(() => api.getPanel("probe")?.api.moveTo({ group: group("1") }));
+      await nextFrame();
+      expect(panels()).toEqual([["probe"], ["linker"]]);
+      act(() => api.getPanel("probe")?.api.setActive());
+      await userEvent.keyboard("{Alt>}{ArrowRight}{/Alt}");
+      expect(await screen.findByRole("button", { name: "probe?since=1h" })).toBeInTheDocument();
+    });
+
     it("takes keys typed in a row as one step", async () => {
       VIEWS.typer = Typer;
       try {
