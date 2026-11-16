@@ -58,6 +58,8 @@ export function evenOut(api: DockviewApi, location: readonly number[]): void {
   const across = sideBySide(grid.orientation, location.length);
   const options = { direction: across ? "right" : "below", skipSetActive: true } as const;
   const own = api.getGroup(ownGroups(split)[0] ?? "");
+  // At the top, a Group added at its edge evens out its parts too: a part that is a split of
+  // splits has no Group to size it by below.
   if (own !== undefined || location.length === 0) {
     const added = own
       ? api.addGroup({ ...options, referenceGroup: own.id })

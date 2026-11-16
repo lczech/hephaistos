@@ -90,4 +90,31 @@ describe("the column buttons, as shown", () => {
     expect(widths()).toHaveLength(4); // each column's two Groups, one above the other
     expect(widths().reduce((sum, width) => sum + width, 0)).toBeGreaterThan(2 * WIDTH - 8);
   });
+
+  it("even out columns which are all splits, one with no Group of its own to size it by", async () => {
+    // Two rows, each of two Groups side by side, beside two Groups one above the other.
+    saveGrid(
+      [
+        {
+          split: [
+            [{ tabs: ["a"] }, { tabs: ["b"] }],
+            [{ tabs: ["c"] }, { tabs: ["d"] }],
+          ],
+          size: 900,
+        },
+        { split: [{ tabs: ["e"] }, { tabs: ["f"] }], size: 300 },
+      ],
+      "HORIZONTAL",
+    );
+    renderShell();
+    await screen.findByRole("tab", { name: "a" });
+    const columns = () => {
+      const [a = 0, b = 0, , , e = 0] = widths();
+      return [a + b, e];
+    };
+    await waitFor(() => expect(even(columns())).toBe(false));
+    await userEvent.click(screen.getByRole("button", { name: "2 columns" }));
+    await waitFor(() => expect(even(columns())).toBe(true));
+    expect(widths()).toHaveLength(6);
+  });
 });
