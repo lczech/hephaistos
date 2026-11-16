@@ -104,7 +104,7 @@ The repository of a Terminal is that of the innermost Checkout containing the di
 `list` gives the status of an ended one with how it ended, e.g. `ended (status 1)` or `ended (SIGKILL)`.
 `show` gives when and how it ended, and for one whose session is gone, when that was found and why: `lost` for a lost one, `screen` for an ended one, e.g. `gone 3m ago: the machine restarted`.
 `kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first.
-It closes an ended one, its last screen with it, and forgets one whose session is gone.
+It removes one that ended, its last screen with it, and one that was lost: `Removed ended terminal …`, `Removed lost terminal …`.
 How Terminals work: [terminals](../core/terminals.md).
 
 ## scan

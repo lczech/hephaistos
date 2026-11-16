@@ -144,7 +144,7 @@ def test_kill_a_lost_one(keeper: TmuxKeeper, tmp_path: Path) -> None:
     ok("create", "-n", "api", "-d", str(tmp_path))
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     assert ok("list")[1].split()[:2] == ["api", "lost"]
-    assert ok("kill", "api") == ["Forgot lost terminal api"]
+    assert ok("kill", "api") == ["Removed lost terminal api"]
 
 
 def test_errors_are_messages(tmp_path: Path) -> None:
@@ -380,9 +380,9 @@ def test_show_says_when_and_why_a_session_went(
 def test_kill_ended_ones(keeper: TmuxKeeper, tmp_path: Path) -> None:
     ok("create", "-n", "a", "-d", str(tmp_path), "--", "true")
     ok("create", "-n", "b", "-d", str(tmp_path), "--", "true")
-    assert ok("kill", "a") == ["Closed ended terminal a"]
+    assert ok("kill", "a") == ["Removed ended terminal a"]
     kill_server(keeper)
-    assert ok("kill", "b") == ["Forgot ended terminal b"]
+    assert ok("kill", "b") == ["Removed ended terminal b"]
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]
 
 

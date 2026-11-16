@@ -242,11 +242,9 @@ def kill(
         bool, typer.Option("--force", help="SIGKILL first, also for what ignores SIGHUP.")
     ] = False,
 ) -> None:
-    """End a terminal and what runs in it; one ended closes, and one lost is forgotten."""
+    """End a terminal and what runs in it, or remove one that ended or was lost."""
     killed = actions.kill(Paths.from_environment(), name, force=force)
-    if killed.session_gone:
-        typer.echo(f"Forgot {killed.status.value} terminal {escaped(killed.name)}")
-    elif killed.status is terminals.TerminalStatus.ENDED:
-        typer.echo(f"Closed ended terminal {escaped(killed.name)}")
-    else:
+    if killed.status is terminals.TerminalStatus.OPEN:
         typer.echo(f"Killed terminal {escaped(killed.name)}")
+    else:
+        typer.echo(f"Removed {killed.status.value} terminal {escaped(killed.name)}")
