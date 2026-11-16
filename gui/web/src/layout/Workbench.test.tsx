@@ -68,8 +68,8 @@ function Linker() {
 }
 
 /** Ctrl+F, as the window gets it; returns the event, to tell whether it was taken. */
-function pressCtrlF(key = "f"): KeyboardEvent {
-  const event = new KeyboardEvent("keydown", { key, ctrlKey: true, cancelable: true });
+function pressCtrlF(key = "f", code = "KeyF"): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, code, ctrlKey: true, cancelable: true });
   act(() => {
     window.dispatchEvent(event);
   });
@@ -182,6 +182,21 @@ describe("the Workbench", () => {
     await userEvent.keyboard("{Control>}w{/Control}");
     expect(groups()).toEqual([[]]);
     expect(screen.queryByRole("button", { name: "Close this group" })).toBeNull();
+  });
+
+  it("closes by the letter typed, or by the place of the key where that letter is not Latin", async () => {
+    await renderKeepingEmptyGroups();
+    expect(await screen.findByText("No events yet.")).toBeInTheDocument();
+    const press = (key: string, code: string) =>
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key, code, ctrlKey: true }));
+      });
+    press("z", "KeyW"); // AZERTY: the key in the place of W types z
+    expect(groups()).toEqual([["Repositories"], ["Events"]]);
+    press("w", "KeyZ");
+    expect(groups()).toEqual([["Repositories"], []]);
+    press("ц", "KeyW"); // Cyrillic
+    expect(groups()).toEqual([["Repositories"]]);
   });
 
   it("keeps a Group emptied, also once restored, until it is closed", async () => {
@@ -726,6 +741,12 @@ describe("the Workbench", () => {
       field.blur();
       expect(pressCtrlF("F").defaultPrevented).toBe(true); // with Caps Lock on
       expect(field).toHaveFocus();
+      field.blur();
+      expect(pressCtrlF("а").defaultPrevented).toBe(true); // on a Cyrillic layout, by its place
+      expect(field).toHaveFocus();
+      field.blur();
+      expect(pressCtrlF("g").defaultPrevented).toBe(false); // a Latin letter, as typed
+      expect(field).not.toHaveFocus();
       unmount();
       // The View of the search field behind another: Ctrl+F goes to the browser.
       save("probe", "searcher");

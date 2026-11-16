@@ -62,11 +62,11 @@ describe("the guard of the window", () => {
     const { contents, deps, event } = guarded();
     const input = { type: "keyDown", control: true, shift: false, alt: false, meta: false };
     const reload = event();
-    contents.emit("before-input-event", reload, { ...input, key: "r" });
+    contents.emit("before-input-event", reload, { ...input, key: "r", code: "KeyR" });
     expect(reload.preventDefault).toHaveBeenCalled();
     expect(deps.act).toHaveBeenCalledWith("reload", contents);
     const close = event();
-    contents.emit("before-input-event", close, { ...input, key: "w" });
+    contents.emit("before-input-event", close, { ...input, key: "w", code: "KeyW" });
     expect(close.preventDefault).not.toHaveBeenCalled();
     expect(deps.act).toHaveBeenCalledTimes(1);
   });

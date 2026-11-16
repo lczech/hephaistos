@@ -15,6 +15,7 @@ It follows a renewed token by watching its file.
 The page stays on the Server; other web pages open in the browser.
 The page gets no Node, and is refused permission requests.
 The window keeps only reload, zoom, full screen, developer tools and quit as its keys; all others reach the page.
+It takes their letters as the page does ([keys](../gui/interaction.md#keys)): the one typed, or, where that is not Latin, the one at the place of the key.
 It has no title bar from the system: the GUI draws its own ([looks](../gui/looks.md#the-title-bar)), and Chromium the window buttons over its right end (Electron's `titleBarOverlay`, `src/titleBar.ts`).
 The buttons take the page's theme colour as it changes, their symbols light or dark against it.
 One Desktop runs per `HEPHAISTOS_HOME`, with its profile in the state directory.

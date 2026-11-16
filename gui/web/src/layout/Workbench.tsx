@@ -42,14 +42,25 @@ function keepSaved(api: DockviewApi): { dispose: () => void } {
 }
 
 /**
+ * The Latin letter a key types, in lower case, whatever Caps Lock makes of it; where the letter
+ * typed is not Latin, e.g. on a Cyrillic layout, that of its place on a US keyboard (`KeyW`), so
+ * that Ctrl+W still closes. Not by its place otherwise, which on AZERTY is that of another letter.
+ */
+function letterOf(event: KeyboardEvent): string | undefined {
+  const typed = event.key.toLowerCase();
+  if (/^[a-z]$/.test(typed)) return typed;
+  if (!/^\p{L}$/u.test(event.key)) return undefined;
+  return /^Key([A-Z])$/.exec(event.code)?.[1]?.toLowerCase();
+}
+
+/**
  * Ctrl+W closes the active Panel, or the active Group once empty, unless it is the last; only
  * the Desktop passes it on, as browsers close their tab.
  */
 function closeByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
-    // By the letter in either case, as Caps Lock gives it.
     const plain = !event.altKey && !event.metaKey && !event.shiftKey;
-    if (event.key.toLowerCase() !== "w" || !event.ctrlKey || !plain) return;
+    if (letterOf(event) !== "w" || !event.ctrlKey || !plain) return;
     event.preventDefault();
     const group = api.activeGroup;
     if (api.activePanel) api.activePanel.api.close();
@@ -67,7 +78,7 @@ function closeByKey(api: DockviewApi): { dispose: () => void } {
 function searchByKey(api: DockviewApi): { dispose: () => void } {
   const onKey = (event: KeyboardEvent) => {
     const plain = !event.altKey && !event.metaKey && !event.shiftKey;
-    if (event.key.toLowerCase() !== "f" || !event.ctrlKey || !plain) return;
+    if (letterOf(event) !== "f" || !event.ctrlKey || !plain) return;
     const target = keyTarget(api.activePanel, "search");
     if (!(target instanceof HTMLElement)) return;
     event.preventDefault();

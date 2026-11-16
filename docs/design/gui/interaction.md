@@ -93,6 +93,8 @@ A tab's tooltip is its whole title.
 - Ctrl+F goes to the active Panel's search field, the one its View names (`views/keys.ts`), or presses the button opening it, e.g. the Diff's find bar; else the browser finds in the page.
 - Alt+← and Alt+→ go back and forward in the active Group ([layout](layout.md#going-back-and-forward)).
 
+A letter of a key is the one typed, in either case; where that is not Latin, e.g. on a Cyrillic layout, it is the one at the place of the key on a US keyboard (`event.code`), as the Desktop does.
+
 In a list, as VS Code's ([lists](lists.md#rows)), on the row focused:
 - ↑ and ↓ go to the row before or after it, PageUp and PageDown a page of rows, Home and End to the first or the last; ↑ on the first stays there.
 - → unfolds it, or opens its details; on a row unfolded, it goes to the first row within. ← folds it, or closes its details; else it goes to the row holding it.

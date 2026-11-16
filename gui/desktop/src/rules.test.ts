@@ -19,6 +19,7 @@ describe("the window's keys", () => {
   const key = (name: string, held: Partial<Key> = {}): Key => ({
     type: "keyDown",
     key: name,
+    code: name.length === 1 ? `Key${name.toUpperCase()}` : name,
     control: false,
     shift: false,
     alt: false,
@@ -43,6 +44,16 @@ describe("the window's keys", () => {
     expect(keyAction(key("R", control))).toBe("reload");
     expect(keyAction(key("Q", control))).toBe("quit");
     expect(keyAction(key("i", { control: true, shift: true }))).toBe("devTools");
+  });
+
+  it("take the letter typed, or the place of the key where that letter is not Latin", () => {
+    expect(keyAction({ ...key("к", control), code: "KeyR" })).toBe("reload"); // Cyrillic
+    expect(keyAction({ ...key("Ш", { control: true, shift: true }), code: "KeyI" })).toBe(
+      "devTools",
+    );
+    // AZERTY: the key in the place of Q types a, and that in the place of A types q.
+    expect(keyAction({ ...key("a", control), code: "KeyQ" })).toBeNull();
+    expect(keyAction({ ...key("q", control), code: "KeyA" })).toBe("quit");
   });
 
   it("leave all others to the page", () => {
