@@ -2,6 +2,7 @@ import "dockview-react/dist/styles/dockview.css";
 import "./dock.css";
 import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import { useEffect, useRef, useState } from "react";
+import { letterOf } from "../../../desktop/src/letters";
 import { useSetting } from "../api/queries";
 import { asAddress, viewKey } from "../views/address";
 import { ShownContext } from "../views/opening";
@@ -39,18 +40,6 @@ function keepSaved(api: DockviewApi): { dispose: () => void } {
       changes.dispose();
     },
   };
-}
-
-/**
- * The Latin letter a key types, in lower case, whatever Caps Lock makes of it; where the letter
- * typed is not Latin, e.g. on a Cyrillic layout, that of its place on a US keyboard (`KeyW`), so
- * that Ctrl+W still closes. Not by its place otherwise, which on AZERTY is that of another letter.
- */
-function letterOf(event: KeyboardEvent): string | undefined {
-  const typed = event.key.toLowerCase();
-  if (/^[a-z]$/.test(typed)) return typed;
-  if (!/^\p{L}$/u.test(event.key)) return undefined;
-  return /^Key([A-Z])$/.exec(event.code)?.[1]?.toLowerCase();
 }
 
 /**

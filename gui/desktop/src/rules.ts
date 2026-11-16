@@ -1,5 +1,7 @@
 // What the Desktop lets its page do: where it may go, and which keys the window keeps.
 
+import { letterOf } from "./letters.js";
+
 /** Where a link or navigation from the page goes: on in the window, to the browser, or nowhere. */
 export function destination(url: string, server: string | null): "window" | "browser" | "none" {
   let parsed: URL;
@@ -43,18 +45,6 @@ const WITH_CONTROL: Record<string, KeyAction> = {
   q: "quit",
 };
 const WITH_CONTROL_SHIFT: Record<string, KeyAction> = { I: "devTools", "+": "zoomIn" };
-
-/**
- * The Latin letter a key types, in lower case; where the letter typed is not Latin, e.g. on a
- * Cyrillic layout, that of its place on a US keyboard (`KeyR`), so that Ctrl+R still reloads.
- * Not by its place otherwise, which on AZERTY is that of another letter. As the page does.
- */
-function letterOf(key: Key): string | undefined {
-  const typed = key.key.toLowerCase();
-  if (/^[a-z]$/.test(typed)) return typed;
-  if (!/^\p{L}$/u.test(key.key)) return undefined;
-  return /^Key([A-Z])$/.exec(key.code)?.[1]?.toLowerCase();
-}
 
 /** What the window does for a key; all others go to the page, e.g. Ctrl+W to close a Panel. */
 export function keyAction(key: Key): KeyAction | null {
