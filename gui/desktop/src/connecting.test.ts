@@ -113,7 +113,7 @@ describe("connecting", () => {
       server: () => new URL(LINK).origin,
       openExternal: () => undefined,
       act: () => undefined,
-      reconnect: () => void connecting.afterFailedLoad(),
+      reconnect: (reason) => void connecting.afterFailedLoad(reason),
     });
     await connecting.now();
     expect(calls).toHaveLength(1);
@@ -136,7 +136,41 @@ describe("connecting", () => {
     await later.now();
     calls.length = 0;
     await vi.advanceTimersByTimeAsync(RETRY);
-    await later.afterFailedLoad();
+    await later.afterFailedLoad("failed");
     expect(calls).toEqual(["daemon token --url"]);
+  });
+
+  it("says why while it waits after a failed load", async () => {
+    const { connecting, loaded, shown } = connector({ link: [ok(LINK), ok(LINK)] });
+    await connecting.now();
+    await connecting.afterFailedLoad("the GUI did not load");
+    expect(shown).toEqual([{ state: "down", reason: "the GUI did not load" }]);
+    await vi.advanceTimersByTimeAsync(RETRY);
+    expect(loaded).toEqual([LINK, LINK]);
+  });
+
+  it("lets an attempt already running go on after a failed load", async () => {
+    // hephaistos takes a while to answer, as after a renewed token.
+    const calls: string[] = [];
+    const loaded: string[] = [];
+    const shown: Waiting[] = [];
+    const connecting = new Connector({
+      run: (args) => {
+        calls.push(args.join(" "));
+        return new Promise((resolve) => setTimeout(() => resolve(ok(LINK)), POLL));
+      },
+      load: (link) => loaded.push(link),
+      show: (waiting) => shown.push(waiting),
+    });
+    const first = connecting.now();
+    await vi.advanceTimersByTimeAsync(POLL);
+    await first;
+    void connecting.now();
+    await connecting.afterFailedLoad("the GUI did not load");
+    await vi.advanceTimersByTimeAsync(POLL);
+    expect(loaded).toEqual([LINK, LINK]);
+    expect(shown).toEqual([]);
+    await vi.advanceTimersByTimeAsync(2 * RETRY);
+    expect(calls).toHaveLength(2);
   });
 });

@@ -22,6 +22,7 @@ export class Connector {
   private attempt = 0; // a newer attempt ends older ones
   private timer: ReturnType<typeof setTimeout> | undefined;
   private loadedAt = Number.NEGATIVE_INFINITY; // when it last gave the GUI to load
+  private running: number | null = null; // the attempt asking hephaistos, if any
 
   constructor(private readonly steps: Steps) {}
 
@@ -31,26 +32,39 @@ export class Connector {
   }
 
   /**
-   * After a load of the Server failed: tries as `now` does, but not sooner than RETRY after the
-   * GUI was last given to load, so that a Server whose page keeps failing is not asked again
-   * and again, each time by a hephaistos process.
+   * After a load of the Server failed, for `reason`: tries as `now` does, but not sooner than
+   * RETRY after the GUI was last given to load, so that a Server whose page keeps failing is not
+   * asked again and again, each time by a hephaistos process; it says why meanwhile. An attempt
+   * already running, e.g. after a renewed token, goes on: it loads or says why itself.
    */
-  afterFailedLoad(): Promise<void> {
+  afterFailedLoad(reason: string): Promise<void> {
+    if (this.running !== null) return Promise.resolve();
     const wait = this.loadedAt + RETRY - Date.now();
     if (wait <= 0) return this.now();
     this.stop();
+    this.steps.show({ state: "down", reason });
     this.timer = setTimeout(() => void this.connect(true), wait);
     return Promise.resolve();
   }
 
   stop(): void {
     this.attempt += 1;
+    this.running = null;
     clearTimeout(this.timer);
   }
 
   private async connect(start: boolean): Promise<void> {
     this.stop();
     const attempt = this.attempt;
+    this.running = attempt;
+    try {
+      await this.tryOnce(attempt, start);
+    } finally {
+      if (this.running === attempt) this.running = null;
+    }
+  }
+
+  private async tryOnce(attempt: number, start: boolean): Promise<void> {
     const ended = () => attempt !== this.attempt;
     const link = await this.steps.run(LINK);
     if (ended()) return;
@@ -73,6 +87,7 @@ export class Connector {
   }
 
   private load(link: string): void {
+    this.running = null; // done: a load that fails comes after it
     this.loadedAt = Date.now();
     this.steps.load(link);
   }

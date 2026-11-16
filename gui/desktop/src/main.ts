@@ -131,7 +131,7 @@ if (!app.requestSingleInstanceLock()) {
       server: () => server,
       openExternal: (url) => void shell.openExternal(url),
       act,
-      reconnect: () => void connector.afterFailedLoad(),
+      reconnect: (reason) => void connector.afterFailedLoad(reason),
     }),
   );
   app.on("window-all-closed", () => app.quit());

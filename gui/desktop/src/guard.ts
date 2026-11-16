@@ -20,7 +20,7 @@ export interface Guarding {
   server: () => string | null; // the origin of the Server whose GUI the window shows
   openExternal: (url: string) => void; // in the user's browser
   act: (action: KeyAction, contents: WebContents) => void;
-  reconnect: () => void; // after a load of the Server failed
+  reconnect: (reason: string) => void; // after a load of the Server failed, for a reason
 }
 
 /** Keeps the page to the Server and our keys; other web pages open in the user's browser. */
@@ -43,8 +43,10 @@ export function guard(contents: WebContents, { server, openExternal, act, reconn
     act(action, contents);
   });
   // E.g. reloading while the Daemon is stopped: start it.
-  contents.on("did-fail-load", (_event, code, _description, url, isMainFrame) => {
+  contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
     const at = server();
-    if (isMainFrame && code !== ABORTED && at !== null && url.startsWith(at)) reconnect();
+    if (isMainFrame && code !== ABORTED && at !== null && url.startsWith(at)) {
+      reconnect(`the GUI did not load from the server (${description})`);
+    }
   });
 }

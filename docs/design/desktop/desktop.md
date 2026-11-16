@@ -9,6 +9,7 @@ The Desktop loads the GUI from this Machine's Server through `hephaistos daemon 
 It never loads a copy of its own, so the token, the Content-Security-Policy and the Server's checks apply unchanged ([Server](../daemon/server.md)).
 When the Server cannot be reached, it starts the installed Daemon through systemd, saying why meanwhile.
 A load of the Server that fails, e.g. a reload once the Daemon stopped, starts over the same way, but not sooner than 5 s after the GUI last loaded, so that a page that keeps failing starts no hephaistos process after another.
+Meanwhile it says why; an attempt already under way, e.g. after a renewed token, goes on instead.
 It follows a renewed token by watching its file.
 
 ## The window
