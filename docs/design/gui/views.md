@@ -199,6 +199,7 @@ Its bar has the order, branch tips only, the look of the list and a refresh, whi
 A branch moved without a checkout, e.g. by `git branch -f`, shows only then: the Watcher reads the reflogs of HEADs.
 The tab says `Graph: proj`, whether it shows Worktrees only, branch tips only, and how many branches are hidden: `Graph: proj, tips only, 2 hidden`.
 Once its rows scroll under the header, a row stays below it, as sticky headers do: the tips of the lines going on below the row at the top that start in it or above it, their nodes in their lanes, their badges by lane, in one line cut off at the end of the column; a tip slides into it with its row, its node and badges, and stays as its row passes under; while a row comes in under it, the part of the graph in that row is drawn in it as it is, but not above a tip that stays, and a tip whose line ends in that row is pushed out by it; lines without a badge, or opened by a merge, pass; a click on the badges of a tip goes to it, and rows gone to come below the row (`tipsBand`).
+Below a stretch at the top, its lane passes the row dashed, as below the stretch itself.
 
 Its Checkouts:
 - the badge of a branch checked out says where, by the icon and name of the Clone or Worktree; a detached HEAD has a badge of its own, `detached`, with the HEAD icon and where; badges come first for the default branch, then for branches checked out, other local branches, remote-tracking ones and tags;

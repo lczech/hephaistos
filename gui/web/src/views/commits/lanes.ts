@@ -247,10 +247,14 @@ export class Layout {
     return [...spanned, ...open].sort((a, b) => a.lane - b.lane);
   }
 
-  /** The lanes going on below row `row`, through what is shown under it: passing or leaving. */
+  /**
+   * The lanes going on below row `row`, through what is shown under it: passing or leaving; the
+   * lane of a stretch dashed, as it passes its row, also in the band (`tipsAt`).
+   */
   below(row: number): Line[] {
     const graph = this.rows[row];
     if (graph === undefined) return [];
+    const stretch = graph.node === "stretch";
     const leaving = graph.out.map(({ to, colour, dashed, start }) => ({
       lane: to,
       colour,
@@ -261,6 +265,7 @@ export class Layout {
     const seen = new Set<number>();
     return lines
       .filter(({ lane }) => !seen.has(lane) && seen.add(lane))
+      .map((line) => (stretch && line.lane === graph.lane ? { ...line, dashed: true } : line))
       .sort((a, b) => a.lane - b.lane);
   }
 

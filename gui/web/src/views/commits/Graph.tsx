@@ -45,9 +45,7 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
   const stretch = graph.node === "stretch";
   const above = graph.above && (stretch ? { ...graph.above, dashed: true } : graph.above);
   const out = stretch ? graph.out.map((bend) => ({ ...bend, dashed: true })) : graph.out;
-  const below = layout
-    .below(row)
-    .map((line) => (stretch && line.lane === graph.lane ? { ...line, dashed: true } : line));
+  const below = layout.below(row); // that of a stretch dashed
   return (
     <span className={styles.rail} data-graph="row">
       <svg

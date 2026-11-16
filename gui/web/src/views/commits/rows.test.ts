@@ -366,6 +366,17 @@ describe("a graph of branch tips only", () => {
     expect(branchThrough(drawn, 3)).toBe("main");
   });
 
+  it("dashes the lane of a stretch below it, in the band too once scrolled under it", () => {
+    const { entries: rows, parents } = tipsEntries(kept, lines);
+    const drawn = graphOf(rows, null, { heads: new Set(), parents });
+    const lane = drawn.layout.rows[1]?.lane;
+    const dashed = (found: { lane: number; dashed: boolean }[]) =>
+      found.filter((line) => line.dashed).map((line) => line.lane);
+    expect(dashed(drawn.layout.below(1))).toEqual([lane]);
+    expect(dashed(tipsAt(drawn, 1, null).lines)).toEqual([lane]);
+    expect(dashed(tipsAt(drawn, 0, null).lines)).toEqual([]); // its commit: solid
+  });
+
   it("names the line of a stretch by its branch where what is not committed starts it", () => {
     const { entries: rows, parents } = tipsEntries(kept, lines);
     const uncommitted: Entry = {
