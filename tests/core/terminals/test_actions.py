@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from hephaistos.core.db.sessions import read_session
+from hephaistos.core.db.sessions import read_session, write_session
 from hephaistos.core.registry import machines
 from hephaistos.core.state import terminals
 from hephaistos.core.state.terminals import NoSuchTerminalError, TerminalStatus
@@ -422,6 +422,7 @@ def test_attach_restores_a_lost_one_as_a_shell(
 ) -> None:
     created = actions.create(set_up, proj, name="build", command=["sleep", "600"])
     lose_all(keeper, set_up)
+    lost = stored(set_up)["build"]
     found, _ = actions.attach(set_up, "build", environment={"SHELL": "/bin/sh"})
     assert (found.id, found.name, found.status, found.command) == (
         created.id,
@@ -431,10 +432,29 @@ def test_attach_restores_a_lost_one_as_a_shell(
     )
     session = keeper.session("build")
     assert (session.terminal_id, session.directory) == (created.id, proj)
+    assert lost.lost_at is not None
     assert screen(keeper, "build").startswith(
-        "restored after a restart; earlier output is gone; it ran: sleep 600"
+        "restored after the tmux server ended:"
+        f" found lost at {lost.lost_at.astimezone():%Y-%m-%d %H:%M},"
+        f" last active at {lost.active_at.astimezone():%Y-%m-%d %H:%M};"
+        " earlier output is gone; it ran: sleep 600"
     )
     assert eventually(lambda: keeper.session("build").program == "sh")  # the login shell
+
+
+def test_a_restored_one_says_the_machine_restarted(
+    set_up: Paths, keeper: TmuxKeeper, proj: Path
+) -> None:
+    actions.create(set_up, proj, name="api")
+    with write_session(set_up) as session:  # as if seen last in another boot
+        state = terminals.by_name(session, "api")
+        session.conn.execute(
+            "UPDATE state_terminals SET boot_id = 'before' WHERE id = ?", (state.id.bytes,)
+        )
+    lose_all(keeper, set_up)
+    assert stored(set_up)["api"].lost_because == "reboot"
+    actions.attach(set_up, "api", environment={"SHELL": "/bin/sh"})
+    assert screen(keeper, "api").startswith("restored after the machine restarted: found lost at")
 
 
 def test_a_restored_one_whose_directory_is_gone_starts_at_home(

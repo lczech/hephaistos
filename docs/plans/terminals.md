@@ -28,7 +28,7 @@ The CLI attaches with plain tmux, which shows that it is tmux.
 - [x] 1b Attaching from the CLI:
   - [x] our tmux server runs the defaults of tmux, plus only the settings it needs: `exit-empty off`, `history-limit` from `terminals.history`, `default-terminal xterm-256color` with true colour (as in GNOME Terminal; see [terminals](../design/core/terminals.md#socket-and-config) for what it means when attached from the CLI), `update-environment` extended, `extended-keys on`, `focus-events on`, `escape-time 10`; no status bar or key bindings of ours, and never the config of the user;
   - [x] `terminal attach` hands over to `tmux attach-session`, targeting the session by its ID: plain tmux, with its green bar and Ctrl+B;
-  - [x] attaching to a lost Terminal restores it, with the same ID, name and directory, as a shell: a short `sh` prints a dim line ("restored after a restart; earlier output is gone", and "it ran: …" for a command Terminal, which does not run again), then becomes the login shell;
+  - [x] attaching to a lost Terminal restores it, with the same ID, name and directory, as a shell: a short `sh` prints a dim line ("restored after the machine restarted: found lost at …, last active at …; earlier output is gone", and "it ran: …" for a command Terminal, which does not run again), then becomes the login shell;
   - [x] `terminal create` attaches when run interactively; `--detached` stays out (no short form: `-d` is `--dir`);
   - [x] attaching is refused when not run interactively, and at a tty that the Terminal shows, e.g. inside it;
   - [x] tests: the CLI attach run inside a second tmux, its screen read with `capture-pane`.

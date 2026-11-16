@@ -12,7 +12,12 @@ from typer.testing import CliRunner
 from hephaistos.cli import terminal as terminal_cli
 from hephaistos.cli import tty
 from hephaistos.cli.main import app
+from hephaistos.core.db.sessions import write_session
+from hephaistos.core.observers import terminals as observer
+from hephaistos.core.observers.terminals import Result
+from hephaistos.core.state import terminals
 from hephaistos.core.terminals.tmux import TmuxKeeper, installation
+from hephaistos.core.utils.paths import Paths
 from support import clone, create, eventually, git
 
 pytestmark = pytest.mark.tmux
@@ -143,8 +148,40 @@ def test_rename_and_kill(tmp_path: Path) -> None:
 def test_kill_a_lost_one(keeper: TmuxKeeper, tmp_path: Path) -> None:
     ok("create", "-n", "api", "-d", str(tmp_path))
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
-    assert ok("list")[1].split()[:2] == ["api", "lost"]
+    assert ok("list")[1].split()[:5] == ["api", "lost", "(tmux", "server", "ended)"]
     assert ok("kill", "api") == ["Removed lost terminal api"]
+
+
+def test_list_says_why_one_was_lost(paths: Paths, keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """As it says how one ended."""
+    ok("create", "-n", "api", "-d", str(tmp_path))
+    with write_session(paths) as session:  # as if seen last in another boot
+        state = terminals.by_name(session, "api")
+        session.conn.execute(
+            "UPDATE state_terminals SET boot_id = 'before' WHERE id = ?", (state.id.bytes,)
+        )
+    kill_server(keeper)
+    assert ok("list")[1].split()[:4] == ["api", "lost", "(machine", "restarted)"]
+
+
+def test_unobserved_ones_show_when_they_last_were(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ok("create", "-n", "api", "-d", str(tmp_path))
+    seen = ok("show", "api", "--time-format", "full")
+    [observed] = [line.split(None, 1)[1] for line in seen if line.startswith("observed ")]
+
+    def unobserved(paths: Paths) -> Result:
+        del paths
+        return Result(None, "tmux is gone")
+
+    monkeypatch.setattr(observer, "observe", unobserved)
+    for args in (["list"], ["list", "--json"], ["show", "api"]):
+        result = runner.invoke(app, ["terminal", *args])
+        assert result.exit_code == 0, result.output
+        assert result.stderr == (
+            f"terminals not observed: tmux is gone; showing them as last observed, at {observed}\n"
+        )
 
 
 def test_errors_are_messages(tmp_path: Path) -> None:
@@ -303,7 +340,8 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     ok("create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     outer.run("terminal", "attach", "api")
-    eventually(lambda: "restored after a restart; earlier output is gone" in outer.screen())
+    eventually(lambda: "restored after the tmux server ended: found lost at" in outer.screen())
+    assert "earlier output is gone" in outer.screen()
     assert "it ran: sleep 600" in outer.screen()
     assert ok("list")[1].split()[:2] == ["api", "open"]
 

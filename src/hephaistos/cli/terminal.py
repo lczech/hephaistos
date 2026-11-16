@@ -4,7 +4,7 @@ import logging
 import os
 import shlex
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -15,6 +15,7 @@ from hephaistos.cli import tty
 from hephaistos.cli.output import (
     JsonOption,
     TimeFormatOption,
+    full_time,
     print_fields,
     print_json,
     print_table,
@@ -42,11 +43,21 @@ app = typer.Typer(
 NameArgument = Annotated[str, typer.Argument(help="Name of the terminal.")]
 
 
-def _observed(paths: Paths) -> None:
-    """Observes first: Terminals change between the passes of the Watcher, e.g. by `exit`."""
-    result = observer.observe(paths)
-    if result.error is not None:
-        typer.echo(f"terminals not observed: {result.error}; showing them as last seen", err=True)
+def _observed(paths: Paths) -> str | None:
+    """Observes first: Terminals change between the passes of the Watcher, e.g. by `exit`.
+
+    Returns why it could not, if so; `_said_unobserved` says it, once the Terminals are read.
+    """
+    return observer.observe(paths).error
+
+
+def _said_unobserved(error: str | None, found: Sequence[TerminalState]) -> None:
+    """Says that the Terminals could not be observed, and when they last were."""
+    if error is None:
+        return
+    seen = max((state.observed_at.datetime for state in found), default=None)
+    when = "" if seen is None else f", at {full_time(seen)}"
+    typer.echo(f"terminals not observed: {error}; showing them as last observed{when}", err=True)
 
 
 def _command_text(state: TerminalState) -> str:
@@ -58,7 +69,12 @@ def _repository(checkout: CheckoutDetails | None) -> str:
 
 
 def _status_text(state: TerminalState) -> str:
-    """Its status, with how an ended one ended: `ended (status 1)`, `ended (SIGKILL)`."""
+    """Its status, with how an ended one ended or why a lost one went.
+
+    E.g. `ended (status 1)`, `ended (SIGKILL)`, `lost (machine restarted)`.
+    """
+    if state.status is terminals.TerminalStatus.LOST and state.lost_because is not None:
+        return f"lost ({terminals.LOST_TEXTS[state.lost_because].removeprefix('the ')})"
     if state.status is not terminals.TerminalStatus.ENDED:
         return state.status.value
     how = terminals.ending_text(state)
@@ -143,12 +159,13 @@ def attach(name: NameArgument) -> None:
 def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) -> None:
     """List the terminals of this machine."""
     paths = Paths.from_environment()
-    _observed(paths)
+    error = _observed(paths)
     with read_session(paths) as session:
+        found = terminals.on_this_machine(session)
+        _said_unobserved(error, found)
         if as_json:
             print_json(serialize.terminals_json(session))
             return
-        found = terminals.on_this_machine(session)
         known = clones.on_this_machine(session)
         checkouts = [clones.recorded_checkout(session, state.directory, known) for state in found]
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
@@ -175,9 +192,10 @@ def show(
 ) -> None:
     """Show a terminal: where it started, what runs in it, and its checkout."""
     paths = Paths.from_environment()
-    _observed(paths)
+    error = _observed(paths)
     with read_session(paths) as session:
         state = terminals.by_name(session, name)
+        _said_unobserved(error, [state])
         if as_json:
             print_json(serialize.terminal_json(session, state))
             return

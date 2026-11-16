@@ -11,6 +11,7 @@ import os
 import shlex
 import uuid
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from pathlib import Path
 
 from hephaistos.core.db.sessions import read_session, write_session
@@ -157,6 +158,11 @@ def rename(
     return renamed
 
 
+def _time_text(value: datetime) -> str:
+    """A time for a line in a Terminal, local, to the minute: `2026-11-16 18:03`."""
+    return value.astimezone().strftime("%Y-%m-%d %H:%M")
+
+
 #: What a restored Terminal runs first: the dim line of its hint, then the login shell.
 _RESTORING = 'printf "\\033[2m%s\\033[0m\\n" "$1"; exec "$2" -l'
 
@@ -166,11 +172,17 @@ def _restore(
 ) -> None:
     """Starts a lost Terminal again, with its ID, name and directory, as a shell.
 
-    A dim line in it says so, and what it ran, which does not run again: it may have been
-    anything, e.g. a deployment. Where its directory is gone, it starts in the home directory.
+    A dim line in it says so: why it was lost, when that was found and when it was last active,
+    and what it ran, which does not run again: it may have been anything, e.g. a deployment. Where
+    its directory is gone, it starts in the home directory.
     """
     directory = lost.directory
-    hint = "restored after a restart; earlier output is gone"
+    why = "its session went" if lost.lost_because is None else state.LOST_TEXTS[lost.lost_because]
+    found = "" if lost.lost_at is None else f"found lost at {_time_text(lost.lost_at)}, "
+    hint = (
+        f"restored after {why}: {found}last active at {_time_text(lost.active_at)};"
+        " earlier output is gone"
+    )
     if lost.command is not None:
         hint += f"; it ran: {shlex.join(lost.command)}"
     if not directory.is_dir() or not os.access(directory, os.X_OK):

@@ -102,7 +102,8 @@ Attaching to an ended one shows its last screen, with a line on how and when it 
 Once that screen is gone too, e.g. after a reboot, attaching says so.
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
-`list` gives the status of an ended one with how it ended, e.g. `ended (status 1)` or `ended (SIGKILL)`.
+`list` gives the status of an ended one with how it ended, e.g. `ended (status 1)` or `ended (SIGKILL)`, and of a lost one with why, `lost (machine restarted)` or `lost (tmux server ended)`.
+Where tmux cannot be asked, `list` and `show` say so, and when the Terminals were last observed, then show them as stored.
 `show` gives when and how it ended, and for one whose session is gone, when that was found and why: `lost` for a lost one, `screen` for an ended one, e.g. `gone 3m ago: the machine restarted`.
 `kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first.
 It removes one that ended, its last screen with it, and one that was lost: `Removed ended terminal …`, `Removed lost terminal …`.
