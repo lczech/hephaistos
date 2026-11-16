@@ -81,7 +81,7 @@ export interface Making {
   hidden: boolean; // entries whose names start with `.` show too
   sorted: SortingState;
   search?: Search; // only what it found, folders not joined
-  apart?: (path: string) => boolean; // folders never joined through, e.g. Checkouts' tops
+  apart?: (path: string) => boolean; // folders never joined with others, e.g. Checkouts' tops
   known?: (path: string) => Loaded<FileEntry>; // also ahead of time, not asking: else `loaded`
 }
 
@@ -108,8 +108,9 @@ function shownOf(items: FileEntry[], prefix: string, making: Making): FileEntry[
 
 /**
  * The folder a row opened shows the entries of: through those holding a single folder; not while
- * searching, as each folder may be a match, nor through one kept `apart`, as a Checkout's top,
- * whose row says what it is, nor through a symlink, which may lead back to a folder above it.
+ * searching, as each folder may be a match, nor through or into one kept `apart`, as a Checkout's
+ * top, whose own row says what it is, nor through a symlink, which may lead back to a folder
+ * above it.
  */
 function joined(path: string, shown: string, making: Making): [string, string] {
   const loaded = making.loaded(path);
@@ -121,7 +122,9 @@ function joined(path: string, shown: string, making: Making): [string, string] {
   if (items.length !== 1 || loaded.count !== loaded.items.length || only?.kind !== "directory") {
     return [path, shown];
   }
-  return joined(below(path, only.name), `${shown}/${only.name}`, making);
+  const next = below(path, only.name);
+  if (making.apart?.(next)) return [path, shown];
+  return joined(next, `${shown}/${only.name}`, making);
 }
 
 /** The rows of a folder's entries, below `prefix`: those of folders opened holding theirs. */

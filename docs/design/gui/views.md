@@ -221,7 +221,8 @@ Folders come first, then files, by name as people sort them: case ignored, numbe
 A folder opens and closes; it is asked for once opened, or once pointed at or focused, so that opening shows it at once.
 A folder known to show nothing, once its listing came, opened or asked for ahead, or as the size column says `0 items`, has no chevron, keeps its closed icon and opens nothing, as VS Code has it; one holding only hidden entries is so while they are left out.
 What is opened is kept per browser for each Directory shown (`hephaistos.folds.explorer`); "Close all folders" closes them.
-A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`; not a registered Checkout's top, whose row says what it is, nor a symlink, which may lead back to a folder above it.
+A folder holding just one folder and nothing else opens through it, the two shown joined: `src/hephaistos`; not a symlink, which may lead back to a folder above it.
+A registered Checkout's top is never joined, as its own row says what it is: a folder holding only it keeps its row, the Checkout its row below.
 Hidden entries, whose names start with `.`, show in italics, as the file system hides them; a toggle leaves them out, kept per browser for all Explorers (`hephaistos.explorer`).
 Names are coloured as git's letter for them says, as Changes colours its kinds of change: added and untracked green, modified, renamed and type changed amber, unmerged red; folders with changes below them amber.
 Ignored entries show quieter, as does `.git`, git's own, so that the colour says what git tracks: a hidden folder git tracks, as `.github`, shows in italics in the colour of the tracked.

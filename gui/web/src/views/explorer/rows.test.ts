@@ -104,6 +104,25 @@ describe("the Explorer's rows", () => {
     ]);
   });
 
+  it("join none into a folder kept apart, which keeps its row below its parent", () => {
+    const apart = (path: string) => path === "/r/src/app";
+    expect(text(rows("/r", making(["src/"], { apart, hidden: false })))).toEqual([
+      "src",
+      "  app",
+      "B2.txt",
+      "b10.txt",
+    ]);
+    // Opened, it holds its own.
+    expect(text(rows("/r", making(["src/", "src/app/"], { apart, hidden: false })))).toEqual([
+      "src",
+      "  app",
+      "    lib",
+      "    main.py",
+      "B2.txt",
+      "b10.txt",
+    ]);
+  });
+
   it("tell a folder known to show nothing, open or not, without asking for any", () => {
     const disk: Record<string, FileEntry[]> = {
       "/e": [folder("none"), folder("dots"), folder("sized"), folder("unknown")],

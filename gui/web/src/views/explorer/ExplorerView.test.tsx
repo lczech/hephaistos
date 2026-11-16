@@ -181,6 +181,30 @@ describe("the Explorer View", () => {
     await userEvent.click(screen.getByRole("button", { name: "Hidden files" })); // as it was
   });
 
+  it("joins no folder with a Checkout it holds alone, which keeps its own row", async () => {
+    const disk: Record<string, FileEntry[]> = {
+      "/home/me": [entry("work", { kind: "directory" })],
+      "/home/me/work": [entry("proj", { kind: "directory" })],
+      "/home/me/work/proj": [entry("main.py")],
+    };
+    serve({
+      "GET /api/info": () => json(info()),
+      "GET /api/repositories": () =>
+        json([repository("proj", [{ ...clone("proj"), path: "/home/me/work/proj" }])]),
+      "GET /api/files": (request) => {
+        const path = new URL(request.url).searchParams.get("path") ?? "";
+        const entries = disk[path] ?? [];
+        return json({ path, top: null, entries, count: entries.length });
+      },
+    });
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    await userEvent.click(await screen.findByText("work"));
+    await waitFor(() => expect(names()).toEqual(["work", "proj"]));
+    await userEvent.click(screen.getByText("proj"));
+    await waitFor(() => expect(names()).toEqual(["work", "proj", "main.py"]));
+    await expectSettled();
+  });
+
   it("shows a folder within its root, its path from there, never above", async () => {
     serveDisk();
     const { unmount } = renderWithQueries(

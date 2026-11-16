@@ -236,7 +236,7 @@ export function ExplorerView({
   const listedFound =
     found && search && root !== undefined && listedOf(root, found.paths, search.folders);
 
-  // Registered Checkouts: their tops show on their own rows, never joined through.
+  // Registered Checkouts: their tops show on their own rows, never joined with others.
   const repositories = useRepositories();
   const known = knownCheckouts(repositories.data ?? []);
   const checkouts = new Set(known.flatMap(({ paths }) => paths));
