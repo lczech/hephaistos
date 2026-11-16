@@ -60,8 +60,8 @@ export function useSideButtons(groupOf: () => IDockviewGroupPanel | undefined) {
  * buttons, in the Group under the pointer (`useSideButtons`), or Alt+←/→, in the active one. Each address a Group
  * shows is a step: another Panel's, or another one in the same Panel (a link replacing a preview,
  * a filter, another Revision compared), but for keys typed in a row, e.g. a search, which are one.
- * Going back shows a Panel's View again, in that Panel, or as a preview where the Panel is gone.
- * Kept until the page is left.
+ * Going back shows a Panel's View again, in that Panel, or as a preview where the Panel is gone,
+ * e.g. in a Group kept once its last View closed. Kept until the page is left.
  */
 export function keepVisits(api: DockviewApi): Visits {
   const trails = new Map<string, Trail>();
@@ -76,15 +76,16 @@ export function keepVisits(api: DockviewApi): Visits {
     return trail;
   };
 
-  // Notes each Group's View: another one is a step, but for another key typed into it.
+  // Notes each Group's View: another one is a step, but for another key typed into it; so is
+  // none, in a Group kept once its last View closed, so that Back shows that View again.
   const note = () => {
     for (const group of api.groups) {
       const trail = trailOf(group);
       const visit = visitOf(group);
       const { now } = trail;
-      if (visit === undefined || same(visit, now)) continue;
+      if (same(visit, now)) continue;
       const typing =
-        now?.panel === visit.panel && now.typed !== undefined && now.typed === visit.typed;
+        now?.panel === visit?.panel && now?.typed !== undefined && now.typed === visit?.typed;
       if (!moving && now !== undefined && !typing) {
         trail.past = [...trail.past, now].slice(-KEPT);
         trail.future = [];

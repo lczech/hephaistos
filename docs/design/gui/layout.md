@@ -84,6 +84,7 @@ Alt+← and Alt+→ do so in the active Group; the page takes them from the brow
 Each address a Group shows is a step: one in another Panel, or another in the same Panel (a link replacing a preview, a filter, another Revision compared).
 Keys typed in a row, e.g. a search, make one step, until typing is done: Enter, or leaving the field (a run's number in `layout/dock.ts`).
 Going back shows a View again in its Panel, or as a preview where the Panel is gone.
+A Group kept once its last View closed ([empty Groups](#empty-groups)) keeps its steps, so going back there shows that View again, as a preview.
 The steps are kept until the page is left.
 
 ## Empty Groups

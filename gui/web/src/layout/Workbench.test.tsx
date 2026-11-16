@@ -646,8 +646,11 @@ describe("the Workbench", () => {
         await userEvent.click(within(tab).getByRole("button", { name: "Close tab" }));
       }
       expect(groups()).toEqual([[]]);
-      // Back from the linker, shown once the probe closed, to the probe, as a preview.
+      // Back to the linker, closed last, as a preview; then to the probe, closed before it.
       expect(fireEvent.mouseUp(screen.getByText("Open a view:"), { button: 3 })).toBe(false);
+      expect(await screen.findByRole("button", { name: "Probe 1" })).toBeInTheDocument();
+      expect(groups()).toEqual([["linker*"]]);
+      fireEvent.mouseUp(screen.getByRole("button", { name: "Probe 1" }), { button: 3 });
       expect(await screen.findByRole("button", { name: "probe?n=1" })).toBeInTheDocument();
       expect(groups()).toEqual([["probe*"]]);
     });
