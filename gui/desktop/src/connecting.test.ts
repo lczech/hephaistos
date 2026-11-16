@@ -1,5 +1,8 @@
+import { EventEmitter } from "node:events";
+import type { WebContents } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Connector, LISTEN_WAIT, POLL, RETRY, type Steps, type Waiting } from "./connecting.js";
+import { guard } from "./guard.js";
 import type { Outcome } from "./hephaistos.js";
 
 const LINK = "http://127.0.0.1:8264/#token=abc";
@@ -91,5 +94,49 @@ describe("connecting", () => {
     const before = calls.length;
     await vi.advanceTimersByTimeAsync(LISTEN_WAIT + RETRY);
     expect(calls).toHaveLength(before);
+  });
+
+  it("loads again after a failed load at once, but not sooner than RETRY after its last", async () => {
+    // The window, guarded: each load of the Server fails, as a page that keeps failing does.
+    const contents = new EventEmitter();
+    Object.assign(contents, { setWindowOpenHandler: () => undefined });
+    const calls: string[] = [];
+    const connecting = new Connector({
+      run: async (args) => {
+        calls.push(args.join(" "));
+        return ok(LINK);
+      },
+      load: () => contents.emit("did-fail-load", {}, -102, "", LINK, true),
+      show: () => undefined,
+    });
+    guard(contents as unknown as WebContents, {
+      server: () => new URL(LINK).origin,
+      openExternal: () => undefined,
+      act: () => undefined,
+      reconnect: () => void connecting.afterFailedLoad(),
+    });
+    await connecting.now();
+    expect(calls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(RETRY - 1);
+    expect(calls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(calls).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(10 * RETRY);
+    expect(calls).toHaveLength(12);
+    connecting.stop();
+    // A load that fails long after the last, e.g. reloading once the Daemon stopped: at once.
+    const later = new Connector({
+      run: async (args) => {
+        calls.push(args.join(" "));
+        return ok(LINK);
+      },
+      load: () => undefined,
+      show: () => undefined,
+    });
+    await later.now();
+    calls.length = 0;
+    await vi.advanceTimersByTimeAsync(RETRY);
+    await later.afterFailedLoad();
+    expect(calls).toEqual(["daemon token --url"]);
   });
 });

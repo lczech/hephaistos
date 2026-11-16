@@ -20,7 +20,7 @@ export interface Guarding {
   server: () => string | null; // the origin of the Server whose GUI the window shows
   openExternal: (url: string) => void; // in the user's browser
   act: (action: KeyAction, contents: WebContents) => void;
-  reconnect: () => void;
+  reconnect: () => void; // after a load of the Server failed
 }
 
 /** Keeps the page to the Server and our keys; other web pages open in the user's browser. */
