@@ -76,3 +76,23 @@ it("has lint keep dockview in layout/, and Changes and Diff apart", () => {
   expect(lint(changes, "web/src/views/diff/probe.ts", true)).toContain(apart);
   expect(lint(changes, "web/src/views/events/probe.ts", true)).not.toContain(apart);
 });
+
+// `@pierre/diffs` is pinned and checked on each upgrade (development.md): only components/diff/
+// uses it.
+it("has lint keep @pierre/diffs in components/diff/", () => {
+  const drawn = `import { FileDiff } from "@pierre/diffs/react";
+import { parsePatchFiles } from "@pierre/diffs";
+export { FileDiff, parsePatchFiles };
+`;
+  const own = "Only components/diff/ uses @pierre/diffs";
+  for (const elsewhere of ["views/diff", "views/events", "layout", "components/list"]) {
+    expect(
+      lint(drawn, `web/src/${elsewhere}/probe.ts`, true).match(new RegExp(own, "g")),
+    ).toHaveLength(2);
+  }
+  expect(lint(drawn, "web/src/components/diff/probe.ts", true)).not.toContain(own);
+  const docked = `import { DockviewReact } from "dockview-react";\nexport { DockviewReact };\n`;
+  expect(lint(docked, "web/src/components/diff/probe.ts", true)).toContain(
+    "Only layout/ uses dockview",
+  );
+});

@@ -113,6 +113,7 @@ Reports for upstream are in [ideas](ideas/gui.md#upstream).
 ### Dependencies to watch
 
 - `@pierre/diffs` is pinned exactly (1.5.2): young, with frequent releases and sizeable changes.
+  Only `components/diff/` imports it, as lint makes sure (`gui/biome.json`), so that what an upgrade may change is there.
   Rather than Dependabot: whenever a step touches the Diff View or `components/diff/`, read its changelog since the pin, tell the user what is new and worth having, and upgrade only once they agree.
   On upgrading, check again what `Diff.tsx` relies on: the variables and attributes of `unsafeCSS`, and `metrics.lineHeight` measured in `DiffScroll`, read only when an instance is made, hence the `key`; with wrapping off, Pierre never measures rows, and a wrong height made rows flicker near chunk boundaries with `gui.code.size = 10`.
   `.agents/scratch/gui-verification/steps-flicker.mjs` checks it: one `scrollHeight` across positions.
