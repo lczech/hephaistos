@@ -16,7 +16,7 @@ import {
   useConnection,
   useLiveUpdates,
 } from "./live";
-import { diffsAskedAgain, KEYS, type KeyName, listingsAskedAgain } from "./queries";
+import { KEYS, type KeyName, listingsAskedAgain } from "./queries";
 
 function Live() {
   useLiveUpdates();
@@ -36,15 +36,12 @@ function start() {
   return { invalidated, connection };
 }
 
-// The listings are all marked as changed, and some asked again (`listingsAskedAgain`); of the
-// diffs, the patches, which the versions follow (`diffsAskedAgain`).
+// The listings are all marked as changed, and some asked again (`listingsAskedAgain`).
 const keysOf = (names: KeyName[]) =>
   names.map((name): [object] | [object, object] =>
     name === "files"
       ? [{ queryKey: KEYS.files, refetchType: "none" }]
-      : name === "diff"
-        ? [{ queryKey: KEYS.diff, predicate: diffsAskedAgain }, { cancelRefetch: false }]
-        : [{ queryKey: KEYS[name] }, { cancelRefetch: false }],
+      : [{ queryKey: KEYS[name] }, { cancelRefetch: false }],
   );
 
 function wait(ms: number): void {

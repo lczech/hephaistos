@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
 import { useLiveUpdates } from "../../api/live";
-import { KEYS } from "../../api/queries";
+import { KEYS, VERSIONS_KEY } from "../../api/queries";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
 import { lastSocket } from "../../test/live";
 import {
@@ -284,7 +284,7 @@ describe("the Diff View", () => {
     await expectSettled();
     const versions = () =>
       requests.filter((request) => new URL(request.url).pathname === "/api/diff/files").length;
-    const kept = () => client.getQueryCache().findAll({ queryKey: [...KEYS.diff, "files"] });
+    const kept = () => client.getQueryCache().findAll({ queryKey: VERSIONS_KEY });
     for (fails of [false, true]) {
       const before = versions();
       await userEvent.click(screen.getByRole("button", { name: "Refresh" }));

@@ -50,6 +50,12 @@ export const KEYS = {
 
 export type KeyName = keyof typeof KEYS;
 
+/**
+ * The key of the versions of a file: not among `KEYS`, so that no hint, focus or connecting asks
+ * for them again, as they follow the patch of the file (`useDiffFiles`), and would be asked twice.
+ */
+export const VERSIONS_KEY = ["versions"] as const;
+
 export function useInfo() {
   return useQuery({
     queryKey: KEYS.info,
@@ -205,10 +211,10 @@ function useDiffContext(): { context?: number } | undefined {
 }
 
 /**
- * The key of the patch of a file, of all patches of a comparison, or of the versions of a file,
- * as `asked`; undefined while it cannot be asked yet, for a disabled query.
+ * The key of the patch of a file, or of all patches of a comparison, as `asked`; undefined while
+ * it cannot be asked yet, for a disabled query.
  */
-function diffKey(kind: "patch" | "all" | "files", asked: DiffQuery | DiffsQuery | undefined) {
+function diffKey(kind: "patch" | "all", asked: DiffQuery | DiffsQuery | undefined) {
   return [...KEYS.diff, kind, asked];
 }
 
@@ -282,14 +288,6 @@ export function useDiffs(query: DiffsQuery | undefined) {
 }
 
 /**
- * Of the queries of `KEYS.diff`, those that hints and focus ask again: patches, not the versions
- * of a file, which follow its patch (`useDiffFiles`), so would be asked twice.
- */
-export function diffsAskedAgain(query: Query): boolean {
-  return query.queryKey[KEYS.diff.length] !== "files";
-}
-
-/**
  * The file's two versions, asked for after each patch (`patchAt`), so that they match it: they
  * show where the file ends, and more of it than its patch has. Also after a patch that could
  * not come, as the file may have changed all the same.
@@ -301,7 +299,7 @@ export function useDiffFiles(
 ) {
   const client = useQueryClient();
   const patchAt = Math.max(patch.dataUpdatedAt, patch.errorUpdatedAt);
-  const file = diffKey("files", query);
+  const file = [...VERSIONS_KEY, query];
   return useQuery({
     queryKey: [...file, patchAt],
     queryFn: async () => {
