@@ -1,5 +1,13 @@
-import { appendFileSync, linkSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  globSync,
+  linkSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 
@@ -77,6 +85,12 @@ await oneRunAtATime();
 // which names the system libraries missing, e.g. those for WebKit).
 const BROWSER_TESTS = "src/**/*.browser.test.tsx";
 const browsers = ["chromium", "firefox", "webkit"] as const;
+
+// Vitest passes a run in which one project finds no tests, as long as others do: the browser
+// tests, found by a pattern that no longer matches, would stop guarding without a word.
+if (globSync(BROWSER_TESTS, { cwd: fileURLToPath(new URL("web", import.meta.url)) }).length === 0) {
+  throw new Error(`The browser tests are gone: no file in gui/web matches ${BROWSER_TESTS}.`);
+}
 
 // The GUI with its Vite config: in a simulated browser, and those of its tests that need a real
 // one in real ones; the Desktop's main process in Node.

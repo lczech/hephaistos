@@ -149,6 +149,7 @@ pytest tests the Core, with fake plugins standing in for real tools.
 `scripts/test_git_versions.sh` runs them with several git versions.
 Vitest and Testing Library test the GUI, in jsdom.
 What only a browser lays out, e.g. what the diff renderer draws, is tested in real browsers: Playwright's Chromium, Firefox and WebKit.
+Vitest passes a run in which one project finds no tests, so `gui/vitest.config.ts` fails when no file matches the pattern of the browser tests.
 Those tests guard what we rely on that the renderer does not promise, and looks once wrong and seen only there, e.g. the Explorer's tree.
 GUI tests reach no Server: each test answers the requests it expects (`serve`); any other fails, and so does the test, or the next one once it ended.
 A View in a test's Panel (`test/view.tsx`) counts how often it draws, so that a test checks it stops once what it shows came (`expectSettled`): a value new on each draw and fed back into what it draws would draw on and on, which nothing else would notice.
