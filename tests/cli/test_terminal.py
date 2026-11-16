@@ -295,6 +295,7 @@ class Outer:
     def __init__(self, keeper: TmuxKeeper, tmp_path: Path) -> None:
         self.binary = keeper.binary
         self.socket = f"{keeper.socket}-outer"
+        self.socket_path = keeper.socket_path.with_name(self.socket)
         self.out = tmp_path / "outer-done"
 
     def tmux(self, *args: str) -> str:
@@ -314,8 +315,10 @@ class Outer:
         return self.tmux("capture-pane", "-p", "-t", "=outer:")
 
     def end(self) -> None:
+        """Ends its server, and removes its socket, which tmux leaves."""
         command = [self.binary, "-L", self.socket, "kill-server"]
         subprocess.run(command, capture_output=True, check=False)
+        self.socket_path.unlink(missing_ok=True)
 
 
 @pytest.fixture
