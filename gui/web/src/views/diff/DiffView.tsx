@@ -226,6 +226,13 @@ export function DiffView({
   // Why it cannot search the stack, its files not loaded, rather than searching on.
   const unsearched = query === undefined && all.error ? all.error.message : undefined;
 
+  const sinceHead = compared?.from === SINCE_HEAD.from && compared?.to === SINCE_HEAD.to;
+  const toSinceHead = (
+    <button type="button" className={styles.action} onClick={() => compare(SINCE_HEAD)}>
+      Since HEAD
+    </button>
+  );
+
   let body: ReactNode;
   if (checkout === undefined || base === undefined) {
     body = <p className={styles.note}>Nothing compared: open a Diff from Changes.</p>;
@@ -237,6 +244,8 @@ export function DiffView({
         query={query}
         show={show}
         find={found.findIn(query.path)}
+        // One file of a comparison asks for no list, whose error would offer it above.
+        failed={commit === undefined && !sinceHead && toSinceHead}
         unchanged={
           revisions ? (
             <Unchanged query={{ ...query, ...revisions }} params={params} setParams={setParams} />
@@ -445,14 +454,7 @@ export function DiffView({
         </p>
       )}
       {error && (
-        <LoadNote error={error}>
-          {(commit !== undefined ||
-            (compared && (compared.from !== SINCE_HEAD.from || compared.to !== SINCE_HEAD.to))) && (
-            <button type="button" className={styles.action} onClick={() => compare(SINCE_HEAD)}>
-              Since HEAD
-            </button>
-          )}
-        </LoadNote>
+        <LoadNote error={error}>{(commit !== undefined || !sinceHead) && toSinceHead}</LoadNote>
       )}
       <LazyDiffScroll className={styles.diff} themes={themes}>
         {body}

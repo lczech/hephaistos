@@ -87,6 +87,7 @@ interface BodyProps {
   known?: Change; // the file's change as a list has it, before its diff is asked for
   show: DiffShow;
   unchanged?: ReactNode; // what to say if the file has no changes so; by default that
+  failed?: ReactNode; // what to offer beside an error, e.g. comparing otherwise
   estimate?: CssVars; // as one of many: its height, guessed, until it is drawn
   find?: FileFind; // matches to mark in it
   // Whether it was told to show though large, kept by what holds it where it is drawn anew, as a
@@ -100,7 +101,8 @@ interface BodyProps {
  * its versions, which say how much of the file follows its last change: a new patch, asked for
  * again, e.g. on focus, once they come too, so that the diff changes at most once.
  */
-export function FileBody({ query, known, show, unchanged, estimate, find, large }: BodyProps) {
+export function FileBody(props: BodyProps) {
+  const { query, known, show, unchanged, failed, estimate, find, large } = props;
   const diff = useDiff(query);
   const [shownHere, setShownHere] = useState(false);
   const kept = large?.shown ?? shownHere;
@@ -129,7 +131,7 @@ export function FileBody({ query, known, show, unchanged, estimate, find, large 
     <p className={styles.note}>Loading the diff…</p>
   );
   if (diff.data === undefined) {
-    return diff.isError ? <LoadNote error={diff.error} /> : asking;
+    return diff.isError ? <LoadNote error={diff.error}>{failed}</LoadNote> : asking;
   }
   if (change === null || change === undefined) {
     return unchanged ?? <p className={styles.note}>No changes to this file so, now.</p>;

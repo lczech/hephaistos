@@ -104,6 +104,7 @@ A diff shows as plain text until its colours come.
 Its header is ours, as the file's row in Changes shows it, and stays in view below the View's bar while its diff does.
 Separators show as quiet gaps between two lines, not the renderer's bars, so that where a file starts stands out.
 An empty diff offers where the file's changes are now, in the same Panel.
+A diff that cannot come offers "Since HEAD" beside the error, as a stack offers it above, when it compares otherwise.
 
 ### Stacks
 

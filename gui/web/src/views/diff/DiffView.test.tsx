@@ -324,6 +324,18 @@ describe("the Diff View", () => {
     expect(versions()).toBe(before + 1);
   });
 
+  it("offers Since HEAD beside the error of a file compared otherwise, once", async () => {
+    serveDiff(() => json({ error: "no such revision: main" }, 400));
+    renderWithQueries(<Diff initial={{ ...STAGED, from: "main", to: "working-tree" }} />);
+    const note = await screen.findByText(/no such revision: main/);
+    await userEvent.click(within(note).getByRole("button", { name: "Since HEAD" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "diff?clone=clone-proj&from=HEAD&path=src%2Fmain.py&to=working-tree",
+    );
+    expect(await screen.findByText(/no such revision: main/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Since HEAD" })).toBeNull(); // compared so
+  });
+
   it("asks no versions of an added file, all of which its patch has", async () => {
     const requests = serveDiff({ change: change({ status: "A" }), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);
