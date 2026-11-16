@@ -501,12 +501,35 @@ def test_versions_stay_within_the_checkout(repo: Path, tmp_path: Path) -> None:
     outside.mkdir()
     (outside / "secret.txt").write_text("secret\n")
     (repo / "linked").symlink_to(outside)
-    with pytest.raises(ChangesError, match="path must lie within the checkout"):
-        versions(repo, "HEAD", "working-tree", "linked/secret.txt", max_bytes=1000)
+    # Not there, as for git: it does not follow a symlinked folder.
+    assert versions(repo, "HEAD", "working-tree", "linked/secret.txt", max_bytes=1000) == Versions(
+        None, None
+    )
     (repo / "link.txt").symlink_to(outside / "secret.txt")  # as git shows it: its target
     assert versions(repo, "HEAD", "working-tree", "link.txt", max_bytes=1000) == Versions(
         None, str(outside / "secret.txt")
     )
+
+
+def test_a_tracked_folder_replaced_by_a_symlink_out(repo: Path, tmp_path: Path) -> None:
+    _commit(repo, {"sub/secret.txt": "tracked\n"})
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("secret\n")
+    for file in (repo / "sub").iterdir():
+        file.unlink()
+    (repo / "sub").rmdir()
+    (repo / "sub").symlink_to(outside)
+    # git shows the file as deleted; its new version is none, without an error.
+    assert versions(repo, "HEAD", "working-tree", "sub/secret.txt", max_bytes=1000) == Versions(
+        "tracked\n", None
+    )
+    found = diffs(repo, "HEAD", "working-tree", max_files=100, max_bytes=1000, new=True)
+    assert found.new is not None
+    assert found.new["sub/secret.txt"] is None
+    assert [(d.change.path, d.change.status) for d in found.diffs if d.change] == [
+        ("sub/secret.txt", "D")
+    ]
 
 
 def test_text_that_isnt_utf8(repo: Path) -> None:

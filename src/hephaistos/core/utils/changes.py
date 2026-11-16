@@ -531,14 +531,15 @@ def diff(  # noqa: PLR0913 - the comparison, then how
 def _contents(top: Path, revision: str, path: str, max_bytes: int) -> str | None:
     """A file's contents in a resolved revision; None if it is not there.
 
-    Raises ChangesError if too large, or if its folders in the working tree lead out of the
-    Checkout through a symlink; a symlink itself reads as its target.
+    In the working tree, a file whose folders lead out of the Checkout through a symlink is not
+    there either, as for git, which shows a tracked one as deleted; a symlink itself reads as its
+    target. Raises ChangesError if too large.
     """
     if revision == WORKING_TREE:
         file = top / path
         # `pathspec_for` checks the path as written; a symlinked folder may still lead out.
         if not file.parent.resolve().is_relative_to(top.resolve()):
-            raise _outside(path)
+            return None
         if file.is_symlink():
             return str(file.readlink())  # as git shows a symlink: its target
         size = _file_size(file)
@@ -616,7 +617,7 @@ def diffs(  # noqa: PLR0913 - the comparison, then how
             return found, None
         try:
             return found, _contents(top, resolved[1], change.path, max_bytes)
-        except ChangesError:  # too large
+        except ChangesError:  # larger than max_bytes
             return found, None
 
     page: list[tuple[Diff, str | None]] = []

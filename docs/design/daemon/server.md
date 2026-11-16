@@ -87,7 +87,7 @@ Bare Clones answer only what compares commits.
 Patches and versions come only up to `gui.diff.max_bytes`.
 git runs read-only, with no external diff tools, but for the commit-graph file (below).
 The Revisions compared are checked with `rev-parse --verify --end-of-options`.
-Paths must lie within the Checkout, also with symlinks resolved: a version in the working tree is read only where its folders do, and a symlink reads as its target, as git shows it.
+Paths must lie within the Checkout, also with symlinks resolved: a version in the working tree is read only where its folders do, else there is none, as git shows the file deleted; a symlink reads as its target, as git shows it.
 
 History pages on from where a page ended, and follows a file's renames.
 It lists in the order of `git log`, or by date or topologically (`order`), each commit only after all its children, as a graph needs; with clocks apart, the order of `git log` may list a parent first.
