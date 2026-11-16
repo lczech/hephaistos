@@ -666,21 +666,54 @@ def test_hints_from_3_3(text: str, hints: bool) -> None:  # noqa: FBT001
     assert Installation("tmux", text).hints is hints
 
 
-@pytest.mark.parametrize(
-    ("script", "said"), [("echo built; exit 3", "status 3"), ("kill -9 $$", "signal 9")]
-)
-def test_a_dead_pane_says_how_it_ended_and_that_ctrl_d_closes_it(
-    keeper: TmuxKeeper, tmp_path: Path, script: str, said: str
-) -> None:
-    """As tmux says it, then the hint; tmux before 3.3 shows its own line, without it."""
-    new(keeper, "build", tmp_path, "sh", "-c", script)
-    ending(keeper, "build")
-    shown = eventually(lambda: everything_shown(keeper, "build").strip().splitlines()[-1])
+def last_line(keeper: TmuxKeeper, name: str) -> str:
+    """The line tmux shows in the dead pane of the Terminal named `name`, once it ended."""
+    ending(keeper, name)
+    return eventually(lambda: everything_shown(keeper, name).strip().splitlines()[-1])
+
+
+def check_last_line(keeper: TmuxKeeper, shown: str, said: str, old: str) -> None:
+    """With tmux 3.3 or later, our line: `said`, when, and the hint; else that of tmux, `old`."""
     if installation(keeper.binary).hints:
-        assert re.fullmatch(rf"Pane is dead \({said}, .+\); press Ctrl\+D to close it", shown)
+        when = r"\d{4}-\d\d-\d\d \d\d:\d\d"
+        assert re.fullmatch(rf"{said} at {when}; press Ctrl\+D to close it", shown), shown
     else:
-        assert shown.startswith("Pane is dead (")
+        assert shown.startswith(f"Pane is dead ({old}"), shown
         assert "Ctrl+D" not in shown
+
+
+@pytest.mark.parametrize(
+    ("script", "said", "old"),
+    [
+        ("echo built; exit 0", "Command finished", "status 0"),
+        ("echo built; exit 3", "Command exited with status 3", "status 3"),
+        ("kill -9 $$", "Command ended by signal 9", ""),  # 3.2a gives no status, nor signal
+    ],
+)
+def test_a_dead_pane_says_what_ended_how_and_when(
+    keeper: TmuxKeeper, tmp_path: Path, script: str, said: str, old: str
+) -> None:
+    """And that Ctrl+D closes it; tmux before 3.3 shows its own line, without either."""
+    new(keeper, "build", tmp_path, "sh", "-c", script)
+    check_last_line(keeper, last_line(keeper, "build"), said, old)
+
+
+def test_a_dead_pane_says_a_shell_ended_by_a_signal(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(keeper, "sh", tmp_path)
+    pid = eventually(lambda: keeper.session("sh").pid)
+    assert pid is not None
+    os.kill(pid, signal.SIGKILL)
+    check_last_line(keeper, last_line(keeper, "sh"), "Shell ended by signal 9", "")
+
+
+def test_the_date_on_the_line_is_that_of_the_end(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    if not installation(keeper.binary).hints:
+        pytest.skip("tmux before 3.3 shows its own line")
+    new(keeper, "build", tmp_path, "sh", "-c", "exit 3")
+    found = ending(keeper, "build")
+    assert found.at is not None
+    expected = found.at.astimezone().strftime("%Y-%m-%d %H:%M")
+    assert f" at {expected};" in last_line(keeper, "build")
 
 
 def test_a_server_started_by_hand_keeps_ended_commands_once_ours_is_loaded(

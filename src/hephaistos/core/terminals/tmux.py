@@ -299,13 +299,14 @@ bind -n C-d if-shell -F "#{{pane_dead}}" kill-pane "send-keys C-d"
     return f"{body}set -g {CONFIG_OPTION} {digest}\n"
 
 
-#: The line tmux shows in a dead pane, as tmux says it, e.g. `Pane is dead (status 1, <time>)`,
-#: and that Ctrl+D closes it.
+#: The line tmux shows in a dead pane, with `hinting`: what ended, how and when, and that Ctrl+D
+#: closes it, e.g. `Command exited with status 1 at 2026-11-16 18:03; press Ctrl+D to close it`.
+#: Short, as tmux cuts it at the width of the pane; the signal by its number, all tmux gives.
 _DEAD_LINE = (
-    "Pane is dead ("
-    "#{?#{!=:#{pane_dead_status},},status #{pane_dead_status},}"
-    "#{?#{!=:#{pane_dead_signal},},signal #{pane_dead_signal},}"
-    ", #{t:pane_dead_time}); press Ctrl+D to close it"
+    f"#{{?#{{==:#{{{COMMAND_OPTION}}},1}},Command,Shell}} "
+    "#{?#{!=:#{pane_dead_signal},},ended by signal #{pane_dead_signal},"
+    "#{?#{==:#{pane_dead_status},0},finished,exited with status #{pane_dead_status}}}"
+    " at #{t/f/%Y-%m-%d %H#:%M:pane_dead_time}; press Ctrl+D to close it"
 )
 
 #: What the job that reaps for tmux before 3.6 runs: it ends with the server.

@@ -98,7 +98,7 @@ A command that ends at once, e.g. a typo, is created ended: attached, its last s
 It runs only interactively, input and output both a tty, and not at a tty that the Terminal shows, e.g. inside it ([terminals](../core/terminals.md#actions)).
 It logs its end before it becomes tmux.
 Attaching to a lost Terminal restores it first ([terminals](../core/terminals.md#actions)).
-Attaching to an ended one shows its last screen, with tmux's line on how it ended; Ctrl+D closes it then, as `kill` does, and Ctrl+B d leaves it ended.
+Attaching to an ended one shows its last screen, with a line on how and when it ended; Ctrl+D closes it then, as `kill` does, and Ctrl+B d leaves it ended.
 Once that screen is gone too, e.g. after a reboot, attaching says so.
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.

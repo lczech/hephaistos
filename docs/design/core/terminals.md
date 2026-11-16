@@ -49,7 +49,7 @@ Listing the sessions finds a server whose marker differs, e.g. one started by ha
 
 A Terminal ends as a terminal emulator does with a tab, except that a death is never hidden:
 - a shell that exits, e.g. by `exit` or Ctrl+D, whatever its status, closes;
-- a command, given at creation, that ends stays, showing its last screen and tmux's line "Pane is dead (status 1, …)" (tmux before 3.3 draws that line by scrolling the screen up one line, so the top line, e.g. the only one of a typo's message, moves into the scrollback);
+- a command, given at creation, that ends stays, showing its last screen and a line on how it ended;
 - a program ended by a signal, e.g. by the OOM killer, stays too, in a shell Terminal as in a command one.
 
 The exit status of a shell says nothing: after Ctrl+D, it is that of the last command run.
@@ -60,7 +60,10 @@ tmux runs it once it knows how the program ended, which it may learn only after 
 How it ended comes from `pane_dead_status`, or `pane_dead_signal` and `pane_dead_time` since tmux 3.3; before, a pane without a status was ended by a signal, which tmux does not name, at a time it does not say.
 
 Ctrl+D closes an ended Terminal, as it closes a shell: a key binding of our config kills a dead pane, and passes Ctrl+D on to any other, e.g. to a program as the end of its input.
-Since tmux 3.3, `remain-on-exit-format` adds that to the line of tmux: "Pane is dead (status 1, …); press Ctrl+D to close it".
+Since tmux 3.3, `remain-on-exit-format` gives the line in a dead pane: what ended, how and when, and that Ctrl+D closes it, e.g. "Command exited with status 1 at 2026-11-16 18:03; press Ctrl+D to close it", "Command finished at …", "Shell ended by signal 9 at …".
+It is short, as tmux cuts it at the width of the pane, and names a signal by its number, all that tmux gives.
+tmux 3.2a shows its own line, "Pane is dead (status 1, …)", without the hint.
+tmux draws the line on the bottom row, after scrolling the screen up one line: the rows between the output and the line stay empty, and the top line, e.g. the only line of the message for a typo, moves into the scrollback, unless a larger client pulls it back.
 A client in control mode runs no key bindings, so the Terminal View does the same itself.
 
 tmux before 3.6, built with utempter as Ubuntu's and Debian's are, sometimes never learns that the process of a pane ended ([tmux 4559](https://github.com/tmux/tmux/issues/4559)): utempter resets the handler of SIGCHLD while the pane closes.

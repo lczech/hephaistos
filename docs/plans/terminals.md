@@ -42,7 +42,7 @@ The CLI attaches with plain tmux, which shows that it is tmux.
   - [x] State: `ended`, with the exit status or signal and when; when and why a session went (`reboot`, `server`), ended ones staying ended with their screen gone; columns added to schema 4;
   - [x] `create` returns a command that ends at once as ended, e.g. a typo, whose message then shows; attaching to an ended one is plain tmux on its last screen, refused once that is gone; the CLI and the API (0.27) say how and when each ended and why it went;
   - [x] found on the way: directories holding the separators of our listing refused; no tty of a dead pane counts when refusing an attach; an ended one keeps the program it last ran, never one of our wrappers;
-  - [x] Ctrl+D closes an ended Terminal, as it closes a shell, by a key binding that passes it on to any pane not dead; since tmux 3.3, the line of a dead pane says so; `kill` says it removes ended and lost ones.
+  - [x] Ctrl+D closes an ended Terminal, as it closes a shell, by a key binding that passes it on to any pane not dead; since tmux 3.3, the line of a dead pane says so, and what ended, how and when ("Command exited with status 1 at …"); `kill` says it removes ended and lost ones.
 - [ ] 2 The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode, which passes what it does not know and says so once.
   To find out with tests: whether tmux and xterm.js both answer the queries of a program, e.g. which terminal it is in.
 - [ ] 3 The Terminal View (xterm.js): a Panel whose Terminal ended or was lost says so, with actions; see [ideas](../ideas/terminals.md#the-terminal-view).

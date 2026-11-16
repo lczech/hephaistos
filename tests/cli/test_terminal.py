@@ -393,15 +393,18 @@ def test_names_of_ended_ones_stay_taken(tmp_path: Path) -> None:
     )
 
 
+def dead_line(keeper: TmuxKeeper, said: str, old: str) -> str:
+    """The start of the line on a dead pane: ours, `said`, with tmux 3.3 or later; else that of
+    tmux, as `Pane is dead (<old>`."""
+    return said if installation(keeper.binary).hints else f"Pane is dead ({old}"
+
+
 def shown(keeper: TmuxKeeper, outer: Outer, name: str, text: str) -> bool:
-    """Whether `text` shows, attached; tmux before 3.3 draws its line on a dead pane by scrolling
-    the screen up one line, so it is in the scrollback of the Terminal there, e.g. the only line
-    of output."""
+    """Whether `text` shows, attached, or in the scrollback: tmux draws its line on a dead pane by
+    scrolling the screen up one line, so the top line, e.g. the only line of output, moves there
+    unless a larger client pulls it back."""
     if text in outer.screen():
         return True
-    version = installation(keeper.binary).version
-    if version is None or version >= (3, 3):
-        return False
     command = [
         keeper.binary,
         "-L",
@@ -423,7 +426,8 @@ def test_attach_to_an_ended_one_shows_its_last_screen(
     script = "echo all built; exit 3"
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", script)
     outer.run("terminal", "attach", "build")
-    assert eventually(lambda: "Pane is dead (status 3" in outer.screen())
+    line = dead_line(keeper, "Command exited with status 3", "status 3")
+    assert eventually(lambda: line in outer.screen())
     assert shown(keeper, outer, "build", "all built")
     outer.tmux("send-keys", "-t", "=outer:", "-l", "typed")
     time.sleep(0.2)
@@ -437,7 +441,8 @@ def test_ctrl_d_closes_an_ended_one(keeper: TmuxKeeper, outer: Outer, tmp_path: 
     """As it closes a shell; tmux 3.3 and later say so on its line."""
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "echo all built; exit 3")
     outer.run("terminal", "attach", "build")
-    assert eventually(lambda: "Pane is dead (status 3" in outer.screen())
+    line = dead_line(keeper, "Command exited with status 3", "status 3")
+    assert eventually(lambda: line in outer.screen())
     hint = "press Ctrl+D to close it" in outer.screen()
     assert hint is installation(keeper.binary).hints
     outer.tmux("send-keys", "-t", "=outer:", "C-d")
@@ -446,7 +451,7 @@ def test_ctrl_d_closes_an_ended_one(keeper: TmuxKeeper, outer: Outer, tmp_path: 
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]
 
 
-def test_ctrl_d_reaches_a_running_program(outer: Outer, tmp_path: Path) -> None:
+def test_ctrl_d_reaches_a_running_program(keeper: TmuxKeeper, outer: Outer, tmp_path: Path) -> None:
     """Only a dead pane takes it: a program gets it, e.g. as the end of its input."""
     out = tmp_path / "typed"
     ok("create", "-n", "cat", "-d", str(tmp_path), "--", "sh", "-c", f"exec cat > {out}")
@@ -454,7 +459,8 @@ def test_ctrl_d_reaches_a_running_program(outer: Outer, tmp_path: Path) -> None:
     eventually(lambda: "[cat]" in outer.screen().splitlines()[-1])  # the bar of tmux
     outer.tmux("send-keys", "-t", "=outer:", "-l", "hello")
     outer.tmux("send-keys", "-t", "=outer:", "Enter", "C-d")
-    assert eventually(lambda: "Pane is dead (status 0" in outer.screen())
+    line = dead_line(keeper, "Command finished", "status 0")
+    assert eventually(lambda: line in outer.screen())
     assert out.read_text() == "hello\n"
     assert ok("list")[1].split()[:3] == ["cat", "ended", "(status"]
     outer.tmux("send-keys", "-t", "=outer:", "C-d")  # now it closes
@@ -467,7 +473,8 @@ def test_create_attaches_to_a_command_that_ends_at_once(
 ) -> None:
     """E.g. a typo: its message shows, as it would in a terminal emulator."""
     outer.run("terminal", "create", "-d", str(tmp_path), "-n", "typo", "--", "mkae-hephaistos")
-    assert eventually(lambda: "Pane is dead (status 127" in outer.screen())
+    line = dead_line(keeper, "Command exited with status 127", "status 127")
+    assert eventually(lambda: line in outer.screen())
     assert shown(keeper, outer, "typo", "mkae-hephaistos")
 
 
