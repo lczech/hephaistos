@@ -31,7 +31,7 @@ With `HEPHAISTOS_HOME` set, the socket gets a name unique to that directory, so 
 
 Every command passes our config with `-f`, so `~/.tmux.conf` never applies on our socket: a config of the user could change what the GUI shows, e.g. the terminal programs see, or restore sessions of its own by a plugin.
 The config is generated from the settings and written to the state directory.
-It keeps the defaults of tmux, its status bar and keys included, so that attaching from the CLI is plain tmux; a client in control mode, as the GUI uses, shows no status bar and runs no key bindings.
+It keeps the defaults of tmux, its status bar and keys included, so that attaching from the CLI is plain tmux, but for Ctrl+D in a dead pane ([ends](#ends)); a client in control mode, as the GUI uses, shows no status bar and runs no key bindings.
 On top, only what the server needs:
 - `xterm-256color`, with 24-bit colour (`COLORTERM=truecolor`), as in GNOME Terminal: in the GUI, programs write to xterm.js and get its keys, and `ssh` from a Terminal finds the terminfo on any host, unlike that of `tmux-256color`;
   attached from the CLI, tmux draws and sends keys as itself, e.g. Home and End as `\E[1~` and `\E[4~`, not as `xterm-256color` says (`\EOH`, `\EOF`), so a program that takes them from terminfo alone misses them there;
@@ -58,6 +58,10 @@ A command Terminal is told apart by a pane option, `@hephaistos_command`, set by
 The hook marks the panes it keeps, `@hephaistos_ended`.
 tmux runs it once it knows how the program ended, which it may learn only after the pane counts as dead (`pane_dead`, its pty closed), so only a marked pane counts as ended.
 How it ended comes from `pane_dead_status`, or `pane_dead_signal` and `pane_dead_time` since tmux 3.3; before, a pane without a status was ended by a signal, which tmux does not name, at a time it does not say.
+
+Ctrl+D closes an ended Terminal, as it closes a shell: a key binding of our config kills a dead pane, and passes Ctrl+D on to any other, e.g. to a program as the end of its input.
+Since tmux 3.3, `remain-on-exit-format` adds that to the line of tmux: "Pane is dead (status 1, …); press Ctrl+D to close it".
+A client in control mode runs no key bindings, so the Terminal View does the same itself.
 
 tmux before 3.6, built with utempter as Ubuntu's and Debian's are, sometimes never learns that the process of a pane ended ([tmux 4559](https://github.com/tmux/tmux/issues/4559)): utempter resets the handler of SIGCHLD while the pane closes.
 About one exit in five left a pane dead and blank, its hook not run, until another child of the server ended.

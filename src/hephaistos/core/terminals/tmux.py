@@ -42,6 +42,8 @@ MINIMUM = (3, 2)  # 3.2a in practice: subscriptions, flow control and extended k
 MINIMUM_TEXT = "3.2a"
 #: The first that reaps the process of each pane also when built with utempter; see `config_text`.
 REAPS = (3, 6)
+#: The first whose line in a dead pane we can extend, by `remain-on-exit-format`.
+HINTS = (3, 3)
 TIMEOUT = 10.0  # seconds for one tmux command; tmux is local, so only a hung one takes long
 DEFAULT_SOCKET = "hephaistos"
 CONFIG_NAME = "tmux.conf"  # in the state directory
@@ -152,6 +154,12 @@ class Installation:
         version = self.version
         return version is not None and version < REAPS
 
+    @property
+    def hints(self) -> bool:
+        """Whether we can extend the line it shows in a dead pane: since 3.3; see `config_text`."""
+        version = self.version
+        return version is None or version >= HINTS
+
 
 def binary() -> str:
     """The tmux to run: `terminals.tmux.path`, found on the PATH unless it is a path."""
@@ -242,19 +250,23 @@ def socket_name(setting: str, env: Mapping[str, str] = os.environ) -> str:
     return f"{DEFAULT_SOCKET}-{digest[:10]}"
 
 
-def config_text(history: int, *, reaping: bool = False) -> str:
+def config_text(history: int, *, reaping: bool = False, hinting: bool = False) -> str:
     """Our tmux config, ending with the marker that names it by its hash.
 
     The defaults of tmux, with only what the server needs on top; never the config of the user.
-    The look and the keys stay those of tmux, so that attaching from the CLI is plain tmux; a
-    client in control mode, as the GUI uses, shows no status bar and runs no key bindings. The
-    server outlives its last session, so that no server means it crashed or was killed.
+    The look and the keys stay those of tmux, but for Ctrl+D in a dead pane, so that attaching
+    from the CLI is plain tmux; a client in control mode, as the GUI uses, shows no status bar and
+    runs no key bindings. The server outlives its last session, so that no server means it crashed
+    or was killed.
 
     A pane whose program ended stays, showing its last screen, unless it is not that of a command
     and its program exited: then the hook closes it at once, as a terminal emulator closes the tab
     of a shell that exited. So the pane of a command stays, and any a signal ended; the hook marks
     those it keeps. tmux runs it once it knows how the program ended, which it may learn only after
     the pane counts as dead: until then, a pane is not taken as ended.
+
+    Ctrl+D closes a dead pane, as it closes a shell, and passes on to any other; with `hinting`,
+    tmux 3.3 or later, the line tmux shows in a dead pane ends saying so.
 
     tmux before 3.6, built with utempter as Ubuntu's and Debian's are, sometimes misses the end of
     the process of a pane (tmux issue 4559), and so never runs the hook: the pane would stay dead,
@@ -276,13 +288,25 @@ set -g history-limit {history}
 set -g update-environment "{variables}"
 set -g remain-on-exit on
 set-hook -g pane-died {{ if-shell -F "{_CLOSED}" kill-pane "set-option -p {ENDED_OPTION} 1" }}
+bind -n C-d if-shell -F "#{{pane_dead}}" kill-pane "send-keys C-d"
 """
+    if hinting:
+        body += f'set -g remain-on-exit-format "{_DEAD_LINE}"\n'
     if reaping:  # once per server: sourced again, the config finds the job running
         job = f'set -g {REAPING_OPTION} 1 ; run-shell -b "{_REAPING}"'
         body += f'if-shell -F "#{{{REAPING_OPTION}}}" "" {{ {job} }}\n'
     digest = hashlib.sha256(body.encode()).hexdigest()[:12]
     return f"{body}set -g {CONFIG_OPTION} {digest}\n"
 
+
+#: The line tmux shows in a dead pane, as tmux says it, e.g. `Pane is dead (status 1, <time>)`,
+#: and that Ctrl+D closes it.
+_DEAD_LINE = (
+    "Pane is dead ("
+    "#{?#{!=:#{pane_dead_status},},status #{pane_dead_status},}"
+    "#{?#{!=:#{pane_dead_signal},},signal #{pane_dead_signal},}"
+    ", #{t:pane_dead_time}); press Ctrl+D to close it"
+)
 
 #: What the job that reaps for tmux before 3.6 runs: it ends with the server.
 _REAPING = "while kill -s CHLD #{pid} 2>/dev/null; do sleep 0.5; done"
@@ -460,7 +484,7 @@ class TmuxKeeper:
                 f"{found.text} is too old: Terminals need tmux {MINIMUM_TEXT} or later;"
                 " install a newer one, e.g. without root, and set terminals.tmux.path to it"
             )
-        self.config = config_text(self.history, reaping=found.may_miss_exits)
+        self.config = config_text(self.history, reaping=found.may_miss_exits, hinting=found.hints)
         self._write_config()
         self._checked = True
 

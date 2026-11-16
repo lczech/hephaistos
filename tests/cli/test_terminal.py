@@ -433,6 +433,35 @@ def test_attach_to_an_ended_one_shows_its_last_screen(
     assert ok("list")[1].split()[:2] == ["build", "ended"]
 
 
+def test_ctrl_d_closes_an_ended_one(keeper: TmuxKeeper, outer: Outer, tmp_path: Path) -> None:
+    """As it closes a shell; tmux 3.3 and later say so on its line."""
+    ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "echo all built; exit 3")
+    outer.run("terminal", "attach", "build")
+    assert eventually(lambda: "Pane is dead (status 3" in outer.screen())
+    hint = "press Ctrl+D to close it" in outer.screen()
+    assert hint is installation(keeper.binary).hints
+    outer.tmux("send-keys", "-t", "=outer:", "C-d")
+    eventually(outer.out.exists)
+    assert "[exited]" in outer.screen()
+    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+
+
+def test_ctrl_d_reaches_a_running_program(outer: Outer, tmp_path: Path) -> None:
+    """Only a dead pane takes it: a program gets it, e.g. as the end of its input."""
+    out = tmp_path / "typed"
+    ok("create", "-n", "cat", "-d", str(tmp_path), "--", "sh", "-c", f"exec cat > {out}")
+    outer.run("terminal", "attach", "cat")
+    eventually(lambda: "[cat]" in outer.screen().splitlines()[-1])  # the bar of tmux
+    outer.tmux("send-keys", "-t", "=outer:", "-l", "hello")
+    outer.tmux("send-keys", "-t", "=outer:", "Enter", "C-d")
+    assert eventually(lambda: "Pane is dead (status 0" in outer.screen())
+    assert out.read_text() == "hello\n"
+    assert ok("list")[1].split()[:3] == ["cat", "ended", "(status"]
+    outer.tmux("send-keys", "-t", "=outer:", "C-d")  # now it closes
+    eventually(outer.out.exists)
+    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+
+
 def test_create_attaches_to_a_command_that_ends_at_once(
     keeper: TmuxKeeper, outer: Outer, tmp_path: Path
 ) -> None:
@@ -442,14 +471,18 @@ def test_create_attaches_to_a_command_that_ends_at_once(
     assert shown(keeper, outer, "typo", "mkae-hephaistos")
 
 
-def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path) -> None:
+@pytest.mark.parametrize("keys", ["exit 3", "C-d"])
+def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path, keys: str) -> None:
     """As a tab of a terminal emulator closes: tmux says it exited, and the CLI ends."""
     ok("create", "-n", "sh", "-d", str(tmp_path), "--detached")
     outer.run("terminal", "attach", "sh")
     eventually(lambda: "[sh]" in outer.screen().splitlines()[-1])  # the bar of tmux
     eventually(lambda: "$" in outer.screen())  # its prompt: keys typed before may be lost
-    outer.tmux("send-keys", "-t", "=outer:", "-l", "exit 3")
-    outer.tmux("send-keys", "-t", "=outer:", "Enter")
+    if keys == "C-d":
+        outer.tmux("send-keys", "-t", "=outer:", "C-d")  # reaches the shell: it is not dead
+    else:
+        outer.tmux("send-keys", "-t", "=outer:", "-l", keys)
+        outer.tmux("send-keys", "-t", "=outer:", "Enter")
     eventually(outer.out.exists)
     assert "[exited]" in outer.screen()
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]

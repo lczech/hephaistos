@@ -21,6 +21,7 @@ from hephaistos.core.terminals.keeper import (
 )
 from hephaistos.core.terminals.tmux import (
     CONFIG_OPTION,
+    Installation,
     TmuxKeeper,
     config_digest,
     config_text,
@@ -101,9 +102,11 @@ def test_socket_names(tmp_path: Path) -> None:
 def test_config_names_itself_by_its_hash() -> None:
     text = config_text(1234)
     assert "set -g history-limit 1234\n" in text
-    # The look and the keys of tmux stay as they are.
+    # The look and the keys of tmux stay as they are, but for Ctrl+D in a dead pane.
     assert not re.search(r"\bstatus\b", text)
-    assert "bind" not in text
+    assert [line for line in text.splitlines() if "bind" in line] == [
+        'bind -n C-d if-shell -F "#{pane_dead}" kill-pane "send-keys C-d"'
+    ]
     assert text.endswith(f"set -g {CONFIG_OPTION} {config_digest(text)}\n")
     assert config_digest(text) == config_digest(config_text(1234))
     assert config_digest(text) != config_digest(config_text(99))
@@ -645,6 +648,39 @@ def test_the_config_reaps_only_where_asked() -> None:
     assert "kill -s CHLD" not in config_text(10)
     assert "kill -s CHLD" in config_text(10, reaping=True)
     assert config_digest(config_text(10)) != config_digest(config_text(10, reaping=True))
+
+
+def test_the_config_closes_dead_panes_by_ctrl_d_and_says_so_where_asked() -> None:
+    binding = 'bind -n C-d if-shell -F "#{pane_dead}" kill-pane "send-keys C-d"'
+    assert binding in config_text(10)
+    assert "remain-on-exit-format" not in config_text(10)
+    assert "press Ctrl+D to close it" in config_text(10, hinting=True)
+    assert config_digest(config_text(10)) != config_digest(config_text(10, hinting=True))
+
+
+@pytest.mark.parametrize(
+    ("text", "hints"),
+    [("tmux 3.2a", False), ("tmux 3.3", True), ("tmux 3.4", True), ("tmux master", True)],
+)
+def test_hints_from_3_3(text: str, hints: bool) -> None:  # noqa: FBT001
+    assert Installation("tmux", text).hints is hints
+
+
+@pytest.mark.parametrize(
+    ("script", "said"), [("echo built; exit 3", "status 3"), ("kill -9 $$", "signal 9")]
+)
+def test_a_dead_pane_says_how_it_ended_and_that_ctrl_d_closes_it(
+    keeper: TmuxKeeper, tmp_path: Path, script: str, said: str
+) -> None:
+    """As tmux says it, then the hint; tmux before 3.3 shows its own line, without it."""
+    new(keeper, "build", tmp_path, "sh", "-c", script)
+    ending(keeper, "build")
+    shown = eventually(lambda: everything_shown(keeper, "build").strip().splitlines()[-1])
+    if installation(keeper.binary).hints:
+        assert re.fullmatch(rf"Pane is dead \({said}, .+\); press Ctrl\+D to close it", shown)
+    else:
+        assert shown.startswith("Pane is dead (")
+        assert "Ctrl+D" not in shown
 
 
 def test_a_server_started_by_hand_keeps_ended_commands_once_ours_is_loaded(
