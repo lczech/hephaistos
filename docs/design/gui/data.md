@@ -11,7 +11,8 @@ Connecting asks again for everything shown, as hints may have been missed meanwh
 Gaining focus asks again for what changes by hand: the settings, and Checkouts' changes, as editing a file changes no State.
 It also asks for a pass, at most every 10 s.
 Focus is TanStack's `focusManager`, for which the page's window gaining it counts too, e.g. back from the editor.
-Answers stay current until then (`staleTime: Infinity`).
+Answers stay current while a View shows them, until a hint, focus or connecting asks again (`staleTime: Infinity`).
+One that no View has used for 5 minutes is dropped (the default `gcTime` of TanStack), and asked again once shown.
 
 ## Connection
 
