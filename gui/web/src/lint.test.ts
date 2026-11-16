@@ -64,17 +64,39 @@ declare function cssVars(vars: object): object;
   expect(lint(styled, "probe.test.tsx")).not.toContain("Do not style inline");
 });
 
-// Only layout/ uses dockview (ADR 005); Changes and Diff never import each other.
-it("has lint keep dockview in layout/, and Changes and Diff apart", () => {
+// Each override of `noRestrictedImports` in biome.json sets its options anew, so restates each
+// restriction: the cases below take each folder of an override, so that a copy missed fails.
+const OVERRIDDEN = ["layout", "views/changes", "views/diff", "views/comparison", "components/diff"];
+
+// Only layout/ uses dockview (ADR 005).
+it("has lint keep dockview in layout/", () => {
   const docked = `import { DockviewReact } from "dockview-react";\nexport { DockviewReact };\n`;
   const own = "Only layout/ uses dockview";
-  expect(lint(docked, "web/src/views/events/probe.ts", true)).toContain(own);
-  expect(lint(docked, "web/src/views/diff/probe.ts", true)).toContain(own);
+  for (const elsewhere of ["views/events", ...OVERRIDDEN.filter((at) => at !== "layout")]) {
+    expect(lint(docked, `web/src/${elsewhere}/probe.ts`, true), elsewhere).toContain(own);
+  }
   expect(lint(docked, "web/src/layout/probe.ts", true)).not.toContain(own);
+});
+
+// The Changes and Diff Views share what both need through views/comparison/, never importing
+// each other, nor it them.
+it("has lint keep the Changes and Diff Views apart", () => {
   const apart = "never importing each other";
-  const changes = `import { x } from "../changes/x";\nexport { x };\n`;
-  expect(lint(changes, "web/src/views/diff/probe.ts", true)).toContain(apart);
-  expect(lint(changes, "web/src/views/events/probe.ts", true)).not.toContain(apart);
+  const from = (folder: string) => `import { x } from "../${folder}/x";\nexport { x };\n`;
+  const deep = (folder: string) => `import { x } from "../../views/${folder}/x";\nexport { x };\n`;
+  for (const [at, other] of [
+    ["diff", "changes"],
+    ["changes", "diff"],
+    ["comparison", "changes"],
+    ["comparison", "diff"],
+  ] as const) {
+    for (const source of [from(other), deep(other)]) {
+      expect(lint(source, `web/src/views/${at}/probe.ts`, true), `${at}: ${source}`).toContain(
+        apart,
+      );
+    }
+  }
+  expect(lint(from("changes"), "web/src/views/events/probe.ts", true)).not.toContain(apart);
 });
 
 // `@pierre/diffs` is pinned and checked on each upgrade (development.md): only components/diff/
@@ -85,14 +107,12 @@ import { parsePatchFiles } from "@pierre/diffs";
 export { FileDiff, parsePatchFiles };
 `;
   const own = "Only components/diff/ uses @pierre/diffs";
-  for (const elsewhere of ["views/diff", "views/events", "layout", "components/list"]) {
+  const elsewhere = ["views/events", "components/list", ...OVERRIDDEN];
+  for (const at of elsewhere.filter((at) => at !== "components/diff")) {
     expect(
-      lint(drawn, `web/src/${elsewhere}/probe.ts`, true).match(new RegExp(own, "g")),
+      lint(drawn, `web/src/${at}/probe.ts`, true).match(new RegExp(own, "g")),
+      at,
     ).toHaveLength(2);
   }
   expect(lint(drawn, "web/src/components/diff/probe.ts", true)).not.toContain(own);
-  const docked = `import { DockviewReact } from "dockview-react";\nexport { DockviewReact };\n`;
-  expect(lint(docked, "web/src/components/diff/probe.ts", true)).toContain(
-    "Only layout/ uses dockview",
-  );
 });
