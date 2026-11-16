@@ -182,6 +182,7 @@ def test_a_command_that_ends_at_once_is_created_ended(
         tuple(command),
     )
     assert stored(set_up)["quick"] == created
+    assert created.program == command[0]  # not a wrapper tmux gave, while starting or dead
     if status == 127:
         assert "no-such-program-hephaistos" in everything(keeper, "quick")
 

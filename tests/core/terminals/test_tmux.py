@@ -5,6 +5,7 @@ import signal
 import subprocess
 import time
 import uuid
+from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -480,6 +481,38 @@ def test_a_command_that_exits_stays_with_its_screen(
     assert "built" in everything_shown(keeper, "build")
     time.sleep(0.3)
     assert keeper.session("build").ending == found  # it stays
+
+
+@pytest.mark.parametrize("wrapper", ["env", "systemd-run"])
+def test_no_program_while_a_wrapper_starts_it(
+    keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wrapper: str
+) -> None:
+    """tmux gives the wrapper that starts the program of a pane until it becomes the program:
+    caught at that moment, as by tmux listing it instead."""
+    new(keeper, "api", tmp_path, "sleep", "30")
+    eventually(lambda: keeper.session("api").program == "sleep")
+    client = keeper._client  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+
+    def starting(
+        *args: str, env: Mapping[str, str] | None = None, scoped: bool = False
+    ) -> subprocess.CompletedProcess[str]:
+        result = client(*args, env=env, scoped=scoped)
+        if args[0] == "list-panes":
+            for separator in ("\t\x1f\t", "\t\\037\t"):
+                result.stdout = result.stdout.replace(
+                    f"{separator}sleep{separator}", f"{separator}{wrapper}{separator}"
+                )
+        return result
+
+    monkeypatch.setattr(keeper, "_client", starting)
+    assert keeper.session("api").program == ""
+
+
+def test_an_ended_command_has_no_program(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """tmux gives a dead pane the wrapper it started, not what ran in it."""
+    new(keeper, "build", tmp_path, "sh", "-c", "exit 3")
+    ending(keeper, "build")
+    assert keeper.session("build").program == ""
 
 
 def test_a_command_that_ends_at_once_stays(keeper: TmuxKeeper, tmp_path: Path) -> None:

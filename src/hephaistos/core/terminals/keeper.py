@@ -48,7 +48,7 @@ class Session:
     name: str
     directory: Path  # where it started
     current_directory: Path | None  # where its foreground process is; None if unknown
-    program: str  # what runs in the foreground, e.g. `bash` or `vim`
+    program: str  # what runs in the foreground, e.g. `bash` or `vim`; empty while not known
     pid: int | None  # of the process it started, e.g. the shell; None once ended, if not said
     clients: int  # attached to it, e.g. Terminal emulators showing it
     created_at: datetime

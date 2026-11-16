@@ -664,23 +664,46 @@ def test_observations_follow_what_the_keeper_shows(
 
 
 def test_an_ended_one_keeps_the_program_it_last_ran(set_up: Paths) -> None:
-    """tmux gives a dead pane what it started, e.g. the wrapper of its scope, `systemd-run`."""
+    """The Keeper gives no program for a dead pane."""
     api = new_id()
     update(set_up, session("api", api, program="make", current_directory=Path("/home/u/proj/b")))
-    update(set_up, session("api", api, program="systemd-run", ending=END))
+    update(set_up, session("api", api, program="", ending=END))
     state = stored(set_up)["api"]
     assert (state.program, state.current_directory) == ("make", Path("/home/u/proj/b"))
 
 
-def test_one_ended_at_once_has_the_program_of_its_command(set_up: Paths) -> None:
-    build = new_id()
-    with write_session(set_up) as written:
+def first_seen(paths: Paths, item: Session, command: tuple[str, ...] | None) -> None:
+    """Stores what an observation finds right after `item` was created, running `command`."""
+    assert item.terminal_id is not None
+    with write_session(paths) as written:
         terminals.update(
             written,
-            [session("build", build, program="systemd-run", ending=END)],
+            [item],
             running=True,
             boot_id=BOOT,
             started=written.clock_value,
-            command={build: ("/usr/bin/mkae", "test")},
+            command=None if command is None else {item.terminal_id: command},
         )
+
+
+def test_one_ended_at_once_has_the_program_of_its_command(set_up: Paths) -> None:
+    build = new_id()
+    first_seen(set_up, session("build", build, program="", ending=END), ("/usr/bin/mkae", "test"))
     assert stored(set_up)["build"].program == "mkae"
+
+
+def test_one_seen_starting_has_the_program_of_its_command_once_ended(set_up: Paths) -> None:
+    """Seen first while a wrapper starts it, the Keeper giving no program, then ended."""
+    build = new_id()
+    first_seen(set_up, session("build", build, program=""), ("/usr/bin/make", "test"))
+    assert stored(set_up)["build"].program == ""
+    update(set_up, session("build", build, program="", ending=END))
+    assert stored(set_up)["build"].program == "make"
+
+
+def test_a_shell_seen_only_starting_has_no_program_once_ended(set_up: Paths) -> None:
+    """E.g. killed by a signal at once: nothing says which shell it was."""
+    shell = new_id()
+    first_seen(set_up, session("sh", shell, program=""), None)
+    update(set_up, session("sh", shell, program="", ending=Ending(None, 9, ENDED_AT)))
+    assert stored(set_up)["sh"].program == ""

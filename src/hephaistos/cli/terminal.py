@@ -160,7 +160,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
                 _status_text(state),
                 _repository(checkout),
                 short_path(state.directory),
-                escaped(state.program),
+                escaped(state.program) or "-",
                 str(state.clients) if state.clients else "-",
                 formatted(state.active_at),
             ]
@@ -196,7 +196,7 @@ def show(
             *_ending_fields(state, formatted),
             ("directory", short_path(state.directory)),
             ("current", "-" if current is None else short_path(current)),
-            ("program", escaped(state.program)),
+            ("program", escaped(state.program) or "-"),
             ("command", _command_text(state)),
             ("attached", str(state.clients)),
             *([("panes", str(state.panes))] if state.panes > 1 else []),

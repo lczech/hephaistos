@@ -48,6 +48,9 @@ CONFIG_NAME = "tmux.conf"  # in the state directory
 
 #: What tmux sets in each Terminal, removed there so that tmux stays out of sight.
 HIDDEN = ("TMUX", "TMUX_PANE")
+#: What we start a program with, each running until it executes the program: what tmux gives as
+#: the program of a pane while it starts, and of a dead pane. Not that of the Terminal.
+WRAPPERS = frozenset({"env", "systemd-run"})
 
 #: Our options: on a session, the ID of its Terminal; on the pane of a command, a marker that
 #: it is one, which keeps it once ended; on a pane kept once ended, a marker that our hook kept
@@ -509,7 +512,7 @@ class TmuxKeeper:
                 name=name,
                 directory=tmux_path(directory),
                 current_directory=tmux_path(current) if current else None,
-                program=program,
+                program="" if program in WRAPPERS else program,
                 pid=int(pid) if pid else None,  # a dead pane holds none since 3.8
                 clients=int(clients),
                 created_at=_time(created),
