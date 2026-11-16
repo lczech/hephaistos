@@ -182,7 +182,7 @@ describe("the Changes View", () => {
     renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     expect(await screen.findByRole("row", { name: /Unmerged/ })).toBeInTheDocument();
     expect(screen.getByTitle("b.py renamed from a.py")).toBeInTheDocument();
-    expect(screen.getByTitle("d.py renamed from c.py")).toBeInTheDocument();
+    expect(screen.getByTitle("d.py copied from c.py")).toBeInTheDocument();
     expect(screen.getByTitle("renamed")).toHaveAttribute("data-kind", "renamed");
     expect(screen.getByTitle("copied")).toHaveAttribute("data-kind", "renamed");
     expect(screen.getByTitle("unmerged")).toHaveAttribute("data-kind", "conflict");

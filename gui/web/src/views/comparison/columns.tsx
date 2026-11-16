@@ -24,6 +24,7 @@ import {
   type Kind,
   kindCounts,
   kindOf,
+  originText,
   otherText,
   statusName,
   totals,
@@ -94,12 +95,12 @@ function counted(entry: Entry): { added: number; removed: number } | undefined {
 
 /** A change's row: its path below what the rows around it say, after what happened to it. */
 export function ChangePath({ change, base }: { change: Change; base: string }) {
-  const renamed = change.original === null ? "" : `\nrenamed from ${change.original}`;
+  const origin = originText(change);
   return (
     <Path
       deleted={change.status === "D"}
       shown={change.path.slice(base.length)}
-      title={`${change.path}${renamed}`}
+      title={origin === undefined ? change.path : `${change.path}\n${origin}`}
       icon={
         <KindIcon
           kind={kindOf(change)}

@@ -26,6 +26,7 @@ import {
   changedLines,
   type Entry,
   isFolder,
+  originText,
   otherText,
   totals,
 } from "../comparison/rows";
@@ -375,6 +376,7 @@ interface HeaderProps {
  * many, a chevron that folds it, and a link to its own Diff. What is compared, the bar says.
  */
 function FileHeader({ change, path, query, folded, onToggle }: HeaderProps) {
+  const origin = change && originText(change);
   return (
     <FoldHeader
       className={styles.header}
@@ -397,9 +399,7 @@ function FileHeader({ change, path, query, folded, onToggle }: HeaderProps) {
       }
     >
       {change ? <ChangePath change={change} base="" /> : <span>{path}</span>}
-      {change?.original != null && (
-        <span className={styles.aside}>renamed from {change.original}</span>
-      )}
+      {origin && <span className={styles.aside}>{origin}</span>}
     </FoldHeader>
   );
 }

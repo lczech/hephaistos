@@ -302,6 +302,16 @@ describe("the Diff View", () => {
     );
   });
 
+  it("says where a copied file came from, and a renamed one", async () => {
+    serveDiff({ change: change({ status: "C", original: "src/old.py" }), patch: PATCH });
+    const { unmount } = renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText("copied from src/old.py")).toBeInTheDocument();
+    unmount();
+    serveDiff({ change: change({ status: "R", original: "src/old.py" }), patch: PATCH });
+    renderWithQueries(<Diff initial={STAGED} />);
+    expect(await screen.findByText("renamed from src/old.py")).toBeInTheDocument();
+  });
+
   it("waits to show a large diff", async () => {
     serveDiff({ change: change({ added: 8, removed: 4 }), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);

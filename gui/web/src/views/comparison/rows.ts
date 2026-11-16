@@ -56,6 +56,12 @@ export function groupName(group: Group): string {
   return GROUP_NAMES[group.name];
 }
 
+/** Where a renamed or copied file came from, as "renamed from a.py" or "copied from a.py". */
+export function originText(change: Change): string | undefined {
+  if (change.original === null) return undefined;
+  return `${change.status === "C" ? "copied" : "renamed"} from ${change.original}`;
+}
+
 /** What happened to a file, as its icon and colour show it. */
 export type Kind = "modified" | "added" | "deleted" | "renamed" | "conflict" | "new folder";
 
