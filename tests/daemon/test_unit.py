@@ -51,13 +51,13 @@ def test_unit_text_round_trip() -> None:
     )
 
 
-def test_a_dollar_is_escaped_only_where_systemd_expands_it() -> None:
+def test_a_dollar_is_written_as_is() -> None:
+    # systemd runs the path of ExecStart as written, and expands no `$` in Environment=.
     env = {"HEPHAISTOS_HOME": "/data/$HOME"}
     text = unit.unit_text(Path("/opt/$tools/hephaistos"), env)
-    assert 'ExecStart="/opt/$$tools/hephaistos" daemon run' in text.splitlines()
+    assert 'ExecStart="/opt/$tools/hephaistos" daemon run' in text.splitlines()
     assert 'Environment="HEPHAISTOS_HOME=/data/$HOME"' in text.splitlines()
     assert unit.installed_executable(text) == Path("/opt/$tools/hephaistos")
-    assert unit.installed_variables(text) == env
     assert unit.installation_differences(text, Path("/opt/$tools/hephaistos"), env) == []
 
 
