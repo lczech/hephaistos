@@ -14,6 +14,8 @@ Ideas for the GUI as a whole; those for single Views are in [Views](views.md).
 - Later: the page's own find (Ctrl+F, in a browser) finds only the rows drawn; a find of their own for the lists without one (Events, Repositories, History, the database).
 - In TanStack Table, for when needed (2026-10-24): a quick text filter over the loaded rows of a list (global filtering), counts per value in header filters (faceting), rows grouped by a column (grouping), several rows selected for one action (row selection).
 - Density for all lists: how close their rows stand, as a setting.
+- Keyboard shortcuts of our own (2026-11-16): a keymap of default bindings that a setting overrides, bindings for some Views only, chords such as Ctrl+K Ctrl+S, conflicts found, and key names shown in menus and tooltips in the layout of the user, the keys of the Desktop too.
+  Choose a library then, e.g. `tinykeys` or a keybinding service as in VS Code, in place of the rule that takes the letter of a key at its place where it is not Latin.
 
 ## Panels and the Layout
 
