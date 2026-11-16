@@ -5,7 +5,7 @@ import { focusManager, type Query, type QueryClient, useQueryClient } from "@tan
 import { useEffect, useSyncExternalStore } from "react";
 import { forgetToken, token } from "../token";
 import type { Schemas } from "./client";
-import { KEYS, type KeyName, listingsAskedAgain, observe } from "./queries";
+import { diffsAskedAgain, KEYS, type KeyName, listingsAskedAgain, observe } from "./queries";
 
 export type Hint = Schemas["LiveHintsJson"]["hints"][number];
 
@@ -99,10 +99,13 @@ class AskAgain {
   names(names: KeyName[]): void {
     const { client } = this;
     for (const name of names) {
-      for (const query of client.getQueryCache().findAll({ queryKey: KEYS[name] })) {
+      const predicate = name === "diff" ? diffsAskedAgain : undefined;
+      for (const query of client.getQueryCache().findAll({ queryKey: KEYS[name], predicate })) {
         if (query.state.fetchStatus === "fetching") this.waiting.add(query);
       }
-      if (name !== "files") {
+      if (name === "diff") {
+        void client.invalidateQueries({ queryKey: KEYS.diff, predicate }, { cancelRefetch: false });
+      } else if (name !== "files") {
         void client.invalidateQueries({ queryKey: KEYS[name] }, { cancelRefetch: false });
       } else {
         // All marked as maybe changed, as a folder asked for ahead is trusted only until then;

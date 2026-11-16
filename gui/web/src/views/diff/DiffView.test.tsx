@@ -4,8 +4,10 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Schemas } from "../../api/client";
+import { useLiveUpdates } from "../../api/live";
 import { KEYS } from "../../api/queries";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
+import { lastSocket } from "../../test/live";
 import {
   clone,
   info,
@@ -291,6 +293,35 @@ describe("the Diff View", () => {
       expect(versions()).toBe(before + 1);
       expect(kept()).toHaveLength(1); // not those of the patch before
     }
+  });
+
+  it("asks again on a hint for the versions once, after the patch", async () => {
+    const requests = serve({
+      ...ASIDE,
+      "GET /api/diff": () => json({ change: change(), patch: PATCH }),
+      "GET /api/changes": () => json({ branch: null, groups: [], commit: null }),
+      "POST /api/observe": () => new Response(null, { status: 204 }),
+    });
+    function Live() {
+      useLiveUpdates();
+      return null;
+    }
+    renderWithQueries(
+      <>
+        <Live />
+        <Diff initial={STAGED} />
+      </>,
+    );
+    act(() => lastSocket().open());
+    expect(await screen.findByText(/^versions:/)).toBeInTheDocument();
+    await expectSettled();
+    const versions = () =>
+      requests.filter((request) => new URL(request.url).pathname === "/api/diff/files").length;
+    const before = versions();
+    act(() => lastSocket().receive({ hints: ["data"] }));
+    await waitFor(() => expect(versions()).toBe(before + 1));
+    await expectSettled();
+    expect(versions()).toBe(before + 1);
   });
 
   it("asks no versions of an added file, all of which its patch has", async () => {

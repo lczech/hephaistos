@@ -282,6 +282,14 @@ export function useDiffs(query: DiffsQuery | undefined) {
 }
 
 /**
+ * Of the queries of `KEYS.diff`, those that hints and focus ask again: patches, not the versions
+ * of a file, which follow its patch (`useDiffFiles`), so would be asked twice.
+ */
+export function diffsAskedAgain(query: Query): boolean {
+  return query.queryKey[KEYS.diff.length] !== "files";
+}
+
+/**
  * The file's two versions, asked for after each patch (`patchAt`), so that they match it: they
  * show where the file ends, and more of it than its patch has. Also after a patch that could
  * not come, as the file may have changed all the same.
