@@ -1,7 +1,7 @@
 import { GitMerge } from "lucide-react";
 import { Ago } from "../../components/Ago";
 import { Chevron } from "../../components/list/List";
-import { listColumnHelper } from "../../components/list/table";
+import { type ListMeta, listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
 import { counted, numberText } from "../../text";
 import { daysText } from "../../time";
@@ -35,18 +35,34 @@ export interface FoundActions {
   allFiles: () => void;
 }
 
+/** What the cells of a list of commits draw by, beyond their row: from the View, in the table's `meta`. */
+export interface CommitLooks {
+  checkout: Checkout | undefined;
+  head: string | null | undefined;
+  actions: FoundActions | undefined; // for a commit searched for by its hash, not listed
+  graph: Drawn | undefined;
+}
+
+declare module "../../components/list/table" {
+  interface ListMeta {
+    commits?: CommitLooks;
+  }
+}
+
+/** A list of commits' looks, from the table's `meta`, where its View must pass them. */
+function looksOf(meta: ListMeta | undefined): CommitLooks {
+  if (meta?.commits === undefined) throw new Error("the columns of commits need `meta.commits`");
+  return meta.commits;
+}
+
 /**
  * The columns of a list of commits: the hash of a commit, with its Changes and Diff; its subject
  * after its branches and tags; who wrote it, and when. The row of a rename says only where the
  * file was before; that of a stretch, how many commits it leaves out and their days, as its
- * subject.
+ * subject. With a graph drawn, its column first, fitting its `lanes`: what the columns are made
+ * of, as the rest of the graph reaches the cells through `meta`.
  */
-export function commitColumns(
-  checkout: Checkout | undefined,
-  head: string | null | undefined,
-  actions: FoundActions | undefined,
-  graph: Drawn | undefined,
-) {
+export function commitColumns(lanes: number | undefined) {
   return column.columns([
     column.display({
       id: "square",
@@ -54,21 +70,26 @@ export function commitColumns(
       enableResizing: false,
       meta: { width: "var(--square)" },
     }),
-    ...(graph === undefined
+    ...(lanes === undefined
       ? []
       : [
           column.display({
             id: "graph",
             header: "graph",
-            size: fittedWidth(graph.layout.columns),
+            size: fittedWidth(lanes),
             minSize: fittedWidth(1), // one lane, narrower than other columns may be
             meta: {
               stays: true, // the lanes below an opened row line up with it
               description: "How the commits descend from each other, a line per lane",
             },
-            cell: ({ row }) => {
-              const at = graph.rows.get(entryId(row.original));
-              return at === undefined ? "" : <GraphCell layout={graph.layout} row={at} />;
+            cell: ({ row, table }) => {
+              const { graph } = looksOf(table.options.meta);
+              const at = graph?.rows.get(entryId(row.original));
+              return graph === undefined || at === undefined ? (
+                ""
+              ) : (
+                <GraphCell layout={graph.layout} row={at} />
+              );
             },
           }),
         ]),
@@ -76,7 +97,8 @@ export function commitColumns(
       id: "commit",
       header: "commit",
       size: 150,
-      cell: ({ row }) => {
+      cell: ({ row, table }) => {
+        const { checkout } = looksOf(table.options.meta);
         if (checkout === undefined) return "";
         if (row.original.type === "uncommitted") {
           return <CommitHash hash={undefined} checkout={row.original.of?.checkout ?? checkout} />;
@@ -98,6 +120,7 @@ export function commitColumns(
       meta: { identifies: true },
       cell: ({ row, table }) => {
         const entry = row.original;
+        const { actions, graph, head } = looksOf(table.options.meta);
         if (entry.type === "uncommitted")
           return (
             <span className={styles.uncommitted} data-entry={entryId(entry)}>

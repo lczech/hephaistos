@@ -400,7 +400,7 @@ describe("the Graph View", () => {
   it("asks again for commits, branches and lines on refresh", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    const subject = await screen.findByText("Commit b");
     await expectSettled();
     const paths = ["/api/history", "/api/graph", "/api/graph/lines"];
     const count = () =>
@@ -410,6 +410,8 @@ describe("the Graph View", () => {
     const before = count();
     await userEvent.click(screen.getByRole("button", { name: /^Refresh/ }));
     await waitFor(() => expect(count()).toEqual(before.map((n) => n + 1)));
+    await expectSettled();
+    expect(screen.getByText("Commit b")).toBe(subject); // as it was drawn
   });
 
   it("says where to open it from without a clone", async () => {

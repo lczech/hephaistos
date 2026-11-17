@@ -57,10 +57,10 @@ export function CommitList({
   const isShown = useIsShown();
   const drawn = graph && graphOf(entries, head, graph);
   const table = useList(kind, layout, {
-    columns: commitColumns(checkout, head, actions, drawn),
+    columns: commitColumns(drawn?.layout.columns),
     data: entries,
     getRowId: entryId,
-    meta: { now },
+    meta: { now, commits: { checkout, head, actions, graph: drawn } },
   });
   const column = drawn && table.getColumn("graph");
   const lanes = column?.getIsVisible() ? drawn : undefined;
