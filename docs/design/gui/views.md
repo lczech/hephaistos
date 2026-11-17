@@ -166,6 +166,7 @@ Where a lane passes a row is kept once per lane, as the rows it spans, so that a
 A commit listed below its parent, as the default order of git may list with clocks apart, draws no line to it rather than one that never ends.
 Each row draws its part across its whole height (`Graph.tsx`), in two lines too; the node is in the middle of its first line; lanes go on beside the details opened below it.
 A straight lane dashed is drawn in one piece down a row, as many whole dashes as fit its height, each with half a gap above and below, so that its dashes are even in rows of any height and meet with a gap as any other; in the band, while a row comes in, they stay put from where they meet it.
+Its dashes and gaps are whole device pixels, at the ratio of the moment, followed as it changes, e.g. with the zoom of the window: so each dash is drawn as long as the others, wherever the piece starts, e.g. below a node a fraction of a pixel down; the gaps differ by a pixel at most.
 The solid lines of a row start a little above it, under the ends of those of the row above, so that no seam shows where rows meet at a fraction of a pixel.
 Nodes are drawn as most graphs draw them: a commit a dot, a merge a ring around a dot, HEAD a larger, thicker ring, what is not committed a dotted ring, joined to HEAD by a dotted line.
 

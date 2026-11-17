@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { cssVars } from "../../components/cssVars";
 import { hueColour } from "../../hues";
+import { useDevicePixelRatio } from "../../useDevicePixelRatio";
 import styles from "./Graph.module.css";
 import type { Bend, LaneColour, Layout, Line, NodeKind } from "./lanes";
 
@@ -251,15 +252,37 @@ interface Piece {
 
 const lineOf = ({ to, colour, dashed, start }: Bend): Line => ({ lane: to, colour, dashed, start });
 
-const DASH = 2; // px of a dash in a lane dashed
-const GAP = 3; // px between dashes
+const DASH = 2; // px of a dash in a lane dashed, about, as whole device pixels
+const GAP = 3; // px between dashes, about, as whole device pixels
+
+/**
+ * The dashes of a lane dashed, as a dash array in device pixels: of `dash` each, as many as fit
+ * `length`, each with about half a gap above and below, so that pieces meet with a gap as any
+ * other; or, where the length is not known, periodic, from the start. All their edges are whole
+ * device pixels from the start of the line, wherever it starts: drawn with crisp edges, each
+ * edge is then rounded alike, and each dash is as long as the others.
+ */
+function dashArray(length: number | null, dash: number, gap: number): number[] {
+  const half = Math.floor(gap / 2);
+  if (length === null || length < dash + gap) return [0, half, dash, gap - half];
+  const count = Math.round(length / (dash + gap));
+  const period = length / count;
+  // Each dash in the middle of its share of the length, rounded: the gaps differ by a pixel.
+  const starts = Array.from({ length: count }, (_, i) => Math.round((i + 0.5) * period - dash / 2));
+  const array = [0, starts[0] ?? 0];
+  starts.forEach((start, i) => {
+    // The gap to the next dash; after the last, to beyond the end, so that none repeats.
+    array.push(dash, (starts[i + 1] ?? start + length) - start - dash);
+  });
+  return array;
+}
 
 /**
  * A straight lane dashed, from `top` to `bottom` of what it is in, in one piece, so that its
- * dashes are even however high that is: as many whole dashes, each with half a gap above and
- * below, as fit its height, measured, stretched a little to fill it, so that pieces meet with a
- * gap as any other. `fromEnd`, while the height changes, e.g. in the band as a row comes in, they
- * stay put from the end instead, cut off at the start.
+ * dashes are even however high that is and wherever it starts (`dashArray`), at any ratio of
+ * device pixels, followed as it changes, e.g. with the zoom of the window. `fromEnd`, while the
+ * height changes, e.g. in the band as a row comes in, they stay put from the end instead, cut off
+ * at the start.
  */
 function Dashes({
   line,
@@ -274,6 +297,7 @@ function Dashes({
 }) {
   const box = useRef<HTMLSpanElement>(null);
   const [height, setHeight] = useState(0);
+  const ratio = useDevicePixelRatio();
   useLayoutEffect(() => {
     const element = box.current;
     if (element === null || fromEnd) return;
@@ -284,10 +308,11 @@ function Dashes({
     observer.observe(element);
     return () => observer.disconnect();
   }, [fromEnd]);
-  const period = DASH + GAP;
-  const scale =
-    fromEnd || height <= 0 ? 1 : height / Math.max(1, Math.round(height / period)) / period;
-  const half = (GAP * scale) / 2;
+  const array = dashArray(
+    fromEnd || height <= 0 ? null : Math.round(height * ratio),
+    Math.max(1, Math.round(DASH * ratio)),
+    Math.max(1, Math.round(GAP * ratio)),
+  );
   return (
     <span ref={box} className={styles.dashes} style={cssVars({ "--top": top, "--bottom": bottom })}>
       <svg aria-hidden="true" width={x(line.lane) + LANE / 2} height="100%" data-dashes={line.lane}>
@@ -298,7 +323,7 @@ function Dashes({
           y1={fromEnd ? "100%" : 0}
           y2={fromEnd ? 0 : "100%"}
           stroke={colourOf(line.colour)}
-          strokeDasharray={`0 ${half} ${DASH * scale} ${half}`}
+          strokeDasharray={array.map((each) => each / ratio).join(" ")}
         />
       </svg>
     </span>

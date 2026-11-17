@@ -1,6 +1,9 @@
-import { render } from "@testing-library/react";
+/// <reference types="@vitest/browser-playwright" />
+// The types of the devtools protocol of Chromium (`cdp`), as Playwright gives it.
+import { cleanup, render } from "@testing-library/react";
 import type { CSSProperties } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cdp, server } from "vitest/browser";
 import { GraphCell, GraphTips } from "./Graph";
 import styles from "./Graph.module.css";
 import { Layout, type NodeKind } from "./lanes";
@@ -108,16 +111,132 @@ describe("a stretch in a graph", () => {
   it("fits whole dashes, of about the same length, to rows of any height", () => {
     for (const height of [24, 23.5, 37, 61]) {
       const piece = stretch(height).querySelector("svg[data-dashes]");
-      const [none, half, dash] = (
-        piece?.querySelector("line")?.getAttribute("stroke-dasharray") ?? ""
-      )
-        .split(" ")
-        .map(Number) as [number, number, number];
-      expect(none).toBe(0); // starts with half a gap, so that rows meet with a whole one
-      const periods = box(piece).height / (2 * half + dash);
-      expect(periods).toBeCloseTo(Math.round(periods), 3);
-      expect(Math.abs(dash - 2)).toBeLessThan(0.3);
-      expect(2 * half).toBeCloseTo(1.5 * dash, 3);
+      evenDashes(piece, 1);
     }
   });
 });
+
+describe("a lane dashed at any ratio of device pixels", () => {
+  /** u uncommitted on t: its lane dashed from its node, a fraction of a pixel down, in a row
+   * `height` high, as in the app. */
+  function belowNode(height: number) {
+    const layout = new Layout({});
+    layout.add({ hash: "u", parents: ["t"], uncommitted: true });
+    layout.add({ hash: "t", parents: [] });
+    const vars = {
+      "--graph-width": "40px",
+      "--graph-node-y": "12.15px",
+      "--background": "white",
+    } as CSSProperties;
+    const { container } = render(
+      <div style={{ position: "relative", height, background: "white", ...vars }}>
+        <GraphCell layout={layout} row={0} />
+      </div>,
+    );
+    return container.firstElementChild as HTMLElement;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws dashes and gaps of whole device pixels, the dashes of one length", () => {
+    for (const ratio of [1, ZOOMED_IN, 1.25, 1.5, 2, ZOOMED_OUT]) {
+      vi.stubGlobal("devicePixelRatio", ratio);
+      for (const height of [24.3, 26.3, 61]) {
+        const piece = belowNode(height).querySelector("svg[data-dashes]");
+        evenDashes(piece, ratio);
+      }
+    }
+  });
+
+  // As Chromium draws them, in a screenshot at a ratio set by its devtools protocol, as zooming sets
+  // one; the others have no such protocol.
+  it.runIf(server.browser === "chromium")(
+    "shows the dashes below a node of one length at fractional ratios",
+    async () => {
+      const session = cdp();
+      try {
+        for (const ratio of [ZOOMED_IN, 1.25, 1.5]) {
+          await session.send("Emulation.setDeviceMetricsOverride", {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            deviceScaleFactor: ratio,
+            mobile: false,
+          });
+          // Drawn anew at the ratio: for a ratio set so, Chromium tells no media query of the change.
+          const row = belowNode(61);
+          await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 50)));
+          const runs = await inkDown(session, row.querySelector("svg[data-dashes]"), 6);
+          const dashes = runs.slice(1, -1).filter((run) => run.ink);
+          expect(dashes.length).toBeGreaterThan(5);
+          expect(new Set(dashes.map((run) => run.length))).toEqual(
+            new Set([Math.round(2 * ratio)]),
+          );
+          cleanup();
+        }
+      } finally {
+        await session.send("Emulation.clearDeviceMetricsOverride", {});
+      }
+    },
+  );
+});
+
+// The ratios of the Desktop zoomed a step in and out (its `ZOOM_STEP`, of a level, 1.2 each).
+const ZOOMED_IN = 1.2 ** 0.5;
+const ZOOMED_OUT = 1.2 ** -0.5;
+
+/**
+ * Checks the dash array of a lane dashed, in device pixels: each a whole number of them; the
+ * dashes of about 2 CSS px, all of one length; the gaps between them within a pixel of each other;
+ * and half of one about at each end, so that pieces meet with a gap as any other.
+ */
+function evenDashes(piece: Element | null, ratio: number) {
+  const array = (piece?.querySelector("line")?.getAttribute("stroke-dasharray") ?? "")
+    .split(" ")
+    .map((each) => Number(each) * ratio);
+  for (const each of array) expect(each).toBeCloseTo(Math.round(each), 6);
+  // 0, the gap above, then each dash and the gap after it, the last to beyond the end.
+  const [none, above, ...rest] = array.map(Math.round);
+  expect(none).toBe(0);
+  const dashes = rest.filter((_, i) => i % 2 === 0);
+  const gaps = rest.slice(1, -1).filter((_, i) => i % 2 === 0);
+  expect(new Set(dashes)).toEqual(new Set([Math.round(2 * ratio)]));
+  if (gaps.length === 0) return;
+  expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThanOrEqual(1);
+  const end = rest.slice(0, -1).reduce((sum, each) => sum + each, above ?? 0);
+  const below = box(piece).height * ratio - end;
+  const gap = gaps.reduce((sum, each) => sum + each, 0) / gaps.length;
+  expect(Math.abs((above ?? 0) + below - gap)).toBeLessThanOrEqual(1.5);
+}
+
+/** The runs of ink and of none down the middle of the lane dashed in `piece`, in device pixels
+ * of a screenshot, from `below` CSS px under its top. */
+async function inkDown(session: ReturnType<typeof cdp>, piece: Element | null, below: number) {
+  const ratio = devicePixelRatio;
+  const line = piece?.querySelector("line") as SVGLineElement;
+  const at = box(piece);
+  const { data } = (await session.send("Page.captureScreenshot", { format: "png" })) as {
+    data: string;
+  };
+  const png = Uint8Array.from(atob(data), (each) => each.charCodeAt(0));
+  const image = await createImageBitmap(new Blob([png], { type: "image/png" }));
+  const canvas = new OffscreenCanvas(image.width, image.height);
+  const context = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+  context.drawImage(image, 0, 0);
+  // The tests run in a frame of the page the screenshot is of.
+  const frame = (window.frameElement as HTMLElement).getBoundingClientRect();
+  const scale = frame.width / window.innerWidth;
+  const column = Math.floor((frame.left + (at.left + line.x1.baseVal.value) * scale) * ratio);
+  const top = Math.round((frame.top + (at.top + below) * scale) * ratio);
+  const bottom = Math.round((frame.top + at.bottom * scale) * ratio);
+  const pixels = context.getImageData(column, top, 1, bottom - top).data;
+  const runs: { ink: boolean; length: number }[] = [];
+  for (let i = 0; i < pixels.length; i += 4) {
+    const ink = (pixels[i] ?? 255) + (pixels[i + 1] ?? 255) + (pixels[i + 2] ?? 255) < 3 * 200;
+    const last = runs.at(-1);
+    if (last?.ink === ink) last.length += 1;
+    else runs.push({ ink, length: 1 });
+  }
+  return runs;
+}
