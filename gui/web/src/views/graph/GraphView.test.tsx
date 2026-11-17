@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { Schemas } from "../../api/client";
+import { exactRequests } from "../../test/fuzz";
 import { listRows } from "../../test/list";
 import {
   clone,
@@ -222,6 +223,21 @@ const asked = (requests: Request[], path: string) =>
       "http://none",
   ).searchParams;
 
+/** Until which commits each request for lines asked. */
+const untils = (requests: Request[]) =>
+  requests.flatMap((request) => {
+    const url = new URL(request.url);
+    return url.pathname === "/api/graph/lines" ? [url.searchParams.getAll("until")] : [];
+  });
+
+/** Where in the walk each page asked for after the first starts. */
+const skips = (requests: Request[]) =>
+  requests.flatMap((request) => {
+    const url = new URL(request.url);
+    const skip = url.pathname === "/api/history" ? url.searchParams.get("skip") : null;
+    return skip === null ? [] : [skip];
+  });
+
 const nodes = () =>
   [...document.querySelectorAll<SVGElement>("svg[data-node]")].map((node) => ({
     kind: node.getAttribute("data-node"),
@@ -229,6 +245,16 @@ const nodes = () =>
   }));
 
 const chip = (name: string) => screen.getByRole("button", { name });
+
+/**
+ * The Graph drawn: a row, and what other answers bring, which may come later: the chips of the
+ * Checkouts, from `/api/graph`, and the title, from `/api/repositories`, as their names are.
+ */
+async function drawn(row: string | RegExp = "Commit b"): Promise<void> {
+  await screen.findByText(row);
+  await screen.findByRole("navigation", { name: "Checkouts" });
+  await waitFor(() => expect(screen.getByRole("heading")).toHaveTextContent(/^Graph: proj/));
+}
 const colour = (element: HTMLElement) => element.style.getPropertyValue("--chip-colour");
 
 function Graph({ initial }: { initial: Params }) {
@@ -249,7 +275,7 @@ describe("the Graph View", () => {
   it("walks all local branches topologically, the default branch pinned in lane 0", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await expectSettled();
     const history = asked(requests, "/api/history");
     expect([history.get("branches"), history.get("order"), history.get("clone")]).toEqual([
@@ -270,7 +296,7 @@ describe("the Graph View", () => {
   it("lists by date once toggled, keeping it in the address", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(screen.getByRole("button", { name: "Topological order" }));
     expect(screen.getByRole("status")).toHaveTextContent("graph?clone=clone-proj&order=date");
     await waitFor(() => expect(asked(requests, "/api/history").get("order")).toBe("date"));
@@ -279,7 +305,7 @@ describe("the Graph View", () => {
   it("shows branch tips only once toggled, a row counting the commits between", async () => {
     const requests = serveGraph({ tips: TIPS });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(screen.getByRole("button", { name: "All commits" }));
     expect(screen.getByRole("status")).toHaveTextContent("graph?clone=clone-proj&tips=only");
     const counted = await screen.findByText(/^2 commits, Oct [13] – Oct [34]$/);
@@ -320,7 +346,7 @@ describe("the Graph View", () => {
   it("draws the graph as wide as its column as it is dragged, not once the View draws again", async () => {
     serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const frame = document.querySelector("[data-layout]") as HTMLElement;
     const width = () => frame.style.getPropertyValue("--graph-width");
     const before = Number.parseFloat(width());
@@ -392,12 +418,15 @@ describe("the Graph View", () => {
   it("leaves hidden branches out of the walk, and says so in its title", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature", "old"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(asked(requests, "/api/history").getAll("hide")).toEqual(["feature", "old"]);
-    expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj, 2 hidden");
+    await waitFor(() =>
+      expect(screen.getByRole("heading")).toHaveTextContent("Graph: proj, 2 hidden"),
+    );
   });
 
   it("asks again for commits, branches and lines on refresh", async () => {
+    exactRequests(); // counts what it asks
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
     const subject = await screen.findByText("Commit b");
@@ -427,7 +456,7 @@ describe("the Checkouts in the Graph View", () => {
   it("names where each Checkout is on its badge, and how far it stands in its chip", async () => {
     serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(screen.getByTitle("branch, checked out in worktree feature")).toHaveTextContent(
       "featurefeature",
     );
@@ -447,7 +476,7 @@ describe("the Checkouts in the Graph View", () => {
       worktrees: ["loose"],
     });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(chip("Worktree loose")).toHaveTextContent(`loosedetached at ${hash("b").slice(0, 7)}`);
     expect(
       screen.getByTitle(`HEAD of worktree loose, detached at ${hash("b").slice(0, 7)}`),
@@ -457,7 +486,7 @@ describe("the Checkouts in the Graph View", () => {
   it("marks each chip from the rows with branch tips only, asking for no lines ahead", async () => {
     const requests = serveGraph({ tips: TIPS, holdLines: new Promise(() => {}) });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
-    await screen.findByText(/^2 commits,/);
+    await drawn(/^2 commits,/);
     const feature = screen.getByTitle("branch, checked out in worktree feature");
     await waitFor(() =>
       expect(colour(chip("Worktree feature"))).toBe(feature.style.getPropertyValue("--ref-colour")),
@@ -468,10 +497,24 @@ describe("the Checkouts in the Graph View", () => {
     expect(paths).not.toContain("/api/graph/lines");
   });
 
+  it("asks for no lines ahead with branch tips only, also while those load", async () => {
+    let release = () => {};
+    const holdTips = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const requests = serveGraph({ tips: TIPS, holdTips });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
+    await screen.findByRole("navigation", { name: "Checkouts" }); // the HEADs known
+    await expectSettled();
+    release();
+    await drawn(/^2 commits,/);
+    expect(untils(requests)).toEqual([]);
+  });
+
   it("marks each chip in the colour of its HEAD's line, as its badge is framed", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["old"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const feature = screen.getByTitle("branch, checked out in worktree feature");
     await waitFor(() =>
       expect(colour(chip("Worktree feature"))).toBe(feature.style.getPropertyValue("--ref-colour")),
@@ -500,7 +543,7 @@ describe("the Checkouts in the Graph View", () => {
     ];
     serveGraph({ graph, pages, worktrees: ["old"] });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await waitFor(() => expect(colour(chip("Worktree old"))).toBe("var(--accent)"));
     expect(
       screen
@@ -512,7 +555,7 @@ describe("the Checkouts in the Graph View", () => {
   it("marks no chip but the default branch's until the lines are laid out", async () => {
     serveGraph({ holdLines: new Promise(() => {}) });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(colour(chip("Clone proj"))).toBe("var(--accent)");
     expect(colour(chip("Worktree feature"))).toBe("");
   });
@@ -554,7 +597,7 @@ describe("the Checkouts in the Graph View", () => {
         skip > 0 ? older.promise : refreshed ? first.promise : undefined;
       const requests = serveGraph({ graph, pages: () => now, worktrees: ["old"], hold });
       renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-      await screen.findByText("Commit b");
+      await drawn();
       await userEvent.click(chip("Worktree old"));
       await waitFor(() => expect(asked(requests, "/api/history").get("skip")).toBe("3"));
       [now, refreshed] = [changed, true];
@@ -620,7 +663,7 @@ describe("the Checkouts in the Graph View", () => {
     const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
     serveGraph({ graph, pages: [COMMITS, [commit("o", [])]], worktrees: ["old"], hold });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(chip("Worktree old"));
     const away = document.body.appendChild(document.createElement("input"));
     away.focus(); // e.g. a Terminal View in another Group
@@ -644,7 +687,7 @@ describe("the Checkouts in the Graph View", () => {
       hold,
     });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(chip("Worktree old"));
     await waitFor(() => expect(asked(requests, "/api/history").get("skip")).toBe("3"));
     await userEvent.click(screen.getByRole("button", { name: "Topological order" }));
@@ -659,14 +702,14 @@ describe("the Checkouts in the Graph View", () => {
     const graph = { ...GRAPH, heads: [MAIN, FEATURE, elsewhere("old", "o")] };
     const requests = serveGraph({ graph, pages: [COMMITS, [commit("o", [])]], worktrees: ["old"] });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(screen.queryByText("Commit o")).toBeNull();
     await userEvent.click(chip("Worktree old"));
     await screen.findByText("Commit o");
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(went.mock.contexts[0]).toHaveTextContent("Commit o");
     expect(document.activeElement).toHaveTextContent("Commit o"); // the row, focused
-    expect(asked(requests, "/api/history").get("skip")).toBe("3");
+    expect(skips(requests)).toContain("3"); // the last one may be a refetch since
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/); // a jump only
     expect(screen.queryByText(/^Loading towards/)).toBeNull(); // done before its chip said so
     expect(chip("Worktree old")).not.toHaveAttribute("data-busy");
@@ -686,7 +729,7 @@ describe("the Checkouts in the Graph View", () => {
     const pages = [COMMITS, [commit("x", ["y"])], [commit("y", [])]];
     const requests = serveGraph({ graph, pages, worktrees: ["lost"] });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(chip("Worktree lost"));
     expect(
       await screen.findByText("The HEAD of lost is not among the commits shown"),
@@ -699,9 +742,30 @@ describe("the Checkouts in the Graph View", () => {
       ),
     );
     // known from the lines, which walked all without it: no page after page to look in
-    expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("q")]);
+    expect(untils(requests)).toContainEqual([hash("q")]);
     expect(screen.queryByText("Commit y")).toBeNull();
     expect(went).not.toHaveBeenCalled();
+  });
+
+  it("loads no page towards a HEAD before the lines say whether it is on the walk", async () => {
+    let release = () => {};
+    const holdLines = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const graph = { ...GRAPH, heads: [MAIN, elsewhere("lost", "q")] };
+    const pages = [COMMITS, [commit("x", ["y"])], [commit("y", [])]];
+    const requests = serveGraph({ graph, pages, worktrees: ["lost"], holdLines });
+    renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
+    await drawn();
+    await userEvent.click(chip("Worktree lost"));
+    await waitFor(() => expect(untils(requests)).toContainEqual([hash("q")]));
+    await expectSettled();
+    expect(skips(requests)).toEqual([]);
+    release();
+    expect(
+      await screen.findByText("The HEAD of lost is not among the commits shown"),
+    ).toBeInTheDocument();
+    expect(skips(requests)).toEqual([]);
   });
 
   it("says no longer that a HEAD is not shown once a refresh shows it", async () => {
@@ -709,7 +773,7 @@ describe("the Checkouts in the Graph View", () => {
     let pages = [COMMITS];
     serveGraph({ graph, pages: () => pages, worktrees: ["lost"] });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(chip("Worktree lost"));
     await screen.findByText("The HEAD of lost is not among the commits shown");
     pages = [[commit("q", ["m"]), ...COMMITS]]; // its branch shown again, by git or by hand
@@ -722,7 +786,7 @@ describe("the Checkouts in the Graph View", () => {
   it("waits in the lines laid out ahead only for HEADs walked, not of hidden branches", async () => {
     const requests = serveGraph({ only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await expectSettled();
     // The HEAD of feature on no line walked: waited for, the lines would be walked to their limit
     expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("m")]);
@@ -758,7 +822,7 @@ describe("the Checkouts in the Graph View", () => {
     });
     const errors = vi.spyOn(console, "error");
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const title = `HEAD of worktree twin, detached at ${hash("b").slice(0, 7)}`;
     expect(screen.getAllByTitle(title)).toHaveLength(2);
     expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
@@ -766,6 +830,9 @@ describe("the Checkouts in the Graph View", () => {
   });
 
   it("turns a chip while going to its HEAD, stopped by a click on it, or by Escape", async () => {
+    // The page asked for before it stopped still comes: a refetch cancelling it would leave it
+    // to the end of the list, which comes into view only in a browser.
+    exactRequests();
     let release = () => {};
     const hold = new Promise<void>((resolve) => {
       release = resolve;
@@ -773,7 +840,7 @@ describe("the Checkouts in the Graph View", () => {
     const graph = { ...GRAPH, heads: [MAIN, elsewhere("old", "o")] };
     serveGraph({ graph, pages: [COMMITS, [commit("o", [])]], worktrees: ["old"], hold });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(chip("Worktree old"));
     expect(await screen.findByText(/^Loading towards old$/)).toBeInTheDocument(); // said once
     expect(chip("Worktree old")).toHaveAttribute("data-busy", "true");
@@ -800,7 +867,7 @@ describe("the Checkouts in the Graph View", () => {
   it("shows a hidden branch's chip faint, and shows the branch again on a click", async () => {
     serveGraph({ only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(screen.queryByText("Commit f")).toBeNull();
     expect(chip("Worktree feature")).toHaveAttribute("data-hidden", "true");
     await userEvent.click(chip("Worktree feature"));
@@ -814,7 +881,7 @@ describe("the Checkouts in the Graph View", () => {
   it("hides the default branch's badge, and its lane and accent, while it is hidden", async () => {
     serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["main"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(screen.queryByTitle("branch, checked out in clone proj")).toBeNull();
     expect(screen.getByTitle("branch, checked out in worktree feature")).toBeInTheDocument();
     // feature in lane 0, the commit of main beside it: no lane kept for it
@@ -829,7 +896,7 @@ describe("the Checkouts in the Graph View", () => {
   it("opens at a Worktree's HEAD, its chip marked", async () => {
     serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj", at: "wt-proj-feature" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(chip("Worktree feature")).toHaveAttribute("aria-current", "true");
     expect(chip("Clone proj")).not.toHaveAttribute("aria-current");
@@ -929,7 +996,7 @@ describe("the Graph View as its repository changes", () => {
       worktrees: () => (removed ? [] : ["feature"]),
     });
     const { client } = renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit f");
+    await drawn("Commit f");
     expect(chip("Worktree feature")).toBeInTheDocument();
     removed = true;
     await client.invalidateQueries();
@@ -959,7 +1026,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     };
     const requests = serveGraph({ graph, pages });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     expect(goTo()).toHaveTextContent("Go to…");
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "old" }));
@@ -988,7 +1055,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     ];
     const requests = serveGraph({ pages, only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(goTo());
     const field = within(picker()).getByRole("searchbox");
     await within(picker()).findByRole("option", { name: "main" });
@@ -1014,7 +1081,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   it("shows a hidden branch picked again, then goes to it", async () => {
     serveGraph({ only: { feature: ["f"] } });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", hide: ["feature"] }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
     expect(screen.getByRole("status")).toHaveTextContent(/^graph\?clone=clone-proj$/);
@@ -1024,6 +1091,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   });
 
   it("turns while going to what was picked, stopped by a click on it", async () => {
+    exactRequests(); // the page asked for before it stopped still comes, as for a chip
     let release = () => {};
     const hold = new Promise<void>((resolve) => {
       release = resolve;
@@ -1031,7 +1099,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     const pages = [COMMITS, [commit("o", [], { refs: [branch("old", "o")] })]];
     serveGraph({ pages, hold });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "old" }));
     await waitFor(() => expect(goTo()).toHaveAttribute("data-busy", "true"));
@@ -1061,7 +1129,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     ];
     const requests = serveGraph({ tips: TIPS, pages });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
-    await screen.findByText(/^2 commits,/);
+    await drawn(/^2 commits,/);
     await userEvent.click(goTo());
     const field = within(picker()).getByRole("searchbox");
     await userEvent.type(field, hash("f2")); // by its hash: no message matches, so resolved
@@ -1097,6 +1165,8 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     await userEvent.type(field, hash("f2"));
     await within(picker()).findByText("Nothing matches.");
     await userEvent.type(field, "{Enter}");
+    // The picker closes once git resolved what was typed, which the Server answers.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByRole("status")).toHaveTextContent("tips=only");
     release();
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
@@ -1107,7 +1177,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   it("keeps branch tips only for a commit picked not on the walk, and says so", async () => {
     serveGraph({ tips: TIPS });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
-    await screen.findByText(/^2 commits,/);
+    await drawn(/^2 commits,/);
     await userEvent.click(goTo());
     const field = within(picker()).getByRole("searchbox");
     await userEvent.type(field, "abc1234");
@@ -1121,7 +1191,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   it("keeps branch tips only for a commit picked among those kept", async () => {
     serveGraph({ tips: TIPS });
     renderWithQueries(<Graph initial={{ clone: "clone-proj", tips: "only" }} />);
-    await screen.findByText(/^2 commits,/);
+    await drawn(/^2 commits,/);
     await userEvent.click(goTo());
     await userEvent.click(await within(picker()).findByRole("option", { name: "feature" }));
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
@@ -1131,7 +1201,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
   it("says on the button when what was picked is not on the walk", async () => {
     const requests = serveGraph();
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     await userEvent.click(goTo());
     const field = within(picker()).getByRole("searchbox");
     await userEvent.type(field, "abc1234");
@@ -1140,7 +1210,7 @@ describe("going to a branch, tag or commit in the Graph View", () => {
     expect(await screen.findByText("abc1234 is not among the commits shown")).toBeInTheDocument();
     expect(goTo()).toHaveAttribute("data-missed", "true");
     expect(goTo()).toHaveAttribute("title", "abc1234 is not among the commits shown; pick another");
-    expect(asked(requests, "/api/graph/lines").getAll("until")).toEqual([hash("abc1234")]);
+    expect(untils(requests)).toContainEqual([hash("abc1234")]);
     expect(went).not.toHaveBeenCalled();
   });
 });
@@ -1168,7 +1238,7 @@ describe("the branch filter of the Graph View", () => {
   it("lists the local branches, the default one first, and hides one unticked", async () => {
     const requests = serveGraph({ graph: withOld });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const dialog = await open();
     expect(within(dialog).getByRole("radio", { name: "All local branches" })).toBeChecked();
     expect(listed(dialog)).toEqual([
@@ -1198,7 +1268,7 @@ describe("the branch filter of the Graph View", () => {
   it("shows only one branch, or all again", async () => {
     serveGraph({ graph: withOld });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const dialog = await open();
     await userEvent.click(within(dialog).getByRole("button", { name: "Only feature" }));
     expect(status()).toHaveTextContent(/^graph\?clone=clone-proj&hide=main&hide=old$/);
@@ -1212,7 +1282,7 @@ describe("the branch filter of the Graph View", () => {
   it("walks only the branches of Checkouts and the default one, when asked", async () => {
     const requests = serveGraph({ graph: withOld });
     renderWithQueries(<Graph initial={{ clone: "clone-proj" }} />);
-    await screen.findByText("Commit b");
+    await drawn();
     const dialog = await open();
     await userEvent.click(
       within(dialog).getByRole("radio", { name: "Branches of worktrees, and the default branch" }),

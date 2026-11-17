@@ -155,9 +155,12 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   const walkedHeads = placed.flatMap(({ head }) =>
     head.commit && !(head.branch !== null && hidden.includes(head.branch)) ? [head.commit] : [],
   );
-  // With branch tips only, all HEADs are among the rows, drawn as the list draws them.
+  // With branch tips only, all HEADs are among the rows, drawn as the list draws them: none
+  // asked for, also while those rows load.
   const lines = useGraphLines(
-    walk && known && !tips ? { ...walk, until: walkedHeads, limit: LINES_LIMIT } : undefined,
+    walk && known && !tipsOnly && !tips
+      ? { ...walk, until: walkedHeads, limit: LINES_LIMIT }
+      : undefined,
   );
   const laid = tips
     ? graphOf(listed, undefined, drawing)
@@ -199,12 +202,15 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
       target.commit ? { key: target.key, name: target.name, commit: target.commit } : null,
     );
   };
-  const reach = useGraphLines(
+  const reaching =
     walk && towards && !laid?.rows.has(towards.commit)
       ? { ...walk, until: [towards.commit], limit: LINES_LIMIT }
-      : undefined,
-  );
+      : undefined;
+  const reach = useGraphLines(reaching);
   const reachKnown = reach.data !== undefined && !reach.isPlaceholderData;
+  // Whether it is on the walk at all, asked first: no page loaded before the lines say so, as
+  // all would be for a tag elsewhere. Pages all the same if they could not.
+  const reachAwaited = reaching !== undefined && !reachKnown && !reach.isError;
   const offWalk =
     towards !== null &&
     reachKnown &&
@@ -242,7 +248,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     } else if (!hasNextPage || offWalk) {
       setMissed(towards); // e.g. its branch hidden, or a tag on none walked
       setTowards(null);
-    } else if (!isFetching) {
+    } else if (!isFetching && !reachAwaited) {
       void fetchNextPage(); // not while all pages load anew: it would cut that short (`Paging`)
     }
   }, [
@@ -256,6 +262,7 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
     offWalk,
     tipsOnly,
     reachKnown,
+    reachAwaited,
     params,
     setParams,
   ]);
