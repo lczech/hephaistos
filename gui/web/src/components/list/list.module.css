@@ -11,7 +11,7 @@
   --row-space: var(--space-half); /* above and below each row's content */
   /* A row's height, and the header's: a line, and their room above and below; the header's as
      drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. In lines, a
-     row is higher than its first line (`--row-whole`, below). */
+     row has a height of its own (`--row-whole`, below). */
   --row-height: calc(1lh + 2 * var(--row-space));
   --head-height: calc(1lh + 2 * var(--space-half));
   container: list / inline-size; /* sizes by the list's width, not the window's */
@@ -650,14 +650,22 @@
 }
 
 /* In lines, a row's whole height: a line, one of the smaller text below it, and the room around
- * them; as in columns for a list whose rows stay in one line. */
+ * them; a row with nothing for the second line (the columns' `second`, for the row), its first
+ * line and the room alone, as the band is; as in columns for a list whose rows stay in one line.
+ * Whether a row has a second line comes from what kind of row it is, never from what it holds,
+ * so a row keeps its height. */
 .frame[data-layout="lines"]:not([data-one-line]) {
   --row-whole: calc(1lh + var(--line-small) + 2 * var(--space-1));
 }
 
+.frame[data-layout="lines"]:not([data-one-line]) .row:not(:has(> .line + .line)) {
+  --row-whole: calc(1lh + 2 * var(--space-1));
+}
+
 /*
- * In lines: each row in two lines, with more room around them, each line a row of its own that
- * does not wrap (`inLines`), so that what does not fit is cut off and every row is as high. The
+ * In lines: each row in two lines, or its first alone where it has nothing for the second, with
+ * more room around them, each line a row of its own that does not wrap (`inLines`), so that what
+ * does not fit is cut off and a row keeps its height. The
  * first holds the square, what the row is and its icons; the second its details (the columns'
  * `second`), one after the other, from where what the row is starts (`--narrow-indent` from the
  * row's start, else the square's width). The View orders the cells in each line (`order`) and

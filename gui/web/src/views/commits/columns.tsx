@@ -176,7 +176,7 @@ export function commitColumns(lanes: number | undefined) {
       id: "author",
       header: "author",
       size: 140,
-      meta: { second: true },
+      meta: { second: (entry: Entry) => entry.type === "commit" }, // only a commit has one
       cell: ({ row }) =>
         row.original.type === "commit" ? (
           <span title={row.original.commit.author.email}>{row.original.commit.author.name}</span>
@@ -189,7 +189,7 @@ export function commitColumns(lanes: number | undefined) {
       header: "authored",
       size: 88,
       meta: {
-        second: true,
+        second: (entry: Entry) => entry.type === "commit",
         figures: true,
         align: "right",
         description: "When the commit was authored; its details also show when it was committed",

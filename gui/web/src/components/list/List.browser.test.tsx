@@ -1521,12 +1521,12 @@ describe("a list's band, below its header", () => {
     const own = ownRowOf("fruit 20");
     const name = own.querySelector('[data-column="name"]')?.getBoundingClientRect();
     expect(own.getBoundingClientRect().top).toBeCloseTo(band?.bottom ?? 0, 0);
-    // As high as the first line, with its room above and below, though the row is as high as
-    // two lines, as rows in lines are, also those without a second, as here.
+    // As high as the first line, with its room above and below, as a row without a second line
+    // is, as here; a row with one is higher (`a list's row in two lines, with nothing…`).
     const room = (name?.top ?? 0) - own.getBoundingClientRect().top;
     expect(room).toBeGreaterThan(0);
     expect(band?.height ?? 0).toBeCloseTo((name?.height ?? 0) + 2 * room, 0);
-    expect(own.getBoundingClientRect().height).toBeGreaterThan((band?.height ?? 0) + 1);
+    expect(own.getBoundingClientRect().height).toBeCloseTo(band?.height ?? 0, 0);
   });
 
   it("hides with the Panel it is in, as dockview hides those not shown", async () => {
@@ -1755,16 +1755,19 @@ function Beside({ at }: { at: number }) {
 
 /**
  * Fruits in a list of the layout, its rows closer together if `compact`; in two lines, their
- * names' lengths on the second, unless `oneLine`. Each holds beside its name what `Beside` says.
+ * names' lengths on the second, unless `oneLine`, the first's on its first if `firstAlone`. Each
+ * holds beside its name what `Beside` says.
  */
 function Laid({
   layout,
   compact = false,
   oneLine = false,
+  firstAlone = false,
 }: {
   layout: ListLayout;
   compact?: boolean;
   oneLine?: boolean;
+  firstAlone?: boolean;
 }) {
   const columns = column.columns([
     column.display({ id: "square", cell: Chevron }),
@@ -1778,7 +1781,12 @@ function Laid({
     }),
     ...(oneLine
       ? []
-      : [column.accessor((fruit) => fruit.name.length, { id: "length", meta: { second: true } })]),
+      : [
+          column.accessor((fruit) => fruit.name.length, {
+            id: "length",
+            meta: { second: firstAlone ? (fruit: Fruit) => fruit !== FRUITS[0] : true },
+          }),
+        ]),
   ]);
   const table = useList("laid", layout, { columns, data: FRUITS.slice(0, 5) });
   return (
@@ -1812,6 +1820,27 @@ const rowHeights = () =>
   [...document.querySelectorAll('[role="rowgroup"] > [role="row"] > :first-child')].map(
     (row) => row.getBoundingClientRect().height,
   );
+
+describe("a list's row in two lines, with nothing for its second", () => {
+  it("is as high as its first line, as the band, the others as high as ever", () => {
+    const { unmount } = render(<Laid layout="lines" />);
+    const [two] = rowHeights();
+    unmount();
+    render(<Laid layout="lines" firstAlone />);
+    const [alone, ...others] = rowHeights();
+    const row = document.querySelector('[role="rowgroup"] > [role="row"] > :first-child');
+    expect(row?.children.length).toBe(1);
+    const { paddingTop, paddingBottom } = getComputedStyle(row as Element);
+    const room = Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom);
+    expect(alone).toBeCloseTo(
+      (row?.firstElementChild?.getBoundingClientRect().height ?? 0) + room,
+      1,
+    );
+    expect(alone).toBeLessThan(two ?? 0);
+    expect(others.length).toBeGreaterThan(1);
+    for (const height of others) expect(height).toBe(two);
+  });
+});
 
 describe("a list's rows in two lines, very narrow", () => {
   it("keep their cells in their two lines, cut off, as high as ever", () => {

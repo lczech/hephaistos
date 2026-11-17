@@ -14,7 +14,7 @@ Only the rows near the view are drawn, by TanStack Virtual (`VirtualRows`), in a
 Each is measured as drawn, not rounded to pixels, and placed by `top`, so that its text lands on whole pixels, as text moved by `transform` to a fraction of a pixel is blurred.
 Rows in view stay where they are as rows come or go before them, put back by their key, as the browser keeps them only where it lays them out itself; at the very top, new rows show.
 Until measured, a list is taken as high as the window, so that its first draw shows rows.
-Every row is as high as a line and the room above and below it (`--row-height`), in two lines a line and one of the smaller text, whatever it holds, so that no row moves those below as what it holds changes, e.g. a hash in monospace, a pixel higher than text: a cell is cut off where it would be wider or higher than its line; its details, below it, are as high as they are.
+Every row is as high as a line and the room above and below it (`--row-height`), in two lines a line and one of the smaller text, or the first line alone for a row with nothing for the second, whatever it holds, so that no row moves those below as what it holds changes, e.g. a hash in monospace, a pixel higher than text: a cell is cut off where it would be wider or higher than its line; its details, below it, are as high as they are.
 A tree's rows are flat, each after the row holding it.
 A list that is part of a page, the Diff's untracked files, draws the rows near the view of what scrolls the page.
 
@@ -117,6 +117,7 @@ Narrower, the room left stays blank.
 A row shows its square and icons beside what it is, its details below, one after the other.
 Each line is a row of its own (`inLines`), which does not wrap: in a very narrow list, cells are cut off, not moved to a third line.
 The cells of a column marked `second` go on the second line; a column may say so per row, as the Repositories View keeps a Repository's time on its one line.
+A row with nothing for the second line, by the kind of row it is, as a Repository or History's uncommitted changes, is one line high, as the band is.
 Columns would only line up by chance there.
 Times go at the end, where they line up.
 The View places the cells, so hidden columns and their order apply only to columns.

@@ -131,7 +131,7 @@ export const columns = column.columns([
     id: "branch",
     header: "branch",
     size: 120,
-    meta: { second: true },
+    meta: { second: (entry: Entry) => entry.type !== "repository" }, // a Repository has none
     cell: ({ row }) => {
       const state = checkout(row.original);
       return state && <span title={branchTitle(state)}>{branchText(state)}</span>;
