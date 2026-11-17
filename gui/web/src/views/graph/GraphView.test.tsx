@@ -623,7 +623,7 @@ describe("the Checkouts in the Graph View", () => {
     await screen.findByText("Commit b");
     await userEvent.click(chip("Worktree old"));
     const away = document.body.appendChild(document.createElement("input"));
-    away.focus(); // e.g. a terminal in another Group
+    away.focus(); // e.g. a Terminal View in another Group
     release();
     await waitFor(() => expect(went).toHaveBeenCalledTimes(1));
     expect(went.mock.contexts[0]).toHaveTextContent("Commit o");

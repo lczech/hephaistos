@@ -233,7 +233,8 @@ export function GraphView({ params, setParams, setTitle }: ViewProps) {
   useEffect(() => {
     if (towards === null || loaded === undefined || previous) return;
     if (reached !== undefined) {
-      // Focused, unless the focus went elsewhere meanwhile, e.g. to a terminal in another Group.
+      // Focused, unless the focus went elsewhere meanwhile, e.g. to a Terminal View in another
+      // Group.
       list.current?.goTo(reached, { focus: !focusElsewhere(page.current) });
       setTowards(null);
     } else if (tipsOnly && !offWalk) {
