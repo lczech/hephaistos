@@ -671,10 +671,10 @@ def test_observations_follow_what_the_keeper_shows(
 
 
 def test_an_ended_one_keeps_the_program_it_last_ran(set_up: Paths) -> None:
-    """The Keeper gives no program for a dead pane."""
+    """The Keeper gives what a dead pane started, e.g. the shell, not what ran last."""
     api = new_id()
     update(set_up, session("api", api, program="make", current_directory=Path("/home/u/proj/b")))
-    update(set_up, session("api", api, program="", ending=END))
+    update(set_up, session("api", api, program="bash", ending=END))
     state = stored(set_up)["api"]
     assert (state.program, state.current_directory) == ("make", Path("/home/u/proj/b"))
 
@@ -708,8 +708,16 @@ def test_one_seen_starting_has_the_program_of_its_command_once_ended(set_up: Pat
     assert stored(set_up)["build"].program == "make"
 
 
-def test_a_shell_seen_only_starting_has_no_program_once_ended(set_up: Paths) -> None:
-    """E.g. killed by a signal at once: nothing says which shell it was."""
+def test_a_shell_seen_only_starting_has_the_program_it_started(set_up: Paths) -> None:
+    """E.g. killed by a signal at once: the Keeper gives the shell it started."""
+    shell = new_id()
+    first_seen(set_up, session("sh", shell, program="bash"), None)
+    update(set_up, session("sh", shell, program="bash", ending=Ending(None, 9, ENDED_AT)))
+    assert stored(set_up)["sh"].program == "bash"
+
+
+def test_a_shell_whose_program_is_not_known_has_none(set_up: Paths) -> None:
+    """Where the Keeper knows neither, e.g. for a session started by hand."""
     shell = new_id()
     first_seen(set_up, session("sh", shell, program=""), None)
     update(set_up, session("sh", shell, program="", ending=Ending(None, 9, ENDED_AT)))

@@ -58,13 +58,16 @@ NO_BUS = "unix:path=/nonexistent/hephaistos/bus"
 BUS_VARIABLE = "DBUS_SESSION_BUS_ADDRESS"
 TERMINAL_UNIT = "hephaistos-terminal"  # with systemd, each Terminal runs in `<it>-<ID>.scope`
 #: What we start a program with, each running until it executes the program: what tmux gives as
-#: the program of a pane while it starts, and of a dead pane. Not that of the Terminal.
+#: the program of a pane while it starts, and of a dead pane. Not that of the Terminal: the
+#: Keeper gives what the pane started instead, from `STARTED_OPTION`.
 WRAPPERS = frozenset({"env", "systemd-run"})
 
-#: Our options: on a session, the ID of its Terminal; on the pane of a command, a marker that
-#: it is one, which keeps it once ended; on a pane kept once ended, a marker that our hook kept
-#: it; on the server, the config marker, and one for the job that reaps.
+#: Our options: on a session, the ID of its Terminal; on its pane, the name of the program it
+#: started, e.g. `bash`; on the pane of a command, a marker that it is one, which keeps it once
+#: ended; on a pane kept once ended, a marker that our hook kept it; on the server, the config
+#: marker, and one for the job that reaps.
 ID_OPTION = "@hephaistos_id"
+STARTED_OPTION = "@hephaistos_started"
 COMMAND_OPTION = "@hephaistos_command"
 ENDED_OPTION = "@hephaistos_ended"
 CONFIG_OPTION = "@hephaistos_config"
@@ -97,6 +100,7 @@ _FIELDS = (
     "#{session_path}",
     "#{pane_current_path}",
     "#{pane_current_command}",
+    f"#{{{STARTED_OPTION}}}",  # what it gives while it starts, or once ended, see `WRAPPERS`
     "#{pane_pid}",
     "#{session_attached}",
     "#{session_created}",
@@ -518,6 +522,7 @@ class TmuxKeeper:
             directory,
             current,
             program,
+            started,
             pid,
             attached,
             created,
@@ -547,7 +552,7 @@ class TmuxKeeper:
                 name=name,
                 directory=tmux_path(directory),
                 current_directory=tmux_path(current) if current else None,
-                program="" if program in WRAPPERS else program,
+                program=started if program in WRAPPERS else program,
                 pid=int(pid) if pid else None,  # a dead pane holds none since 3.8
                 attached=int(attached),
                 created_at=_time(created),
@@ -672,6 +677,7 @@ class TmuxKeeper:
             variables[BUS_VARIABLE] = self.scopes.environment[BUS_VARIABLE]
         pairs = [arg for item, value in variables.items() for arg in ("-e", f"{item}={value}")]
         program = list(command) if command else [login_shell(environment), "-l"]
+        started = Path(program[0]).name
         # tmux sets these for each program it starts, with no option against it. Without them, a
         # `tmux` typed in the Terminal reaches the tmux of the user, as from any terminal emulator.
         hidden = [*HIDDEN, *([] if BUS_VARIABLE in variables else [BUS_VARIABLE])]
@@ -687,6 +693,7 @@ class TmuxKeeper:
             *map(_escaped, pairs),
             *map(_escaped, program),
             ";", "set-option", ID_OPTION, str(terminal_id),  # without a target: the new session
+            ";", "set-option", "-p", STARTED_OPTION, _escaped(started),  # its pane
             *([";", "set-option", "-p", COMMAND_OPTION, "1"] if command else []),  # its pane
         ]  # fmt: skip
         result = self._client(*args, scoped=not self.running())

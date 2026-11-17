@@ -90,7 +90,8 @@ A new Terminal also gets the variables of its creator that a terminal emulator p
 Its session bus is that of its creator, else that of the manager, else none, never the one hidden from the server.
 tmux sets `TMUX` and `TMUX_PANE` for each program it starts; each Terminal starts through `env -u`, which removes them, then becomes the program.
 So a `tmux` typed in a Terminal reaches the tmux of the user, as from any terminal emulator, and programs see no sign of tmux.
-Until these wrappers (`env`, `systemd-run`) become the program, tmux gives one of them as the program of the pane, as it does for a dead pane: the Keeper gives no program then, and an ended Terminal keeps the one last seen, else the name of the program of its command.
+Until these wrappers (`env`, `systemd-run`) become the program, tmux gives one of them as the program of the pane, as it does for a dead pane.
+So `create` sets the name of the program it starts, e.g. `bash`, on the pane (`@hephaistos_started`), and the Keeper gives that then; an ended Terminal keeps the program last seen, else that one, else, for a session started by hand, the name of the program of its command.
 
 ### Listing
 

@@ -489,11 +489,11 @@ def test_a_command_that_exits_stays_with_its_screen(
 
 
 @pytest.mark.parametrize("wrapper", ["env", "systemd-run"])
-def test_no_program_while_a_wrapper_starts_it(
+def test_the_program_started_while_a_wrapper_starts_it(
     keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, wrapper: str
 ) -> None:
     """tmux gives the wrapper that starts the program of a pane until it becomes the program:
-    caught at that moment, as by tmux listing it instead."""
+    caught at that moment, as by tmux listing it instead. The Keeper gives what it started."""
     new(keeper, "api", tmp_path, "sleep", "30")
     eventually(lambda: keeper.session("api").program == "sleep")
     client = keeper._client  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
@@ -510,14 +510,32 @@ def test_no_program_while_a_wrapper_starts_it(
         return result
 
     monkeypatch.setattr(keeper, "_client", starting)
-    assert keeper.session("api").program == ""
+    assert keeper.session("api").program == "sleep"
 
 
-def test_an_ended_command_has_no_program(keeper: TmuxKeeper, tmp_path: Path) -> None:
+def test_an_ended_command_has_the_program_it_started(keeper: TmuxKeeper, tmp_path: Path) -> None:
     """tmux gives a dead pane the wrapper it started, not what ran in it."""
-    new(keeper, "build", tmp_path, "sh", "-c", "exit 3")
+    new(keeper, "build", tmp_path, "/bin/sh", "-c", "exit 3")
     ending(keeper, "build")
-    assert keeper.session("build").program == ""
+    assert keeper.session("build").program == "sh"
+
+
+def test_a_shell_killed_has_the_shell_as_its_program(keeper: TmuxKeeper, tmp_path: Path) -> None:
+    """Ended by a signal, a shell stays, as a command does; e.g. killed before it was seen."""
+    created = new(keeper, "api", tmp_path, SHELL="/bin/sh")
+    assert created.pid is not None
+    os.kill(created.pid, signal.SIGKILL)
+    assert ending(keeper, "api").signal in (signal.SIGKILL, None)  # tmux before 3.3 says none
+    assert keeper.session("api").program == "sh"
+
+
+def test_a_session_started_by_hand_has_no_started_program(
+    keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    """Only `create` sets it; tmux gives what runs, as ever."""
+    tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path), "sleep 30")
+    eventually(lambda: keeper.session("mine").program == "sleep")
+    assert "@hephaistos_started" not in tmux(keeper, "show-options", "-p", "-t", "mine")
 
 
 def test_a_command_that_ends_at_once_stays(keeper: TmuxKeeper, tmp_path: Path) -> None:
