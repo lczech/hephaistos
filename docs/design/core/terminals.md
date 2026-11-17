@@ -160,7 +160,7 @@ Whether a short command has ended by then depends on timing, e.g. systemd starti
 One whose shell exited already, e.g. by its profile, is refused, as nothing is left of it, and so is one lost at once as its server ended meanwhile.
 
 Attaching gives the command that attaches a terminal emulator: for tmux, `tmux attach-session` with our socket and config, targeting the session by its ID.
-Attaching to an ended Terminal is plain tmux too: its last screen shows, with tmux's line, typing there does nothing, and the prefix with `d` leaves.
+Attaching to an ended Terminal is plain tmux too: its last screen shows, with the line on how it ended; Ctrl+D closes it ([ends](#ends)), other keys do nothing, and the prefix with `d` leaves.
 One whose screen went too is refused, saying how it ended and why its screen went; nothing starts in it again, as its command may have been anything.
 Attaching to a lost Terminal first starts it again, with its ID, name and directory, as the login shell.
 A short `sh` prints a dim line first: that it is a new shell, why it was lost, when that was noticed and when it was last active, and what a command Terminal ran, which does not start again, as it may have been anything, e.g. a deployment: "hephaistos restored this terminal as a new shell, as the machine restarted (noticed 2026-11-16 09:12; last active 2026-11-15 18:03); earlier output is gone; it ran make deploy, which does not start again".

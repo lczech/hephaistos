@@ -94,7 +94,8 @@ def test_the_server_ending_right_after_a_create(
         f'case " $* " in *" new-session "*) "{real}" -L {keeper.socket} kill-server ;; esac\n'
         "exit $status",
     )
-    with pytest.raises(HephaistosError, match=r"^terminal api was lost at once: the tmux server"):
+    lost = r"^terminal api was lost at once, as the tmux server ended; create it again$"
+    with pytest.raises(HephaistosError, match=lost):
         actions.create(set_up, tmp_path, name="api", keeper=like(keeper, binary=str(ending)))
     assert stored(set_up) == {}  # never seen open
 

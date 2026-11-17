@@ -34,7 +34,8 @@ def test_derived_names_follow_their_rules(text: str, name: str | None) -> None:
 @pytest.mark.parametrize("name", ["", "a.b", "x" * 11])
 def test_names_outside_their_rules_are_refused(name: str) -> None:
     with pytest.raises(
-        HephaistosError, match=r"is not a test name: those have only letters, at most 10$"
+        HephaistosError,
+        match=r"is not a test name: a name has 1 to 10 letters; choose another name$",
     ):
         _NO_DOTS.check(name)
 
@@ -54,7 +55,9 @@ def test_a_narrower_first_character() -> None:
     assert _LETTER_FIRST.derived("--") is None
     _LETTER_FIRST.check("a_-")
     for name in ("-a", "_a"):
-        with pytest.raises(HephaistosError, match=r"at most 5, start with a letter$"):
+        with pytest.raises(
+            HephaistosError, match=r"a name has 1 to 5 letters, and starts with a letter; choose"
+        ):
             _LETTER_FIRST.check(name)
 
 
@@ -62,7 +65,7 @@ def test_a_narrower_first_character() -> None:
 def test_repository_names_outside_the_rules_are_refused(name: str) -> None:
     with pytest.raises(
         HephaistosError,
-        match=r"those have only ASCII letters, digits, '\.', '-' and '_', at most 100,"
-        r" and are not '\.' or '\.\.'$",
+        match=r"a name has 1 to 100 ASCII letters, digits, '\.', '-' and '_', and is not '\.' or"
+        r" '\.\.'; choose another name$",
     ):
         NAMES.check(name)

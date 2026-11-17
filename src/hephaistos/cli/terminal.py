@@ -1,4 +1,4 @@
-"""`hephaistos terminal`: Terminals, shells on this Machine that outlive what shows them."""
+"""`hephaistos terminal`: Terminals, shells or commands that outlive what shows them."""
 
 import logging
 import os
@@ -37,7 +37,8 @@ from hephaistos.core.utils.text import escaped
 log = logging.getLogger(__name__)
 
 app = typer.Typer(
-    no_args_is_help=True, help="Terminals: shells on this machine that outlive what shows them."
+    no_args_is_help=True,
+    help="Terminals: shells or commands on this machine that outlive what shows them.",
 )
 
 NameArgument = Annotated[str, typer.Argument(help="Name of the terminal.")]
@@ -123,17 +124,24 @@ def create(
         typer.Option("--name", "-n", help="Its name; else the directory name, numbered: proj-1."),
     ] = None,
     directory: Annotated[
-        Path, typer.Option("--dir", "-d", help="Where it starts.", show_default="this one")
+        Path,
+        typer.Option(
+            "--dir",
+            "-d",
+            help="Where it starts.",
+            show_default="the current directory",
+            readable=False,  # entering needs execute, which `create` checks itself, and says so
+        ),
     ] = Path(),
     detached: Annotated[
         bool,
         typer.Option(
             "--detached",
-            help="Leave it running without attaching; when not run interactively, always.",
+            help="Do not attach; it never does when not run interactively.",
         ),
     ] = False,
 ) -> None:
-    """Create a terminal, running your shell or a command, and attach to it."""
+    """Create a terminal, running your shell or a command, and attach to it, unless --detached."""
     paths = Paths.from_environment()
     created = actions.create(paths, directory, name=name, command=command)
     if not detached and tty.attachable():
@@ -155,7 +163,7 @@ def attach(name: NameArgument) -> None:
     """Attach to a terminal with tmux; a lost one is restored first, as a shell.
 
     Plain tmux: Ctrl+B d detaches, and leaves the terminal running. An ended one shows its last
-    screen, until killed.
+    screen; Ctrl+D closes it.
     """
     _attached(Paths.from_environment(), name)
 
@@ -267,6 +275,9 @@ def rename(
 ) -> None:
     """Rename a terminal."""
     renamed = actions.rename(Paths.from_environment(), name, new_name)
+    if new_name == name:
+        typer.echo(f"Terminal {escaped(name)} is named so already")
+        return
     typer.echo(f"Renamed terminal {escaped(name)} to {escaped(renamed.name)}")
 
 

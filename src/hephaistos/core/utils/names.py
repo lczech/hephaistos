@@ -36,12 +36,14 @@ class Names:
     def check(self, name: str) -> None:
         """Raises HephaistosError unless `name` is one of these names."""
         if not self._name.fullmatch(name) or name in self.reserved:
-            reserved = " or ".join(f"'{word}'" for word in sorted(self.reserved))
+            rules = [f"has 1 to {self.max_length} {self.described}"]
+            if self.first:
+                rules.append(f"starts with {self.first_described}")
+            if self.reserved:
+                rules.append("is not " + " or ".join(f"'{word}'" for word in sorted(self.reserved)))
+            said = rules[0] if len(rules) == 1 else f"{', '.join(rules[:-1])}, and {rules[-1]}"
             raise HephaistosError(
-                f"{name!r} is not a {self.kind} name: those have only {self.described},"
-                f" at most {self.max_length}"
-                + (f", start with {self.first_described}" if self.first else "")
-                + (f", and are not {reserved}" if reserved else "")
+                f"{name!r} is not a {self.kind} name: a name {said}; choose another name"
             )
 
     def derived(self, text: str) -> str | None:

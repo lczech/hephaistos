@@ -128,8 +128,8 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
             created = state.by_id(session, terminal_id)
         if created is None or created.session_gone:
             if created is not None or not keeper.running():
-                lost = f"terminal {escaped(chosen)} was lost at once: the tmux server ended"
-                raise HephaistosError(lost)
+                lost = f"terminal {escaped(chosen)} was lost at once, as the tmux server ended"
+                raise HephaistosError(f"{lost}; create it again")
             if command is None:
                 raise HephaistosError(_shell_closed_text(chosen, environment))
             # A command stays once ended: someone closed it.

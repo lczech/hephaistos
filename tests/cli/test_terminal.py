@@ -1,4 +1,5 @@
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -199,6 +200,27 @@ def test_errors_are_messages(tmp_path: Path) -> None:
         "'a.b' is not a terminal name"
     )
     assert failed("create", "-d", str(tmp_path / "missing")) == f"no directory {tmp_path}/missing"
+    closed = tmp_path / "closed"
+    closed.mkdir(mode=0)
+    try:  # ours, not the readability check of Typer: entering needs execute, not read
+        assert failed("create", "-d", str(closed)) == f"cannot enter {closed}"
+    finally:
+        closed.chmod(0o700)
+
+
+def test_rename_to_its_own_name(tmp_path: Path) -> None:
+    ok("create", "-n", "api", "-d", str(tmp_path))
+    assert ok("rename", "api", "api") == ["Terminal api is named so already"]
+
+
+def test_help_names_close_and_kill() -> None:
+    result = runner.invoke(app, ["terminal", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "shells or commands" in result.output
+    assert re.search(
+        r"close\s+Close a terminal, as a terminal emulator closes a tab", result.output
+    )
+    assert re.search(r"kill\s+Kill a terminal that does not close", result.output)
 
 
 def test_list_many_quickly(keeper: TmuxKeeper, tmp_path: Path) -> None:
