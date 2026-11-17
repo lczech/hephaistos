@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 import { cssVars } from "../../components/cssVars";
 import { DirectoryPath, Path } from "../../components/files/Path";
 import { Indented, NoteText, TreeChevron } from "../../components/list/TreeCells";
-import { listColumnHelper } from "../../components/list/table";
+import { type ListMeta, listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
 import styles from "./changes.module.css";
 import {
@@ -145,72 +145,95 @@ function GroupName({ entry }: { entry: Extract<Entry, { type: "group" }> }) {
   );
 }
 
+/** What the Changes list's cells draw by, beyond their row: from the View, in the table's `meta`. */
+export interface ChangesLooks {
+  most: number; // the most lines changed in any file, the whole length of a bar
+  folds: (entry: Entry) => boolean; // whether a row has a chevron
+  top: number; // the depth of the groups' own rows, below which rows are indented
+}
+
+declare module "../../components/list/table" {
+  interface ListMeta {
+    changes?: ChangesLooks;
+  }
+}
+
+/** The Changes list's looks, from the table's `meta`, where its View must pass them. */
+function looksOf(meta: ListMeta | undefined): ChangesLooks {
+  if (meta?.changes === undefined)
+    throw new Error("the Changes list's columns need `meta.changes`");
+  return meta.changes;
+}
+
 /**
  * The Changes list's columns: the path takes what the others leave, then the lines, as wide as
  * `--lines-width` says (`linesWidth`, set by the list's View: so that the columns stay as they
  * are, their cells too, when it changes), then their bars, as long as their share of `most`. Rows
- * that `fold` have a chevron; rows below those at depth `top`, the groups' own, are indented.
+ * that `folds` says have a chevron; rows below those at depth `top`, the groups' own, are
+ * indented. Those three come from the View, in the table's `meta` (`ChangesLooks`).
  */
-export function changesColumns(most: number, folds: (entry: Entry) => boolean, top: number) {
-  return column.columns([
-    column.display({
-      id: "square",
-      // In line with the row's path: a tree's chevrons stand before their folders.
-      cell: ({ row }) => (folds(row.original) ? <TreeChevron depth={row.depth - top} /> : ""),
-      enableResizing: false,
-      meta: { width: "var(--square)" },
-    }),
-    column.accessor((entry) => (entry.type === "change" ? entry.change.path : ""), {
-      id: "path",
-      header: "path",
-      enableSorting: true,
-      size: 360,
-      meta: { identifies: true },
-      cell: ({ row }) => {
-        const entry = row.original;
-        if (entry.type === "total")
-          return <span className={styles.group}>Total: {filesText(entry.groups)}</span>;
-        if (entry.type === "group") return <GroupName entry={entry} />;
-        return <Indented depth={row.depth - top}>{pathCell(entry)}</Indented>;
-      },
-    }),
-    column.accessor((entry) => (entry.type === "change" ? changedLines(entry.change) : undefined), {
-      id: "lines",
-      header: "lines",
-      enableSorting: true,
-      sortDescFirst: true,
-      enableResizing: false,
-      meta: {
-        width: "var(--lines-width)",
-        align: "right",
-        description: "Lines added and removed; the size for binary or very large files",
-      },
-      cell: ({ row }) => {
-        const entry = row.original;
-        if (entry.type === "note") return "";
-        if (entry.type !== "change") {
-          const sum = totals(changesOf(entry));
-          return (
-            <span className={styles.total}>
-              <Lines {...sum} />
-            </span>
-          );
-        }
-        const lines = counted(entry);
-        if (lines === undefined)
-          return <span className={styles.other}>{otherText(entry.change)}</span>;
-        return <Lines {...lines} />;
-      },
-    }),
-    column.display({
-      id: "meter",
-      enableResizing: false,
-      // The row's room at its end, as in columns a row has no padding there (`list.module.css`).
-      meta: { width: "calc(var(--meter-length) + var(--space-3))" },
-      cell: ({ row }) => {
-        const lines = counted(row.original);
-        return lines && <Meter {...lines} most={most} />;
-      },
-    }),
-  ]);
-}
+export const changesColumns = column.columns([
+  column.display({
+    id: "square",
+    // In line with the row's path: a tree's chevrons stand before their folders.
+    cell: ({ row, table }) => {
+      const { folds, top } = looksOf(table.options.meta);
+      return folds(row.original) ? <TreeChevron depth={row.depth - top} /> : "";
+    },
+    enableResizing: false,
+    meta: { width: "var(--square)" },
+  }),
+  column.accessor((entry) => (entry.type === "change" ? entry.change.path : ""), {
+    id: "path",
+    header: "path",
+    enableSorting: true,
+    size: 360,
+    meta: { identifies: true },
+    cell: ({ row, table }) => {
+      const entry = row.original;
+      if (entry.type === "total")
+        return <span className={styles.group}>Total: {filesText(entry.groups)}</span>;
+      if (entry.type === "group") return <GroupName entry={entry} />;
+      const { top } = looksOf(table.options.meta);
+      return <Indented depth={row.depth - top}>{pathCell(entry)}</Indented>;
+    },
+  }),
+  column.accessor((entry) => (entry.type === "change" ? changedLines(entry.change) : undefined), {
+    id: "lines",
+    header: "lines",
+    enableSorting: true,
+    sortDescFirst: true,
+    enableResizing: false,
+    meta: {
+      width: "var(--lines-width)",
+      align: "right",
+      description: "Lines added and removed; the size for binary or very large files",
+    },
+    cell: ({ row }) => {
+      const entry = row.original;
+      if (entry.type === "note") return "";
+      if (entry.type !== "change") {
+        const sum = totals(changesOf(entry));
+        return (
+          <span className={styles.total}>
+            <Lines {...sum} />
+          </span>
+        );
+      }
+      const lines = counted(entry);
+      if (lines === undefined)
+        return <span className={styles.other}>{otherText(entry.change)}</span>;
+      return <Lines {...lines} />;
+    },
+  }),
+  column.display({
+    id: "meter",
+    enableResizing: false,
+    // The row's room at its end, as in columns a row has no padding there (`list.module.css`).
+    meta: { width: "calc(var(--meter-length) + var(--space-3))" },
+    cell: ({ row, table }) => {
+      const lines = counted(row.original);
+      return lines && <Meter {...lines} most={looksOf(table.options.meta).most} />;
+    },
+  }),
+]);

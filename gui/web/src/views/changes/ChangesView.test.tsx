@@ -584,13 +584,15 @@ describe("the Changes View", () => {
     renderWithQueries(
       <Changes initial={{ clone: "clone-proj", from: "index", to: "working-tree" }} />,
     );
-    await userEvent.click(await screen.findByText("new/"));
+    const opened = await screen.findByText("new/");
+    await userEvent.click(opened);
     const meter = async (name: string) =>
       ((await screen.findByText(name)).closest("[role=row]") as HTMLElement).querySelector(
         '[style*="--added"]',
       );
     expect(await meter("a.txt")).toHaveStyle({ "--added": "1" });
     expect(await meter("b.txt")).toHaveStyle({ "--added": "0.25" });
+    expect(screen.getByText("new/")).toBe(opened); // as it was drawn, though the scale changed
   });
 
   it("shows one group as a header, which does not close", async () => {

@@ -74,14 +74,14 @@ export function useChangesTable(options: Options) {
   const listed = [...total, ...(ungrouped ? grouped.flatMap((group) => group.subRows) : grouped)];
   const most = Math.max(0, ...linesListed(grouped));
   const folds = (entry: Entry) => (entry.type === "group" ? several : foldsWithin(entry));
-  const columns = changesColumns(most, folds, ungrouped ? 0 : 1);
   const vars = { "--lines-width": `${linesWidth(listed)}ch` } as const; // the List's
   // Every row that holds rows open, new folders too.
   const openAll = () => onFoldedChange(opening(folded, [...holding.values()], partOf));
   const directories = allDirectories([...holding.values()], expanded, folded, partOf);
   const [layout] = useListLayout("changes");
   const table = useList("changes", layout, {
-    columns,
+    columns: changesColumns,
+    meta: { changes: { most, folds, top: ungrouped ? 0 : 1 } },
     data: listed,
     getRowId: entryId,
     getSubRows: (entry) => entry.subRows,
