@@ -178,17 +178,43 @@ def test_unobserved_ones_show_when_they_last_were(
     seen = ok("show", "api", "--time-format", "full")
     [observed] = [line.split(None, 1)[1] for line in seen if line.startswith("observed ")]
 
-    def unobserved(paths: Paths) -> Result:
-        del paths
-        return Result(None, "tmux is gone")
-
-    monkeypatch.setattr(observer, "observe", unobserved)
+    unobserved(monkeypatch)
     for args in (["list"], ["list", "--json"], ["show", "api"]):
         result = runner.invoke(app, ["terminal", *args])
         assert result.exit_code == 0, result.output
         assert result.stderr == (
             f"warning: showing terminals as last observed at {observed}: tmux is gone\n"
         )
+
+
+def unobserved(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Observing fails, as where tmux is gone: the CLI shows what is stored."""
+
+    def failing(paths: Paths) -> Result:
+        del paths
+        return Result(None, "tmux is gone")
+
+    monkeypatch.setattr(observer, "observe", failing)
+
+
+def test_unobserved_and_none_stored(monkeypatch: pytest.MonkeyPatch) -> None:
+    unobserved(monkeypatch)
+    result = runner.invoke(app, ["terminal", "list"])
+    assert result.exit_code == 0, result.output
+    assert result.stderr == "warning: showing terminals as last stored: tmux is gone\n"
+
+
+def test_a_program_not_known_shows_as_a_dash(
+    paths: Paths, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """E.g. one seen only while our wrappers started it."""
+    ok("create", "-n", "api", "-d", str(tmp_path))
+    with write_session(paths) as session:
+        session.conn.execute("UPDATE state_terminals SET program = ''")
+    unobserved(monkeypatch)  # which would see the program now
+    assert ok("list")[1].split()[4] == "-"
+    fields = dict(line.split(None, 1) for line in ok("show", "api"))
+    assert fields["program"] == "-"
 
 
 def test_errors_are_messages(tmp_path: Path) -> None:

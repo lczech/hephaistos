@@ -17,6 +17,10 @@ from support import hostnamectl
 # FORCE_COLOR would colour usage errors and help.
 os.environ["_TYPER_FORCE_DISABLE_TERMINAL"] = "1"
 
+#: The D-Bus of the user, as the tests found it: for the `systemd_keeper` tests alone.
+USER_BUS = os.environ.get("DBUS_SESSION_BUS_ADDRESS")
+NO_BUS = "unix:path=/nonexistent/hephaistos-tests/bus"
+
 
 @pytest.fixture(autouse=True)
 def never_real_files(
@@ -35,9 +39,16 @@ def no_systemd_or_desktop(
 ) -> None:
     """systemctl and loginctl fail, there is no graphical session, and the AppArmor files are
     temporary ones: `setup` and others never reach the services, desktop or system of the user.
-    The `systemd` fixture stands in for systemd."""
+    The `systemd` fixture stands in for systemd.
+
+    Nor does tmux reach the D-Bus of the user. tmux built with systemd support, as Ubuntu's,
+    asks the user manager for a scope for each pane; for a pane whose program ends at once, as
+    many in the tests do, that scope stays, empty and active, until the user logs out: a
+    thousand of them after a few runs.
+    """
     for name in ("DISPLAY", "WAYLAND_DISPLAY", *PATH_VARIABLES[1:]):  # all but our HOME
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", NO_BUS)
     bin_dir = tmp_path_factory.mktemp("bin")
     for name in ("systemctl", "loginctl"):
         failing = bin_dir / name
@@ -112,6 +123,10 @@ def systemd_keeper(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> Iterator[Tm
     fake = Path(os.environ["PATH"].split(os.pathsep)[0])  # the systemctl of the tests, which fails
     assert (fake / "systemctl").exists()
     monkeypatch.setenv("PATH", os.environ["PATH"].removeprefix(f"{fake}{os.pathsep}"))
+    if USER_BUS is None:
+        monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS")
+    else:
+        monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", USER_BUS)
     if scopes.detect() is None:
         pytest.skip("needs the systemd user manager")
     found = TmuxKeeper.from_settings(paths)

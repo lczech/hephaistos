@@ -721,8 +721,15 @@ def test_a_server_started_by_hand_keeps_ended_commands_once_ours_is_loaded(
 ) -> None:
     tmux(keeper, "new-session", "-d", "-s", "mine", "-c", str(tmp_path))
     assert option(keeper, "remain-on-exit") == "off"  # the default of tmux
+
+    def ctrl_d() -> list[str]:  # the whole table: tmux 3.7 lists nothing for a key given
+        bound = tmux(keeper, "list-keys", "-T", "root").splitlines()
+        return [line for line in bound if line.split()[3:4] == ["C-d"]]
+
+    assert ctrl_d() == []  # the default of tmux
     keeper.sessions()
     assert option(keeper, "remain-on-exit") == "on"
+    assert "kill-pane" in " ".join(ctrl_d())  # Ctrl+D closes them
     new(keeper, "build", tmp_path, "sh", "-c", "exit 6")
     assert ending(keeper, "build").status == 6
 
