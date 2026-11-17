@@ -71,7 +71,7 @@ export function RefLabels({ refs, head, all, lead, checkedOut = [], first }: Ref
   const shown = ordered.slice(0, room);
   const more = ordered.slice(room);
   return (
-    <span className={styles.refs}>
+    <span className={styles.refs} data-all={all || undefined}>
       {head && (
         <span className={styles.ref} title="HEAD: the commit checked out">
           <HEAD_ICON aria-hidden="true" />

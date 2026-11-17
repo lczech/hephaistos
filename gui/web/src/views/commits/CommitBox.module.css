@@ -31,13 +31,18 @@
   color: var(--text-muted);
 }
 
-/* HEAD, branches and tags: git's current state, small, framed in the accent, each by its icon. */
+/* HEAD, branches and tags: git's current state, small, framed in the accent, each by its icon. In
+   one line, cut off where it ends, as a list's row is as high as one; all of them, in a commit's
+   details, wrapping. */
 .refs {
   display: inline-flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
   margin-right: var(--space-2);
   vertical-align: top;
+}
+
+.refs[data-all] {
+  flex-wrap: wrap;
 }
 
 .ref {
