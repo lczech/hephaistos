@@ -156,7 +156,7 @@ export const columns = column.columns([
     sortDescFirst: true,
     sortUndefined: "last",
     meta: {
-      second: true,
+      second: (entry: Entry) => entry.type !== "repository", // a Repository's on its one line
       figures: true,
       align: "right",
       description: "When HEAD last moved here; for a repository, in any of its checkouts",

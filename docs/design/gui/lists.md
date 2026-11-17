@@ -14,6 +14,7 @@ Only the rows near the view are drawn, by TanStack Virtual (`VirtualRows`), in a
 Each is measured as drawn, not rounded to pixels, and placed by `top`, so that its text lands on whole pixels, as text moved by `transform` to a fraction of a pixel is blurred.
 Rows in view stay where they are as rows come or go before them, put back by their key, as the browser keeps them only where it lays them out itself; at the very top, new rows show.
 Until measured, a list is taken as high as the window, so that its first draw shows rows.
+Every row is as high as a line and the room above and below it (`--row-height`), in two lines a line and one of the smaller text, whatever it holds, so that no row moves those below as what it holds changes, e.g. a hash in monospace, a pixel higher than text: a cell is cut off where it would be wider or higher than its line; its details, below it, are as high as they are.
 A tree's rows are flat, each after the row holding it.
 A list that is part of a page, the Diff's untracked files, draws the rows near the view of what scrolls the page.
 
@@ -72,7 +73,7 @@ What a row was told to show is kept outside it, as a row scrolled far away is dr
 What is focused or scrolled to in a row, or in its details, comes into view below those rows, not under them.
 A View brings a row into view by its ID (`ListHandle.scrollTo`), as it may not be drawn, by as little as it takes, below the rows that would stick above it: the match the Explorer's find steps to, the untracked file of each match the Diff's find steps to, where that is not drawn (`ListHandle.drawn`).
 More rows load as the end comes into view, not while all pages load anew (`Paging.isFetching`), e.g. as what they show changed: asked for meanwhile, the next page would cut that short, and start where the pages were before, past commits a rewrite removed.
-A View may have a row of its own stay below the header once the rows scroll under it (`band`), its cells by column, from the row at the top, a pixel down, as scrolling goes by whole pixels, and the row below while it comes in under it, how far down, drawn anew apart from the rows as it does: drawn over the rows, as high as the first line of a row and what the rows of the View may have more (`--band-more`); the rows stuck, and those gone to, come below it.
+A View may have a row of its own stay below the header once the rows scroll under it (`band`), its cells by column, from the row at the top, a pixel down, as scrolling goes by whole pixels, and the row below while it comes in under it, how far down, drawn anew apart from the rows as it does: drawn over the rows, as high as the first line of a row; the rows stuck, and those gone to, come below it.
 A View goes to a row by its ID (`ListHandle.goTo`): it comes in at the top, below those rows, as far as the list goes, focused, unless told not to, and marked with the flash a tab gets: the commit a Graph goes to.
 The header covers the pixel above itself with the background, at its scroll edge, where a row passing below may show when zoomed.
 A row's tone is its own, not that of the rows within it.
@@ -114,6 +115,8 @@ Narrower, the room left stays blank.
 ### Two lines
 
 A row shows its square and icons beside what it is, its details below, one after the other.
+Each line is a row of its own (`inLines`), which does not wrap: in a very narrow list, cells are cut off, not moved to a third line.
+The cells of a column marked `second` go on the second line; a column may say so per row, as the Repositories View keeps a Repository's time on its one line.
 Columns would only line up by chance there.
 Times go at the end, where they line up.
 The View places the cells, so hidden columns and their order apply only to columns.

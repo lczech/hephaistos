@@ -7,11 +7,12 @@ export function ownRow(item: HTMLElement): HTMLElement {
     : item;
 }
 
+/** A row's cells: in it, or in two lines, in its lines. */
+const CELLS = ":scope > [data-column], :scope > * > [data-column]";
+
 /** A list row's cells as text, without its square. */
 export function cells(row: HTMLElement): string[] {
-  return [...ownRow(row).querySelectorAll(":scope > [data-column]")]
-    .slice(1)
-    .map((cell) => cell.textContent ?? "");
+  return [...ownRow(row).querySelectorAll(CELLS)].slice(1).map((cell) => cell.textContent ?? "");
 }
 
 /**
@@ -19,7 +20,7 @@ export function cells(row: HTMLElement): string[] {
  * right; a cell starts a line below the one before once it lies below that line's cells.
  */
 export function linesOf(row: HTMLElement): string[][] {
-  const shown = [...ownRow(row).querySelectorAll<HTMLElement>(":scope > [data-column]")]
+  const shown = [...ownRow(row).querySelectorAll<HTMLElement>(CELLS)]
     .map((cell) => ({ column: cell.dataset.column ?? "", box: cell.getBoundingClientRect() }))
     .filter(({ box }) => box.width > 0 && box.height > 0)
     .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);

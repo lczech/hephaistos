@@ -3,7 +3,6 @@
 /* The middle of a node of the graph: of the first line of a row, as high in both layouts. */
 .list {
   --graph-node-y: calc(var(--row-space) + 0.5lh);
-  --band-more: 2px; /* the frames of the badges, which make a row with them higher */
 }
 
 .list[data-layout="lines"] {
@@ -85,10 +84,10 @@
   font-style: italic;
 }
 
-/* A commit searched for by its hash that is not listed: where it is, and buttons to show it. */
+/* A commit searched for by its hash that is not listed: where it is, and buttons to show it, in
+ * one line, cut off where the cell ends; the buttons small, as labels, to fit the row's line. */
 .found {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
 }
@@ -114,6 +113,12 @@
 
 .action {
   composes: action from "../../components/controls.module.css";
+}
+
+/* In a found commit's row (`.found`, above). */
+.found .action {
+  padding-block: 0;
+  font-size: var(--text-small);
 }
 
 /* In lines: the hash and subject on one line; below them, quieter, who wrote it, and when, at the

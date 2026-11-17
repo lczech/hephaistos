@@ -13,8 +13,19 @@ export interface ColumnLook {
   hiddenAtFirst?: boolean; // hidden until shown, e.g. one whose values cost to ask for
   stays?: boolean; // kept in its place, shown or hidden but never moved: e.g. a commit graph, which
   // what is drawn below a row lines up with
-  second?: boolean; // in two lines, on the second line, quieter
+  // In two lines, on the second line, quieter; for only some rows, a function of the row's data,
+  // e.g. a row with nothing else for its second line keeping it on its first.
+  second?: boolean | ((row: never) => boolean);
   figures?: boolean; // times or counts: their figures as wide as each other, to line up
+}
+
+/** Whether a column's cell is on the second line of a row, of this data, in two lines. */
+export function onSecondLine(look: ColumnLook | undefined, row: unknown): boolean {
+  const second = look?.second;
+  // A function of the data of the rows of its own list, which this row is.
+  return typeof second === "function"
+    ? (second as (row: unknown) => boolean)(row)
+    : second === true;
 }
 
 interface LaidOut {

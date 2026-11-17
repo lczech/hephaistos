@@ -74,7 +74,7 @@
   margin-left: auto;
 }
 
-/* A Repository's has the room of the status it lacks, on its one line. */
+/* A Repository's has the room of the status it lacks, on its one line (its column's `second`). */
 .repositories[data-layout="lines"] [aria-level="1"] [data-column="active"] {
   order: 3;
 }

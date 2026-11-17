@@ -13,6 +13,8 @@
   --text-small: calc(var(--text-size) * 0.87);
   --text-normal: var(--text-size);
   --text-large: calc(var(--text-size) * 1.2);
+  --leading-normal: 1.45; /* a line, as high as its text this many times (below) */
+  --line-small: round(up, var(--text-small) * var(--leading-normal), var(--device-px));
   /* Tabs, View bars and the status bar keep their size, whatever the text size. */
   --chrome-size: 0.8125rem;
   --chrome-large: 1.125rem;
@@ -161,13 +163,13 @@ body {
   font-size: var(--text-normal);
 }
 
-/* A line as high as its text, 1.45 times its size (`--leading`), rounded up to whole device
- * pixels: on each element by its own size, as a factor inherited would be, for a length inherited
- * would keep that of the parent's text. */
+/* A line as high as its text, `--leading-normal` times its size (or `--leading`), rounded up to
+ * whole device pixels: on each element by its own size, as a factor inherited would be, for a
+ * length inherited would keep that of the parent's text. */
 *,
 ::before,
 ::after {
-  line-height: round(up, var(--leading, 1.45) * 1em, var(--device-px));
+  line-height: round(up, var(--leading, var(--leading-normal)) * 1em, var(--device-px));
 }
 
 code,

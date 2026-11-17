@@ -20,7 +20,7 @@ import { flash } from "../flash";
 import { ColumnHeader } from "./ColumnHeader";
 import { ColumnsMenu } from "./ColumnsMenu";
 import { useColumnDrop } from "./columnDrop";
-import { arrangeable, type ColumnLook, gridColumns, movable } from "./columns";
+import { arrangeable, type ColumnLook, gridColumns, movable, onSecondLine } from "./columns";
 import type { Choice } from "./filters";
 import type { ListLayout } from "./kept";
 import { LinesHead } from "./LinesHead";
@@ -552,47 +552,56 @@ export function List<TData extends RowData>({
           onAuxClick={view && ((event) => clickRow(event, () => middle(event)))}
           onPointerEnter={ahead && (() => ahead(row.original))}
         >
-          {first && still && (
-            <Cell {...cellData(first.column)}>
-              <FlexRender cell={first} />
-            </Cell>
-          )}
-          {first && !still && (
-            <Cell {...cellData(first.column)}>
-              <button
-                type="button"
-                tabIndex={-1} // the row's keys open it
-                className={styles.open}
-                aria-expanded={view ? undefined : shown} // as the row's, as a button that opens it
-                aria-controls={shown && !folding && !view && !copy ? `${id}-details` : undefined}
-                aria-labelledby={copy ? undefined : id}
-                title={squareTitle?.(row.original)}
-                onClick={(click) => {
-                  opening(click);
-                  // The row focused, as by a click on the rest of it, not this button, which a
-                  // click focuses and the keys then pass by.
-                  if (!copy) focusRow(index);
-                }}
-                onAuxClick={view && middle}
-              >
-                <FlexRender cell={first} />
-              </button>
-            </Cell>
-          )}
-          {others.map((cell) => (
-            <Cell key={cell.id} {...cellData(cell.column)}>
-              {actions && cell.column.columnDef.meta?.identifies ? (
-                <span className={styles.withActions}>
-                  <span className={styles.named}>
-                    <FlexRender cell={cell} />
-                  </span>
-                  <span className={styles.actions}>{actions(row.original)}</span>
-                </span>
+          {inLines(layout, [
+            first && {
+              second: false,
+              node: still ? (
+                <Cell key={first.column.id} {...cellData(first.column)}>
+                  <FlexRender cell={first} />
+                </Cell>
               ) : (
-                <FlexRender cell={cell} />
-              )}
-            </Cell>
-          ))}
+                <Cell key={first.column.id} {...cellData(first.column)}>
+                  <button
+                    type="button"
+                    tabIndex={-1} // the row's keys open it
+                    className={styles.open}
+                    aria-expanded={view ? undefined : shown} // as the row's, as a button that opens it
+                    aria-controls={
+                      shown && !folding && !view && !copy ? `${id}-details` : undefined
+                    }
+                    aria-labelledby={copy ? undefined : id}
+                    title={squareTitle?.(row.original)}
+                    onClick={(click) => {
+                      opening(click);
+                      // The row focused, as by a click on the rest of it, not this button, which a
+                      // click focuses and the keys then pass by.
+                      if (!copy) focusRow(index);
+                    }}
+                    onAuxClick={view && middle}
+                  >
+                    <FlexRender cell={first} />
+                  </button>
+                </Cell>
+              ),
+            },
+            ...others.map((cell) => ({
+              second: onSecondLine(cell.column.columnDef.meta, row.original),
+              node: (
+                <Cell key={cell.id} {...cellData(cell.column)}>
+                  {actions && cell.column.columnDef.meta?.identifies ? (
+                    <span className={styles.withActions}>
+                      <span className={styles.named}>
+                        <FlexRender cell={cell} />
+                      </span>
+                      <span className={styles.actions}>{actions(row.original)}</span>
+                    </span>
+                  ) : (
+                    <FlexRender cell={cell} />
+                  )}
+                </Cell>
+              ),
+            })),
+          ])}
           {rowMenuAt?.id === row.id && rowMenuAt.copy === (copy !== undefined) && (
             <RowMenuAt
               at={rowMenuAt}
@@ -754,11 +763,17 @@ export function List<TData extends RowData>({
                 if (!cells) return null;
                 return (
                   <div className={styles.row}>
-                    {table.getVisibleLeafColumns().map((column) => (
-                      <span key={column.id} {...cellData(column)}>
-                        {cells[column.id]}
-                      </span>
-                    ))}
+                    {inLines(
+                      layout,
+                      table.getVisibleLeafColumns().map((column) => ({
+                        second: onSecondLine(column.columnDef.meta, row.original),
+                        node: (
+                          <span key={column.id} {...cellData(column)}>
+                            {cells[column.id]}
+                          </span>
+                        ),
+                      })),
+                    )}
                   </div>
                 );
               })
@@ -837,12 +852,33 @@ function HeaderCell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * A row's cells: in two lines, each line a row of its own that does not wrap, so that what does not
+ * fit is cut off and the row keeps its height, the cells of columns on the second line (`second`)
+ * there; in columns, as they are, each in a column of the row's grid.
+ */
+function inLines(
+  layout: ListLayout,
+  cells: ({ second: boolean; node: ReactNode } | undefined)[],
+): ReactNode {
+  const drawn = cells.filter((cell) => cell !== undefined);
+  if (layout !== "lines") return drawn.map((cell) => cell.node);
+  const second = drawn.filter((cell) => cell.second);
+  return (
+    <>
+      <div className={styles.line}>
+        {drawn.filter((cell) => !cell.second).map((cell) => cell.node)}
+      </div>
+      {second.length > 0 && <div className={styles.line}>{second.map((cell) => cell.node)}</div>}
+    </>
+  );
+}
+
 /** What a cell says of its column, for its look. */
 function cellData(column: { id: string; columnDef: { meta?: ColumnLook } }) {
   const meta = column.columnDef.meta;
   return {
     "data-column": column.id,
-    "data-second": meta?.second || undefined,
     "data-figures": meta?.figures || undefined,
     "data-align": meta?.align,
   };
@@ -878,7 +914,7 @@ function within(box: DOMRect, x: number, y: number): boolean {
  * is known only once drawn; its parts' own tooltips still win.
  */
 function showWholeText(event: PointerEvent) {
-  const cell = (event.target as Element).closest(`.${styles.row} > *`);
+  const cell = (event.target as Element).closest("[data-column]");
   if (!(cell instanceof HTMLElement)) return;
   const text = cell.textContent?.trim() ?? "";
   if (text === "") cell.removeAttribute("title");

@@ -10,7 +10,8 @@
   --level: calc(var(--icon-size) + var(--space-1));
   --row-space: var(--space-half); /* above and below each row's content */
   /* A row's height, and the header's: a line, and their room above and below; the header's as
-     drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. */
+     drawn once measured (`List.tsx`), as in lines it holds buttons, which may wrap. In lines, a
+     row is higher than its first line (`--row-whole`, below). */
   --row-height: calc(1lh + 2 * var(--row-space));
   --head-height: calc(1lh + 2 * var(--space-half));
   container: list / inline-size; /* sizes by the list's width, not the window's */
@@ -159,6 +160,10 @@
 
 .row {
   position: relative; /* for its button's outline */
+  /* Every row as high, whatever it holds: else a row a pixel higher, e.g. by a hash in monospace,
+     moves the rows below as it comes or goes. Its cells are cut off (below); what is placed
+     apart, as the graph's lanes, may reach out of it, under the row above. */
+  height: var(--row-whole, var(--row-height));
   align-items: center;
   padding: var(--row-space) var(--space-3) var(--row-space) 0;
   color: var(--text);
@@ -234,7 +239,7 @@
   content: "";
 }
 
-.row > [data-figures] {
+:is(.row, .line) > [data-figures] {
   font-variant-numeric: tabular-nums;
 }
 
@@ -275,22 +280,25 @@
 }
 
 /* A cell of only an icon button or link: centred on the row, then lifted as icons are. */
-.row > * > :is(button, a):not(.open):only-child {
+:is(.row, .line) > * > :is(button, a):not(.open):only-child {
   display: flex;
   width: fit-content;
   translate: 0 var(--icon-lift);
 }
 
-/* Cells cut off, as text.module.css's `cut` (composing takes a class of ours, not children). */
-.row > * {
+/* Cells cut off, as text.module.css's `cut` (composing takes a class of ours, not children), also
+ * what would make them higher than a line, so that the row stays as high (`--row-height`); in two
+ * lines, those of each line (below). */
+:is(.row, .line) > [data-column] {
   display: block;
+  max-height: 1lh;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* The square's chevron may stand further in, as a tree's, before what its row is. */
-.row > :first-child {
+:is(.row, .line:first-child) > [data-column]:first-child {
   overflow: visible;
 }
 
@@ -641,48 +649,51 @@
   width: 100cqw;
 }
 
+/* In lines, a row's whole height: a line, one of the smaller text below it, and the room around
+ * them; as in columns for a list whose rows stay in one line. */
+.frame[data-layout="lines"]:not([data-one-line]) {
+  --row-whole: calc(1lh + var(--line-small) + 2 * var(--space-1));
+}
+
 /*
- * In lines: each row in two lines, with more room around them. The first holds the square, what
- * the row is and its icons; the second its details, one after the other, from where what the row
- * is starts (`--narrow-indent` from the row's start, else the square's width). The View orders
- * its cells (`order`, below 10 for the first line, above for the second) and lets one cell in
- * each line take the room left (`flex: 1 1 0`). The header is a line of buttons for the filters
+ * In lines: each row in two lines, with more room around them, each line a row of its own that
+ * does not wrap (`inLines`), so that what does not fit is cut off and every row is as high. The
+ * first holds the square, what the row is and its icons; the second its details (the columns'
+ * `second`), one after the other, from where what the row is starts (`--narrow-indent` from the
+ * row's start, else the square's width). The View orders the cells in each line (`order`) and
+ * lets one take the room left (`flex: 1 1 0`). The header is a line of buttons for the filters
  * and the sort, wrapping where narrow. A list whose rows stay in one line keeps its rows' height.
  */
 .frame[data-layout="lines"] .row {
   display: flex;
-  flex-wrap: wrap;
-  column-gap: var(--column-gap);
+  flex-direction: column;
+  align-items: stretch; /* its lines across it */
   padding-block: var(--space-1);
 }
 
-/* Cells as wide as their text, cut off where they must shrink; the square as when wide. */
-.frame[data-layout="lines"] .row > * {
-  flex: none;
+.frame[data-layout="lines"] .line {
+  display: flex;
+  align-items: center; /* as in columns */
+  column-gap: var(--column-gap);
   min-width: 0;
 }
 
-/* What goes on the second line, quieter. */
-.frame[data-layout="lines"] .row > [data-second] {
-  color: var(--text-muted);
-  font-size: var(--text-small);
+/* Cells as wide as their text, cut off where they must shrink; the square as when wide. */
+.frame[data-layout="lines"] .line > * {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
-.frame[data-layout="lines"] .row > :first-child {
+.frame[data-layout="lines"] .line:first-child > :first-child {
+  flex: none;
   width: var(--square);
 }
 
-/* The break between the lines, and the room before the second. */
-.frame[data-layout="lines"] .row::after {
-  flex-basis: 100%;
-  order: 10;
-  content: "";
-}
-
-.frame[data-layout="lines"] .row::before {
-  width: var(--narrow-indent, var(--square));
-  order: 11;
-  content: "";
+/* The second line, quieter, from where what the row is starts. */
+.frame[data-layout="lines"] .line + .line {
+  padding-inline-start: calc(var(--narrow-indent, var(--square)) + var(--column-gap));
+  color: var(--text-muted);
+  font-size: var(--text-small);
 }
 
 .frame[data-layout="lines"] .head {
@@ -738,9 +749,8 @@
 }
 
 /* A row of the View itself below the header once the rows scroll under it (`band`), as high as
- * the first line of a row, and what the rows of the View may have more (`--band-more`), e.g.
- * framed labels: on the background, over the rows, as the rows stuck are; drawn while hidden too,
- * so that its height is known for the rows gone to below it. */
+ * the first line of a row: on the background, over the rows, as the rows stuck are; drawn while
+ * hidden too, so that its height is known for the rows gone to below it. */
 .band {
   position: sticky;
   top: var(--stuck-top);
@@ -753,14 +763,14 @@
   top: 0;
   right: 0;
   left: 0;
-  height: calc(var(--row-height) + var(--band-more, 0rem));
+  height: var(--row-height);
   overflow: clip; /* what comes in with the row below shows only within it */
   background: var(--background);
   visibility: hidden;
 }
 
 .frame[data-layout="lines"] .banded {
-  height: calc(1lh + 2 * var(--space-1) + var(--band-more, 0rem));
+  height: calc(1lh + 2 * var(--space-1));
 }
 
 /* Inherited, not `visible`: hidden with the Panel it is in, as dockview hides those not shown. */
@@ -776,11 +786,6 @@
 
 .frame[data-layout] .banded > .row:hover {
   background: none;
-}
-
-.frame[data-layout="lines"] .banded > .row::before,
-.frame[data-layout="lines"] .banded > .row::after {
-  display: none;
 }
 
 /* Of a list part of a page, which scrolls sideways itself: moved as the page scrolls. */

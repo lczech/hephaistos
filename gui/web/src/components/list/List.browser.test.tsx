@@ -686,7 +686,9 @@ function seenAt(y: number): { name: string; box: DOMRect } | undefined {
   const cell = document.querySelector('[data-column="name"]') as HTMLElement; // its header
   const { left, width } = cell.getBoundingClientRect();
   const row = document.elementFromPoint(left + width / 2, y)?.closest("[role=row] > div");
-  const name = row?.querySelector(':scope > [data-column="name"]')?.textContent;
+  const name = row?.querySelector(
+    ':scope > [data-column="name"], :scope > * > [data-column="name"]',
+  )?.textContent;
   return row && name ? { name, box: row.getBoundingClientRect() } : undefined;
 }
 
@@ -1519,10 +1521,12 @@ describe("a list's band, below its header", () => {
     const own = ownRowOf("fruit 20");
     const name = own.querySelector('[data-column="name"]')?.getBoundingClientRect();
     expect(own.getBoundingClientRect().top).toBeCloseTo(band?.bottom ?? 0, 0);
-    // As high as the first line, with its room above and below: here the whole row, as no
-    // fruit has a second.
-    expect((name?.top ?? 0) - own.getBoundingClientRect().top).toBeGreaterThan(0);
-    expect(band?.height ?? 0).toBeCloseTo(own.getBoundingClientRect().height, 0);
+    // As high as the first line, with its room above and below, though the row is as high as
+    // two lines, as rows in lines are, also those without a second, as here.
+    const room = (name?.top ?? 0) - own.getBoundingClientRect().top;
+    expect(room).toBeGreaterThan(0);
+    expect(band?.height ?? 0).toBeCloseTo((name?.height ?? 0) + 2 * room, 0);
+    expect(own.getBoundingClientRect().height).toBeGreaterThan((band?.height ?? 0) + 1);
   });
 
   it("hides with the Panel it is in, as dockview hides those not shown", async () => {
@@ -1710,11 +1714,71 @@ describe("a row's details, clicked within", () => {
   });
 });
 
-/** Fruits in a list of the layout, its rows closer together if `compact`. */
-function Laid({ layout, compact = false }: { layout: ListLayout; compact?: boolean }) {
+const LABELS = Array.from({ length: 30 }, (_, at) => `label ${at}`);
+
+/**
+ * What a row may hold that makes a line higher than its text, after a fruit's name: nothing; a hash
+ * in monospace, in a box, as a commit's; an icon's button; labels, more than the cell has room for.
+ */
+function Beside({ at }: { at: number }) {
+  if (at === 1)
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          fontFamily: "var(--font-mono)",
+          fontSize: "var(--mono-size)",
+        }}
+      >
+        abc1234
+      </span>
+    );
+  if (at === 2)
+    return (
+      <button type="button" aria-label="Copy">
+        <Copy />
+      </button>
+    );
+  if (at === 3) {
+    return (
+      <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+        {LABELS.map((label) => (
+          <span key={label} style={{ border: "1px solid", fontSize: "var(--text-small)" }}>
+            {label}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return null;
+}
+
+/**
+ * Fruits in a list of the layout, its rows closer together if `compact`; in two lines, their
+ * names' lengths on the second, unless `oneLine`. Each holds beside its name what `Beside` says.
+ */
+function Laid({
+  layout,
+  compact = false,
+  oneLine = false,
+}: {
+  layout: ListLayout;
+  compact?: boolean;
+  oneLine?: boolean;
+}) {
   const columns = column.columns([
     column.display({ id: "square", cell: Chevron }),
-    column.accessor("name", { header: "name" }),
+    column.accessor("name", {
+      header: "name",
+      cell: ({ row }) => (
+        <>
+          {row.original.name} <Beside at={row.index} />
+        </>
+      ),
+    }),
+    ...(oneLine
+      ? []
+      : [column.accessor((fruit) => fruit.name.length, { id: "length", meta: { second: true } })]),
   ]);
   const table = useList("laid", layout, { columns, data: FRUITS.slice(0, 5) });
   return (
@@ -1723,6 +1787,7 @@ function Laid({ layout, compact = false }: { layout: ListLayout; compact?: boole
       label="Fruits"
       layout={layout}
       compact={compact}
+      oneLine={oneLine}
       choices={{}}
       message={null}
       older="fruits"
@@ -1742,9 +1807,41 @@ function heightsIn(ratio: number): number[] {
   return [...rows].map((row) => row.getBoundingClientRect().height * ratio);
 }
 
+/** The heights of the rows of the list drawn, their own line, without the header, in CSS px. */
+const rowHeights = () =>
+  [...document.querySelectorAll('[role="rowgroup"] > [role="row"] > :first-child')].map(
+    (row) => row.getBoundingClientRect().height,
+  );
+
+describe("a list's rows in two lines, very narrow", () => {
+  it("keep their cells in their two lines, cut off, as high as ever", () => {
+    const { unmount } = render(<Laid layout="lines" />);
+    const wide = rowHeights();
+    unmount();
+    render(
+      <div style={{ width: 90 }}>
+        <Laid layout="lines" />
+      </div>,
+    );
+    expect(rowHeights()).toEqual(wide);
+    expect(wide.length).toBeGreaterThan(1);
+    expect(document.querySelectorAll('[role="rowgroup"] [data-column="length"]').length).toBe(
+      wide.length,
+    );
+    for (const row of document.querySelectorAll<HTMLElement>(
+      '[role="rowgroup"] > [role="row"] > :first-child',
+    )) {
+      const bottom = row.getBoundingClientRect().bottom;
+      for (const cell of row.querySelectorAll("[data-column]")) {
+        expect(cell.getBoundingClientRect().bottom).toBeLessThanOrEqual(bottom + 0.01);
+      }
+    }
+  });
+});
+
 describe("a list's rows, at any ratio of device pixels", () => {
   // Set by Chromium's devtools protocol, as zooming sets it; the others keep theirs, 1 here.
-  it("are each a whole number of device pixels high, so that all are drawn alike", async () => {
+  it("are each a whole number of device pixels high, all alike, whatever they hold", async () => {
     const session = server.browser === "chromium" ? cdp() : undefined;
     const ratios = session ? RATIOS : [devicePixelRatio];
     try {
@@ -1757,18 +1854,22 @@ describe("a list's rows, at any ratio of device pixels", () => {
         });
         // For a ratio set so, Chromium tells no media query of the change: followed anew.
         const stop = followDevicePixels();
-        for (const [layout, compact] of [
-          ["columns", false],
-          ["columns", true],
-          ["lines", false],
+        for (const [layout, compact, oneLine] of [
+          ["columns", false, false],
+          ["columns", true, false],
+          ["lines", false, false],
+          ["lines", false, true],
         ] as const) {
-          const { unmount } = render(<Laid layout={layout} compact={compact} />);
+          const { unmount } = render(<Laid layout={layout} compact={compact} oneLine={oneLine} />);
           const heights = heightsIn(ratio);
           expect(heights.length).toBeGreaterThan(1);
           // Within two of the units of layout, 1/64 px in Chromium, short of which none can be.
           for (const height of heights) {
             expect(Math.abs(height - Math.round(height))).toBeLessThan((2 / 64) * ratio);
           }
+          // Else one row higher than the others moves those below as it comes or goes.
+          const [first, ...others] = rowHeights();
+          for (const height of others) expect(height).toBeCloseTo(first ?? 0, 3);
           unmount();
         }
         stop();
