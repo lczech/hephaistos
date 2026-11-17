@@ -8,7 +8,7 @@ Ideas that no step has planned yet are in [ideas](../ideas/).
 
 ## Done
 
-Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08); the Explorer View (2026-11-11); lists virtual, reached by the keys, with ARIA (2026-11-13); the git graph, in History and in the Graph View of a whole Clone, with branch tips only (2026-11-13).
+Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08); the Explorer View (2026-11-11); lists virtual, reached by the keys, with ARIA (2026-11-13); the git graph, in History and in the Graph View of a whole Clone, with branch tips only (2026-11-13); a review of all commits, adding the tests they lacked and fixing what those found, with lines and rows in whole device pixels at any zoom (2026-11-17).
 Git history, the ADRs and the design docs hold the details.
 
 ## Now
@@ -17,7 +17,6 @@ Git history, the ADRs and the design docs hold the details.
   Plan: in `docs/plans/` on that branch, until it moves there `.agents/scratch/terminals/DESIGN.md`.
   Done: 1a.1 to 1a.6, the Terminal in the Core and CLI.
   Next: 1b (attach), 1c (exit statuses), then the stream in the Server (step 2), the Terminal View (step 3), and Terminals on other Machines.
-- **A review**, in the worktree `~/orca/workspaces/hephaistos/test-review`, branch `lczech/test-review`: a reminder of something the user wants to review there; no work yet, and rebased onto master before it starts.
 
 ## Owed
 
