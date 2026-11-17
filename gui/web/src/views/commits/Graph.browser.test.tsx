@@ -74,6 +74,24 @@ describe("a graph's band", () => {
   });
 });
 
+describe("a node's line down to its parent in its lane", () => {
+  it("is drawn straight, with crisp edges as the lines passing it, not as a curve", () => {
+    const layout = new Layout({});
+    layout.add({ hash: "b", parents: ["a"] });
+    layout.add({ hash: "a", parents: [] });
+    const { container } = render(
+      <div style={{ position: "relative", height: 24, "--graph-width": "40px" } as CSSProperties}>
+        <GraphCell layout={layout} row={0} />
+      </div>,
+    );
+    const head = container.querySelector(`.${styles.head}`) as Element;
+    expect(head.querySelectorAll("path")).toHaveLength(0);
+    const lines = [...head.querySelectorAll("line")];
+    expect(lines).toHaveLength(1);
+    for (const line of lines) expect(getComputedStyle(line).shapeRendering).toBe("crispedges");
+  });
+});
+
 describe("a stretch in a graph", () => {
   /** t and u apart, u's line passing the stretch s of t, in a row `height` high. */
   function stretch(height: number) {

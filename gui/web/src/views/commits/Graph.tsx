@@ -89,9 +89,14 @@ export function GraphCell({ layout, row }: { layout: Layout; row: number }) {
         ))}
         {out
           .filter((bend) => !(bend.dashed && bend.from === bend.to))
-          .map((bend) => (
-            <Curve key={`o${bend.to}`} bend={bend} into={false} />
-          ))}
+          .map((bend) =>
+            // Straight down in the lane of the node: a line, sharp as those passing it.
+            bend.from === bend.to ? (
+              <Straight key={`o${bend.to}`} line={lineOf(bend)} from={1} to={2} />
+            ) : (
+              <Curve key={`o${bend.to}`} bend={bend} into={false} />
+            ),
+          )}
       </svg>
       <Below lines={below.filter((line) => !line.dashed)} width={width} className={styles.tail} />
       {[...dashes.values()].map(({ line, from, to }) => (
@@ -344,7 +349,7 @@ function Straight({ line, from, to }: { line: Line; from: number; to: number }) 
 }
 
 /** A bend in the top half, from another lane into the node; or in the bottom half, from the node
- * to the lane of a parent, straight down where it is that of the node. */
+ * to the lane of a parent; straight down in the lane of the node, it is a `Straight`. */
 function Curve({ bend, into }: { bend: Bend; into: boolean }) {
   const from = x(bend.from);
   const to = x(bend.to);
