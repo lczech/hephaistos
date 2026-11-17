@@ -808,7 +808,7 @@ def test_tmux_missing(keeper: TmuxKeeper, tmp_path: Path) -> None:
 
 def test_tmux_too_old(keeper: TmuxKeeper, tmp_path: Path) -> None:
     old = with_binary(keeper, fake_tmux(tmp_path, "echo tmux 3.1"))
-    with pytest.raises(KeeperError, match=r"tmux 3\.1 is too old: Terminals need tmux 3\.2a"):
+    with pytest.raises(KeeperError, match=r"tmux 3\.1 is too old: terminals need tmux 3\.2a"):
         old.sessions()
 
 
@@ -817,6 +817,12 @@ def test_an_unknown_version_counts_as_new(keeper: TmuxKeeper, tmp_path: Path) ->
     script = f'[ "$1" = -V ] && echo tmux master && exit; exec {real} "$@"'
     master = with_binary(keeper, fake_tmux(tmp_path, script))
     assert master.sessions() == []
+
+
+def test_a_tmux_hanging_on_its_version(tmp_path: Path) -> None:
+    """Said as for any command of tmux, not as Python says a timeout."""
+    with pytest.raises(KeeperError, match=r"^tmux did not answer within 0\.3 s$"):
+        installation(fake_tmux(tmp_path, "exec sleep 10"), timeout=0.3)
 
 
 def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:

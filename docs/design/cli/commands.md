@@ -105,7 +105,7 @@ Once that screen is gone too, e.g. after a reboot, attaching says so, and how to
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
 `list` and `show` give the status of an ended one with how it ended, in the words of the line in it: `ended (finished)` for status 0, `ended (status 1)`, `ended (signal 15, SIGTERM)`, and `ended (status 1, screen gone)` once its last screen is gone; of a lost one, with why: `lost (machine restarted)`, `lost (tmux server ended)`.
-Where tmux cannot be asked, `list` and `show` say so, and when the Terminals were last observed, then show them as stored.
+Where tmux cannot be asked, `list` and `show` show the Terminals as stored, with a warning that says when they were last observed, and why tmux could not be asked, with what to do: `warning: showing terminals as last observed at 2026-11-16 18:44:25: tmux is not installed (…); install tmux 3.2a or later, or set terminals.tmux.path to one`; the other commands fail with that reason.
 `show` gives when it ended (`ended`), and when its session was found gone (`noticed`); for one whose session is gone, what to do (`next`): `attach` restores a lost one, `close` removes it.
 `close` closes a Terminal as a terminal emulator closes a tab: what runs in it gets SIGHUP (`Closed terminal api`).
 `kill` is for one that does not close: what runs in it gets SIGKILL first, which none can ignore (`Killed terminal api`).

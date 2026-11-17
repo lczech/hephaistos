@@ -186,7 +186,7 @@ def test_unobserved_ones_show_when_they_last_were(
         result = runner.invoke(app, ["terminal", *args])
         assert result.exit_code == 0, result.output
         assert result.stderr == (
-            f"terminals not observed: tmux is gone; showing them as last observed, at {observed}\n"
+            f"warning: showing terminals as last observed at {observed}: tmux is gone\n"
         )
 
 
@@ -290,7 +290,8 @@ def test_attach_inside_the_terminal_itself(keeper: TmuxKeeper, proj: Path, tmp_p
     subprocess.run([*command, "Enter"], check=True)
     eventually(said.exists)
     assert said.read_text() == (
-        "error: this runs inside terminal api; attach to it from another terminal emulator\n"
+        "error: this command runs inside terminal api, which cannot show itself;"
+        " attach to it from another terminal emulator\n"
     )
 
 

@@ -188,6 +188,8 @@ def installation(binary: str, timeout: float = TIMEOUT) -> Installation:
         )
     except FileNotFoundError:
         raise MissingError(binary) from None
+    except subprocess.TimeoutExpired:
+        raise KeeperError(f"tmux did not answer within {timeout:g} s") from None
     except (OSError, subprocess.SubprocessError) as error:
         raise KeeperError(f"tmux failed: {error}") from None
     if result.returncode != 0:
@@ -482,8 +484,9 @@ class TmuxKeeper:
             log.warning("unknown tmux version %r: taken as new enough", found.text)
         elif found.too_old:
             raise KeeperError(
-                f"{found.text} is too old: Terminals need tmux {MINIMUM_TEXT} or later;"
-                " install a newer one, e.g. without root, and set terminals.tmux.path to it"
+                f"{found.text} is too old: terminals need tmux {MINIMUM_TEXT} or later;"
+                " install a newer one, e.g. in your home directory, and set terminals.tmux.path"
+                " to it"
             )
         self.config = config_text(self.history, reaping=found.may_miss_exits, hinting=found.hints)
         self._write_config()

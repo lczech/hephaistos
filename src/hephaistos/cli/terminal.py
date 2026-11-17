@@ -52,12 +52,15 @@ def _observed(paths: Paths) -> str | None:
 
 
 def _said_unobserved(error: str | None, found: Sequence[TerminalState]) -> None:
-    """Says that the Terminals could not be observed, and when they last were."""
+    """Says that the Terminals shown are as last observed, and when that was.
+
+    tmux could not be asked now: `error` says why, and what to do.
+    """
     if error is None:
         return
     seen = max((state.observed_at.datetime for state in found), default=None)
-    when = "" if seen is None else f", at {full_time(seen)}"
-    typer.echo(f"terminals not observed: {error}; showing them as last observed{when}", err=True)
+    when = "stored" if seen is None else f"observed at {full_time(seen)}"
+    typer.echo(f"warning: showing terminals as last {when}: {error}", err=True)
 
 
 def _command_text(state: TerminalState) -> str:

@@ -55,10 +55,10 @@ def _shell_closed_text(name: str, environment: Mapping[str, str], when: str = ""
 def _observed(
     paths: Paths, keeper: Keeper, command: Mapping[uuid.UUID, tuple[str, ...]] | None = None
 ) -> None:
-    """Observes; raises HephaistosError if the Keeper cannot be asked."""
+    """Observes; raises HephaistosError if the Keeper cannot be asked, saying why."""
     result = observer.observe(paths, keeper, command=command)
     if result.error is not None:
-        raise HephaistosError(f"terminals cannot be observed: {result.error}")
+        raise HephaistosError(result.error)
 
 
 def _directory(directory: Path) -> Path:
@@ -233,7 +233,7 @@ def _attach_command(
         raise HephaistosError(gone or f"terminal {escaped(found.name)} closed meanwhile")
     if tty is not None and keeper.shows(listed[0], tty):
         raise HephaistosError(
-            f"this runs inside terminal {escaped(found.name)};"
+            f"this command runs inside terminal {escaped(found.name)}, which cannot show itself;"
             " attach to it from another terminal emulator"
         )
     return keeper.attach_command(listed[0])

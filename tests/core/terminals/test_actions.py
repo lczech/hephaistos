@@ -409,7 +409,8 @@ def test_attach_refuses_a_tty_the_terminal_shows(
     tty = tmux(keeper, "display-message", "-p", "-t", keeper.session("api").key, "#{pane_tty}")
     with pytest.raises(
         HephaistosError,
-        match=r"^this runs inside terminal api; attach to it from another terminal emulator$",
+        match=r"^this command runs inside terminal api, which cannot show itself;"
+        r" attach to it from another terminal emulator$",
     ):
         actions.attach(set_up, "api", environment={}, tty=tty.strip())
     actions.attach(set_up, "api", environment={}, tty="/dev/pts/nonexistent")
