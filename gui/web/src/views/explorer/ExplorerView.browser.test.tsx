@@ -140,11 +140,13 @@ describe("the Explorer's tree, as drawn", () => {
     await explorer();
     await userEvent.click(screen.getByText("a"));
     await screen.findByText("a1.txt");
-    const guides = rowOf("a1.txt").querySelector("[aria-hidden=true]:not(svg)") as HTMLElement;
+    // Looked up at each poll: the row may be drawn again meanwhile, leaving one held detached.
+    const guides = () =>
+      rowOf("a1.txt").querySelector("[aria-hidden=true]:not(svg)") as HTMLElement;
     await userEvent.unhover(rowOf("a1.txt"));
-    await expect.poll(() => getComputedStyle(guides).opacity).toBe("0");
+    await expect.poll(() => getComputedStyle(guides()).opacity).toBe("0");
     await userEvent.hover(rowOf("README.md"));
-    await expect.poll(() => getComputedStyle(guides).opacity).toBe("1");
+    await expect.poll(() => getComputedStyle(guides()).opacity).toBe("1");
   });
 
   it("keeps open folders in view below the header, deeper ones below and under them", async () => {

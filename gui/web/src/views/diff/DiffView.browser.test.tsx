@@ -215,7 +215,11 @@ function marked(name: "hephaistos-found" | "hephaistos-found-current"): string[]
   return [...(CSS.highlights.get(name) ?? [])].map((range) => (range as Range).toString());
 }
 
-/** One file's diff once the renderer has drawn it: its element. */
+/**
+ * One file's diff once the renderer has drawn it: its element.
+ * The first in a file loads the renderer and its highlighter, slow while other tests run too:
+ * its test is given `FIRST_DRAWN` to wait.
+ */
 async function drawnAlone(path: string): Promise<HTMLElement> {
   return waitFor(
     () => {
@@ -224,9 +228,12 @@ async function drawnAlone(path: string): Promise<HTMLElement> {
       expect(diff.getBoundingClientRect().height).toBeGreaterThan(0);
       return diff;
     },
-    { timeout: 10_000 },
+    { timeout: FIRST_DRAWN - 5_000 },
   );
 }
+
+/** How long the first test of this file may take, which draws the first diff. */
+const FIRST_DRAWN = 30_000;
 
 /** The find bar's count: `3 of 12`. */
 const count = () => screen.getByLabelText("Find", { selector: "search" }).querySelector("output");
@@ -239,7 +246,7 @@ describe("finding in a file's diff", () => {
     Array.from({ length: 28 }, (_, at) => 20 + at * 10),
   );
 
-  it("marks the matches drawn, the current one apart", async () => {
+  it("marks the matches drawn, the current one apart", { timeout: FIRST_DRAWN }, async () => {
     serveFiles({ "f.txt": MANY });
     renderDiff({ width: 1000, height: 600 }, "f.txt", { find: "LINE", case: "1" });
     const diff = await drawnAlone("f.txt");
