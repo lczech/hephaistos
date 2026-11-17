@@ -7,8 +7,10 @@ import { App } from "./App";
 import { QUERY_DEFAULTS } from "./api/queries";
 import { showScheme } from "./theme";
 import { followTokenLinks } from "./token";
+import { followDevicePixels } from "./useDevicePixelRatio";
 
 followTokenLinks();
+followDevicePixels(); // lines and room in whole device pixels (`theme.css`)
 showScheme(); // the system's, so that nothing shows light first in the dark
 
 const queries = new QueryClient(QUERY_DEFAULTS);

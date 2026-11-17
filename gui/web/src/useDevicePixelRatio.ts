@@ -25,3 +25,12 @@ function onRatioChange(changed: () => void): () => void {
 export function useDevicePixelRatio(): number {
   return useSyncExternalStore(onRatioChange, ratio);
 }
+
+/** Keeps one device pixel, in CSS px, as `--device-px` on the root of the page, as the ratio
+ * changes: the theme rounds lines and room to it, so that rows are whole device pixels high and
+ * drawn alike at any zoom. Returns how to stop. */
+export function followDevicePixels(root: HTMLElement = document.documentElement): () => void {
+  const show = () => root.style.setProperty("--device-px", `${1 / ratio()}px`);
+  show();
+  return onRatioChange(show);
+}

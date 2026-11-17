@@ -101,8 +101,11 @@ const SCROLLBAR_COLOURS = `:is([data-diff], [data-file]) [data-code]::-webkit-sc
 // of lines added and removed from it; and the code's font and size. The lines left out between
 // changes as gaps between two lines, rather than bars: quieter than the files' headers. Matches
 // found marked as elsewhere, the look of marks within the shadow root of the renderer. These are
-// variables and attributes of the renderer itself, so check them on upgrades.
+// variables and attributes of the renderer itself, so check them on upgrades. Its line height set
+// again, important: the page's rules for every element (theme.css) win over the renderer's own
+// `:host`, and would give the code the line of the page's text.
 const PAGE_LOOK = `:host {
+  line-height: var(--diffs-line-height) !important;
   --diffs-light-bg: var(--background);
   --diffs-dark-bg: var(--background);
   --diffs-bg-separator: var(--background);

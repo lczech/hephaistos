@@ -6,7 +6,8 @@ import axe from "axe-core";
 import { Copy } from "lucide-react";
 import { type RefObject, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent as pointer, server } from "vitest/browser"; // real input, as a person's
+import { cdp, userEvent as pointer, server } from "vitest/browser"; // real input, as a person's
+import { followDevicePixels } from "../../useDevicePixelRatio";
 import type { ListLayout } from "./kept";
 import { Chevron, List, type ListHandle, type Tone } from "./List";
 import { listColumnHelper, useList } from "./table";
@@ -1706,5 +1707,74 @@ describe("a row's details, clicked within", () => {
     await pointer.keyboard("{Escape}");
     expect(screen.queryByText("All about fruit 1")).not.toBeInTheDocument();
     expect(ownRowOf("fruit 1").parentElement).toHaveFocus();
+  });
+});
+
+/** Fruits in a list of the layout, its rows closer together if `compact`. */
+function Laid({ layout, compact = false }: { layout: ListLayout; compact?: boolean }) {
+  const columns = column.columns([
+    column.display({ id: "square", cell: Chevron }),
+    column.accessor("name", { header: "name" }),
+  ]);
+  const table = useList("laid", layout, { columns, data: FRUITS.slice(0, 5) });
+  return (
+    <List
+      table={table}
+      label="Fruits"
+      layout={layout}
+      compact={compact}
+      choices={{}}
+      message={null}
+      older="fruits"
+      detailsLabel="Fruit details"
+      details={(fruit) => fruit.name}
+    />
+  );
+}
+
+// The ratios of the Desktop zoomed a step in and out (its `ZOOM_STEP`, of a level, 1.2 each), and
+// of a screen scaled by a quarter.
+const RATIOS = [1, 1.2 ** 0.5, 1.2 ** -0.5, 1.25];
+
+/** The heights of the header and the rows of the list drawn, in device pixels. */
+function heightsIn(ratio: number): number[] {
+  const rows = document.querySelectorAll('[data-layout] [role="row"]');
+  return [...rows].map((row) => row.getBoundingClientRect().height * ratio);
+}
+
+describe("a list's rows, at any ratio of device pixels", () => {
+  // Set by Chromium's devtools protocol, as zooming sets it; the others keep theirs, 1 here.
+  it("are each a whole number of device pixels high, so that all are drawn alike", async () => {
+    const session = server.browser === "chromium" ? cdp() : undefined;
+    const ratios = session ? RATIOS : [devicePixelRatio];
+    try {
+      for (const ratio of ratios) {
+        await session?.send("Emulation.setDeviceMetricsOverride", {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          deviceScaleFactor: ratio,
+          mobile: false,
+        });
+        // For a ratio set so, Chromium tells no media query of the change: followed anew.
+        const stop = followDevicePixels();
+        for (const [layout, compact] of [
+          ["columns", false],
+          ["columns", true],
+          ["lines", false],
+        ] as const) {
+          const { unmount } = render(<Laid layout={layout} compact={compact} />);
+          const heights = heightsIn(ratio);
+          expect(heights.length).toBeGreaterThan(1);
+          // Within two of the units of layout, 1/64 px in Chromium, short of which none can be.
+          for (const height of heights) {
+            expect(Math.abs(height - Math.round(height))).toBeLessThan((2 / 64) * ratio);
+          }
+          unmount();
+        }
+        stop();
+      }
+    } finally {
+      await session?.send("Emulation.clearDeviceMetricsOverride", {});
+    }
   });
 });

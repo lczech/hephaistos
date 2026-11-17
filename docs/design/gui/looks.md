@@ -22,6 +22,10 @@ A second class on the same element names both (`.link.named`).
 So a View's bar sizes all it holds alike: its buttons and links as large as a toggle's halves, fields keeping text-sized icons.
 Inline styles hand the stylesheets only values known at runtime, as custom properties (`components/cssVars.ts`).
 
+Lines and the room around things are whole device pixels, at any zoom and scale of the screen: `theme.css` rounds them to `--device-px`, which `followDevicePixels` keeps on the page.
+A line is rounded up, so that its text always fits; `--leading` sets its height in sizes of the text instead of `line-height`.
+Rows made of them are then whole device pixels high too, and drawn alike, with no edge between pixels showing lighter in one row and not in the next.
+
 ### Enforced
 
 `styles.test.ts` fails on a stylesheet's own colours, sizes, opacities, weights and state fills.

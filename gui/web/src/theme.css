@@ -7,7 +7,7 @@
   --font-mono: ui-monospace, "DejaVu Sans Mono", monospace;
   --text-size: 13px; /* what Views show */
   --code-size: 13px; /* code, e.g. in diffs */
-  --code-line: calc(var(--code-size) * 1.5); /* a line of code's height */
+  --code-line: round(up, var(--code-size) * 1.5, var(--device-px)); /* a line of code's height */
 
   --mono-size: 0.9em; /* monospace among text, whose letters look larger at the same size */
   --text-small: calc(var(--text-size) * 0.87);
@@ -19,14 +19,18 @@
 
   --weight-strong: 600;
 
+  /* One device pixel, in CSS px, as the zoom and the screen make it (`followDevicePixels`): lines
+     (below) and room are whole device pixels, so that rows made of them are too, and so drawn
+     alike, with no edge falling between pixels and showing lighter. */
+  --device-px: 1px;
   /* Room around and between things; the smallest two for the tight padding of icons and
      fields. A border is a hairline: 1px, written so. */
-  --space-hair: 1px;
-  --space-half: 2px;
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
+  --space-hair: round(1px, var(--device-px));
+  --space-half: round(2px, var(--device-px));
+  --space-1: round(0.25rem, var(--device-px));
+  --space-2: round(0.5rem, var(--device-px));
+  --space-3: round(0.75rem, var(--device-px));
+  --space-4: round(1rem, var(--device-px));
   --radius: 6px;
   --mark-line: 2px; /* a line marking what has the focus: the focused Group's tab */
   --shadow: 0 4px 16px rgb(0 0 0 / 0.2); /* for a popover, over what it covers */
@@ -155,7 +159,15 @@ body {
   color: var(--text);
   font-family: var(--font);
   font-size: var(--text-normal);
-  line-height: 1.45;
+}
+
+/* A line as high as its text, 1.45 times its size (`--leading`), rounded up to whole device
+ * pixels: on each element by its own size, as a factor inherited would be, for a length inherited
+ * would keep that of the parent's text. */
+*,
+::before,
+::after {
+  line-height: round(up, var(--leading, 1.45) * 1em, var(--device-px));
 }
 
 code,

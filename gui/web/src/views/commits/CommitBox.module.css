@@ -49,7 +49,7 @@
   border-radius: var(--radius);
   color: var(--text);
   font-size: var(--text-small);
-  line-height: 1.4;
+  --leading: 1.4;
 }
 
 /* How many more there are than shown, named on hovering: as the text after it, not a label. */

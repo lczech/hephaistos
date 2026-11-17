@@ -587,7 +587,9 @@ describe("the renderer draws a diff", () => {
     const top = header.getBoundingClientRect().top;
     expect(section.getBoundingClientRect().top).toBeLessThan(top);
     await userEvent.click(within(section).getByRole("button", { name: "Diff of a.txt" }));
-    expect(header.getBoundingClientRect().top).toBeCloseTo(top, 0); // scrolled by whole pixels
+    // Scrolled by whole pixels: within half of one, as Firefox keeps the half pixel of a position
+    // centred (`scrollIntoView`) when set to a whole one.
+    expect(Math.abs(header.getBoundingClientRect().top - top)).toBeLessThanOrEqual(0.5);
     // The files folding brought near, before the test ends.
     await nearAsked(asked, ["a.txt", ...below.map(([path]) => path as string)]);
   });
