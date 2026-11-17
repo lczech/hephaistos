@@ -567,7 +567,7 @@ def test_a_command_that_ends_while_running_is_kept(
         actions.observer.observe(set_up, keeper)
     state = stored(set_up)["job"]
     assert (state.status, state.exit_status, state.ended_at is not None) == ("ended", None, True)
-    assert terminals.ending_text(state) in {"ended by SIGTERM", "ended by a signal"}
+    assert terminals.ending_text(state) in {"ended by signal 15 (SIGTERM)", "ended by a signal"}
 
 
 def test_a_shell_that_exits_loses_its_row(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:

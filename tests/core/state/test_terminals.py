@@ -466,20 +466,24 @@ def test_one_ended_at_once_is_added_as_ended(set_up: Paths) -> None:
 
 
 @pytest.mark.parametrize(
-    ("status", "signal", "text"),
+    ("status", "signal", "text", "brief"),
     [
-        (0, None, "exited with status 0"),
-        (None, 9, "ended by SIGKILL"),
-        (None, 15, "ended by SIGTERM"),
-        (None, 99, "ended by signal 99"),
-        (None, None, "ended by a signal"),  # tmux before 3.3
+        (0, None, "finished", "finished"),
+        (3, None, "exited with status 3", "status 3"),
+        (None, 9, "ended by signal 9 (SIGKILL)", "signal 9, SIGKILL"),
+        (None, 15, "ended by signal 15 (SIGTERM)", "signal 15, SIGTERM"),
+        (None, 99, "ended by signal 99", "signal 99"),
+        (None, None, "ended by a signal", "signal"),  # tmux before 3.3
     ],
 )
-def test_how_they_ended(set_up: Paths, status: int | None, signal: int | None, text: str) -> None:
+def test_how_they_ended(
+    set_up: Paths, status: int | None, signal: int | None, text: str, brief: str
+) -> None:
+    """In the words of the line tmux shows in an ended Terminal."""
     update(set_up, ended("api", new_id(), status=status, signal=signal))
     state = stored(set_up)["api"]
     assert (state.exit_status, state.exit_signal) == (status, signal)
-    assert terminals.ending_text(state) == text
+    assert (terminals.ending_text(state), terminals.ending_brief(state)) == (text, brief)
 
 
 def test_when_it_ended_unless_the_keeper_says(set_up: Paths) -> None:

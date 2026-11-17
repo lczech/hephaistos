@@ -71,14 +71,15 @@ def _repository(checkout: CheckoutDetails | None) -> str:
 def _status_text(state: TerminalState) -> str:
     """Its status, with how an ended one ended or why a lost one went.
 
-    E.g. `ended (status 1)`, `ended (SIGKILL)`, `lost (machine restarted)`.
+    E.g. `ended (finished)`, `ended (status 1)`, `ended (signal 9, SIGKILL)`, `ended (status 1,
+    screen gone)`, `lost (machine restarted)`.
     """
     if state.status is terminals.TerminalStatus.LOST and state.lost_because is not None:
         return f"lost ({terminals.LOST_TEXTS[state.lost_because].removeprefix('the ')})"
     if state.status is not terminals.TerminalStatus.ENDED:
         return state.status.value
-    how = terminals.ending_text(state)
-    return f"ended ({how.removeprefix('exited with ').removeprefix('ended by ')})"
+    gone = ", screen gone" if state.session_gone else ""
+    return f"ended ({terminals.ending_brief(state)}{gone})"
 
 
 def _attach_text(state: TerminalState) -> str:
@@ -210,7 +211,7 @@ def show(
         [
             ("name", escaped(state.name)),
             ("id", str(state.id)),
-            ("status", state.status.value),
+            ("status", _status_text(state)),
             *_ending_fields(state, formatted),
             ("directory", short_path(state.directory)),
             ("current", "-" if current is None else short_path(current)),
@@ -230,15 +231,15 @@ def show(
 def _ending_fields(
     state: TerminalState, formatted: Callable[[datetime], str]
 ) -> list[tuple[str, str]]:
-    """How an ended one ended, and when and why the session of one went, as far as known."""
+    """When an ended one ended, and when its session was noticed gone, if it was.
+
+    How and why are in its status: e.g. `ended (status 1, screen gone)`.
+    """
     fields: list[tuple[str, str]] = []
     if state.status is terminals.TerminalStatus.ENDED and state.ended_at is not None:
-        fields.append(("ended", f"{formatted(state.ended_at)}: {terminals.ending_text(state)}"))
-    if state.lost_at is not None and state.lost_because is not None:
-        why = terminals.LOST_TEXTS[state.lost_because]
-        label = "lost" if state.status is terminals.TerminalStatus.LOST else "screen"
-        gone = "" if label == "lost" else "gone "
-        fields.append((label, f"{gone}{formatted(state.lost_at)}: {why}"))
+        fields.append(("ended", formatted(state.ended_at)))
+    if state.lost_at is not None:
+        fields.append(("noticed", formatted(state.lost_at)))  # when its session was found gone
     return fields
 
 

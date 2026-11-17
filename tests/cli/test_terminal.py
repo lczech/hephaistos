@@ -375,9 +375,9 @@ def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
     ]
     assert ok("list")[1].split()[:4] == ["build", "ended", "(status", "3)"]
     fields = dict(line.split(None, 1) for line in ok("show", "build"))
-    assert fields["status"] == "ended"
-    assert fields["ended"].endswith(": exited with status 3")
-    assert "screen" not in fields
+    assert fields["status"] == "ended (status 3)"
+    assert "ended" in fields
+    assert "noticed" not in fields
     data = json.loads("\n".join(ok("show", "build", "--json")))
     assert (data["status"], data["exit_status"], data["exit_signal"]) == ("ended", 3, None)
     assert data["ended_at"] is not None
@@ -386,10 +386,10 @@ def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
 
 def test_one_a_signal_ended(tmp_path: Path) -> None:
     ok("create", "-n", "job", "-d", str(tmp_path), "--", "sh", "-c", "kill -KILL $$")
-    status = " ".join(ok("list")[1].split()[1:3])
-    assert status in {"ended (SIGKILL)", "ended (a"}  # tmux before 3.3 does not say which
+    said = {"ended (signal 9, SIGKILL)", "ended (signal)"}  # tmux before 3.3 does not say which
+    assert any(ok("list")[1].split(None, 1)[1].startswith(status) for status in said)
     fields = dict(line.split(None, 1) for line in ok("show", "job"))
-    assert fields["ended"].endswith((": ended by SIGKILL", ": ended by a signal"))
+    assert fields["status"] in said
 
 
 def test_show_says_when_and_why_a_session_went(
@@ -399,11 +399,11 @@ def test_show_says_when_and_why_a_session_went(
     ok("create", "-n", "api", "-d", str(tmp_path))
     kill_server(keeper)
     build = dict(line.split(None, 1) for line in ok("show", "build", "--time-format", "relative"))
-    assert build["status"] == "ended"
-    assert build["ended"].endswith(": exited with status 3")
-    assert build["screen"] == "gone now: the tmux server ended"
+    assert (build["status"], build["noticed"]) == ("ended (status 3, screen gone)", "now")
+    [listed] = [line for line in ok("list") if line.startswith("build ")]
+    assert listed.split(None, 1)[1].startswith("ended (status 3, screen gone)")
     api = dict(line.split(None, 1) for line in ok("show", "api", "--time-format", "relative"))
-    assert (api["status"], api["lost"]) == ("lost", "now: the tmux server ended")
+    assert (api["status"], api["noticed"]) == ("lost (tmux server ended)", "now")
     assert "ended" not in api
     [build_json, api_json] = sorted(
         json.loads("\n".join(ok("list", "--json"))), key=lambda item: item["name"] != "build"
@@ -503,7 +503,7 @@ def test_ctrl_d_reaches_a_running_program(keeper: TmuxKeeper, outer: Outer, tmp_
     line = dead_line(keeper, "Command finished", "status 0")
     assert eventually(lambda: line in outer.screen())
     assert out.read_text() == "hello\n"
-    assert ok("list")[1].split()[:3] == ["cat", "ended", "(status"]
+    assert ok("list")[1].split()[:3] == ["cat", "ended", "(finished)"]
     outer.tmux("send-keys", "-t", "=outer:", "C-d")  # now it closes
     eventually(outer.out.exists)
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]

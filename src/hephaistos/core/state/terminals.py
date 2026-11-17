@@ -148,19 +148,40 @@ def _datetime(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, UTC)
 
 
-def ending_text(state: TerminalState) -> str:
-    """How the program of an ended Terminal ended, e.g. `exited with status 1`, `ended by SIGKILL`.
+def _signal_name(number: int) -> str | None:
+    """The name of a signal, e.g. `SIGTERM`; None for a number that names none."""
+    try:
+        return signal.Signals(number).name
+    except ValueError:
+        return None
 
-    `ended by a signal` where the Keeper does not say which, as tmux before 3.3.
+
+def ending_text(state: TerminalState) -> str:
+    """How the program of an ended Terminal ended, in the words of the line tmux shows in it.
+
+    `finished` (status 0), `exited with status 1`, `ended by signal 15 (SIGTERM)`; `ended by a
+    signal` where the Keeper does not say which, as tmux before 3.3.
     """
+    if state.exit_status == 0:
+        return "finished"
     if state.exit_status is not None:
         return f"exited with status {state.exit_status}"
     if state.exit_signal is None:
         return "ended by a signal"
-    try:
-        return f"ended by {signal.Signals(state.exit_signal).name}"
-    except ValueError:
-        return f"ended by signal {state.exit_signal}"
+    name = _signal_name(state.exit_signal)
+    return f"ended by signal {state.exit_signal}" + ("" if name is None else f" ({name})")
+
+
+def ending_brief(state: TerminalState) -> str:
+    """As `ending_text`, short, as after `ended`: `finished`, `status 1`, `signal 15, SIGTERM`."""
+    if state.exit_status == 0:
+        return "finished"
+    if state.exit_status is not None:
+        return f"status {state.exit_status}"
+    if state.exit_signal is None:
+        return "signal"
+    name = _signal_name(state.exit_signal)
+    return f"signal {state.exit_signal}" + ("" if name is None else f", {name}")
 
 
 #: Why the session of a Terminal is gone, as said after "as": `as the machine restarted`.
