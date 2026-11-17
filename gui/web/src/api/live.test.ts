@@ -304,18 +304,19 @@ describe("the live connection", () => {
   });
 
   it("asks again on each focus for what no hint covers, and for commits and a pass only after the gap", async () => {
-    const passes = vi.fn(() => new Response(null, { status: 204 }));
-    serve({ "POST /api/observe": passes });
+    // Passes asked for, as sent: their answers may come later than the timers here run.
+    const requests = serve({ "POST /api/observe": () => new Response(null, { status: 204 }) });
+    const passes = () => requests.filter((request) => request.method === "POST").length;
     const { invalidated } = start();
     wait(60_000);
     invalidated.mockClear();
     act(() => window.dispatchEvent(new Event("focus")));
     await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(passes).toHaveBeenCalledTimes(2); // on starting, and past the gap
+    expect(passes()).toBe(2); // on starting, and past the gap
     wait(FOCUS_GAP / 2);
     act(() => window.dispatchEvent(new Event("focus")));
     await act(async () => vi.advanceTimersByTimeAsync(0));
-    expect(passes).toHaveBeenCalledTimes(2);
+    expect(passes()).toBe(2);
     // Twice within the gap: the changes of a Checkout both times, its History once.
     const asked = (name: KeyName) =>
       invalidated.mock.calls.filter(([filters]) => filters?.queryKey === KEYS[name]).length;

@@ -160,7 +160,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
-    await screen.findByText("recent");
+    await listed();
     expect(screen.queryByRole("button", { name: "Graph of the branches of recent" })).toBeNull();
     await userEvent.click(
       screen.getByRole("button", { name: "Graph of the branches of ~/recent" }),
@@ -210,7 +210,7 @@ describe("the Repositories View", () => {
     serveRepositories();
     const open = vi.fn<OpenView>();
     renderWithQueries(<Repositories open={open} />);
-    await screen.findByText("recent");
+    await listed();
     expect(screen.queryByRole("button", { name: "Files of recent" })).toBeNull();
     // After its Events, before what git has of it.
     const links = screen.getByRole("button", { name: "Files of ~/recent" }).parentElement;

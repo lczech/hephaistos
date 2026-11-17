@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Schemas } from "../../api/client";
 import { KEYS } from "../../api/queries";
+import { exactRequests } from "../../test/fuzz";
 import { cells, listRows, ownRow } from "../../test/list";
 import { clone, info, json, renderWithQueries, repository, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
@@ -110,6 +111,7 @@ const rows = () => listRows().map(rowText);
 
 describe("the Changes View", () => {
   it("asks again on Refresh for the changes of its Checkout only", async () => {
+    exactRequests(); // a refetch at random would ask for all
     serveChanges();
     const { client } = renderWithQueries(<Changes initial={{ clone: "clone-proj" }} />);
     await screen.findByText("Staged");

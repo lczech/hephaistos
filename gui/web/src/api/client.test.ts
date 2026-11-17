@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { json, serve } from "../test/server";
 import { takeTokenFromUrl, token } from "../token";
 import { ApiError, api, unwrap } from "./client";
@@ -52,15 +52,14 @@ describe("a 401", () => {
       },
     });
     const answer = api.GET("/api/info");
-    await new Promise((resolve) => setTimeout(resolve)); // sent
-    expect(sent).toEqual(["Bearer old"]);
+    await vi.waitFor(() => expect(sent).toEqual(["Bearer old"])); // sent, and come to the Server
     window.history.replaceState(null, "", "/#token=renewed");
     takeTokenFromUrl();
     refuse();
     await answer;
     expect(token()).toBe("renewed");
     const again = api.GET("/api/info");
-    await new Promise((resolve) => setTimeout(resolve));
+    await vi.waitFor(() => expect(sent).toHaveLength(2));
     refuse();
     await again;
     expect(token()).toBeNull(); // the one it sent, refused too

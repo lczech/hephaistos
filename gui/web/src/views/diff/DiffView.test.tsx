@@ -7,6 +7,7 @@ import type { Schemas } from "../../api/client";
 import { useLiveUpdates } from "../../api/live";
 import { KEYS, VERSIONS_KEY } from "../../api/queries";
 import type { DiffLook, Versions } from "../../components/diff/Diff";
+import { exactRequests } from "../../test/fuzz";
 import { lastSocket } from "../../test/live";
 import {
   clone,
@@ -276,6 +277,7 @@ describe("the Diff View", () => {
   });
 
   it("asks again on Refresh for the versions once, also when the patch could not come", async () => {
+    exactRequests(); // counts what it asks
     let fails = false;
     const requests = serve({
       ...ASIDE,
@@ -300,6 +302,7 @@ describe("the Diff View", () => {
   });
 
   it("asks again on a hint for the versions once, after the patch", async () => {
+    exactRequests(); // counts what it asks
     const requests = serve({
       ...ASIDE,
       "GET /api/diff": () => json({ change: change(), patch: PATCH }),
@@ -416,6 +419,7 @@ describe("the Diff View", () => {
   });
 
   it("asks not on Refresh where the changes of a commit's file are now, which it never shows", async () => {
+    exactRequests(); // a refetch at random would ask for all
     const hash = "c".repeat(40);
     const requests = serveDiff({ change: change(), patch: PATCH });
     const { client } = renderWithQueries(
@@ -843,6 +847,7 @@ describe("the Diff View", () => {
     });
 
     it("asks again on Refresh for the list, patches and versions of its comparison only", async () => {
+      exactRequests(); // counts what it asks
       vi.stubGlobal("IntersectionObserver", Near);
       const asked = serveAll();
       const { client } = renderWithQueries(<Diff initial={SINCE_HEAD} />);
@@ -1128,6 +1133,7 @@ describe("the Diff View", () => {
       });
 
       it("keeps each file's diff from those found in, its section asking for it no more", async () => {
+        exactRequests(); // counts what it asks
         // Near only once told, after the files came for the find.
         const observers: [IntersectionObserverCallback, Element[]][] = [];
         vi.stubGlobal(

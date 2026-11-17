@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { Schemas } from "../../api/client";
+import { exactRequests } from "../../test/fuzz";
 import { listRows, ownRow, queryListRows } from "../../test/list";
 import { fileEntry, info, json, renderWithQueries, serve } from "../../test/server";
 import { expectSettled, InPanel } from "../../test/view";
@@ -180,6 +181,7 @@ describe("finding in the Explorer", () => {
   });
 
   it("leaves hidden files out while they are, and folders unjoined", async () => {
+    exactRequests(); // counts what it asks
     const requests = serveDisk();
     await finding("bash");
     await waitFor(() => expect(names()).toEqual([".bashrc"]));
@@ -227,6 +229,7 @@ describe("finding in the Explorer", () => {
   });
 
   it("finds what git ignores too if asked, saying when nothing is found", async () => {
+    exactRequests(); // counts what it asks
     const requests = serveDisk();
     await finding("");
     await userEvent.click(
@@ -241,6 +244,7 @@ describe("finding in the Explorer", () => {
   });
 
   it("lists the folder and the paths below it again on Refresh", async () => {
+    exactRequests(); // counts what it asks
     const requests = serveDisk();
     await finding("");
     await expectSettled();

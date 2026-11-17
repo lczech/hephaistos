@@ -88,6 +88,7 @@ async function explorer(width = 700, height = 320) {
     </div>,
   );
   await screen.findByText("README.md");
+  await screen.findByRole("button", { name: "r" }); // the bar, once the home directory is known
 }
 
 const rowOf = (name: string) =>

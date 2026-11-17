@@ -220,6 +220,7 @@ describe("the Explorer View", () => {
       <Explorer initial={{ path: "/home/me/proj", root: "/home/me" }} />,
     );
     await screen.findByText("main.py");
+    await screen.findByRole("button", { name: "me" }); // the bar, once the home directory is known
     const parts = screen.getByRole("button", { name: "me" }).parentElement?.parentElement;
     expect(
       within(parts as HTMLElement)
@@ -307,7 +308,8 @@ describe("the Explorer View", () => {
     serveDisk();
     renderWithQueries(<Explorer initial={{ path: "/home/me/proj" }} />);
     await screen.findByText("main.py");
-    const bar = screen.getByRole("button", { name: "~" }).parentElement?.parentElement;
+    // The bar names the home directory once it is known.
+    const bar = (await screen.findByRole("button", { name: "~" })).parentElement?.parentElement;
     expect(
       within(bar as HTMLElement)
         .getAllByRole("button")
@@ -357,7 +359,8 @@ describe("the Explorer View", () => {
     expect(screen.getByTitle("staged: added; not staged: modified")).toHaveTextContent("M");
     expect(screen.getByTitle("changes below it")).toHaveTextContent("•");
     expect(screen.getByText(".bashrc").closest("[data-ignored]")).not.toBeNull();
-    expect(asked).toEqual(["", "git"]); // sizes and times hidden: not asked for
+    expect(asked).toContain("git");
+    expect(asked.filter((fields) => /size|modified/.test(fields))).toEqual([]); // hidden: not asked
     expect(sizeCell("3.4 kB")).toBeNull();
     unmount();
 
@@ -366,7 +369,7 @@ describe("the Explorer View", () => {
     renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
     await waitFor(() => expect(sizeCell("3.4 kB")).not.toBeNull());
     expect(sizeCell("3 items")).not.toBeNull(); // a folder's entries
-    expect(asked.at(-1)).toBe("git,size,modified");
+    expect(asked).toContain("git,size,modified");
   });
 
   it("keeps git's letters while it asks for a column shown, and names if they fail", async () => {
@@ -536,7 +539,8 @@ describe("the Explorer View", () => {
     serveDisk();
     renderWithQueries(<Explorer initial={{ path: "/home/me/proj/", root: "/home/me/" }} />);
     await screen.findByText("main.py");
-    expect(screen.getByRole("button", { name: "me" })).toHaveAttribute("title", "/home/me");
+    // The bar, once the home directory is known.
+    expect(await screen.findByRole("button", { name: "me" })).toHaveAttribute("title", "/home/me");
     expect(screen.getByRole("button", { name: "proj" })).toBeInTheDocument(); // within the root
     expect(bareDir("/")).toBe("/");
     expect(bareDir("//")).toBe("/");

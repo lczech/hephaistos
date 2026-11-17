@@ -169,7 +169,8 @@ describe("GitRevisionPicker", () => {
     serveHistory(() => json(page([commit(3)])));
     renderWithQueries(<Picker initial="refs/tags/v1" rows={[]} tabs={["branches", "tags"]} />);
     const field = await openPicker();
-    await waitFor(() => expect(selectedTab()).toMatch(/^Tags/));
+    await waitFor(() => expect(selectedTab()).toMatch(/^Tags/)); // by the value, before the refs
+    await waitFor(() => expect(options()).toContain("v1")); // the refs come
     await userEvent.type(field, "IN");
     expect(selectedTab()).toMatch(/^All/);
     // Starting with it, before having it within.
