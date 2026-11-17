@@ -304,7 +304,8 @@ describe("the Workbench", () => {
       const field = () => document.querySelector<HTMLInputElement>("input[aria-label=Text]");
       expect(field()).toBeNull(); // not shown yet
       await userEvent.click(screen.getByRole("tab", { name: "typer" }));
-      await userEvent.type(field() as HTMLInputElement, "kept");
+      // Drawn by dockview's portal once the tab is shown, which may be a moment after the click.
+      await userEvent.type(await screen.findByRole("textbox", { name: "Text" }), "kept");
       await userEvent.click(screen.getByRole("tab", { name: "probe" }));
       // Hidden, but still in the page as it was.
       expect(field()).toBeInTheDocument();
