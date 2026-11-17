@@ -50,6 +50,13 @@ CONFIG_NAME = "tmux.conf"  # in the state directory
 
 #: What tmux sets in each Terminal, removed there so that tmux stays out of sight.
 HIDDEN = ("TMUX", "TMUX_PANE")
+#: The D-Bus session bus, as the server sees it where we make the scopes: none. A tmux built with
+#: systemd support asks the user manager over that bus for a scope for each pane, which stays,
+#: empty, until logout where the program of the pane ends at once; ours do the job, and
+#: `systemd-run` reaches the manager without that bus. Each Terminal gets the real one again.
+NO_BUS = "unix:path=/nonexistent/hephaistos/bus"
+BUS_VARIABLE = "DBUS_SESSION_BUS_ADDRESS"
+TERMINAL_UNIT = "hephaistos-terminal"  # with systemd, each Terminal runs in `<it>-<ID>.scope`
 #: What we start a program with, each running until it executes the program: what tmux gives as
 #: the program of a pane while it starts, and of a dead pane. Not that of the Terminal.
 WRAPPERS = frozenset({"env", "systemd-run"})
@@ -433,7 +440,7 @@ class TmuxKeeper:
             # The directory of the socket is that of the caller, whatever the environment of the
             # manager says.
             keep = {name: os.environ[name] for name in ("TMUX_TMPDIR",) if name in os.environ}
-            env = {**self.scopes.environment, **keep}
+            env = {**self.scopes.environment, **keep, BUS_VARIABLE: NO_BUS}
         try:
             result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
                 command, capture_output=True, check=False, timeout=self.timeout, env=env
@@ -648,23 +655,31 @@ class TmuxKeeper:
         Its ID is set by the same command list, so nobody sees it without one, and so is the
         marker of a command, which keeps its pane once ended, also one that ends at once.
 
-        With systemd, its process runs in a scope of its own, `hephaistos-terminal-<id>.scope`. A
-        tmux built with systemd support, e.g. that of Ubuntu, moves each new pane into its own
-        `tmux-spawn-*.scope` too, from the server, while the pane starts: whichever move comes last
-        holds it, as isolated either way.
+        With systemd, its process runs in a scope of its own, `hephaistos-terminal-<id>.scope`;
+        the server makes none, as it has no session bus (`NO_BUS`), so the Terminal gets the bus
+        of its creator, else that of the manager, else none.
         """
         self.check()
+        self._stop_empty_scopes()
         variables = {name: environment[name] for name in UPDATED_VARIABLES if name in environment}
         variables[TERMINAL_VARIABLE] = str(terminal_id)
+        # The server may have none, see `NO_BUS`: the bus of the creator, else that of the manager.
+        if (
+            BUS_VARIABLE not in variables
+            and self.scopes
+            and BUS_VARIABLE in self.scopes.environment
+        ):
+            variables[BUS_VARIABLE] = self.scopes.environment[BUS_VARIABLE]
         pairs = [arg for item, value in variables.items() for arg in ("-e", f"{item}={value}")]
         program = list(command) if command else [login_shell(environment), "-l"]
         # tmux sets these for each program it starts, with no option against it. Without them, a
         # `tmux` typed in the Terminal reaches the tmux of the user, as from any terminal emulator.
-        program = ["env", *(arg for name in HIDDEN for arg in ("-u", name)), *program]
+        hidden = [*HIDDEN, *([] if BUS_VARIABLE in variables else [BUS_VARIABLE])]
+        program = ["env", *(arg for name in hidden for arg in ("-u", name)), *program]
         if self.scopes:
             program = self.scopes.command(
                 program,
-                unit=f"hephaistos-terminal-{terminal_id}",
+                unit=f"{TERMINAL_UNIT}-{terminal_id}",
                 description=f"hephaistos terminal {name}",
             )
         args = [
@@ -774,6 +789,7 @@ class TmuxKeeper:
         if force:
             self._kill_hard(session)
         result = self._client("kill-session", "-t", session.key)
+        self._stop_empty_scopes()
         if result.returncode != 0:
             if session.key in self._keys():
                 raise self._failed(["kill-session"], result)
@@ -781,11 +797,21 @@ class TmuxKeeper:
                 raise NoSuchSessionError(f"no terminal named {name}")
             # With `force`: gone with its processes, as it should.
 
+    def _stop_empty_scopes(self) -> None:
+        """Stops the scopes of Terminals that systemd keeps with no process, see `scopes`.
+
+        E.g. that of one closed as it started, of any HEPHAISTOS_HOME. Called where a Terminal
+        starts or ends, rare enough for the call to systemctl it takes.
+        """
+        if self.scopes:
+            self.scopes.stop_empty(f"{TERMINAL_UNIT}-*.scope")
+
     def _kill_hard(self, session: Session) -> None:
         """SIGKILL for the processes of a session: in its scope, and in the session of its pane.
 
-        Its scope is the one its process runs in: ours, or the one tmux makes, see `create`. Never
-        the scope of the server, which holds a session started by hand on a tmux that makes none.
+        Its scope is the one its process runs in: ours, or, on a server another started, one tmux
+        may make, see `NO_BUS`. Never the scope of the server, which holds a session started by
+        hand on ours.
         """
         if session.pid is None:
             return

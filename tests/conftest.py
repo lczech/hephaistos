@@ -1,3 +1,4 @@
+import functools
 import os
 import subprocess
 from collections.abc import Iterator
@@ -7,11 +8,11 @@ import pytest
 
 from hephaistos.core import config
 from hephaistos.core.registry import machines
-from hephaistos.core.terminals.tmux import TmuxKeeper
+from hephaistos.core.terminals.tmux import TERMINAL_UNIT, TmuxKeeper, scope_of
 from hephaistos.core.utils import commit_graph, scopes
 from hephaistos.core.utils.paths import PATH_VARIABLES, Paths
 from hephaistos.desktop import apparmor
-from support import hostnamectl
+from support import eventually, hostnamectl
 
 # Typer reads this when it first formats output: plain text, even where GITHUB_ACTIONS or
 # FORCE_COLOR would colour usage errors and help.
@@ -131,4 +132,15 @@ def systemd_keeper(paths: Paths, monkeypatch: pytest.MonkeyPatch) -> Iterator[Tm
         pytest.skip("needs the systemd user manager")
     found = TmuxKeeper.from_settings(paths)
     yield found
+
+    # A Terminal ended while systemd starts its scope can leave the scope behind, empty, until
+    # logout: so the server ends once each has its scope, and leftovers are stopped.
+    def settled(pid: int) -> bool:  # in its scope, or ended
+        return (scope_of(pid) or TERMINAL_UNIT).startswith(TERMINAL_UNIT)
+
+    for session in found.sessions() if found.running() else []:
+        if session.terminal_id is not None and session.pid is not None:
+            eventually(functools.partial(settled, session.pid))
     kill_server(found)
+    assert found.scopes is not None
+    found.scopes.stop_empty(f"{TERMINAL_UNIT}-*.scope")

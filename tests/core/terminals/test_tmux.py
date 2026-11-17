@@ -20,7 +20,9 @@ from hephaistos.core.terminals.keeper import (
     Session,
 )
 from hephaistos.core.terminals.tmux import (
+    BUS_VARIABLE,
     CONFIG_OPTION,
+    NO_BUS,
     Installation,
     TmuxKeeper,
     config_digest,
@@ -839,7 +841,6 @@ def test_a_hanging_tmux(keeper: TmuxKeeper, tmp_path: Path) -> None:
         hanging.sessions()
 
 
-@pytest.mark.stress  # races the move tmux itself makes, see `create`
 def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
     created = new(systemd_keeper, "api", tmp_path, "sleep", "60")
     server = scope_of(int(tmux(systemd_keeper, "display-message", "-p", "#{pid}")))
@@ -850,12 +851,9 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
         unit = scope_of(created.pid)
         return unit if unit is not None and unit not in (server, scope_of(os.getpid())) else ""
 
-    # Ours, or the one tmux makes where it is built with systemd support, e.g. on Ubuntu: see
-    # `create`.
+    # Never one that tmux makes, as on Ubuntu, see `NO_BUS`.
     unit = eventually(own)
-    assert unit == f"hephaistos-terminal-{created.terminal_id}.scope" or unit.startswith(
-        "tmux-spawn-"
-    )
+    assert unit == f"hephaistos-terminal-{created.terminal_id}.scope"
     systemd_keeper.kill("api")
 
     def ended() -> bool:
@@ -864,6 +862,40 @@ def test_scopes_of_their_own(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None
         return result.stdout.strip() != "active"
 
     eventually(ended)
+
+
+def test_the_server_has_no_session_bus(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:
+    new(systemd_keeper, "api", tmp_path, "sleep", "60")
+    pid = tmux(systemd_keeper, "display-message", "-p", "#{pid}").strip()
+    variables = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+    assert f"{BUS_VARIABLE}={NO_BUS}".encode() in variables
+
+
+def test_a_terminal_has_the_session_bus_of_its_creator(
+    systemd_keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    script = f'printf "%s\\n" "${{{BUS_VARIABLE}-unset}}" > out; exec sleep 60'
+    new(systemd_keeper, "api", tmp_path, "sh", "-c", script, **{BUS_VARIABLE: "unix:path=/mine"})
+    assert written(tmp_path / "out") == "unix:path=/mine\n"
+
+
+def test_a_terminal_has_the_session_bus_of_the_manager_where_its_creator_has_none(
+    systemd_keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    assert systemd_keeper.scopes is not None
+    expected = systemd_keeper.scopes.environment.get(BUS_VARIABLE, "unset")
+    script = f'printf "%s\\n" "${{{BUS_VARIABLE}-unset}}" > out; exec sleep 60'
+    new(systemd_keeper, "api", tmp_path, "sh", "-c", script)
+    assert written(tmp_path / "out") == f"{expected}\n"
+
+
+def test_a_terminal_has_no_session_bus_where_none_is_known(
+    keeper: TmuxKeeper, tmp_path: Path
+) -> None:
+    assert keeper.scopes is None  # and the server has the bus of the tests, which leads nowhere
+    script = f'printf "%s\\n" "${{{BUS_VARIABLE}-unset}}" > out; exec sleep 60'
+    new(keeper, "api", tmp_path, "sh", "-c", script)
+    assert written(tmp_path / "out") == "unset\n"
 
 
 def test_kill_with_force_spares_the_server(systemd_keeper: TmuxKeeper, tmp_path: Path) -> None:

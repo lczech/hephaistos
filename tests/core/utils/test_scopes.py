@@ -52,4 +52,60 @@ def test_the_managers_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         (fake / name).chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
     found = scopes.detect()
-    assert found == Scopes(str(fake / "systemd-run"), {"A": "1", "B": "x y"})
+    assert found == Scopes(
+        str(fake / "systemd-run"), {"A": "1", "B": "x y"}, str(fake / "systemctl")
+    )
+
+
+#: A user manager in /m, whose scopes named `*starting*` still start; it logs what it is asked.
+FAKE_SYSTEMCTL = """#!/bin/sh
+shift  # --user
+echo "$*" >> "$0.log"
+case "$1 $2" in
+"show --property=ControlGroup") echo /m ;;
+"show --property=Id,ActiveState")
+    shift 3
+    for unit; do
+        case "$unit" in *starting*) state=activating ;; *) state=active ;; esac
+        printf 'Id=%s\\nActiveState=%s\\n\\n' "$unit" "$state"
+    done ;;
+esac
+"""
+
+
+def fake_manager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **scopes_found: int) -> Path:
+    """A fake systemctl, and cgroups of scopes in app.slice, each with whether it is populated."""
+    monkeypatch.setattr(scopes, "CGROUPS", tmp_path / "cgroup")
+    for name, populated in scopes_found.items():
+        unit = tmp_path / "cgroup" / "m" / "app.slice" / f"{name.replace('_', '-')}.scope"
+        unit.mkdir(parents=True)
+        (unit / "cgroup.events").write_text(f"populated {populated}\nfrozen 0\n")
+    systemctl = tmp_path / "systemctl"
+    systemctl.write_text(FAKE_SYSTEMCTL)
+    systemctl.chmod(0o755)
+    return systemctl
+
+
+def test_stop_empty_stops_only_empty_active_scopes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    systemctl = fake_manager(tmp_path, monkeypatch, ours_a=0, ours_b=1, ours_starting=0, other_c=0)
+    found = Scopes("systemd-run", {}, str(systemctl))
+    assert found.stop_empty("ours-*.scope") == ["ours-a.scope"]
+    asked = Path(f"{systemctl}.log").read_text().splitlines()
+    assert asked[-1] == "stop -- ours-a.scope"
+
+
+def test_stop_empty_asks_no_more_where_none_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    systemctl = fake_manager(tmp_path, monkeypatch, ours_b=1, other_c=0)
+    assert Scopes("systemd-run", {}, str(systemctl)).stop_empty("ours-*.scope") == []
+    assert Path(f"{systemctl}.log").read_text().splitlines() == [
+        "show --property=ControlGroup --value"
+    ]
+
+
+def test_stop_empty_where_systemctl_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_manager(tmp_path, monkeypatch, ours_a=0)
+    assert Scopes("systemd-run", {}, "/nonexistent/systemctl").stop_empty("ours-*.scope") == []

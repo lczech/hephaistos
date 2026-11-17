@@ -75,7 +75,9 @@ So for those versions, our config starts one job in the server, guarded by `@hep
 systemd stops a unit by killing its whole cgroup, and systemd-oomd kills whole cgroups under memory pressure.
 A process stays in the cgroup of the process that forked it, however it detaches.
 So where the systemd user manager answers, the tmux server starts in a scope of its own (`systemd-run --user --scope`), and the process of each Terminal in another, `hephaistos-terminal-<id>.scope`.
-A tmux built with systemd support, e.g. that of Ubuntu, also moves each new pane into a scope of its own, `tmux-spawn-*.scope`, while the pane starts; whichever move comes last holds it.
+A tmux built with systemd support, e.g. that of Ubuntu, asks the manager over the D-Bus session bus for a scope for each new pane, `tmux-spawn-*.scope`, which stays, empty, until logout where the program of the pane ends at once.
+So the server we start in a scope starts without that bus (`DBUS_SESSION_BUS_ADDRESS` set to a path that does not exist), and makes none; `systemd-run` and `systemctl` reach the manager through its own socket, without the bus.
+systemd 255 also keeps a scope of ours, empty, where its Terminal ends while the scope starts, e.g. closed at once; so where a Terminal is created or closed, the Keeper stops each active `hephaistos-terminal-*.scope` whose cgroup holds no process, which none joins again.
 Stopping the Daemon, or an out-of-memory kill of one Terminal, ends no other.
 Elsewhere, e.g. on clusters, both start as plain processes.
 A user manager that does not answer within 5 s, e.g. under heavy load, is logged as a warning, and the Terminal starts without a scope of its own.
@@ -85,9 +87,10 @@ A user manager that does not answer within 5 s, e.g. under heavy load, is logged
 Where systemd answers, the server starts with the environment of the user manager, as a terminal emulator on a desktop does.
 Elsewhere it has the environment of the process that starts it.
 A new Terminal also gets the variables of its creator that a terminal emulator passes on (`DISPLAY`, `WAYLAND_DISPLAY`, `SSH_AUTH_SOCK`, …), and runs the login shell of the creator unless given a command.
+Its session bus is that of its creator, else that of the manager, else none, never the one hidden from the server.
 tmux sets `TMUX` and `TMUX_PANE` for each program it starts; each Terminal starts through `env -u`, which removes them, then becomes the program.
 So a `tmux` typed in a Terminal reaches the tmux of the user, as from any terminal emulator, and programs see no sign of tmux.
-Until these wrappers (`env`, `systemd-run`) become the program, tmux gives one of them as the program of the pane, as it does for a dead pane: the Keeper gives no program then, and an ended Terminal keeps the one last seen, else the name of its command's program.
+Until these wrappers (`env`, `systemd-run`) become the program, tmux gives one of them as the program of the pane, as it does for a dead pane: the Keeper gives no program then, and an ended Terminal keeps the one last seen, else the name of the program of its command.
 
 ### Listing
 

@@ -489,6 +489,7 @@ def test_a_command_still_starting(
     assert ok("list")[1].split()[:3] == ["typo", "ended", "(status"]
 
 
+@pytest.mark.usefixtures("settled")
 def test_one_a_signal_ended(tmp_path: Path) -> None:
     ok("create", "-n", "job", "-d", str(tmp_path), "--", "sh", "-c", "kill -KILL $$")
     said = {"ended (signal 9, SIGKILL)", "ended (signal)"}  # tmux before 3.3 does not say which
@@ -541,6 +542,7 @@ def test_close_ended_ones(keeper: TmuxKeeper, tmp_path: Path, command: str) -> N
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]
 
 
+@pytest.mark.usefixtures("settled")
 def test_names_of_ended_ones_stay_taken(tmp_path: Path) -> None:
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "true")
     assert failed("create", "-n", "build", "-d", str(tmp_path)) == (
