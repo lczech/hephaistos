@@ -87,6 +87,7 @@ def test_single_entries(message: str, expected: object) -> None:
     ("old", "message"),
     [
         ("b", "reset: moving to HEAD"),  # by `git stash`
+        (None, "reset: moving to HEAD"),  # a new Worktree's first entry, in newer git
         ("a", "Branch: renamed refs/heads/x to refs/heads/y"),
         (None, ""),  # a new Worktree
     ],

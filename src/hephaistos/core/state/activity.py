@@ -209,7 +209,10 @@ def _single(entry: ReflogEntry) -> list[Activity]:  # noqa: PLR0911 - one return
         payload = PulledPayload(head, how, match["arguments"].strip())
         return [Activity(ActivityKind.PULLED, at, payload)]
     if match := _RESET.fullmatch(entry.message):
-        if entry.old == entry.new:  # e.g. by `git stash`
+        # To HEAD itself, HEAD stays: by `git stash`, `git reset --hard`, or `git worktree add`,
+        # whose entry is a new Worktree's first in newer git (2.47, not 2.43): none before it
+        # says where HEAD was.
+        if entry.old == entry.new or match["target"] == "HEAD":
             return []
         return [Activity(ActivityKind.RESET, at, ResetPayload(head, match["target"]))]
     if match := _SWITCH.fullmatch(entry.message):
