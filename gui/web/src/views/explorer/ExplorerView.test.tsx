@@ -181,6 +181,15 @@ describe("the Explorer View", () => {
     await userEvent.click(screen.getByRole("button", { name: "Hidden files" })); // as it was
   });
 
+  it("keeps what the other rows draw as a folder opens", async () => {
+    serveDisk();
+    renderWithQueries(<Explorer initial={{ path: "/home/me" }} />);
+    const notes = await screen.findByText("notes.md");
+    await userEvent.click(screen.getByText("proj"));
+    await screen.findByText("main.py");
+    expect(screen.getByText("notes.md")).toBe(notes);
+  });
+
   it("joins no folder with a Checkout it holds alone, which keeps its own row", async () => {
     const disk: Record<string, FileEntry[]> = {
       "/home/me": [entry("work", { kind: "directory" })],

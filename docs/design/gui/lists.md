@@ -6,6 +6,7 @@ How the GUI's lists work (`components/list/`).
 
 TanStack Table (`@tanstack/react-table`, headless) holds a list's columns and their state.
 Views render them as CSS grids of their own markup.
+A View defines its columns once, as TanStack asks, or from what shapes them alone, as a list of commits from the lanes of its graph; what its cells need that changes, e.g. the folders open, reaches them through the table's `meta` (`ListMeta`, to which each View adds its own fields), so that React updates what a cell draws instead of building it anew.
 Widths reach the grid as CSS variables.
 The header and each row lay out the same columns, each on its own, not as subgrids of one grid: so that a change in one row, even its actions shown on hover, does not lay out all the others again.
 So a column's width is the same in every row, never sized by its cells (`max-content`); one sized by what it shows is set by its View, as the Changes list's lines (`vars`).

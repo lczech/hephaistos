@@ -35,7 +35,7 @@ import { sortingOf, withSorting } from "../sorting";
 import { useTitle } from "../title";
 import { ViewLink } from "../ViewLink";
 import { knownCheckouts, placeOf, RowActions, rowMenu, showsFile } from "./actions";
-import { COSTLY, explorerColumns, FIELDS } from "./columns";
+import { COSTLY, type ExplorerLooks, explorerColumns, FIELDS } from "./columns";
 import styles from "./ExplorerView.module.css";
 import {
   asked,
@@ -357,7 +357,7 @@ export function ExplorerView({
   const checkoutName = shownIn?.paths[0]?.split("/").at(-1) ?? "";
   const openView = useOpenView();
   const shownViews = useShownViews();
-  const columns = explorerColumns({
+  const looks: ExplorerLooks = {
     open: (row) => opened.has(row.id),
     marked: (row) => {
       const marks = search && found?.marks.get(bare(row.id));
@@ -366,11 +366,11 @@ export function ExplorerView({
     current: (row) => shownCurrent !== undefined && shownPaths(row).includes(shownCurrent),
     checkout: (path) => checkouts.has(path),
     denied: (path) => denied.has(path),
-  });
+  };
   const now = useNow(10_000);
   const table = useList("explorer", layout, {
-    columns,
-    meta: { now },
+    columns: explorerColumns,
+    meta: { now, explorer: looks },
     data: listed,
     getRowId: (entry) => entry.id,
     getSubRows: (entry) => entry.subRows,

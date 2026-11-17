@@ -21,7 +21,13 @@ import {
 import { type ColumnLook, columnsOrdered } from "./columns";
 import { columnOrder, columnWidths, hiddenColumns, hiddenOf, type ListLayout } from "./kept";
 
-/** What a list's cells may need besides their row; and how its look is kept. */
+/**
+ * What a list's cells may need besides their row; and how its look is kept.
+ * A View adds its own fields from its columns' file, by declaration merging, optional as all lists
+ * share this type: its cells read them through a function that throws where the View passed none.
+ * TanStack's own typing, a `tableMeta` per table (`tableFeatures`), would check them when compiled
+ * instead, at the cost of a table setup per View: an alternative to consider.
+ */
 export interface ListMeta {
   now?: number; // for times as `5m ago`
   home?: string; // for paths as `~/…`

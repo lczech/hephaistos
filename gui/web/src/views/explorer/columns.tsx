@@ -12,7 +12,7 @@ import { Ago } from "../../components/Ago";
 import { fileKind, KIND_ICONS } from "../../components/files/kinds";
 import { Path } from "../../components/files/Path";
 import { Indented, NoteText, TreeChevron, TreeGuides } from "../../components/list/TreeCells";
-import { listColumnHelper } from "../../components/list/table";
+import { type ListMeta, listColumnHelper } from "../../components/list/table";
 import { TextIcon } from "../../components/TextIcon";
 import { numberText, plural, sizeParts } from "../../text";
 import { letterName } from "../comparison/rows";
@@ -23,8 +23,8 @@ const column = listColumnHelper<Entry>();
 
 type Shown = Extract<Entry, { type: "entry" }>;
 
-/** What a row's icon and tooltip say of it, beyond its name. */
-export interface Looks {
+/** What a row's icon and tooltip say of it, beyond its name: from the View, in the table's `meta`. */
+export interface ExplorerLooks {
   open: (row: Shown) => boolean;
   checkout: (path: string) => boolean; // a registered Checkout's top
   denied: (path: string) => boolean; // a folder this user may not list
@@ -32,8 +32,20 @@ export interface Looks {
   current: (row: Shown) => boolean; // the match stepped to, or revealed once the search closed
 }
 
+declare module "../../components/list/table" {
+  interface ListMeta {
+    explorer?: ExplorerLooks;
+  }
+}
+
+/** The Explorer's looks, from the table's `meta`, where its View must pass them. */
+function looksOf(meta: ListMeta | undefined): ExplorerLooks {
+  if (meta?.explorer === undefined) throw new Error("the Explorer's columns need `meta.explorer`");
+  return meta.explorer;
+}
+
 /** An entry's icon: a folder's open or not, a Checkout's, a symlink's, else its kind's. */
-function iconOf(row: Shown, looks: Looks): LucideIcon {
+function iconOf(row: Shown, looks: ExplorerLooks): LucideIcon {
   const { entry } = row;
   if (entry.kind === "symlink") {
     if (entry.to === null) return FileX;
@@ -85,7 +97,7 @@ function gitTitle(row: Shown): string {
  * An entry's name after its icon, coloured by git's letter, or for changes below a folder; hidden
  * ones quieter, in italics; ignored ones quieter; broken symlinks marked; matches found marked.
  */
-function NameCell({ row, looks }: { row: Shown; looks: Looks }) {
+function NameCell({ row, looks }: { row: Shown; looks: ExplorerLooks }) {
   const broken = row.entry.kind === "symlink" && row.entry.to === null;
   const name = (
     <Path
@@ -150,83 +162,81 @@ function GitCell({ row }: { row: Shown }) {
  * The Explorer's columns: a folder's chevron, in line with its name; the name; git's letter;
  * then the size and the time last modified, hidden until shown. All but the letter sort.
  */
-export function explorerColumns(looks: Looks) {
-  return column.columns([
-    column.display({
-      id: "square",
-      cell: ({ row }) => (
-        <>
-          <TreeGuides depth={row.depth} />
-          {row.original.type === "entry" && row.original.folder && !row.original.empty && (
-            <TreeChevron depth={row.depth} />
+export const explorerColumns = column.columns([
+  column.display({
+    id: "square",
+    cell: ({ row }) => (
+      <>
+        <TreeGuides depth={row.depth} />
+        {row.original.type === "entry" && row.original.folder && !row.original.empty && (
+          <TreeChevron depth={row.depth} />
+        )}
+      </>
+    ),
+    enableResizing: false,
+    meta: { width: "var(--square)" },
+  }),
+  column.accessor((entry) => (entry.type === "entry" ? entry.shown : ""), {
+    id: "name",
+    header: "name",
+    enableSorting: true,
+    size: 360,
+    meta: { identifies: true },
+    cell: ({ row, table }) => {
+      const entry = row.original;
+      return (
+        <Indented depth={row.depth}>
+          {entry.type === "note" ? (
+            <NoteText note={entry} />
+          ) : (
+            <NameCell row={entry} looks={looksOf(table.options.meta)} />
           )}
-        </>
-      ),
-      enableResizing: false,
-      meta: { width: "var(--square)" },
-    }),
-    column.accessor((entry) => (entry.type === "entry" ? entry.shown : ""), {
-      id: "name",
-      header: "name",
+        </Indented>
+      );
+    },
+  }),
+  column.display({
+    id: "git",
+    header: "git",
+    enableResizing: false,
+    meta: {
+      width: "3ch", // as its header: a letter, or •
+      align: "center",
+      description: "git's status: its letter, or • for changes below",
+    },
+    cell: ({ row }) => (row.original.type === "entry" ? <GitCell row={row.original} /> : ""),
+  }),
+  column.accessor(
+    (entry) =>
+      entry.type === "entry" ? (entry.entry.size ?? entry.entry.items ?? undefined) : undefined,
+    {
+      id: "size",
+      header: "size",
       enableSorting: true,
-      size: 360,
-      meta: { identifies: true },
-      cell: ({ row }) => {
+      sortDescFirst: true,
+      size: 80,
+      meta: { align: "right", figures: true, ...COSTLY[0]?.meta },
+      cell: ({ row }) =>
+        row.original.type === "entry" ? <SizeCell entry={row.original.entry} /> : "",
+    },
+  ),
+  column.accessor(
+    (entry) => (entry.type === "entry" ? (entry.entry.modified ?? undefined) : undefined),
+    {
+      id: "modified",
+      header: "modified",
+      enableSorting: true,
+      sortDescFirst: true,
+      size: 90,
+      meta: { align: "right", figures: true, ...COSTLY[1]?.meta },
+      cell: ({ row, table }) => {
         const entry = row.original;
-        return (
-          <Indented depth={row.depth}>
-            {entry.type === "note" ? (
-              <NoteText note={entry} />
-            ) : (
-              <NameCell row={entry} looks={looks} />
-            )}
-          </Indented>
+        return entry.type === "entry" ? (
+          <Ago at={entry.entry.modified} now={table.options.meta?.now} />
+        ) : (
+          ""
         );
       },
-    }),
-    column.display({
-      id: "git",
-      header: "git",
-      enableResizing: false,
-      meta: {
-        width: "3ch", // as its header: a letter, or •
-        align: "center",
-        description: "git's status: its letter, or • for changes below",
-      },
-      cell: ({ row }) => (row.original.type === "entry" ? <GitCell row={row.original} /> : ""),
-    }),
-    column.accessor(
-      (entry) =>
-        entry.type === "entry" ? (entry.entry.size ?? entry.entry.items ?? undefined) : undefined,
-      {
-        id: "size",
-        header: "size",
-        enableSorting: true,
-        sortDescFirst: true,
-        size: 80,
-        meta: { align: "right", figures: true, ...COSTLY[0]?.meta },
-        cell: ({ row }) =>
-          row.original.type === "entry" ? <SizeCell entry={row.original.entry} /> : "",
-      },
-    ),
-    column.accessor(
-      (entry) => (entry.type === "entry" ? (entry.entry.modified ?? undefined) : undefined),
-      {
-        id: "modified",
-        header: "modified",
-        enableSorting: true,
-        sortDescFirst: true,
-        size: 90,
-        meta: { align: "right", figures: true, ...COSTLY[1]?.meta },
-        cell: ({ row, table }) => {
-          const entry = row.original;
-          return entry.type === "entry" ? (
-            <Ago at={entry.entry.modified} now={table.options.meta?.now} />
-          ) : (
-            ""
-          );
-        },
-      },
-    ),
-  ]);
-}
+    },
+  ),
+]);
