@@ -136,22 +136,26 @@ def test_show_a_split_one(keeper: TmuxKeeper, tmp_path: Path) -> None:
 
 
 def test_unknown_ones() -> None:
-    for args in (("show", "x"), ("rename", "x", "y"), ("kill", "x")):
+    for args in (("show", "x"), ("rename", "x", "y"), ("close", "x"), ("kill", "x")):
         assert failed(*args) == "no terminal named x on this machine"
 
 
-def test_rename_and_kill(tmp_path: Path) -> None:
+def test_rename_close_and_kill(tmp_path: Path) -> None:
     ok("create", "-n", "api", "-d", str(tmp_path))
     assert ok("rename", "api", "web") == ["Renamed terminal api to web"]
-    assert ok("kill", "web") == ["Killed terminal web"]
+    assert ok("close", "web") == ["Closed terminal web"]
+    ok("create", "-n", "stubborn", "-d", str(tmp_path), "--", "sh", "-c", "trap '' HUP; sleep 600")
+    assert ok("kill", "stubborn") == ["Killed terminal stubborn"]
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]
 
 
-def test_kill_a_lost_one(keeper: TmuxKeeper, tmp_path: Path) -> None:
+@pytest.mark.parametrize("command", ["close", "kill"])
+def test_close_a_lost_one(keeper: TmuxKeeper, tmp_path: Path, command: str) -> None:
+    """Nothing is left to close, so it is removed."""
     ok("create", "-n", "api", "-d", str(tmp_path))
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     assert ok("list")[1].split()[:5] == ["api", "lost", "(tmux", "server", "ended)"]
-    assert ok("kill", "api") == ["Removed lost terminal api"]
+    assert ok(command, "api") == ["Removed lost terminal api"]
 
 
 def test_list_says_why_one_was_lost(paths: Paths, keeper: TmuxKeeper, tmp_path: Path) -> None:
@@ -466,19 +470,23 @@ def test_show_says_when_and_why_a_session_went(
     )
 
 
-def test_kill_ended_ones(keeper: TmuxKeeper, tmp_path: Path) -> None:
+@pytest.mark.usefixtures("settled")
+@pytest.mark.parametrize("command", ["close", "kill"])
+def test_close_ended_ones(keeper: TmuxKeeper, tmp_path: Path, command: str) -> None:
+    """One closes with its last screen; one whose screen is gone is removed."""
     ok("create", "-n", "a", "-d", str(tmp_path), "--", "true")
     ok("create", "-n", "b", "-d", str(tmp_path), "--", "true")
-    assert ok("kill", "a") == ["Removed ended terminal a"]
+    assert ok(command, "a") == ["Closed ended terminal a"]
     kill_server(keeper)
-    assert ok("kill", "b") == ["Removed ended terminal b"]
+    assert ok(command, "b") == ["Removed ended terminal b"]
     assert ok("list") == ["name  status  repo  directory  program  attached  active"]
 
 
 def test_names_of_ended_ones_stay_taken(tmp_path: Path) -> None:
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "true")
     assert failed("create", "-n", "build", "-d", str(tmp_path)) == (
-        "an ended terminal named build exists; kill it, or choose another name"
+        "an ended terminal named build exists;"
+        " run `hephaistos terminal close build` to close it, or choose another name"
     )
 
 

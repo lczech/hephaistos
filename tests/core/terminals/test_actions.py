@@ -90,7 +90,8 @@ def test_names_taken(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     with pytest.raises(HephaistosError, match=r"^a terminal named mine exists"):
         actions.create(set_up, proj, name="mine")
     lose_all(keeper, set_up)
-    with pytest.raises(HephaistosError, match=r"^a lost terminal named api exists; kill it"):
+    lost = r"^a lost terminal named api exists; run `hephaistos terminal close api` to remove it,"
+    with pytest.raises(HephaistosError, match=lost):
         actions.create(set_up, proj, name="api")
     assert actions.create(set_up, proj).name == "proj-1"  # lost names stay taken
 
@@ -287,17 +288,17 @@ def test_rename_a_lost_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> Non
     assert (renamed.id, renamed.name, renamed.status) == (created.id, "old", "lost")
 
 
-def test_kill(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+def test_close(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
     actions.create(set_up, proj, name="web")
-    assert actions.kill(set_up, "api").name == "api"
+    assert actions.close(set_up, "api").name == "api"
     assert list(stored(set_up)) == ["web"]
     assert {session.name for session in keeper.sessions()} == {"web"}
     with pytest.raises(NoSuchTerminalError):
-        actions.kill(set_up, "api")
+        actions.close(set_up, "api")
 
 
-def test_kill_one_lost_meanwhile(
+def test_close_one_lost_meanwhile(
     set_up: Paths, keeper: TmuxKeeper, proj: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     actions.create(set_up, proj, name="api")
@@ -308,31 +309,31 @@ def test_kill_one_lost_meanwhile(
         kill(name, force=force)
 
     monkeypatch.setattr(keeper, "kill", crashed_first)
-    actions.kill(set_up, "api", keeper=keeper)
+    actions.close(set_up, "api", keeper=keeper)
     assert stored(set_up) == {}  # not left as lost
 
 
-def test_kill_a_lost_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
+def test_close_a_lost_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
     lose_all(keeper, set_up)
-    assert actions.kill(set_up, "api").status is TerminalStatus.LOST
+    assert actions.close(set_up, "api").status is TerminalStatus.LOST
     assert stored(set_up) == {}
 
 
-def test_kill_with_force(set_up: Paths, proj: Path, tmp_path: Path) -> None:
+def test_kill(set_up: Paths, proj: Path, tmp_path: Path) -> None:
     script = f'trap "" HUP TERM; echo $$ > {tmp_path}/pid; exec sleep 60'
     actions.create(set_up, proj, name="stubborn", command=["sh", "-c", script])
-    actions.kill(set_up, "stubborn", force=True)
+    actions.close(set_up, "stubborn", force=True)
     assert stored(set_up) == {}
 
 
 @pytest.mark.stress
-def test_kills_at_once(set_up: Paths, proj: Path) -> None:
+def test_closes_at_once(set_up: Paths, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
 
     def attempt(_: int) -> str:
         try:
-            actions.kill(set_up, "api")
+            actions.close(set_up, "api")
         except NoSuchTerminalError:
             return "gone"
         return "killed"
@@ -344,7 +345,7 @@ def test_kills_at_once(set_up: Paths, proj: Path) -> None:
 
 
 @pytest.mark.stress
-def test_a_rename_racing_a_kill(set_up: Paths, proj: Path) -> None:
+def test_a_rename_racing_a_close(set_up: Paths, proj: Path) -> None:
     actions.create(set_up, proj, name="api")
 
     def rename(_: int) -> str:
@@ -356,7 +357,7 @@ def test_a_rename_racing_a_kill(set_up: Paths, proj: Path) -> None:
 
     with ThreadPoolExecutor(2) as pool:
         renaming = pool.submit(rename, 0)
-        pool.submit(actions.kill, set_up, "api")
+        pool.submit(actions.close, set_up, "api")
         assert renaming.result() in ("gone", "renamed")
     actions.observer.observe(set_up)
     assert len(stored(set_up)) <= 1
@@ -587,7 +588,10 @@ def test_attach_to_an_ended_one_whose_screen_went(
 
 def test_names_taken_by_ended_ones(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
     ended_one(set_up, keeper, proj)
-    taken = r"^an ended terminal named build exists; kill it, or choose another name$"
+    taken = (
+        r"^an ended terminal named build exists;"
+        r" run `hephaistos terminal close build` to close it, or choose another name$"
+    )
     with pytest.raises(HephaistosError, match=taken):
         actions.create(set_up, proj, name="build")
     actions.create(set_up, proj, name="api")
@@ -610,21 +614,21 @@ def test_rename_an_ended_one(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> N
 
 
 @pytest.mark.parametrize("force", [False, True])
-def test_kill_an_ended_one(set_up: Paths, keeper: TmuxKeeper, proj: Path, force: bool) -> None:  # noqa: FBT001
+def test_close_an_ended_one(set_up: Paths, keeper: TmuxKeeper, proj: Path, force: bool) -> None:  # noqa: FBT001
     ended_one(set_up, keeper, proj)
     actions.create(set_up, proj, name="api")
-    killed = actions.kill(set_up, "build", force=force)
+    killed = actions.close(set_up, "build", force=force)
     assert (killed.name, killed.status) == ("build", TerminalStatus.ENDED)
     assert [session.name for session in keeper.sessions()] == ["api"]
     assert list(stored(set_up)) == ["api"]
 
 
-def test_kill_an_ended_one_whose_session_went(
+def test_close_an_ended_one_whose_session_went(
     set_up: Paths, keeper: TmuxKeeper, proj: Path
 ) -> None:
     ended_one(set_up, keeper, proj)
     lose_all(keeper, set_up)
-    killed = actions.kill(set_up, "build")
+    killed = actions.close(set_up, "build")
     assert (killed.status, killed.session_gone) == (TerminalStatus.ENDED, True)
     assert stored(set_up) == {}
 

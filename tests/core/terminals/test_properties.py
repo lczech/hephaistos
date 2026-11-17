@@ -123,7 +123,7 @@ def test_any_directory_and_command_come_back(  # noqa: PLR0913 - fixtures, then 
         with read_session(set_up) as read:
             assert terminals.by_id(read, created.id) == created
     finally:
-        actions.kill(set_up, created.name)
+        actions.close(set_up, created.name)
 
 
 #: Names tmux takes by hand: printable, without its separators `.` and `:`.
@@ -164,4 +164,4 @@ def test_a_session_named_by_hand_is_adopted_by_its_name(
         with read_session(set_up) as read:
             assert [state.name for state in terminals.on_this_machine(read)] == [given]
     finally:
-        actions.kill(set_up, given)
+        actions.close(set_up, given)

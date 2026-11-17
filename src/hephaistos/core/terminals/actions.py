@@ -33,12 +33,14 @@ MAX_TRIES = 100  # default names tried while others take them meanwhile
 
 
 def _taken_text(name: str, status: TerminalStatus = TerminalStatus.OPEN) -> str:
-    """Why `name` cannot be given: a Terminal of that status has it."""
+    """Why `name` cannot be given: a Terminal of that status has it; one ended or lost may go."""
     if status is TerminalStatus.OPEN:
         return f"a terminal named {escaped(name)} exists; choose another name"
     article = "an" if status is TerminalStatus.ENDED else "a"
     which = f"{article} {status} terminal named {escaped(name)}"
-    return f"{which} exists; kill it, or choose another name"
+    done = "close" if status is TerminalStatus.ENDED else "remove"
+    run = shlex.join(["hephaistos", "terminal", "close", name])
+    return f"{which} exists; run `{run}` to {done} it, or choose another name"
 
 
 def _shell_closed_text(name: str, environment: Mapping[str, str], when: str = "") -> str:
@@ -292,14 +294,14 @@ def attach_created(
     return _attach_command(keeper, created, tty, gone=gone)
 
 
-def kill(
+def close(
     paths: Paths, name: str, *, force: bool = False, keeper: Keeper | None = None
 ) -> TerminalState:
-    """Ends a Terminal, its processes getting SIGHUP, or with `force` SIGKILL first.
+    """Closes a Terminal, its processes getting SIGHUP, or with `force` kills it: SIGKILL first.
 
-    Returns it as last known. One ended closes, its last screen with it. One whose session is
-    gone is forgotten, also one whose session went meanwhile with its server; one that closed
-    meanwhile counts as killed.
+    Returns it as last known. One ended closes, its last screen with it. The row of one whose
+    session is gone is removed, also of one whose session went meanwhile with its server; one
+    that closed meanwhile counts as closed.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)

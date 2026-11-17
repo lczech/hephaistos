@@ -100,12 +100,12 @@ A pane whose fields do not add up is skipped and logged, never misread; so is a 
 Its Terminal still runs, so where its ID reads, as it comes before any name or path, its row stays as it was, e.g. after a `cd` into a directory whose name holds the separator.
 Without a server, or with one whose socket refuses connections, e.g. left by a crash, there are no sessions.
 
-### Killing
+### Closing and killing
 
-Killing a Terminal ends its session, and its processes get SIGHUP.
+Closing a Terminal ends its session (`Keeper.kill`), and its processes get SIGHUP, as when a terminal emulator closes a tab.
 What ignores SIGHUP outlives it.
-`force` sends SIGKILL first, to the scope the process of the Terminal runs in, never that of the server, and to every process in the session of its pane.
-Killing an ended Terminal closes its pane; `force` also ends what its command left running, where tmux still names its process, which it forgets since 3.8.
+Killing it (`force`) sends SIGKILL first, to the scope the process of the Terminal runs in, never that of the server, and to every process in the session of its pane.
+Closing an ended Terminal closes its pane; killing it also ends what its command left running, where tmux still names its process, which it forgets since 3.8.
 
 ### Versions
 
@@ -126,7 +126,7 @@ A Terminal is **open** while its program runs, **ended** once its pane stays end
 - another boot (by the Linux boot ID): they are lost too.
 
 An ended one keeps its exit status, or the signal that ended it, if tmux says which, and when it ended, or was first seen ended where tmux does not say.
-Lost ones keep their row and name, to be restored with both, or killed.
+Lost ones keep their row and name, to be restored with both, or removed by closing them.
 So do ended ones whose session went with the server: they stay ended, with how, their last screen gone.
 Both keep when their session was found gone, and why: `reboot` or `server`.
 A session found again, e.g. one ended and respawned by hand, is open, without what it was.
@@ -146,10 +146,10 @@ Without a working Keeper, e.g. without tmux, a Machine without Terminals is no n
 
 ## Actions
 
-Creating, attaching, renaming and killing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
+Creating, attaching, renaming and closing a Terminal (`core/terminals/actions.py`) serve the CLI and, later, the Server.
 Each observes first, so that it acts on what the Keeper holds now, then acts on the Keeper, then observes again: State comes from the one comparison.
-A Terminal whose session is gone, lost or ended, has none, so renaming or killing one changes its row alone; killing forgets it, also one whose session went while being killed, as its server ended meanwhile.
-Killing an ended one with its session closes that, its last screen with it.
+A Terminal whose session is gone, lost or ended, has none, so renaming or closing one changes its row alone; closing removes it, also one whose session went while being closed, as its server ended meanwhile.
+Closing an ended one with its session closes that, its last screen with it.
 
 A new Terminal starts in an existing directory we can enter, stored with symlinks resolved, whose path is UTF-8, as text in the database is, and holds no separator of our listing (`\x1e`, `\x1f`), as its session would not read back.
 Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.

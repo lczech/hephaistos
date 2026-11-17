@@ -41,7 +41,7 @@ def main(seed: int, operations: int, directory: Path) -> None:
             elif action == "rename":
                 actions.rename(paths, rng.choice(names), f"t{rng.randrange(NAMES)}")
             else:
-                actions.kill(paths, rng.choice(names))
+                actions.close(paths, rng.choice(names))
         except HephaistosError:
             pass
 

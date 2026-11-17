@@ -14,7 +14,7 @@ hephaistos clone list [--repo <name>] [--refresh] | show [--refresh] | unregiste
                  | move <old> <new> [--nested]
 hephaistos worktree list [--repo <name>] [--refresh] | show [path|name] [--refresh]
 hephaistos terminal create [-n <name>] [-d <dir>] [--detached] [[--] <command>…] | attach <name>
-                    | list | show <name> | rename <name> <new name> | kill <name> [--force]
+                    | list | show <name> | rename <name> <new name> | close <name> | kill <name>
 hephaistos event list [--kind <kind>] [--priority <min>] [--machine <name>] [--since <when>]
                      [--repo <name>] [--clone <path>] [--worktree <path|name>] [--reverse]
                      | show <id> | kinds
@@ -100,15 +100,17 @@ A shell that closed already is refused, with what to check: `terminal api closed
 It runs only interactively, input and output both a tty, and not at a tty that the Terminal shows, e.g. inside it ([terminals](../core/terminals.md#actions)).
 It logs its end before it becomes tmux.
 Attaching to a lost Terminal restores it first ([terminals](../core/terminals.md#actions)).
-Attaching to an ended one shows its last screen, with a line on how and when it ended; Ctrl+D closes it then, as `kill` does, and Ctrl+B d leaves it ended.
+Attaching to an ended one shows its last screen, with a line on how and when it ended; Ctrl+D closes it then, as `close` does, and Ctrl+B d leaves it ended.
 Once that screen is gone too, e.g. after a reboot, attaching says so.
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
 `list` and `show` give the status of an ended one with how it ended, in the words of the line in it: `ended (finished)` for status 0, `ended (status 1)`, `ended (signal 15, SIGTERM)`, and `ended (status 1, screen gone)` once its last screen is gone; of a lost one, with why: `lost (machine restarted)`, `lost (tmux server ended)`.
 Where tmux cannot be asked, `list` and `show` say so, and when the Terminals were last observed, then show them as stored.
 `show` gives when it ended (`ended`), and when its session was found gone (`noticed`).
-`kill` ends a Terminal and what runs in it; `--force` sends SIGKILL first.
-It removes one that ended, its last screen with it, and one that was lost: `Removed ended terminal …`, `Removed lost terminal …`.
+`close` closes a Terminal as a terminal emulator closes a tab: what runs in it gets SIGHUP (`Closed terminal api`).
+`kill` is for one that does not close: what runs in it gets SIGKILL first, which none can ignore (`Killed terminal api`).
+Either closes an ended one, its last screen with it (`Closed ended terminal build`), and removes what is left of one whose session is gone (`Removed lost terminal api`, `Removed ended terminal build`).
+A name that an ended or lost Terminal holds stays taken until then, and the message says so: ``run `hephaistos terminal close build` to close it``.
 How Terminals work: [terminals](../core/terminals.md).
 
 ## scan

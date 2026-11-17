@@ -254,17 +254,32 @@ def rename(
     typer.echo(f"Renamed terminal {escaped(name)} to {escaped(renamed.name)}")
 
 
-@app.command()
-def kill(
-    name: NameArgument,
-    *,
-    force: Annotated[
-        bool, typer.Option("--force", help="SIGKILL first, also for what ignores SIGHUP.")
-    ] = False,
-) -> None:
-    """End a terminal and what runs in it, or remove one that ended or was lost."""
-    killed = actions.kill(Paths.from_environment(), name, force=force)
-    if killed.status is terminals.TerminalStatus.OPEN:
-        typer.echo(f"Killed terminal {escaped(killed.name)}")
+def _closed(name: str, *, force: bool) -> None:
+    """Closes a Terminal, or with `force` kills it, and says which it did.
+
+    What is left of a Terminal whose session is gone is removed.
+    """
+    closed = actions.close(Paths.from_environment(), name, force=force)
+    if closed.session_gone:
+        done = "Removed"
+    elif closed.status is terminals.TerminalStatus.OPEN and force:
+        done = "Killed"
     else:
-        typer.echo(f"Removed {killed.status.value} terminal {escaped(killed.name)}")
+        done = "Closed"
+    which = "" if closed.status is terminals.TerminalStatus.OPEN else f"{closed.status.value} "
+    typer.echo(f"{done} {which}terminal {escaped(closed.name)}")
+
+
+@app.command()
+def close(name: NameArgument) -> None:
+    """Close a terminal, as a terminal emulator closes a tab: what runs in it gets SIGHUP.
+
+    An ended one closes with its last screen, as Ctrl+D in it does; a lost one is removed.
+    """
+    _closed(name, force=False)
+
+
+@app.command()
+def kill(name: NameArgument) -> None:
+    """Kill a terminal that does not close: what runs in it gets SIGKILL, which none can ignore."""
+    _closed(name, force=True)
