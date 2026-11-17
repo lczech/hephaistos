@@ -27,16 +27,19 @@ OPERATIONS = 15  # each
 
 def settled(paths: Paths, keeper: TmuxKeeper) -> dict[uuid.UUID | None, Session] | None:
     """The sessions, once one observation passed while none of them ended, nor closed: some
-    commands end soon after they start."""
+    commands end soon after they start. Those listed right after it, not listed again, as one may
+    end meanwhile."""
 
-    def ends() -> dict[uuid.UUID | None, bool]:
-        return {session.terminal_id: session.ending is None for session in keeper.sessions()}
+    def listed() -> dict[uuid.UUID | None, Session]:
+        return {session.terminal_id: session for session in keeper.sessions()}
 
-    before = ends()
+    def ends(sessions: dict[uuid.UUID | None, Session]) -> dict[uuid.UUID | None, bool]:
+        return {key: session.ending is None for key, session in sessions.items()}
+
+    before = ends(listed())
     observer.observe(paths, keeper)
-    if ends() != before:
-        return None
-    return {session.terminal_id: session for session in keeper.sessions()}
+    after = listed()
+    return after if ends(after) == before else None
 
 
 def test_racing_processes_leave_state_as_tmux_has_it(
