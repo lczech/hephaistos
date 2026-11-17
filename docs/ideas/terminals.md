@@ -1,6 +1,20 @@
 # Ideas: Terminals
 
-For the Terminals work and after it ([roadmap](../plans/roadmap.md)); its plan is in `docs/plans/` on the branch `terminals`.
+For the Terminals work and after it ([roadmap](../plans/roadmap.md)).
+Terminals in the Core and the CLI are done ([terminals](../design/core/terminals.md)); what follows is for the steps after them.
+
+## Next: the stream and the View
+
+The aim: a Terminal View, a terminal in a Panel that feels like a plain terminal emulator, e.g. GNOME Terminal, with its own scrolling, selection, mouse, keys and colours, and no sign of tmux.
+Closing the Panel, the GUI or the Daemon leaves the Terminal running.
+The CLI attaches with plain tmux, which shows that it is tmux.
+
+- The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode passes what it does not know, and says so once.
+  To find out with tests: whether tmux and xterm.js both answer the queries of a program, e.g. which terminal it is in.
+- The Terminal View (xterm.js): a Panel whose Terminal ended or was lost says so, with actions.
+  Ctrl+D closes an ended one, as attached from the CLI: control mode runs no key bindings, so the View does it.
+  To test: keys (e.g. Home, End) and colours reach programs as xterm.js sends them; a pane whose size another client sets (`window-size latest`, e.g. the CLI attached too) still shows well in its Panel.
+- Then Terminals on other Machines.
 
 ## The Terminal View
 
