@@ -8,15 +8,12 @@ Ideas that no step has planned yet are in [ideas](../ideas/).
 
 ## Done
 
-Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08); the Explorer View (2026-11-11); lists virtual, reached by the keys, with ARIA (2026-11-13); the git graph, in History and in the Graph View of a whole Clone, with branch tips only (2026-11-13); a review of all commits, adding the tests they lacked and fixing what those found, with lines and rows in whole device pixels at any zoom (2026-11-17).
+Steps 1 to 17, from the foundations to Find in the Diff; the GUI cleanup; lists and the GUI words; commit links; GUI instances for worktrees; the Status View (2026-11-07); the title bar of the Desktop, with the View menu and buttons for columns of Groups (2026-11-08); the style guide (2026-11-08); the Explorer View (2026-11-11); lists virtual, reached by the keys, with ARIA (2026-11-13); the git graph, in History and in the Graph View of a whole Clone, with branch tips only (2026-11-13); a review of all commits, adding the tests they lacked and fixing what those found, with lines and rows in whole device pixels at any zoom (2026-11-17); Terminals in the Core and the CLI, kept alive by tmux, each in a scope of its own: created, attached as plain tmux, renamed, closed and killed, with how they ended and why they were lost, and the Status View in place of the Daemon View; the GUI tests fuzzed, answers in any order (2026-11-18).
 Git history, the ADRs and the design docs hold the details.
 
 ## Now
 
-- **Terminals**, in the worktree `~/orca/workspaces/hephaistos/terminals`, branch `terminals`.
-  Plan: in `docs/plans/` on that branch, until it moves there `.agents/scratch/terminals/DESIGN.md`.
-  Done: 1a.1 to 1a.6, the Terminal in the Core and CLI.
-  Next: 1b (attach), 1c (exit statuses), then the stream in the Server (step 2), the Terminal View (step 3), and Terminals on other Machines.
+- **Terminals, the stream and the View**, next to plan, on a branch of its own from master: the stream in the Server (step 2), then the Terminal View (step 3), then Terminals on other Machines; the aim and what to test are in [terminals](../ideas/terminals.md#next-the-stream-and-the-view).
 
 ## Owed
 
@@ -26,9 +23,8 @@ Git history, the ADRs and the design docs hold the details.
   In Firefox, in one full run (2026-11-13): `List.browser.test.tsx` "moves its rows stuck as the page scrolls, without drawing its rows anew" and `ExplorerView.browser.test.tsx` "shows the guides of rows within folders only while the pointer is over the list"; both files passed alone.
 - A match the Explorer's find found in a folder holding more entries than `files.max_entries` vanishes once that folder's listing comes, which stops at the limit, and stepping through the matches skips it (found by a review, 2026-11-11).
 - For the steps of xterm.js and Monaco: check their own controls against the rule that every button, field and text area takes the page's font (`theme.css`), which reaches theirs too.
-- Paths that are not UTF-8 crash Clones and Worktrees (`clone register`: `UnicodeEncodeError`), and `git.run` reads in text mode, which turns `\r` in paths into `\n`; the tests for Terminals found both (2026-11-07).
 - A sweep of ordinary possessives, which [style](../style.md) discourages (the user asked, 2026-11-08): about 1800 in 307 files, most in `src/hephaistos` and `gui/web/src`.
-  First the text that users read and the docs (about 400), then comments and docstrings per area, after `terminals` merges; each part rewritten by hand and reviewed.
+  First the text that users read and the docs (about 400), then comments and docstrings per area; each part rewritten by hand and reviewed.
   Scanners: `.agents/scratch/style/`.
 - The List, on a branch of its own from master (the user agreed, 2026-11-13): split `List.tsx` and `VirtualRows.tsx` into the keys and focus, the rows stuck and the rows kept in place; and the square columns named by their Views (`description`), not by `HEADERLESS` in `ColumnHeader.tsx`.
 - A line at the top edge of a list, above its header, at a device scale of 1.25 in Chromium and WebKit, outside the list's box; the header sticking a pixel further did not help (2026-11-12).
