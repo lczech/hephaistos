@@ -41,6 +41,15 @@ def _taken_text(name: str, status: TerminalStatus = TerminalStatus.OPEN) -> str:
     return f"{which} exists; kill it, or choose another name"
 
 
+def _shell_closed_text(name: str, environment: Mapping[str, str], when: str = "") -> str:
+    """Why a Terminal of a shell is gone `when`, e.g. ` before attaching`, and what to check."""
+    shell = escaped(login_shell(environment))
+    return (
+        f"terminal {escaped(name)} closed{when}: its shell, {shell}, exited;"
+        " check SHELL, or the profile of that shell"
+    )
+
+
 def _observed(
     paths: Paths, keeper: Keeper, command: Mapping[uuid.UUID, tuple[str, ...]] | None = None
 ) -> None:
@@ -83,8 +92,11 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
     """Starts a Terminal in `directory`: `command`, else the login shell of the creator.
 
     Named `name`, else by the directory, the next free number; another process taking that
-    name meanwhile moves it on to the next. `environment` is that of the creator. A command that
-    ended at once is returned as ended, to be seen; a shell that did is refused.
+    name meanwhile moves it on to the next. `environment` is that of the creator.
+
+    Returns it as observed right after: open, or ended if its command ended already, e.g. a typo,
+    whose screen then shows why. One closed already, as its shell exited, is refused: nothing is
+    left of it.
     """
     target = _directory(directory)
     if name is not None:
@@ -116,9 +128,10 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
             if created is not None or not keeper.running():
                 lost = f"terminal {escaped(chosen)} was lost at once: the tmux server ended"
                 raise HephaistosError(lost)
-            # A command stays once ended, so this was a shell, or one killed meanwhile.
-            why = ": its shell exited" if command is None else ""
-            raise HephaistosError(f"terminal {escaped(chosen)} ended at once{why}")
+            if command is None:
+                raise HephaistosError(_shell_closed_text(chosen, environment))
+            # A command stays once ended: someone closed it.
+            raise HephaistosError(f"terminal {escaped(chosen)} closed meanwhile")
         return created
     raise HephaistosError(
         f"no free name for a terminal in {short_path(target)} after {MAX_TRIES} tries"
@@ -198,13 +211,15 @@ def _restore(
         # A session started by hand meanwhile, not observed yet.
         raise HephaistosError(_taken_text(lost.name)) from None
     except NoSuchSessionError:
-        raise HephaistosError(f"terminal {escaped(lost.name)} ended at once") from None
+        raise HephaistosError(
+            _shell_closed_text(lost.name, environment, " as it was restored")
+        ) from None
     with write_session(paths) as session:
         state.restored(session, lost)
 
 
 def _attach_command(
-    keeper: Keeper, found: TerminalState, tty: str | None, *, ended: str = "ended meanwhile"
+    keeper: Keeper, found: TerminalState, tty: str | None, *, gone: str | None = None
 ) -> list[str]:
     """The command that attaches to `found`; refused at a `tty` that it shows.
 
@@ -213,7 +228,7 @@ def _attach_command(
     """
     listed = [session for session in keeper.sessions() if session.terminal_id == found.id]
     if not listed:
-        raise HephaistosError(f"terminal {escaped(found.name)} {ended}")
+        raise HephaistosError(gone or f"terminal {escaped(found.name)} closed meanwhile")
     if tty is not None and keeper.shows(listed[0], tty):
         raise HephaistosError(
             f"this runs inside terminal {escaped(found.name)};"
@@ -260,16 +275,21 @@ def attach_created(
     created: TerminalState,
     *,
     keeper: Keeper | None = None,
+    environment: Mapping[str, str] = os.environ,
     tty: str | None = None,
 ) -> list[str]:
     """The command that attaches to a Terminal just created, by its ID, without observing again.
 
     So it attaches also if renamed meanwhile, and to the last screen of a command that ended; if
-    its shell exited already, or someone killed it, it says so.
+    its shell exited already, or someone closed it, it says so. `environment` is that of the
+    creator, as for `create`.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
-    why = ": its shell exited" if created.command is None else ""
-    return _attach_command(keeper, created, tty, ended=f"ended before attaching{why}")
+    if created.command is None:
+        gone = _shell_closed_text(created.name, environment, " before attaching")
+    else:
+        gone = f"terminal {escaped(created.name)} closed before attaching"
+    return _attach_command(keeper, created, tty, gone=gone)
 
 
 def kill(

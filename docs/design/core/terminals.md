@@ -155,7 +155,9 @@ A new Terminal starts in an existing directory we can enter, stored with symlink
 Names and paths only observed, e.g. after a `cd`, are stored with U+FFFD (�) for bytes that are not UTF-8, so that they never stop an observation.
 A name given that is taken, by an open, ended or lost Terminal or by a session not observed yet, is refused.
 A default name that another process takes meanwhile moves on to the next free number.
-A command that ends at once, e.g. a typo, is created ended, so that its message shows; a shell that ends at once, e.g. by its profile, is refused, and so is one lost at once as its server ended meanwhile.
+It returns the Terminal as the observation right after finds it, with no wait: open, or ended, if its command ended already, e.g. a typo, whose message then shows.
+Whether a short command has ended by then depends on timing, e.g. systemd starting its scope, so nothing else depends on it: either way it stays, ended, once its command ends.
+One whose shell exited already, e.g. by its profile, is refused, as nothing is left of it, and so is one lost at once as its server ended meanwhile.
 
 Attaching gives the command that attaches a terminal emulator: for tmux, `tmux attach-session` with our socket and config, targeting the session by its ID.
 Attaching to an ended Terminal is plain tmux too: its last screen shows, with tmux's line, typing there does nothing, and the prefix with `d` leaves.

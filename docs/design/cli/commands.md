@@ -93,7 +93,9 @@ Files stay untouched.
 `terminal create` starts a shell in a directory, the current one by default, or the command after its options; `--` marks where that starts.
 Without `-n`, its name is the directory name, numbered: `proj-1`, `proj-2`.
 Run interactively, it then attaches to the Terminal, unless `--detached`; otherwise it prints how to attach later.
-A command that ends at once, e.g. a typo, is created ended: attached, its last screen shows its message; detached, it prints how it ended and how to see that screen.
+It says what it was given (`Created terminal build in ~/proj, with command: make test`), not that it runs: a command may end any moment, e.g. a typo, and then stays, ended, showing its message.
+Detached, it adds how one ended already ended, and how to see its last screen; attached, that screen shows.
+A shell that closed already is refused, with what to check: `terminal api closed: its shell, /bin/false, exited; check SHELL, or the profile of that shell`.
 `terminal attach` becomes `tmux attach-session` to the Terminal: plain tmux, with its status bar and keys, so Ctrl+B d detaches, and leaves the Terminal running.
 It runs only interactively, input and output both a tty, and not at a tty that the Terminal shows, e.g. inside it ([terminals](../core/terminals.md#actions)).
 It logs its end before it becomes tmux.

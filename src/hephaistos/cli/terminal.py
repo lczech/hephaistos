@@ -135,12 +135,13 @@ def create(
     created = actions.create(paths, directory, name=name, command=command)
     if not detached and tty.attachable():
         _become(actions.attach_created(paths, created, tty=tty.terminal_name()))
-    running = "" if created.command is None else f", running {_command_text(created)}"
+    # What it runs may end any moment: say what it was given, and how it ended, if it has.
+    given = "" if created.command is None else f", with command: {_command_text(created)}"
     typer.echo(
-        f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{running}"
+        f"Created terminal {escaped(created.name)} in {short_path(created.directory)}{given}"
     )
     if created.status is terminals.TerminalStatus.ENDED:
-        typer.echo(f"  it ended at once: {terminals.ending_text(created)}")
+        typer.echo(f"  its command {terminals.ending_text(created)}")
         typer.echo(f"  see its last screen with: {_attach_text(created)}")
         return
     typer.echo(f"  attach with: {_attach_text(created)}")

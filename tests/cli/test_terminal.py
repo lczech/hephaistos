@@ -3,7 +3,8 @@ import shlex
 import subprocess
 import sys
 import time
-from collections.abc import Iterator
+import uuid
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -16,9 +17,10 @@ from hephaistos.core.db.sessions import write_session
 from hephaistos.core.observers import terminals as observer
 from hephaistos.core.observers.terminals import Result
 from hephaistos.core.state import terminals
+from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.terminals.tmux import TmuxKeeper, installation
 from hephaistos.core.utils.paths import Paths
-from support import clone, create, eventually, git
+from support import clone, create, eventually, git, slow_scopes
 
 pytestmark = pytest.mark.tmux
 
@@ -60,7 +62,7 @@ def test_create(proj: Path) -> None:
         "  attach with: hephaistos terminal attach proj-1",
     ]
     lines = ok("create", "-n", "build", "-d", str(proj), "--", "sh", "-c", "exec sleep 60")
-    assert lines[0] == f"Created terminal build in {proj}, running sh -c 'exec sleep 60'"
+    assert lines[0] == f"Created terminal build in {proj}, with command: sh -c 'exec sleep 60'"
 
 
 def test_a_command_without_dashes(proj: Path) -> None:
@@ -366,11 +368,33 @@ def kill_server(keeper: TmuxKeeper) -> None:
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
 
 
-def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
+@pytest.fixture
+def settled(keeper: TmuxKeeper, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keepers whose `create` returns once the program it started ended, which it must: so the
+    observation after it finds that, whatever the load."""
+    create = TmuxKeeper.create
+
+    def created_then_settled(  # noqa: PLR0913, PLR0917 - those of `create`
+        self: TmuxKeeper,
+        terminal_id: uuid.UUID,
+        name: str,
+        directory: Path,
+        command: Sequence[str] | None,
+        environment: Mapping[str, str],
+    ) -> Session:
+        session = create(self, terminal_id, name, directory, command, environment)
+        eventually(lambda: all(s.ending for s in keeper.sessions() if s.name == name) or None)
+        return session
+
+    monkeypatch.setattr(TmuxKeeper, "create", created_then_settled)
+
+
+@pytest.mark.usefixtures("settled")
+def test_a_command_that_ended_already(tmp_path: Path) -> None:
     lines = ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "exit 3")
     assert lines == [
-        f"Created terminal build in {tmp_path}, running sh -c 'exit 3'",
-        "  it ended at once: exited with status 3",
+        f"Created terminal build in {tmp_path}, with command: sh -c 'exit 3'",
+        "  its command exited with status 3",
         "  see its last screen with: hephaistos terminal attach build",
     ]
     assert ok("list")[1].split()[:4] == ["build", "ended", "(status", "3)"]
@@ -382,6 +406,30 @@ def test_a_command_that_ends_at_once(tmp_path: Path) -> None:
     assert (data["status"], data["exit_status"], data["exit_signal"]) == ("ended", 3, None)
     assert data["ended_at"] is not None
     assert (data["lost_at"], data["lost_because"]) == (None, None)
+
+
+@pytest.mark.usefixtures("settled")
+def test_a_shell_that_closed_already(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SHELL", "/bin/false")
+    assert failed("create", "-n", "sh", "-d", str(tmp_path), "--detached") == (
+        "terminal sh closed: its shell, /bin/false, exited;"
+        " check SHELL, or the profile of that shell"
+    )
+    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+
+
+def test_a_command_still_starting(
+    keeper: TmuxKeeper, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Said as found: created, with what it was given; it ends a moment later, staying."""
+    monkeypatch.setattr(TmuxKeeper, "scopes", slow_scopes(tmp_path))
+    lines = ok("create", "-n", "typo", "-d", str(tmp_path), "--", "no-such-program-hephaistos")
+    assert lines == [
+        f"Created terminal typo in {tmp_path}, with command: no-such-program-hephaistos",
+        "  attach with: hephaistos terminal attach typo",
+    ]
+    eventually(lambda: keeper.session("typo").ending)
+    assert ok("list")[1].split()[:3] == ["typo", "ended", "(status"]
 
 
 def test_one_a_signal_ended(tmp_path: Path) -> None:

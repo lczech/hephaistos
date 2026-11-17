@@ -3,6 +3,8 @@ import os
 import signal
 import subprocess
 import sys
+import uuid
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -18,7 +20,7 @@ from hephaistos.core.terminals.keeper import Session
 from hephaistos.core.terminals.tmux import TmuxKeeper
 from hephaistos.core.utils.errors import HephaistosError
 from hephaistos.core.utils.paths import Paths
-from support import eventually
+from support import eventually, slow_scopes
 
 pytestmark = pytest.mark.tmux
 
@@ -168,14 +170,48 @@ def test_odd_commands(set_up: Paths, proj: Path, command: list[str]) -> None:
     assert created.command == tuple(command)
 
 
+@pytest.fixture
+def settled(keeper: TmuxKeeper, monkeypatch: pytest.MonkeyPatch) -> TmuxKeeper:
+    """The Keeper, whose `create` returns once the program it started ended, which it must: so
+    the observation after it finds that, whatever the load."""
+    create = keeper.create
+
+    def created_then_settled(
+        terminal_id: uuid.UUID,
+        name: str,
+        directory: Path,
+        command: Sequence[str] | None,
+        environment: Mapping[str, str],
+    ) -> Session:
+        session = create(terminal_id, name, directory, command, environment)
+        eventually(lambda: all(s.ending for s in keeper.sessions() if s.name == name) or None)
+        return session
+
+    monkeypatch.setattr(keeper, "create", created_then_settled)
+    return keeper
+
+
+@pytest.fixture
+def slow(keeper: TmuxKeeper, tmp_path: Path) -> TmuxKeeper:
+    """A Keeper on the same socket, with slow scopes; see `slow_scopes`."""
+    return TmuxKeeper(
+        binary=keeper.binary,
+        socket=keeper.socket,
+        config_file=keeper.config_file,
+        history=keeper.history,
+        detect_scopes=lambda: slow_scopes(tmp_path),
+    )
+
+
 @pytest.mark.parametrize(
     ("command", "status"), [(["true"], 0), (["false"], 1), (["no-such-program-hephaistos"], 127)]
 )
-def test_a_command_that_ends_at_once_is_created_ended(
-    set_up: Paths, keeper: TmuxKeeper, proj: Path, command: list[str], status: int
+def test_a_command_that_ended_already_is_created_ended(
+    set_up: Paths, settled: TmuxKeeper, proj: Path, command: list[str], status: int
 ) -> None:
     """To be seen, e.g. what a typo gave: its screen stays."""
-    created = actions.create(set_up, proj, name="quick", command=command)
+    keeper = settled
+    created = actions.create(set_up, proj, name="quick", command=command, keeper=keeper)
     assert (created.status, created.exit_status, created.command) == (
         TerminalStatus.ENDED,
         status,
@@ -187,11 +223,46 @@ def test_a_command_that_ends_at_once_is_created_ended(
         assert "no-such-program-hephaistos" in everything(keeper, "quick")
 
 
-def test_a_shell_that_ends_at_once(set_up: Paths, proj: Path) -> None:
-    """E.g. a profile that exits: refused, as there is nothing to see."""
-    with pytest.raises(HephaistosError, match=r"^terminal quick ended at once: its shell exited$"):
-        actions.create(set_up, proj, name="quick", environment={"SHELL": "/bin/false"})
+def test_a_command_still_starting_is_created_open(
+    set_up: Paths, slow: TmuxKeeper, proj: Path
+) -> None:
+    """Then it ends as any command does, staying with its screen."""
+    command = ["no-such-program-hephaistos"]
+    created = actions.create(set_up, proj, name="quick", command=command, keeper=slow)
+    assert created.status is TerminalStatus.OPEN  # its wrapper still waits
+    eventually(lambda: slow.session("quick").ending)
+    actions.observer.observe(set_up, slow)
+    state = stored(set_up)["quick"]
+    assert (state.status, state.exit_status) == (TerminalStatus.ENDED, 127)
+
+
+def test_a_shell_that_closed_already(set_up: Paths, settled: TmuxKeeper, proj: Path) -> None:
+    """E.g. a profile that exits: refused, as nothing is left of it."""
+    with pytest.raises(
+        HephaistosError,
+        match=r"^terminal quick closed: its shell, /bin/false, exited;"
+        r" check SHELL, or the profile of that shell$",
+    ):
+        actions.create(
+            set_up, proj, name="quick", keeper=settled, environment={"SHELL": "/bin/false"}
+        )
     assert stored(set_up) == {}
+
+
+def test_a_shell_still_starting_is_created_open(
+    set_up: Paths, slow: TmuxKeeper, proj: Path
+) -> None:
+    """Then it closes as any shell that exits does."""
+    environment = {"SHELL": "/bin/false"}
+    created = actions.create(set_up, proj, name="quick", keeper=slow, environment=environment)
+    assert created.status is TerminalStatus.OPEN
+    eventually(lambda: not slow.sessions())
+    actions.observer.observe(set_up, slow)
+    assert stored(set_up) == {}
+    with pytest.raises(
+        HephaistosError, match=r"^terminal quick closed before attaching: its shell, /bin/false,"
+    ):
+        actions.attach_created(set_up, created, keeper=slow, environment=environment)
 
 
 def test_rename(set_up: Paths, keeper: TmuxKeeper, proj: Path) -> None:
@@ -385,9 +456,11 @@ def test_a_created_shell_that_exited_before_attaching(
     tmux(keeper, "send-keys", "-t", "=sh:", "exit 1", "Enter")
     eventually(lambda: not keeper.sessions())
     with pytest.raises(
-        HephaistosError, match=r"^terminal sh ended before attaching: its shell exited$"
+        HephaistosError,
+        match=r"^terminal sh closed before attaching: its shell, /bin/sh, exited;"
+        r" check SHELL, or the profile of that shell$",
     ):
-        actions.attach_created(set_up, created, keeper=keeper)
+        actions.attach_created(set_up, created, keeper=keeper, environment={"SHELL": "/bin/sh"})
 
 
 def test_attach_to_one_ended_meanwhile(
@@ -402,7 +475,7 @@ def test_attach_to_one_ended_meanwhile(
         return result
 
     monkeypatch.setattr(actions.observer, "observe", observed_then_killed)
-    with pytest.raises(HephaistosError, match=r"^terminal api ended meanwhile$"):
+    with pytest.raises(HephaistosError, match=r"^terminal api closed meanwhile$"):
         actions.attach(set_up, "api", keeper=keeper, environment={})
 
 

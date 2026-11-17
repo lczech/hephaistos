@@ -4,6 +4,7 @@ texts of tracked files, and waiting for a condition."""
 
 import functools
 import json
+import os
 import re
 import socket
 import subprocess
@@ -26,6 +27,7 @@ from hephaistos.core.state import clones as clone_states
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.ids import new_id
 from hephaistos.core.utils.paths import Paths
+from hephaistos.core.utils.scopes import Scopes
 from hephaistos.daemon.server.app import create_app
 from hephaistos.daemon.server.guard import Counts
 from hephaistos.daemon.status import Trigger
@@ -226,3 +228,14 @@ def eventually[T](check: Callable[[], T], timeout: float = 20.0) -> T:
             pytest.fail(f"not so within {timeout:g} s: {check}")
         time.sleep(0.02)
     return result
+
+
+def slow_scopes(directory: Path) -> Scopes:
+    """Scopes whose `systemd-run` is a stand-in, in `directory`, that starts what it runs only
+    after 0.3 s: as slow as systemd can be, which the observation after creating a Terminal comes
+    before. Never the systemd of the user."""
+    wrapper = directory / "slow-systemd-run"
+    script = 'while [ "$1" != -- ]; do shift; done; shift; sleep 0.3; exec "$@"'
+    wrapper.write_text(f"#!/bin/sh\n{script}\n")
+    wrapper.chmod(0o755)
+    return Scopes(str(wrapper), dict(os.environ))
