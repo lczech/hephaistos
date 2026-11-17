@@ -26,17 +26,13 @@ export const HINTED: Record<Hint, KeyName[]> = {
   log: ["log"],
 };
 
-/** Asked again when the page gains focus: what changes by hand, which no hint covers. */
-export const ON_FOCUS: KeyName[] = [
-  "config",
-  "daemon",
-  "changes",
-  "diff",
-  "history",
-  "graph",
-  "files",
-  "paths",
-];
+/** Asked again each time the page gains focus: what changes by hand, which no hint covers, e.g.
+ * a file edited, the working tree of a Checkout, or a setting. */
+export const ON_FOCUS: KeyName[] = ["config", "daemon", "changes", "diff", "files", "paths"];
+
+/** Asked again on gaining focus with the pass, at most every FOCUS_GAP: what changes only with
+ * git activity, e.g. a commit, which the pass finds and hints at too. */
+export const ON_FOCUS_GAP: KeyName[] = ["history", "graph"];
 
 /** Asked again only on connecting, as everything is: what changes only with the Daemon. */
 export const ON_CONNECT: KeyName[] = ["info", "eventKinds"];
@@ -44,7 +40,7 @@ export const ON_CONNECT: KeyName[] = ["info", "eventKinds"];
 export const SILENCE = 25_000; // without any message, the connection counts as lost
 export const FIRST_DELAY = 1_000; // before reconnecting; doubles with each failure
 export const LAST_DELAY = 30_000;
-export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus, not between queries
+export const FOCUS_GAP = 10_000; // between passes asked for on gaining focus, with ON_FOCUS_GAP
 const WATCH_INTERVAL = 1_000;
 const REFUSED = 4401; // the Server's close code for a wrong or renewed token
 
@@ -221,8 +217,8 @@ focusManager.setEventListener((changed) => {
 
 /**
  * Keeps the live connection while mounted, and acts on the page gaining focus (TanStack's
- * `focusManager`): reconnects at once, asks again for what no hint covers, and asks for a pass,
- * at most every FOCUS_GAP.
+ * `focusManager`): reconnects at once, asks again for what no hint covers, and, at most every
+ * FOCUS_GAP, for the commits too and for a pass.
  */
 export function useLiveUpdates(): void {
   const client = useQueryClient();
@@ -237,6 +233,7 @@ export function useLiveUpdates(): void {
       asking.names(ON_FOCUS);
       if (Date.now() - lastPass < FOCUS_GAP) return;
       lastPass = Date.now();
+      asking.names(ON_FOCUS_GAP);
       // A failed pass shows in the Daemon's status, like any other.
       void observe().catch(() => undefined);
     };

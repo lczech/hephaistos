@@ -12,6 +12,7 @@ import {
   LAST_DELAY,
   ON_CONNECT,
   ON_FOCUS,
+  ON_FOCUS_GAP,
   SILENCE,
   useConnection,
   useLiveUpdates,
@@ -261,13 +262,14 @@ describe("the live connection", () => {
     invalidated.mockClear();
     wait(60_000); // past the gap since the page opened
     act(() => window.dispatchEvent(new Event("focus")));
-    expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+    expect(invalidated.mock.calls).toEqual(keysOf([...ON_FOCUS, ...ON_FOCUS_GAP]));
   });
 
   it("asks again on focus for the settings and what editing a file changes, written out", () => {
     expect([...ON_FOCUS].sort()).toEqual(
-      ["changes", "config", "daemon", "diff", "files", "graph", "history", "paths"].sort(),
+      ["changes", "config", "daemon", "diff", "files", "paths"].sort(),
     );
+    expect([...ON_FOCUS_GAP].sort()).toEqual(["graph", "history"]);
   });
 
   it("asks nothing again for being old, however long it waits", async () => {
@@ -301,20 +303,26 @@ describe("the live connection", () => {
     expect(asked).toHaveBeenCalledTimes(1);
   });
 
-  it("asks again on each focus for what no hint covers, and for a pass only after the gap", async () => {
+  it("asks again on each focus for what no hint covers, and for commits and a pass only after the gap", async () => {
     const passes = vi.fn(() => new Response(null, { status: 204 }));
     serve({ "POST /api/observe": passes });
     const { invalidated } = start();
     wait(60_000);
+    invalidated.mockClear();
     act(() => window.dispatchEvent(new Event("focus")));
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(passes).toHaveBeenCalledTimes(2); // on starting, and past the gap
-    invalidated.mockClear();
     wait(FOCUS_GAP / 2);
     act(() => window.dispatchEvent(new Event("focus")));
-    expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(passes).toHaveBeenCalledTimes(2);
+    // Twice within the gap: the changes of a Checkout both times, its History once.
+    const asked = (name: KeyName) =>
+      invalidated.mock.calls.filter(([filters]) => filters?.queryKey === KEYS[name]).length;
+    expect(asked("changes")).toBe(2);
+    expect(asked("diff")).toBe(2);
+    expect(asked("history")).toBe(1);
+    expect(asked("graph")).toBe(1);
   });
 
   it("asks again when the page is shown, as when its window gains focus", () => {
@@ -322,7 +330,7 @@ describe("the live connection", () => {
     invalidated.mockClear();
     wait(60_000);
     act(() => document.dispatchEvent(new Event("visibilitychange", { bubbles: true })));
-    expect(invalidated.mock.calls).toEqual(keysOf(ON_FOCUS));
+    expect(invalidated.mock.calls).toEqual(keysOf([...ON_FOCUS, ...ON_FOCUS_GAP]));
   });
 
   it("asks again for a folder's names alone only where none with fields is kept", async () => {
@@ -343,7 +351,12 @@ describe("the live connection", () => {
   });
 
   it("keeps every query current somehow", () => {
-    const covered = new Set([...Object.values(HINTED).flat(), ...ON_FOCUS, ...ON_CONNECT]);
+    const covered = new Set([
+      ...Object.values(HINTED).flat(),
+      ...ON_FOCUS,
+      ...ON_FOCUS_GAP,
+      ...ON_CONNECT,
+    ]);
     expect(Object.keys(KEYS).filter((name) => !covered.has(name as KeyName))).toEqual([]);
   });
 });

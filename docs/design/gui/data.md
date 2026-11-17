@@ -9,8 +9,8 @@ The GUI asks the Server again only when its live connection hints at a change, n
 The versions of a file are asked again only after its patch, which they follow, so a hint asks for them once: their key (`VERSIONS_KEY`) is not among `KEYS`, so that no hint, focus nor connecting names them.
 A query still loading anew when a hint, focus or connecting asks again is not cut short, but asked again once it ends, once for all that came meanwhile: hints come up to once a second, and a list of many pages may take longer, which would then never end, nor load its next page.
 Connecting asks again for everything shown, as hints may have been missed meanwhile; the rest is asked again once shown.
-Gaining focus asks again for what changes by hand: the settings, and Checkouts' changes, as editing a file changes no State.
-It also asks for a pass, at most every 10 s.
+Each time the page gains focus, it asks again for what changes by hand: the settings, and the working trees of Checkouts (their changes, Diffs and files), as editing a file changes no State.
+At most every 10 s, it also asks for a pass, and again for commits, as the History and Graph Views show them: they change only with git activity, which the pass finds and hints at too.
 Focus is TanStack's `focusManager`, for which the page's window gaining it counts too, e.g. back from the editor.
 Answers stay current while a View shows them, until a hint, focus or connecting asks again (`staleTime: Infinity`).
 One that no View has used for 5 minutes is dropped (the default `gcTime` of TanStack), and asked again once shown.
