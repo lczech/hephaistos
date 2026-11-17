@@ -187,21 +187,21 @@ def _restore(
 ) -> None:
     """Starts a lost Terminal again, with its ID, name and directory, as a shell.
 
-    A dim line in it says so: why it was lost, when that was found and when it was last active,
-    and what it ran, which does not run again: it may have been anything, e.g. a deployment. Where
-    its directory is gone, it starts in the home directory.
+    A dim line in it says so: that it is a new shell, why it was lost, when that was noticed and
+    when it was last active, and what it ran, which does not start again: it may have been
+    anything, e.g. a deployment. Where its directory is gone, it starts in the home directory.
     """
     directory = lost.directory
     why = "its session went" if lost.lost_because is None else state.LOST_TEXTS[lost.lost_because]
-    found = "" if lost.lost_at is None else f"found lost at {_time_text(lost.lost_at)}, "
+    noticed = "" if lost.lost_at is None else f"noticed {_time_text(lost.lost_at)}; "
     hint = (
-        f"restored after {why}: {found}last active at {_time_text(lost.active_at)};"
-        " earlier output is gone"
+        f"hephaistos restored this terminal as a new shell, as {why}"
+        f" ({noticed}last active {_time_text(lost.active_at)}); earlier output is gone"
     )
     if lost.command is not None:
-        hint += f"; it ran: {shlex.join(lost.command)}"
+        hint += f"; it ran {escaped(shlex.join(lost.command))}, which does not start again"
     if not directory.is_dir() or not os.access(directory, os.X_OK):
-        hint += f"; {directory} is gone, so it starts in the home directory"
+        hint += f"; {short_path(directory)} is gone, so it starts in the home directory"
         directory = Path.home()
     shell = login_shell(environment)
     command = ["sh", "-c", _RESTORING, "sh", hint, shell]
@@ -260,9 +260,12 @@ def attach(
     with read_session(paths) as session:
         found = state.by_name(session, name)
     if found.status is TerminalStatus.ENDED and found.lost_because is not None:
+        what = "shell" if found.command is None else "command"
+        close = shlex.join(["hephaistos", "terminal", "close", found.name])
+        why = state.LOST_TEXTS[found.lost_because]
         raise HephaistosError(
-            f"terminal {escaped(found.name)} {state.ending_text(found)}; its last screen is gone,"
-            f" as {state.LOST_TEXTS[found.lost_because]}"
+            f"the {what} of terminal {escaped(found.name)} {state.ending_text(found)}, and its last"
+            f" screen is gone, as {why}; run `{close}` to remove it"
         )
     if found.status is TerminalStatus.LOST:
         _restore(paths, keeper, found, environment)

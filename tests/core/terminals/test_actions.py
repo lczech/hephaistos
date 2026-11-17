@@ -508,10 +508,10 @@ def test_attach_restores_a_lost_one_as_a_shell(
     assert (session.terminal_id, session.directory) == (created.id, proj)
     assert lost.lost_at is not None
     assert screen(keeper, "build").startswith(
-        "restored after the tmux server ended:"
-        f" found lost at {lost.lost_at.astimezone():%Y-%m-%d %H:%M},"
-        f" last active at {lost.active_at.astimezone():%Y-%m-%d %H:%M};"
-        " earlier output is gone; it ran: sleep 600"
+        "hephaistos restored this terminal as a new shell, as the tmux server ended"
+        f" (noticed {lost.lost_at.astimezone():%Y-%m-%d %H:%M};"
+        f" last active {lost.active_at.astimezone():%Y-%m-%d %H:%M});"
+        " earlier output is gone; it ran sleep 600, which does not start again"
     )
     assert eventually(lambda: keeper.session("build").program == "sh")  # the login shell
 
@@ -528,7 +528,8 @@ def test_a_restored_one_says_the_machine_restarted(
     lose_all(keeper, set_up)
     assert stored(set_up)["api"].lost_because == "reboot"
     actions.attach(set_up, "api", environment={"SHELL": "/bin/sh"})
-    assert screen(keeper, "api").startswith("restored after the machine restarted: found lost at")
+    said = "hephaistos restored this terminal as a new shell, as the machine restarted (noticed"
+    assert screen(keeper, "api").startswith(said)
 
 
 def test_a_restored_one_whose_directory_is_gone_starts_at_home(
@@ -578,8 +579,8 @@ def test_attach_to_an_ended_one_whose_screen_went(
     lose_all(keeper, set_up)
     with pytest.raises(
         HephaistosError,
-        match=r"^terminal build exited with status 3; its last screen is gone,"
-        r" as the tmux server ended$",
+        match=r"^the command of terminal build exited with status 3, and its last screen is gone,"
+        r" as the tmux server ended; run `hephaistos terminal close build` to remove it$",
     ):
         actions.attach(set_up, "build", environment={"SHELL": "/bin/sh"})
     assert keeper.sessions() == []

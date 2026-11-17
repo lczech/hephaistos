@@ -163,7 +163,7 @@ Attaching gives the command that attaches a terminal emulator: for tmux, `tmux a
 Attaching to an ended Terminal is plain tmux too: its last screen shows, with tmux's line, typing there does nothing, and the prefix with `d` leaves.
 One whose screen went too is refused, saying how it ended and why its screen went; nothing starts in it again, as its command may have been anything.
 Attaching to a lost Terminal first starts it again, with its ID, name and directory, as the login shell.
-A short `sh` prints a dim line first, with why it was lost, when that was found and when it was last active, e.g. "restored after the machine restarted: found lost at 2026-11-16 09:12, last active at 2026-11-15 18:03; earlier output is gone", and what a command Terminal ran, which does not run again, as it may have been anything, e.g. a deployment.
+A short `sh` prints a dim line first: that it is a new shell, why it was lost, when that was noticed and when it was last active, and what a command Terminal ran, which does not start again, as it may have been anything, e.g. a deployment: "hephaistos restored this terminal as a new shell, as the machine restarted (noticed 2026-11-16 09:12; last active 2026-11-15 18:03); earlier output is gone; it ran make deploy, which does not start again".
 Where its directory is gone, it starts in the home directory, and the line says so.
 Its row then holds no command, as it runs a shell.
 Two attaching to the same lost Terminal at once both attach to it: the second finds it restored by the first.

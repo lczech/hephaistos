@@ -225,8 +225,21 @@ def show(
             ("started", formatted(state.started_at)),
             ("active", formatted(state.active_at)),
             ("observed", formatted(state.observed_at.datetime)),
+            *_next_fields(state),
         ]
     )
+
+
+def _next_fields(state: TerminalState) -> list[tuple[str, str]]:
+    """What the user can do with one whose session is gone, which needs them to act."""
+    attach, close = (
+        shlex.join(["hephaistos", "terminal", verb, state.name]) for verb in ("attach", "close")
+    )
+    if state.status is terminals.TerminalStatus.LOST:
+        return [("next", f"`{attach}` restores it, as a new shell; `{close}` removes it")]
+    if state.session_gone:
+        return [("next", f"`{close}` removes it")]
+    return []
 
 
 def _ending_fields(

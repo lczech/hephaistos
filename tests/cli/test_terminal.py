@@ -318,7 +318,8 @@ class Outer:
         self.tmux("set", "-g", "prefix", "None")
 
     def screen(self) -> str:
-        return self.tmux("capture-pane", "-p", "-t", "=outer:")
+        """What it shows, lines that wrap joined."""
+        return self.tmux("capture-pane", "-p", "-J", "-t", "=outer:")
 
     def end(self) -> None:
         """Ends its server, and removes its socket, which tmux leaves."""
@@ -349,9 +350,11 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     ok("create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     outer.run("terminal", "attach", "api")
-    eventually(lambda: "restored after the tmux server ended: found lost at" in outer.screen())
-    assert "earlier output is gone" in outer.screen()
-    assert "it ran: sleep 600" in outer.screen()
+    said = "hephaistos restored this terminal as a new shell, as the tmux server ended (noticed"
+    eventually(lambda: said in outer.screen())
+    assert (
+        "; earlier output is gone; it ran sleep 600, which does not start again" in outer.screen()
+    )
     assert ok("list")[1].split()[:2] == ["api", "open"]
 
 
@@ -406,6 +409,7 @@ def test_a_command_that_ended_already(tmp_path: Path) -> None:
     assert fields["status"] == "ended (status 3)"
     assert "ended" in fields
     assert "noticed" not in fields
+    assert "next" not in fields  # its last screen shows how, as attach does
     data = json.loads("\n".join(ok("show", "build", "--json")))
     assert (data["status"], data["exit_status"], data["exit_signal"]) == ("ended", 3, None)
     assert data["ended_at"] is not None
@@ -457,6 +461,11 @@ def test_show_says_when_and_why_a_session_went(
     api = dict(line.split(None, 1) for line in ok("show", "api", "--time-format", "relative"))
     assert (api["status"], api["noticed"]) == ("lost (tmux server ended)", "now")
     assert "ended" not in api
+    assert build["next"] == "`hephaistos terminal close build` removes it"
+    assert api["next"] == (
+        "`hephaistos terminal attach api` restores it, as a new shell;"
+        " `hephaistos terminal close api` removes it"
+    )
     [build_json, api_json] = sorted(
         json.loads("\n".join(ok("list", "--json"))), key=lambda item: item["name"] != "build"
     )
@@ -466,7 +475,8 @@ def test_show_says_when_and_why_a_session_went(
     assert build_json["lost_at"] is not None
     Exec(monkeypatch)  # as if run interactively
     assert failed("attach", "build") == (
-        "terminal build exited with status 3; its last screen is gone, as the tmux server ended"
+        "the command of terminal build exited with status 3, and its last screen is gone,"
+        " as the tmux server ended; run `hephaistos terminal close build` to remove it"
     )
 
 

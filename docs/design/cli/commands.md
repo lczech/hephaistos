@@ -101,12 +101,12 @@ It runs only interactively, input and output both a tty, and not at a tty that t
 It logs its end before it becomes tmux.
 Attaching to a lost Terminal restores it first ([terminals](../core/terminals.md#actions)).
 Attaching to an ended one shows its last screen, with a line on how and when it ended; Ctrl+D closes it then, as `close` does, and Ctrl+B d leaves it ended.
-Once that screen is gone too, e.g. after a reboot, attaching says so.
+Once that screen is gone too, e.g. after a reboot, attaching says so, and how to remove it.
 `list` and `show` observe the Terminals of this Machine first, as they change between the passes of the Watcher, e.g. by `exit`.
 The repository of a Terminal is that of the innermost Checkout containing the directory it started in.
 `list` and `show` give the status of an ended one with how it ended, in the words of the line in it: `ended (finished)` for status 0, `ended (status 1)`, `ended (signal 15, SIGTERM)`, and `ended (status 1, screen gone)` once its last screen is gone; of a lost one, with why: `lost (machine restarted)`, `lost (tmux server ended)`.
 Where tmux cannot be asked, `list` and `show` say so, and when the Terminals were last observed, then show them as stored.
-`show` gives when it ended (`ended`), and when its session was found gone (`noticed`).
+`show` gives when it ended (`ended`), and when its session was found gone (`noticed`); for one whose session is gone, what to do (`next`): `attach` restores a lost one, `close` removes it.
 `close` closes a Terminal as a terminal emulator closes a tab: what runs in it gets SIGHUP (`Closed terminal api`).
 `kill` is for one that does not close: what runs in it gets SIGKILL first, which none can ignore (`Killed terminal api`).
 Either closes an ended one, its last screen with it (`Closed ended terminal build`), and removes what is left of one whose session is gone (`Removed lost terminal api`, `Removed ended terminal build`).
