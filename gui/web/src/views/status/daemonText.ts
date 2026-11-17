@@ -24,7 +24,7 @@ export function lastPassText(pass: Pass | null, now: number): string {
   const by = pass.trigger === "watcher" ? "the watcher" : "API request";
   const text = `${ago(pass.finished_at, now)} (${seconds(pass.duration)}), by ${by}`;
   if (pass.error !== null) return `${text}; failed: ${pass.error}`;
-  // A Daemon before API 0.25 names no problems.
+  // A Daemon before API 0.34 names no problems.
   return [text, ...(pass.problems ?? [])].join("; ");
 }
 

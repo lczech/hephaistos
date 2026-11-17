@@ -150,7 +150,7 @@ class DaemonJson(TypedDict):
     watcher: WatcherJson | None
     server: ServerJson | None
     checks: CheckedJson | None  # its own, as it ran them last
-    paths: HephaistosPathsJson | None  # its own, as it started; None from a Daemon before API 0.26
+    paths: HephaistosPathsJson | None  # its own, as it started; None from a Daemon before API 0.35
 
 
 def _at(value: datetime | None) -> str | None:

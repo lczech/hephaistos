@@ -167,10 +167,10 @@ describe("the Status View", () => {
     expect(writeText.mock.lastCall?.[0]).not.toContain(".local");
   });
 
-  it("says what is missing from a daemon without paths, before API 0.26", async () => {
+  it("says what is missing from a daemon without paths, before API 0.35", async () => {
     open();
     const answer = status();
-    // @ts-expect-error: before API 0.26, the status had no paths
+    // @ts-expect-error: before API 0.35, the status had no paths
     delete answer.paths;
     serve({ ...routes(), "GET /api/status": () => json(answer) });
     renderWithQueries(<App />);
@@ -206,14 +206,14 @@ describe("the Status View", () => {
     open();
     const answer = routes();
     const older = daemon();
-    // @ts-expect-error: before API 0.25, a pass had no problems
+    // @ts-expect-error: before API 0.34, a pass had no problems
     delete older.watcher?.last_pass?.problems;
     serve({ ...answer, "GET /api/daemon": () => json(older) });
     renderWithQueries(<App />);
     expect(await screen.findByText(/by the watcher$/)).toBeInTheDocument();
   });
 
-  it("says what is missing from a daemon without /api/status, before API 0.23", async () => {
+  it("says what is missing from a daemon without /api/status, before API 0.32", async () => {
     open();
     serve({ ...routes(), "GET /api/status": () => new Response(null, { status: 404 }) });
     renderWithQueries(<App />);

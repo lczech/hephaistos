@@ -256,7 +256,7 @@ export function StatusView() {
 
           <h2 className={styles.heading}>Paths</h2>
           {status.data?.paths === undefined ? (
-            // Also from a Daemon before API 0.26, which Setup then says to restart.
+            // Also from a Daemon before API 0.35, which Setup then says to restart.
             <Waiting failed={status.isError || status.data !== undefined} />
           ) : (
             <Fields

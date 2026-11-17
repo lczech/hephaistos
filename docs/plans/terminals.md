@@ -15,9 +15,9 @@ The CLI attaches with plain tmux, which shows that it is tmux.
 - [x] 1a.1 The rules for names, shared between kinds of entities.
 - [x] 1a.2 The Keeper: tmux on a socket of its own, each Terminal in a systemd scope of its own; CI with every tmux minor version since 3.2a.
 - [x] 1a.3 `state_terminals`, the observer and the Watcher (schema 4).
-- [x] 1a.4 `hephaistos terminal create|list|show|rename|kill`, and the API (0.22).
-- [x] The Status View, from the branch `lczech/status-view` (API 0.23).
-- [x] 1a.5 The tmux check, and what a pass could not observe (API 0.24, 0.25).
+- [x] 1a.4 `hephaistos terminal create|list|show|rename|kill`, and the API (0.31).
+- [x] The Status View, from the branch `lczech/status-view` (API 0.32).
+- [x] 1a.5 The tmux check, and what a pass could not observe (API 0.33, 0.34).
 - [x] 1a.6 Robustness: a soak test, tests under load, fault tests, property tests with every tmux version, and the bugs they found.
 - [x] 1a.7 Clean-ups before attaching:
   - [x] possessives rewritten in what this branch added ([style](../style.md));
@@ -33,14 +33,14 @@ The CLI attaches with plain tmux, which shows that it is tmux.
   - [x] attaching is refused when not run interactively, and at a tty that the Terminal shows, e.g. inside it;
   - [x] tests: the CLI attach run inside a second tmux, its screen read with `capture-pane`.
 - [x] Fixes from a review (branch `terminals-review`): names of Terminals renamed by hand in one pass, sessions listed but not readable, retries of Clones and Terminals apart, systemd failing in the checks, the Status View against an older Daemon, attaching where it cannot loop.
-- [x] Paths in `hephaistos status` and the Status View: the code, config, data and log directories and the Desktop profile, with sizes; the same in `machine show` (API 0.26).
+- [x] Paths in `hephaistos status` and the Status View: the code, config, data and log directories and the Desktop profile, with sizes; the same in `machine show` (API 0.35).
 - [x] The GUI tests fuzzed (`scripts/test_gui_fuzzed.sh`, weekly in CI): answers in any order, refetches at random; the four bugs found fixed (History, Changes, Diff, Log), lists showing all of an answer while the next loads.
 - [x] 1c Exit statuses, decided with the user (2026-11-13):
   - [x] a shell that exits closes, whatever its status, as a tab of a terminal emulator does; a command that ends stays, showing its last screen, and so does any program a signal ended, until killed;
   - [x] `remain-on-exit`, a `pane-died` hook closing the panes of shells, a pane option marking commands, and one marking the panes the hook kept, as a pane counts as dead before tmux knows how it ended;
   - [x] for tmux before 3.6, built with utempter as Ubuntu's is, a job in the server sends it SIGCHLD twice a second: it missed about one exit in five (tmux 4559), leaving a dead, blank pane;
   - [x] State: `ended`, with the exit status or signal and when; when and why a session went (`reboot`, `server`), ended ones staying ended with their screen gone; columns added to schema 4;
-  - [x] `create` returns a Terminal as found right after, with no wait: a command ended already, e.g. a typo, as ended, whose message then shows; it says what it was given, not that it runs; attaching to an ended one is plain tmux on its last screen, refused once that is gone; the CLI and the API (0.27) say how and when each ended and why it went;
+  - [x] `create` returns a Terminal as found right after, with no wait: a command ended already, e.g. a typo, as ended, whose message then shows; it says what it was given, not that it runs; attaching to an ended one is plain tmux on its last screen, refused once that is gone; the CLI and the API (0.36) say how and when each ended and why it went;
   - [x] found on the way: directories holding the separators of our listing refused; no tty of a dead pane counts when refusing an attach; an ended one keeps the program it last ran, never one of our wrappers;
   - [x] Ctrl+D closes an ended Terminal, as it closes a shell, by a key binding that passes it on to any pane not dead; since tmux 3.3, the line of a dead pane says so, and what ended, how and when ("Command exited with status 1 at …"); `terminal close` closes, as a tab closes (SIGHUP), `terminal kill` kills (SIGKILL), and either removes what is left of one whose session is gone.
 - [ ] 2 The stream in the Server: one control-mode client per open Terminal View, over a WebSocket; the parser of control mode, which passes what it does not know and says so once.
