@@ -58,6 +58,8 @@ The steps are in [docs/plans/roadmap.md](docs/plans/roadmap.md). Each has its ow
 
 Ask only about missing information that materially blocks progress, and make reasonable reversible choices otherwise. Verify meaningful behaviour rather than producing a large scaffold or speculative abstractions.
 
+Use each framework and library as its documentation intends ([principles](docs/development.md#principles)). Before a change works around one or replaces a part of it, find its native way, and name in the proposal the passage of the documentation that the change follows. A workaround, and a review finding that points to a native way, go to me before anything is done about them.
+
 Never start, stop or restart the user's Daemon; give them the commands.
 Run `hephaistos setup` only with `--no-daemon --no-desktop`, and never `daemon install|uninstall` or `desktop install|uninstall`: whatever `HEPHAISTOS_HOME` says, they replace the user's systemd unit and launcher entry, and restart the Daemon. To show work in a worktree, use `scripts/worktree_gui.sh` ([how](docs/development.md#a-worktrees-gui)).
 
