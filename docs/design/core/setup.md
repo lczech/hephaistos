@@ -35,6 +35,7 @@ The logs and the Desktop profile can be lost, at the cost of the history of the 
 `HEPHAISTOS_HOME`, if set, puts config, data and logs into that one directory instead.
 A relative one is made absolute against the current directory once at start, so the systemd unit and the launcher entry get the absolute path.
 Tests always set it, and so can experiments.
+If the current directory was deleted, e.g. a Worktree removed under a shell still in it, a relative `HEPHAISTOS_HOME`, or a relative path given to a command, stops the run with an error; other commands run as usual.
 
 Only the user may enter the data and log directories (mode 0700), as home directories on clusters are often open to others.
 Each run makes them so, warning once, and refuses directories that belong to another user.

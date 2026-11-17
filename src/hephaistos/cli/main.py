@@ -4,7 +4,6 @@ import shlex
 import sys
 import time
 from collections.abc import Callable
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -34,7 +33,14 @@ from hephaistos.core.config import ConfigError
 from hephaistos.core.registry import machines
 from hephaistos.core.utils import logs
 from hephaistos.core.utils.errors import HephaistosError
-from hephaistos.core.utils.paths import ForeignDirectoryError, Paths, absolute_home, short_path
+from hephaistos.core.utils.paths import (
+    ForeignDirectoryError,
+    MissingDirectoryError,
+    Paths,
+    absolute_home,
+    short_path,
+    working_directory,
+)
 from hephaistos.daemon.errors import EX_CONFIG, NotStartedError
 
 DEBUG_OPTION = "--debug"
@@ -133,11 +139,11 @@ def run() -> None:
     `log` commands log only what goes wrong, so that showing the log does not add to it.
     """
     args, debug = without_debug(sys.argv[1:])
-    absolute_home()
-    paths = Paths.from_environment()
     try:
+        absolute_home()
+        paths = Paths.from_environment()
         opened = paths.make_private()
-    except ForeignDirectoryError as error:  # before logging, which would write there
+    except (MissingDirectoryError, ForeignDirectoryError) as error:  # before logging starts
         typer.echo(f"error: {error}", err=True)
         sys.exit(1)
     problem = None
@@ -153,7 +159,9 @@ def run() -> None:
     command = shlex.join(["hephaistos", *args])
     quiet = args[:1] == ["log"]
     if not quiet:
-        logger.info("start: %s", command, extra={"version": __version__, "cwd": Path.cwd()})
+        logger.info(
+            "start: %s", command, extra={"version": __version__, "cwd": working_directory()}
+        )
     for directory in opened:
         logger.warning("others could enter %s; now only you can", directory)
         if not debug:  # shown already

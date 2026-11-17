@@ -9,6 +9,7 @@ from hephaistos.core.utils import paths as paths_module
 from hephaistos.core.utils.paths import (
     PRIVATE_MODE,
     ForeignDirectoryError,
+    MissingDirectoryError,
     MountInfo,
     Paths,
     absolute,
@@ -102,6 +103,16 @@ def test_absolute_keeps_symlinks_from_pwd(tmp_path: Path, monkeypatch: pytest.Mo
 def test_absolute_ignores_stale_pwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     assert absolute(Path("x"), {"PWD": "/elsewhere"}) == tmp_path.resolve() / "x"
+    assert absolute(Path("/a/./b")) == Path("/a/b")
+
+
+def test_absolute_in_a_deleted_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    monkeypatch.chdir(gone)
+    gone.rmdir()
+    with pytest.raises(MissingDirectoryError, match="no longer exists"):
+        absolute(Path("x"))
     assert absolute(Path("/a/./b")) == Path("/a/b")
 
 

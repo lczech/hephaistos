@@ -348,3 +348,25 @@ def test_another_users_directory_is_refused(
         f"error: {paths.data_dir} belongs to another user (uid {owner}); hephaistos keeps its"
         " files only in directories of yours\n"
     )
+
+
+def test_a_deleted_current_directory(
+    paths: Paths,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert run_cli(monkeypatch, "setup", "--name", "laptop") == 0
+    gone = tmp_path / "gone"
+    gone.mkdir()
+    monkeypatch.chdir(gone)
+    gone.rmdir()
+    capsys.readouterr()
+    assert run_cli(monkeypatch, "machine", "show") == 0  # needs no current directory
+    assert logged(paths)[-2]["cwd"] is None
+    assert run_cli(monkeypatch, "files", "list") == 1  # needs it, for `.`
+    message = "error: the current directory no longer exists; change to another one\n"
+    assert capsys.readouterr().err == message
+    monkeypatch.setenv("HEPHAISTOS_HOME", "relative")  # made absolute before logging starts
+    assert run_cli(monkeypatch, "machine", "show") == 1
+    assert capsys.readouterr().err == message

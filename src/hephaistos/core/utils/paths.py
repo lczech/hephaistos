@@ -89,7 +89,7 @@ def absolute_home(env: MutableMapping[str, str] = os.environ) -> None:
     a path that means the same directory from any other directory.
     """
     if (home := env.get(HOME_VARIABLE)) and not Path(home).is_absolute():
-        env[HOME_VARIABLE] = str(Path(home).absolute())
+        env[HOME_VARIABLE] = str(current_directory() / home)
 
 
 def machine_key() -> str:
@@ -238,11 +238,30 @@ def mount_of(path: Path, mounts: list[MountInfo] | None = None) -> MountInfo:
     return max(reversed(candidates), key=lambda mount: len(mount.mount_point.parts))
 
 
+class MissingDirectoryError(HephaistosError):
+    """The current directory was deleted, e.g. a Worktree removed under a shell still in it."""
+
+
+def working_directory() -> Path | None:
+    """The current directory, or None if it was deleted."""
+    try:
+        return Path.cwd()
+    except FileNotFoundError:
+        return None
+
+
+def current_directory() -> Path:
+    """The current directory; raises MissingDirectoryError if it was deleted."""
+    if (cwd := working_directory()) is None:
+        raise MissingDirectoryError("the current directory no longer exists; change to another one")
+    return cwd
+
+
 def absolute(path: Path, env: Mapping[str, str] = os.environ) -> Path:
     """`path` made absolute with symlinks kept, starting from the directory the shell shows."""
     if path.is_absolute():
         return Path(os.path.normpath(path))
-    cwd = Path.cwd()
+    cwd = current_directory()
     pwd = env.get("PWD")
     if pwd and Path(pwd).is_absolute():
         try:
