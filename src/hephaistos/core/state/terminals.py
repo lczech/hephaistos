@@ -56,12 +56,12 @@ DECODERS = {
     "active_at": values.milliseconds,
     "current_directory": values.plain,
     "program": values.plain,
-    "clients": values.plain,
+    "attached": values.plain,
     "panes": values.plain,
     "exit_status": values.plain,
     "exit_signal": values.plain,
     "ended_at": values.milliseconds,
-    "lost_at": values.milliseconds,
+    "noticed_at": values.milliseconds,
     "lost_because": values.plain,
     "observed_at": values.clock,
     "observed_by": values.uuid_bytes,
@@ -98,7 +98,7 @@ class TerminalState:
     active_at: datetime
     current_directory: Path | None
     program: str
-    clients: int
+    attached: int
     panes: int
     observed_at: Timestamp
     observed_by: uuid.UUID
@@ -107,13 +107,13 @@ class TerminalState:
     exit_signal: int | None = None
     ended_at: datetime | None = None  # when, or when first seen ended, if the Keeper does not say
     # When its session was found gone, and why: while lost, or ended with its last screen gone.
-    lost_at: datetime | None = None
+    noticed_at: datetime | None = None
     lost_because: LostBecause | None = None
 
     @property
     def session_gone(self) -> bool:
         """Whether the Keeper holds nothing of it: lost, or ended with its session gone since."""
-        return self.lost_at is not None
+        return self.noticed_at is not None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Self:
@@ -132,14 +132,14 @@ class TerminalState:
                 None if row["current_directory"] is None else Path(row["current_directory"])
             ),
             program=row["program"],
-            clients=row["clients"],
+            attached=row["attached"],
             panes=row["panes"],
             observed_at=Timestamp(row["observed_at"]),
             observed_by=uuid.UUID(bytes=row["observed_by"]),
             exit_status=row["exit_status"],
             exit_signal=row["exit_signal"],
             ended_at=_optional_datetime(row["ended_at"]),
-            lost_at=_optional_datetime(row["lost_at"]),
+            noticed_at=_optional_datetime(row["noticed_at"]),
             lost_because=None if row["lost_because"] is None else LostBecause(row["lost_because"]),
         )
 
@@ -282,12 +282,12 @@ def _write(session: WriteSession, state: TerminalState) -> None:
         if state.current_directory is None
         else utf8(str(state.current_directory)),
         "program": utf8(state.program),
-        "clients": state.clients,
+        "attached": state.attached,
         "panes": state.panes,
         "exit_status": state.exit_status,
         "exit_signal": state.exit_signal,
         "ended_at": _optional_ms(state.ended_at),
-        "lost_at": _optional_ms(state.lost_at),
+        "noticed_at": _optional_ms(state.noticed_at),
         "lost_because": None if state.lost_because is None else state.lost_because.value,
         "observed_at": state.observed_at,
         "observed_by": state.observed_by,
@@ -375,8 +375,8 @@ def _close_or_lose(
         gone = replace(
             state,
             status=TerminalStatus.LOST if state.status is TerminalStatus.OPEN else state.status,
-            clients=0,
-            lost_at=observed_at.datetime,
+            attached=0,
+            noticed_at=observed_at.datetime,
             lost_because=because,
             observed_at=observed_at,
         )
@@ -561,7 +561,7 @@ def _found(  # noqa: PLR0913 - keyword-only after the first two: what one observ
         active_at=item.active_at,
         current_directory=current,
         program=program,
-        clients=item.clients,
+        attached=item.attached,
         panes=item.panes,
         observed_at=observed_at,
         observed_by=observed_by,

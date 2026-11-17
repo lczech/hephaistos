@@ -262,7 +262,7 @@ def test_one_made_by_hand_takes_the_id_of_an_ended_one_whose_session_went(
     by_hand(keeper, "build", tmp_path)
     observe(set_up, keeper, boot)
     state = stored(set_up)["build"]
-    assert (state.id, state.status, state.exit_status, state.lost_at) == (
+    assert (state.id, state.status, state.exit_status, state.noticed_at) == (
         created.terminal_id,
         "open",
         None,

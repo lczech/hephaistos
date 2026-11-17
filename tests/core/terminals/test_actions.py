@@ -507,10 +507,10 @@ def test_attach_restores_a_lost_one_as_a_shell(
     )
     session = keeper.session("build")
     assert (session.terminal_id, session.directory) == (created.id, proj)
-    assert lost.lost_at is not None
+    assert lost.noticed_at is not None
     assert screen(keeper, "build").startswith(
         "hephaistos restored this terminal as a new shell, as the tmux server ended"
-        f" (noticed {lost.lost_at.astimezone():%Y-%m-%d %H:%M};"
+        f" (noticed {lost.noticed_at.astimezone():%Y-%m-%d %H:%M};"
         f" last active {lost.active_at.astimezone():%Y-%m-%d %H:%M});"
         " earlier output is gone; it ran sleep 600, which does not start again"
     )

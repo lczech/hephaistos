@@ -21,7 +21,8 @@ BOOT = "boot-1"
 STARTED = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
 #: Marks a row lost, as if its server had died, by its ID.
 LOSE = (
-    "UPDATE state_terminals SET status = 'lost', lost_at = 0, lost_because = 'server' WHERE id = ?"
+    "UPDATE state_terminals SET status = 'lost', noticed_at = 0, lost_because = 'server'"
+    " WHERE id = ?"
 )
 
 
@@ -42,7 +43,7 @@ def session(name: str, terminal_id: uuid.UUID | None = None, **changed: object) 
         current_directory=Path("/home/u/proj/src"),
         program="bash",
         pid=4242,
-        clients=0,
+        attached=0,
         created_at=STARTED,
         active_at=STARTED,
         panes=1,
@@ -89,7 +90,7 @@ def test_found_ones_are_stored(set_up: Paths) -> None:
         Path("/home/u/proj"),
         Path("/home/u/proj/src"),
     )
-    assert (state.started_at, state.program, state.clients, state.panes) == (STARTED, "bash", 0, 1)
+    assert (state.started_at, state.program, state.attached, state.panes) == (STARTED, "bash", 0, 1)
     with read_session(set_up) as read:
         assert state.observed_by == read.machine_id
 
@@ -99,14 +100,16 @@ def test_observing_again_changes_only_what_changed(set_up: Paths) -> None:
     update(set_up, session("api", api))
     first = stored(set_up)["api"]
     later = datetime(2026, 11, 6, 10, 0, tzinfo=UTC)
-    assert update(set_up, session("api", api, program="vim", clients=1, active_at=later)) == (
+    assert update(set_up, session("api", api, program="vim", attached=1, active_at=later)) == (
         Changes(open=1, added=0, ended=0, closed=0, lost=0)
     )
     second = stored(set_up)["api"]
-    assert (second.program, second.clients, second.active_at) == ("vim", 1, later)
+    assert (second.program, second.attached, second.active_at) == ("vim", 1, later)
     assert second.observed_at > first.observed_at
     assert (
-        replace(second, program="bash", clients=0, active_at=STARTED, observed_at=first.observed_at)
+        replace(
+            second, program="bash", attached=0, active_at=STARTED, observed_at=first.observed_at
+        )
         == first
     )
 
@@ -367,7 +370,7 @@ def test_commands_are_kept(set_up: Paths) -> None:
         ("boot_id", ""),
         ("command", '"make"'),
         ("command", "not json"),
-        ("clients", -1),
+        ("attached", -1),
         ("panes", 0),
         ("id", b"short"),
     ],
@@ -454,7 +457,7 @@ def test_an_ended_one_keeps_how(set_up: Paths) -> None:
     assert update(set_up, ended("api", api)) == Changes(open=0, added=0, ended=1, closed=0, lost=0)
     state = stored(set_up)["api"]
     assert (state.status, state.exit_status, state.exit_signal) == ("ended", 1, None)
-    assert (state.ended_at, state.lost_at, state.session_gone) == (ENDED_AT, None, False)
+    assert (state.ended_at, state.noticed_at, state.session_gone) == (ENDED_AT, None, False)
     assert terminals.ending_text(state) == "exited with status 1"
     assert update(set_up, ended("api", api)).ended == 0  # already
 
@@ -525,18 +528,18 @@ def test_an_ended_one_whose_session_went_stays_ended(
 ) -> None:
     """With how it ended, and when and why its last screen went."""
     api = new_id()
-    update(set_up, ended("api", api, status=2), session("web", new_id(), clients=1))
+    update(set_up, ended("api", api, status=2), session("web", new_id(), attached=1))
     before = datetime.now(UTC)
     changes = update(set_up, running=running, boot=boot)
     assert (changes.lost, changes.closed) == (2, 0)
     api_state, web_state = stored(set_up)["api"], stored(set_up)["web"]
     assert (api_state.status, api_state.exit_status, api_state.ended_at) == ("ended", 2, ENDED_AT)
-    assert (web_state.status, web_state.clients) == ("lost", 0)
+    assert (web_state.status, web_state.attached) == ("lost", 0)
     for state in (api_state, web_state):
         assert state.session_gone
         assert state.lost_because == because
-        assert state.lost_at is not None
-        assert state.lost_at.timestamp() > before.timestamp() - 1
+        assert state.noticed_at is not None
+        assert state.noticed_at.timestamp() > before.timestamp() - 1
     assert update(set_up, running=running, boot=boot) == Changes(0, 0, 0, 0, 0)  # they stay
 
 
@@ -547,7 +550,7 @@ def test_one_whose_session_went_is_found_again(set_up: Paths) -> None:
     update(set_up, running=False)
     update(set_up, session("api", api), boot="boot-2")
     state = stored(set_up)["api"]
-    assert (state.status, state.lost_at, state.lost_because, state.exit_status) == (
+    assert (state.status, state.noticed_at, state.lost_because, state.exit_status) == (
         "open",
         None,
         None,
@@ -569,10 +572,10 @@ def test_only_running_ones_count_as_open(set_up: Paths) -> None:
         "status = 'ended', ended_at = 1, exit_status = 1, exit_signal = 9",  # both
         "status = 'ended', ended_at = 1, exit_signal = 0",
         "status = 'lost'",  # when, missing
-        "lost_at = 1",  # why, missing
+        "noticed_at = 1",  # why, missing
         "lost_because = 'server'",
-        "lost_at = 1, lost_because = 'server'",  # while open
-        "status = 'lost', lost_at = 1, lost_because = 'moon'",
+        "noticed_at = 1, lost_because = 'server'",  # while open
+        "status = 'lost', noticed_at = 1, lost_because = 'moon'",
         "status = 'gone'",
     ],
 )
@@ -637,7 +640,7 @@ def test_observations_follow_what_the_keeper_shows(
                 assert new is not None
                 ending = item.ending
                 assert new.status == ("open" if ending is None else "ended")
-                assert (new.lost_at, new.lost_because, new.boot_id) == (None, None, boot)
+                assert (new.noticed_at, new.lost_because, new.boot_id) == (None, None, boot)
                 if ending is None:
                     assert (new.exit_status, new.exit_signal, new.ended_at) == (None, None, None)
                     continue
@@ -658,13 +661,13 @@ def test_observations_follow_what_the_keeper_shows(
                 assert new is not None
                 expected = "lost" if old.status is TerminalStatus.OPEN else "ended"
                 because = "server" if old.boot_id == boot else "reboot"
-                assert (new.status, new.lost_because, new.clients) == (expected, because, 0)
+                assert (new.status, new.lost_because, new.attached) == (expected, because, 0)
                 assert (new.exit_status, new.exit_signal, new.ended_at) == (
                     old.exit_status,
                     old.exit_signal,
                     old.ended_at,
                 )
-                assert new.lost_at is not None
+                assert new.noticed_at is not None
 
 
 def test_an_ended_one_keeps_the_program_it_last_ran(set_up: Paths) -> None:

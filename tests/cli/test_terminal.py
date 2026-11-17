@@ -45,6 +45,11 @@ def proj(tmp_path: Path) -> Path:
     return path
 
 
+def fields_of(lines: list[str]) -> dict[str, str]:
+    """The fields that `show` prints: a label, which may have spaces, then two or more."""
+    return dict(re.split(r" {2,}", line, maxsplit=1) for line in lines)
+
+
 def ok(*args: str) -> list[str]:
     result = runner.invoke(app, ["terminal", *args])
     assert result.exit_code == 0, result.output
@@ -84,7 +89,7 @@ def test_list(proj: Path, tmp_path: Path) -> None:
     assert lines[0].split() == [
         "name",
         "status",
-        "repo",
+        "repository",
         "directory",
         "program",
         "attached",
@@ -117,9 +122,9 @@ def test_odd_names_and_directories_are_escaped(tmp_path: Path) -> None:
 def test_show(proj: Path) -> None:
     worktree = proj / ".worktrees" / "feature"
     ok("create", "-d", str(worktree), "-n", "feat")
-    fields = dict(line.split(None, 1) for line in ok("show", "feat"))
+    fields = fields_of(ok("show", "feat"))
     assert fields["status"] == "open"
-    assert (fields["directory"], fields["current"]) == (str(worktree), str(worktree))
+    assert (fields["directory"], fields["current directory"]) == (str(worktree), str(worktree))
     assert (fields["command"], fields["attached"]) == ("-", "0")
     assert (fields["repository"], fields["checkout"]) == ("proj", str(worktree))
     assert "panes" not in fields
@@ -133,7 +138,7 @@ def test_show(proj: Path) -> None:
 def test_show_a_split_one(keeper: TmuxKeeper, tmp_path: Path) -> None:
     ok("create", "-n", "api", "-d", str(tmp_path))
     subprocess.run([keeper.binary, "-L", keeper.socket, "split-window", "-t", "=api:"], check=True)
-    assert "panes       2" in ok("show", "api")
+    assert fields_of(ok("show", "api"))["panes"] == "2"
 
 
 def test_unknown_ones() -> None:
@@ -147,7 +152,7 @@ def test_rename_close_and_kill(tmp_path: Path) -> None:
     assert ok("close", "web") == ["Closed terminal web"]
     ok("create", "-n", "stubborn", "-d", str(tmp_path), "--", "sh", "-c", "trap '' HUP; sleep 600")
     assert ok("kill", "stubborn") == ["Killed terminal stubborn"]
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
 @pytest.mark.parametrize("command", ["close", "kill"])
@@ -213,7 +218,7 @@ def test_a_program_not_known_shows_as_a_dash(
         session.conn.execute("UPDATE state_terminals SET program = ''")
     unobserved(monkeypatch)  # which would see the program now
     assert ok("list")[1].split()[4] == "-"
-    fields = dict(line.split(None, 1) for line in ok("show", "api"))
+    fields = fields_of(ok("show", "api"))
     assert fields["program"] == "-"
 
 
@@ -454,7 +459,7 @@ def test_a_command_that_ended_already(tmp_path: Path) -> None:
         "  see its last screen with: hephaistos terminal attach build",
     ]
     assert ok("list")[1].split()[:4] == ["build", "ended", "(status", "3)"]
-    fields = dict(line.split(None, 1) for line in ok("show", "build"))
+    fields = fields_of(ok("show", "build"))
     assert fields["status"] == "ended (status 3)"
     assert "ended" in fields
     assert "noticed" not in fields
@@ -462,7 +467,7 @@ def test_a_command_that_ended_already(tmp_path: Path) -> None:
     data = json.loads("\n".join(ok("show", "build", "--json")))
     assert (data["status"], data["exit_status"], data["exit_signal"]) == ("ended", 3, None)
     assert data["ended_at"] is not None
-    assert (data["lost_at"], data["lost_because"]) == (None, None)
+    assert (data["noticed_at"], data["lost_because"]) == (None, None)
 
 
 @pytest.mark.usefixtures("settled")
@@ -472,7 +477,7 @@ def test_a_shell_that_closed_already(tmp_path: Path, monkeypatch: pytest.MonkeyP
         "terminal sh closed: its shell, /bin/false, exited;"
         " check SHELL, or the profile of that shell"
     )
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
 def test_a_command_still_starting(
@@ -494,7 +499,7 @@ def test_one_a_signal_ended(tmp_path: Path) -> None:
     ok("create", "-n", "job", "-d", str(tmp_path), "--", "sh", "-c", "kill -KILL $$")
     said = {"ended (signal 9, SIGKILL)", "ended (signal)"}  # tmux before 3.3 does not say which
     assert any(ok("list")[1].split(None, 1)[1].startswith(status) for status in said)
-    fields = dict(line.split(None, 1) for line in ok("show", "job"))
+    fields = fields_of(ok("show", "job"))
     assert fields["status"] in said
 
 
@@ -504,11 +509,11 @@ def test_show_says_when_and_why_a_session_went(
     ok("create", "-n", "build", "-d", str(tmp_path), "--", "sh", "-c", "exit 3")
     ok("create", "-n", "api", "-d", str(tmp_path))
     kill_server(keeper)
-    build = dict(line.split(None, 1) for line in ok("show", "build", "--time-format", "relative"))
+    build = fields_of(ok("show", "build", "--time-format", "relative"))
     assert (build["status"], build["noticed"]) == ("ended (status 3, screen gone)", "now")
     [listed] = [line for line in ok("list") if line.startswith("build ")]
     assert listed.split(None, 1)[1].startswith("ended (status 3, screen gone)")
-    api = dict(line.split(None, 1) for line in ok("show", "api", "--time-format", "relative"))
+    api = fields_of(ok("show", "api", "--time-format", "relative"))
     assert (api["status"], api["noticed"]) == ("lost (tmux server ended)", "now")
     assert "ended" not in api
     assert build["next"] == "`hephaistos terminal close build` removes it"
@@ -522,7 +527,7 @@ def test_show_says_when_and_why_a_session_went(
     assert (build_json["status"], build_json["exit_status"]) == ("ended", 3)
     assert (build_json["lost_because"], api_json["lost_because"]) == ("server", "server")
     assert (api_json["status"], api_json["ended_at"]) == ("lost", None)
-    assert build_json["lost_at"] is not None
+    assert build_json["noticed_at"] is not None
     Exec(monkeypatch)  # as if run interactively
     assert failed("attach", "build") == (
         "the command of terminal build exited with status 3, and its last screen is gone,"
@@ -539,7 +544,7 @@ def test_close_ended_ones(keeper: TmuxKeeper, tmp_path: Path, command: str) -> N
     assert ok(command, "a") == ["Closed ended terminal a"]
     kill_server(keeper)
     assert ok(command, "b") == ["Removed ended terminal b"]
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
 @pytest.mark.usefixtures("settled")
@@ -606,7 +611,7 @@ def test_ctrl_d_closes_an_ended_one(keeper: TmuxKeeper, outer: Outer, tmp_path: 
     outer.tmux("send-keys", "-t", "=outer:", "C-d")
     eventually(outer.out.exists)
     assert "[exited]" in outer.screen()
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
 def test_ctrl_d_reaches_a_running_program(keeper: TmuxKeeper, outer: Outer, tmp_path: Path) -> None:
@@ -623,7 +628,7 @@ def test_ctrl_d_reaches_a_running_program(keeper: TmuxKeeper, outer: Outer, tmp_
     assert ok("list")[1].split()[:3] == ["cat", "ended", "(finished)"]
     outer.tmux("send-keys", "-t", "=outer:", "C-d")  # now it closes
     eventually(outer.out.exists)
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
 def test_create_attaches_to_a_command_that_ends_at_once(
@@ -650,4 +655,4 @@ def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path, keys: 
         outer.tmux("send-keys", "-t", "=outer:", "Enter")
     eventually(outer.out.exists)
     assert "[exited]" in outer.screen()
-    assert ok("list") == ["name  status  repo  directory  program  attached  active"]
+    assert ok("list") == ["name  status  repository  directory  program  attached  active"]

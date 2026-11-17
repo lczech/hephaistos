@@ -1,7 +1,7 @@
 {
   "api": {
     "major": 0,
-    "minor": 36
+    "minor": 37
   },
   "shapes": {
     "components": {
@@ -2941,6 +2941,10 @@
               "title": "Active At",
               "type": "string"
             },
+            "attached": {
+              "title": "Attached",
+              "type": "integer"
+            },
             "checkout": {
               "anyOf": [
                 {
@@ -2950,10 +2954,6 @@
                   "type": "null"
                 }
               ]
-            },
-            "clients": {
-              "title": "Clients",
-              "type": "integer"
             },
             "command": {
               "anyOf": [
@@ -3021,17 +3021,6 @@
               "title": "Id",
               "type": "string"
             },
-            "lost_at": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Lost At"
-            },
             "lost_because": {
               "anyOf": [
                 {
@@ -3046,6 +3035,17 @@
             "name": {
               "title": "Name",
               "type": "string"
+            },
+            "noticed_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Noticed At"
             },
             "observed_at": {
               "title": "Observed At",
@@ -3079,14 +3079,14 @@
             "current_directory",
             "program",
             "command",
-            "clients",
+            "attached",
             "panes",
             "started_at",
             "active_at",
             "exit_status",
             "exit_signal",
             "ended_at",
-            "lost_at",
+            "noticed_at",
             "lost_because",
             "observed_at",
             "observed_by",

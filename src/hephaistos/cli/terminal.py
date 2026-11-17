@@ -183,7 +183,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
         checkouts = [clones.recorded_checkout(session, state.directory, known) for state in found]
     formatted = time_formatter(time_format, TimeFormat.RELATIVE)
     print_table(
-        ["name", "status", "repo", "directory", "program", "attached", "active"],
+        ["name", "status", "repository", "directory", "program", "attached", "active"],
         [
             [
                 escaped(state.name),
@@ -191,7 +191,7 @@ def list_(*, time_format: TimeFormatOption = None, as_json: JsonOption = False) 
                 _repository(checkout),
                 short_path(state.directory),
                 escaped(state.program) or "-",
-                str(state.clients) if state.clients else "-",
+                str(state.attached) if state.attached else "-",
                 formatted(state.active_at),
             ]
             for state, checkout in zip(found, checkouts, strict=True)
@@ -226,10 +226,10 @@ def show(
             ("status", _status_text(state)),
             *_ending_fields(state, formatted),
             ("directory", short_path(state.directory)),
-            ("current", "-" if current is None else short_path(current)),
+            ("current directory", "-" if current is None else short_path(current)),
             ("program", escaped(state.program) or "-"),
             ("command", _command_text(state)),
-            ("attached", str(state.clients)),
+            ("attached", str(state.attached)),
             *([("panes", str(state.panes))] if state.panes > 1 else []),
             ("repository", _repository(checkout)),
             ("checkout", "-" if where is None else short_path(where)),
@@ -263,8 +263,8 @@ def _ending_fields(
     fields: list[tuple[str, str]] = []
     if state.status is terminals.TerminalStatus.ENDED and state.ended_at is not None:
         fields.append(("ended", formatted(state.ended_at)))
-    if state.lost_at is not None:
-        fields.append(("noticed", formatted(state.lost_at)))  # when its session was found gone
+    if state.noticed_at is not None:
+        fields.append(("noticed", formatted(state.noticed_at)))  # when its session was found gone
     return fields
 
 

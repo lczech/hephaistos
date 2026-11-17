@@ -48,7 +48,7 @@ class ApiVersion(NamedTuple):
     minor: int
 
 
-API_VERSION = ApiVersion(0, 36)
+API_VERSION = ApiVersion(0, 37)
 
 
 class Ref(TypedDict):
@@ -194,7 +194,7 @@ class TerminalJson(TypedDict):
     current_directory: str | None
     program: str
     command: list[str] | None  # None for a shell
-    clients: int
+    attached: int
     panes: int
     started_at: str
     active_at: str
@@ -205,7 +205,7 @@ class TerminalJson(TypedDict):
     ended_at: str | None
     # When its session was found gone, and why (`reboot`, `server`): while lost, or ended with
     # its last screen gone too.
-    lost_at: str | None
+    noticed_at: str | None
     lost_because: str | None
     observed_at: str
     observed_by: Ref
@@ -283,14 +283,14 @@ def terminal_json(
         current_directory=None if current is None else str(current),
         program=state.program,
         command=None if state.command is None else list(state.command),
-        clients=state.clients,
+        attached=state.attached,
         panes=state.panes,
         started_at=state.started_at.isoformat(),
         active_at=state.active_at.isoformat(),
         exit_status=state.exit_status,
         exit_signal=state.exit_signal,
         ended_at=None if state.ended_at is None else state.ended_at.isoformat(),
-        lost_at=None if state.lost_at is None else state.lost_at.isoformat(),
+        noticed_at=None if state.noticed_at is None else state.noticed_at.isoformat(),
         lost_because=None if state.lost_because is None else state.lost_because.value,
         observed_at=state.observed_at.datetime.isoformat(),
         observed_by=machine_ref(state.observed_by, names),

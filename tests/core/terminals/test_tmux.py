@@ -161,7 +161,7 @@ def test_create_and_list(keeper: TmuxKeeper, tmp_path: Path) -> None:
     assert created.name == "api"
     assert created.directory == tmp_path
     assert created.panes == 1
-    assert created.clients == 0
+    assert created.attached == 0
     assert written(out) == f"{terminal_id} /agent\n"
     [session] = keeper.sessions()
     assert session.key == created.key
@@ -397,7 +397,7 @@ def test_what_a_session_shows(keeper: TmuxKeeper, tmp_path: Path) -> None:
     # web attached inside api: api shows the pane of web too, so attaching api there would loop.
     attach = shlex.join(keeper.attach_command(web))
     tmux(keeper, "send-keys", "-t", api.key, attach, "Enter")
-    eventually(lambda: keeper.session("web").clients == 1)
+    eventually(lambda: keeper.session("web").attached == 1)
     assert keeper.shows(api, pane_tty(keeper, "web"))
     assert not keeper.shows(web, pane_tty(keeper, "api"))
     assert not keeper.shows(api, pane_tty(keeper, "other"))

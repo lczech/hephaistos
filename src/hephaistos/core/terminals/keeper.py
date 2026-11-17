@@ -50,7 +50,7 @@ class Session:
     current_directory: Path | None  # where its foreground process is; None if unknown
     program: str  # what runs in the foreground, e.g. `bash` or `vim`; empty while not known
     pid: int | None  # of the process it started, e.g. the shell; None once ended, if not said
-    clients: int  # attached to it, e.g. Terminal emulators showing it
+    attached: int  # clients attached to it, e.g. Terminal emulators showing it
     created_at: datetime
     active_at: datetime  # when it last had input or output
     panes: int  # more than 1 if someone split it outside hephaistos; the first one counts

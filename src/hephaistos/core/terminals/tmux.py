@@ -519,7 +519,7 @@ class TmuxKeeper:
             current,
             program,
             pid,
-            clients,
+            attached,
             created,
             active,
             dead,
@@ -549,7 +549,7 @@ class TmuxKeeper:
                 current_directory=tmux_path(current) if current else None,
                 program="" if program in WRAPPERS else program,
                 pid=int(pid) if pid else None,  # a dead pane holds none since 3.8
-                clients=int(clients),
+                attached=int(attached),
                 created_at=_time(created),
                 active_at=_time(active),
                 panes=1,

@@ -193,7 +193,7 @@ def _restore(
     """
     directory = lost.directory
     why = "its session went" if lost.lost_because is None else state.LOST_TEXTS[lost.lost_because]
-    noticed = "" if lost.lost_at is None else f"noticed {_time_text(lost.lost_at)}; "
+    noticed = "" if lost.noticed_at is None else f"noticed {_time_text(lost.noticed_at)}; "
     hint = (
         f"hephaistos restored this terminal as a new shell, as {why}"
         f" ({noticed}last active {_time_text(lost.active_at)}); earlier output is gone"
