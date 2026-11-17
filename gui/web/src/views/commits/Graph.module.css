@@ -67,7 +67,8 @@
 
 .tail svg,
 .fill svg,
-.beside svg {
+.beside svg,
+.dashes svg {
   display: block;
   overflow: visible;
   stroke-width: var(--graph-stroke);
@@ -88,6 +89,14 @@
   position: absolute;
   top: calc(var(--graph-node-y) - var(--graph-node-half) + var(--by, 0rem));
   left: var(--node-x);
+}
+
+/* A straight lane dashed (`Dashes`), in one piece of its own, drawn to its height. */
+.dashes {
+  position: absolute;
+  top: var(--top);
+  bottom: var(--bottom);
+  left: 0;
 }
 
 /* Straight lines drawn to whole pixels, sharp however the column falls. Curves stay smooth. */

@@ -72,26 +72,52 @@ describe("a graph's band", () => {
 });
 
 describe("a stretch in a graph", () => {
-  it("draws its lane through its row dashed, without a node, and others passing as they are", () => {
-    // t and u apart, u's line passing the stretch s of t.
+  /** t and u apart, u's line passing the stretch s of t, in a row `height` high. */
+  function stretch(height: number) {
     const layout = new Layout({});
     layout.add({ hash: "t", parents: ["s"] });
     layout.add({ hash: "u", parents: ["b"] });
     layout.add({ hash: "s", parents: ["b"], stretch: true });
     layout.add({ hash: "b", parents: [] });
+    const vars = { "--graph-width": "40px", "--graph-node-y": "11.5px" } as CSSProperties;
     const { container } = render(
-      <div style={{ position: "relative", width: 200, height: 24 }}>
+      <div style={{ position: "relative", width: 200, height, ...vars }}>
         <GraphCell layout={layout} row={2} />
       </div>,
     );
-    expect(container.querySelector("svg[data-node]")).toBeNull();
-    const dashes = [...container.querySelectorAll("line, path")].map((each) => [
-      Number(each.getAttribute("x1") ?? each.getAttribute("d")?.slice(1).split(" ")[0]),
-      each.getAttribute("stroke-dasharray"),
-    ]);
-    expect(dashes.filter(([x]) => x === 6).every(([, dash]) => dash === "2 3")).toBe(true);
-    expect(dashes.filter(([x]) => x === 18).every(([, dash]) => dash === null)).toBe(true);
-    expect(dashes.filter(([x]) => x === 18)).not.toHaveLength(0);
-    expect(dashes.filter(([x]) => x === 6).length).toBeGreaterThanOrEqual(3); // in, out, below
+    return container.firstElementChild as HTMLElement;
+  }
+
+  it("draws its lane through its row dashed in one piece, without a node, others as they are", () => {
+    const row = stretch(24);
+    expect(row.querySelector("svg[data-node]")).toBeNull();
+    const pieces = [...row.querySelectorAll("svg[data-dashes]")];
+    expect(pieces.map((each) => each.getAttribute("data-dashes"))).toEqual(["0"]);
+    expect(box(pieces[0]).top).toBeCloseTo(box(row).top, 1);
+    expect(box(pieces[0]).bottom).toBeCloseTo(box(row).bottom, 1);
+    // Nothing else in its lane; the other passing solid.
+    const xs = (selector: string) =>
+      [...row.querySelectorAll(selector)].map((each) =>
+        Number(each.getAttribute("x1") ?? each.getAttribute("d")?.slice(1).split(" ")[0]),
+      );
+    expect(xs("svg:not([data-dashes]) :is(line, path)")).not.toContain(6);
+    expect(xs("svg:not([data-dashes]) line")).toContain(18);
+    expect(row.querySelectorAll("[stroke-dasharray]")).toHaveLength(1);
+  });
+
+  it("fits whole dashes, of about the same length, to rows of any height", () => {
+    for (const height of [24, 23.5, 37, 61]) {
+      const piece = stretch(height).querySelector("svg[data-dashes]");
+      const [none, half, dash] = (
+        piece?.querySelector("line")?.getAttribute("stroke-dasharray") ?? ""
+      )
+        .split(" ")
+        .map(Number) as [number, number, number];
+      expect(none).toBe(0); // starts with half a gap, so that rows meet with a whole one
+      const periods = box(piece).height / (2 * half + dash);
+      expect(periods).toBeCloseTo(Math.round(periods), 3);
+      expect(Math.abs(dash - 2)).toBeLessThan(0.3);
+      expect(2 * half).toBeCloseTo(1.5 * dash, 3);
+    }
   });
 });
