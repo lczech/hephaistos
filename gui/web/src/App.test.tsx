@@ -190,20 +190,24 @@ describe("the GUI", () => {
   it("passes when the Status View refreshes, and shows why one failed", async () => {
     signIn();
     saveViews("status");
-    let passes = 0;
-    serve({
+    // Passes asked for after Refresh fail: by when they are asked, as answers may come in any
+    // order, the one of Refresh before the one as the GUI opens.
+    let refreshed = Number.POSITIVE_INFINITY;
+    const requests: Request[] = serve({
       ...ok,
-      "POST /api/observe": () => {
-        passes += 1;
-        return passes === 1
+      "POST /api/observe": (request) =>
+        requests.indexOf(request) < refreshed
           ? new Response(null, { status: 204 })
-          : json({ error: "the pass failed: git is gone" }, 503);
-      },
+          : json({ error: "the pass failed: git is gone" }, 503),
     });
+    const passes = () => requests.filter((r) => new URL(r.url).pathname === "/api/observe");
     renderWithQueries(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Refresh" }));
+    const refresh = await screen.findByRole("button", { name: "Refresh" });
+    await waitFor(() => expect(passes()).toHaveLength(1)); // the one as the GUI opens
+    refreshed = requests.length;
+    await userEvent.click(refresh);
     expect(await screen.findByText("the pass failed: git is gone")).toBeInTheDocument();
-    expect(passes).toBe(2);
+    expect(passes()).toHaveLength(2);
   });
 
   it("names the restart for a Daemon of an older version, also in the Status View", async () => {
@@ -213,7 +217,7 @@ describe("the GUI", () => {
     renderWithQueries(<App />);
     expect(await screen.findByText(/restart it: `hephaistos daemon restart`/)).toBeInTheDocument();
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
-    const check = screen.getByText("gui").closest("li");
+    const check = (await screen.findByText("gui")).closest("li");
     expect(check).toHaveAttribute("data-outcome", "problem");
     expect(check).toHaveTextContent(/restart it: hephaistos daemon restart$/);
     act(() => lastSocket().open());

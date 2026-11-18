@@ -56,7 +56,8 @@ describe("the Status View", () => {
     expect(fix.parentElement).toHaveTextContent(/^→ hephaistos daemon install --linger runs it/);
     expect(fix.parentElement?.parentElement).toHaveTextContent(/^off: the daemon.*→ hephaistos/);
     expect(screen.getByText("ionice").closest("li")).toHaveAttribute("data-outcome", "note");
-    expect(screen.getByText("gui").closest("li")).toHaveTextContent(/built for API/);
+    // From the answer of `/api/info`, which may come later.
+    expect((await screen.findByText("gui")).closest("li")).toHaveTextContent(/built for API/);
     const asked = (path: string) => requests.filter((r) => new URL(r.url).pathname === path).length;
     expect(asked("/api/status")).toBe(1);
     const passes = asked("/api/observe"); // one as the GUI opens
