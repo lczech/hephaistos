@@ -124,6 +124,9 @@ export default defineConfig({
           setupFiles: ["src/test/setup.ts", "src/test/browser.ts"],
           // After the others, not beside them: sharing the cores, each side's waits time out.
           sequence: { groupOrder: 1 },
+          // In browser mode, also the pages open at once, shared by the browsers: by default one
+          // per core, so many, each drawing, that their waits time out. One page per browser.
+          maxWorkers: browsers.length,
           browser: {
             enabled: true,
             provider: playwright(),
