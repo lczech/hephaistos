@@ -375,6 +375,11 @@ class Outer:
         """What it shows, lines that wrap joined."""
         return self.tmux("capture-pane", "-p", "-J", "-t", "=outer:")
 
+    def text(self) -> str:
+        """What it shows, all its rows joined: a line longer than a row, drawn by the tmux client
+        inside row by row, may not be marked as wrapped, so `screen` would keep it apart."""
+        return "".join(self.screen().splitlines())
+
     def end(self) -> None:
         """Ends its server, and removes its socket, which tmux leaves."""
         command = [self.binary, "-L", self.socket, "kill-server"]
@@ -407,8 +412,9 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     outer.run("terminal", "attach", "api")
     said = "hephaistos restored this terminal as a new shell, as the tmux server ended (noticed"
     ended = "; earlier output is gone; it ran sleep 600, which does not start again"
-    eventually(lambda: ended in outer.screen())  # its end: tmux may draw the line in parts
-    assert said in outer.screen()
+    # Longer than the outer terminal's 100 columns.
+    eventually(lambda: ended in outer.text())  # its end: tmux may draw the line in parts
+    assert said in outer.text()
     assert ok("list")[1].split()[:2] == ["api", "open"]
 
 
