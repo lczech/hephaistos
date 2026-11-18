@@ -396,7 +396,8 @@ def test_attach_is_plain_tmux(outer: Outer, proj: Path) -> None:
     assert eventually(lambda: "[api]" in outer.screen().splitlines()[-1])  # the bar of tmux
     outer.tmux("send-keys", "-t", "=outer:", "C-b", "d")  # the keys of tmux: detach
     eventually(outer.out.exists)
-    assert "[detached (from session api)]" in outer.screen()
+    # Drawn after it ended, maybe.
+    assert eventually(lambda: "[detached (from session api)]" in outer.screen())
     assert ok("show", "api")[0].split() == ["name", "api"]  # still running
 
 
@@ -405,10 +406,9 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     outer.run("terminal", "attach", "api")
     said = "hephaistos restored this terminal as a new shell, as the tmux server ended (noticed"
-    eventually(lambda: said in outer.screen())
-    assert (
-        "; earlier output is gone; it ran sleep 600, which does not start again" in outer.screen()
-    )
+    ended = "; earlier output is gone; it ran sleep 600, which does not start again"
+    eventually(lambda: ended in outer.screen())  # its end: tmux may draw the line in parts
+    assert said in outer.screen()
     assert ok("list")[1].split()[:2] == ["api", "open"]
 
 
@@ -610,7 +610,7 @@ def test_ctrl_d_closes_an_ended_one(keeper: TmuxKeeper, outer: Outer, tmp_path: 
     assert hint is installation(keeper.binary).hints
     outer.tmux("send-keys", "-t", "=outer:", "C-d")
     eventually(outer.out.exists)
-    assert "[exited]" in outer.screen()
+    assert eventually(lambda: "[exited]" in outer.screen())  # drawn after it ended, maybe
     assert ok("list") == ["name  status  repository  directory  program  attached  active"]
 
 
@@ -654,5 +654,5 @@ def test_a_shell_that_exits_ends_the_attach(outer: Outer, tmp_path: Path, keys: 
         outer.tmux("send-keys", "-t", "=outer:", "-l", keys)
         outer.tmux("send-keys", "-t", "=outer:", "Enter")
     eventually(outer.out.exists)
-    assert "[exited]" in outer.screen()
+    assert eventually(lambda: "[exited]" in outer.screen())  # drawn after it ended, maybe
     assert ok("list") == ["name  status  repository  directory  program  attached  active"]
