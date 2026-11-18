@@ -19,7 +19,7 @@ import { DirectoryPath } from "../../components/files/Path";
 import { counted } from "../../text";
 import type { ColorScheme } from "../../theme";
 import type { Params } from "../address";
-import { LoadNote } from "../CheckoutError";
+import { LoadNote, useKeptError } from "../CheckoutError";
 import { ChangePath, Lines } from "../comparison/columns";
 import {
   type Change,
@@ -104,6 +104,8 @@ interface BodyProps {
 export function FileBody(props: BodyProps) {
   const { query, known, show, unchanged, failed, estimate, find, large } = props;
   const diff = useDiff(query);
+  // Kept while asked for again, e.g. on focus: else the note, and what it offers, would go.
+  const error = useKeptError(diff, query);
   const [shownHere, setShownHere] = useState(false);
   const kept = large?.shown ?? shownHere;
   const showLarge = large?.show ?? (() => setShownHere(true));
@@ -131,7 +133,7 @@ export function FileBody(props: BodyProps) {
     <p className={styles.note}>Loading the diff…</p>
   );
   if (diff.data === undefined) {
-    return diff.isError ? <LoadNote error={diff.error}>{failed}</LoadNote> : asking;
+    return error ? <LoadNote error={error}>{failed}</LoadNote> : asking;
   }
   if (change === null || change === undefined) {
     return unchanged ?? <p className={styles.note}>No changes to this file so, now.</p>;

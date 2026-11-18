@@ -343,6 +343,27 @@ describe("the Diff View", () => {
     expect(screen.queryByRole("button", { name: "Since HEAD" })).toBeNull(); // compared so
   });
 
+  it("keeps the error of a file, and what it offers, while asking again, e.g. on focus", async () => {
+    const failed = () => json({ error: "no such revision: main" }, 400);
+    let answer = (): Response | Promise<Response> => failed();
+    serveDiff(() => answer());
+    const { client } = renderWithQueries(
+      <Diff initial={{ ...STAGED, from: "main", to: "working-tree" }} />,
+    );
+    await screen.findByText(/no such revision: main/);
+    let reply = (_: Response) => {};
+    answer = () => new Promise((resolve) => (reply = resolve));
+    await act(async () => {
+      void client.invalidateQueries(); // answered below
+      await new Promise((resolve) => setTimeout(resolve, 50)); // the View updated meanwhile
+    });
+    expect(screen.getByText(/no such revision: main/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Since HEAD" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading the diff…")).toBeNull();
+    await act(async () => reply(failed()));
+    expect(screen.getByText(/no such revision: main/)).toBeInTheDocument();
+  });
+
   it("asks no versions of an added file, all of which its patch has", async () => {
     const requests = serveDiff({ change: change({ status: "A" }), patch: PATCH });
     renderWithQueries(<Diff initial={STAGED} />);
