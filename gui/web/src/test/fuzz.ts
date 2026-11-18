@@ -17,9 +17,10 @@ declare module "vitest" {
 export const FUZZ_SEED = inject("fuzz");
 /** The longest an answer waits, in ms: long enough to fall behind a later request. */
 const MAX_DELAY = 200;
-/** How long between refetches at random, in ms: at least, and at most. Each cancels what is
- * being fetched, so more often than a few answers take would starve a list of several pages,
- * which live hints, seconds apart, never do. */
+/** How long between refetches at random, in ms: at least, and at most, from when the last one
+ * has settled, so that they come less often where answers take longer, e.g. under load. Each
+ * cancels what is being fetched, so more often than a few answers take would starve a list of
+ * several pages, which live hints, seconds apart, never do. */
 const REFETCH_EVERY = [300, 1500] as const;
 /** How long a test waits for what it finds, in ms, when fuzzed: answers come later. */
 export const FUZZED_WAIT = 3000;
@@ -83,15 +84,15 @@ export async function delayed(): Promise<void> {
 
 /** Refetches every query of `client` at random moments until the test ends, if fuzzed. */
 export function refetching(client: QueryClient): void {
+  const drawing = random; // that of this test: one settling after it ends draws from no other's
   const next = () => {
-    if (random === null) return;
+    if (random === null || random !== drawing) return;
     const [least, most] = REFETCH_EVERY;
     const timer = later(
       () => {
         timers.delete(timer);
         if (exact) return;
-        void client.invalidateQueries();
-        next();
+        void client.invalidateQueries().finally(next);
       },
       least + random() * (most - least),
     );
