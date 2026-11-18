@@ -217,9 +217,12 @@ describe("the GUI", () => {
     renderWithQueries(<App />);
     expect(await screen.findByText(/restart it: `hephaistos daemon restart`/)).toBeInTheDocument();
     expect(await screen.findByText(/^running, pid 4242/)).toBeInTheDocument();
-    const check = (await screen.findByText("gui")).closest("li");
-    expect(check).toHaveAttribute("data-outcome", "problem");
-    expect(check).toHaveTextContent(/restart it: hephaistos daemon restart$/);
+    // Found again each time: the Daemon's checks, if they come later, go before it, in its row.
+    await waitFor(() => {
+      const check = screen.getByText("gui").closest("li");
+      expect(check).toHaveAttribute("data-outcome", "problem");
+      expect(check).toHaveTextContent(/restart it: hephaistos daemon restart$/);
+    });
     act(() => lastSocket().open());
     const health = screen.getByRole("button", { name: /^Status: This GUI is built for API/ });
     expect(health).toHaveAttribute("data-health", "warning");
