@@ -1,6 +1,6 @@
 #!/bin/sh
 # Quick checks before each commit: the linters, and the GUI's types when GUI files are staged
-# (about 10 s); pyright and the tests run before each push (pre-push).
+# (about 10 s); pyright and the tests run in CI.
 # Enable once per clone: git config core.hooksPath .githooks
 # Skip in an emergency with `git commit --no-verify`.
 set -e

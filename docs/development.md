@@ -7,7 +7,7 @@ The commands to run are in the [README](../README.md#development).
 
 - Use what a framework or tool offers (e.g. the options of dockview, the conventions of Vite), as simply as possible.
   A workaround is for where there is no other way; it is named as one, next to the native ways, asking upstream included, and replaced when a native way appears.
-- A rule or tool that matters fails loudly when broken or switched off: its strictest mode, a test that it runs at all, the hooks (`.githooks/pre-commit` lints, and checks the GUI's types when GUI files are staged; `.githooks/pre-push` runs pyright, pytest and `npm run check`), and CI (`.github/workflows/ci.yml`).
+- A rule or tool that matters fails loudly when broken or switched off: its strictest mode, a test that it runs at all, the commit hook (`.githooks/pre-commit` lints, and checks the GUI's types when GUI files are staged), and CI (`.github/workflows/ci.yml`), which runs all checks: no hook runs them before a push, as git holds the connection to the remote open meanwhile, which closes in the minutes they take.
 - No backwards compatibility while formats are in flux: a changed file format just changes, with a plain error for the old form, and no migration code or hints.
   Data in the database is worth keeping, so a schema change bumps `SCHEMA_VERSION` and comes with a one-off script that carries the data over ([ADR 003](decisions/003-core.md)); `.agents/scratch/gui-verification/carry-over.py` (not tracked) rebuilds changed tables in place, safe with a running Daemon.
 - Decide from what a program gives as data, never from its messages: exit codes, formats we choose (`git --porcelain -z`, the `-F` of tmux), and state we check (a socket that answers, a session still listed).

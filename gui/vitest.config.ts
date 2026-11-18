@@ -58,8 +58,8 @@ async function oneRunAtATime(): Promise<void> {
   }
 }
 
-/** Says so on the terminal too, where the output is kept, e.g. by the pre-push hook until it
- * fails: else a push would wait without saying why. */
+/** Says so on the terminal too, where the output is kept, e.g. by a script until the run
+ * fails: else it would wait without saying why. */
 function say(message: string): void {
   console.error(message);
   if (process.stderr.isTTY) return;
