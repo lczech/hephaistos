@@ -864,11 +864,16 @@ describe("the Diff View", () => {
       for (const key of keys) client.setQueryData(key, {}); // as their Views left them
       Object.assign(asked, { lists: 0, diffs: [], versions: [] });
       await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
-      await waitFor(() => expect(asked.versions.sort()).toEqual(["README.md", "src/b.py"]));
-      expect(asked.lists).toBe(1);
-      expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      // Counted as answered, in any order when fuzzed; once all are, nothing more is asked.
+      const once = () => {
+        expect(asked.versions.sort()).toEqual(["README.md", "src/b.py"]);
+        expect(asked.lists).toBe(1);
+        expect(asked.diffs.sort()).toEqual(["README.md", "src/b.py"]);
+      };
+      await waitFor(once);
       for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
       await expectSettled();
+      once();
     });
 
     it("is not dimmed once one file shows in its place", async () => {
