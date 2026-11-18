@@ -89,7 +89,8 @@ describe("the Database View", () => {
     renderWithQueries(<Db at={{ table: "registry_repositories" }} />);
     await screen.findByText("two");
     await userEvent.click(screen.getByRole("button", { name: /^registry_repositories/ }));
-    await userEvent.click(screen.getByRole("menuitemradio", { name: "old_things (1)" }));
+    // From the list of tables, which may come after the rows.
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "old_things (1)" }));
     expect(screen.getByRole("status").textContent).toBe("db?table=old_things");
     expect(await screen.findByText("a thing")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /^old_things/ }));

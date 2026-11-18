@@ -125,6 +125,8 @@ describe("the Status View", () => {
     const writeText = vi.fn(async (_: string) => {});
     vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
     renderWithQueries(<App />);
+    // Paths under ~ once `/api/info` gives the home directory: its check of the GUI says so.
+    await screen.findByText("gui");
     await userEvent.click(await screen.findByRole("button", { name: "Copy Setup and About" }));
     expect(await screen.findByText("Copied")).toBeInTheDocument();
     const text = writeText.mock.calls[0]?.[0] ?? "";
