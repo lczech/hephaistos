@@ -15,12 +15,14 @@ round=0
 while [ "$round" -lt "$rounds" ]; do
     round=$((round + 1))
     seed=${TEST_FUZZ_SEED:-$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')}
-    if TEST_FUZZ_SEED=$seed uv run npm exec -- vitest run "$@" >"$out/$seed.txt" 2>&1; then
+    # Uncoloured, as vitest colours where CI is set, for the lines matched below.
+    if TEST_FUZZ_SEED=$seed NO_COLOR=1 uv run npm exec -- vitest run "$@" >"$out/$seed.txt" 2>&1; then
         echo "round $round, seed $seed: $(grep -E '^ +Tests ' "$out/$seed.txt" | tr -s ' ')"
         rm "$out/$seed.txt"
     else
         echo "round $round, seed $seed: failed, see $out/$seed.txt"
-        grep -E '^ FAIL ' "$out/$seed.txt" | sort -u
+        # Each failed test and its error, as CI keeps no file.
+        grep -E -A1 '^ FAIL ' "$out/$seed.txt" | grep -v '^--$'
         failed="$failed $seed"
     fi
 done
