@@ -87,18 +87,22 @@ class Keeper(Protocol):
         """All sessions, as `sessions`, and the IDs of those it could not read."""
         ...
 
-    def create(
+    def create(  # noqa: PLR0913 - `size` keyword-only
         self,
         terminal_id: uuid.UUID,
         name: str,
         directory: Path,
         command: Sequence[str] | None,
         environment: Mapping[str, str],
+        *,
+        size: tuple[int, int] | None = None,
     ) -> Session:
         """Starts a session in `directory`: `command`, else the login shell of the creator.
 
         `environment` is that of the creator, e.g. of a shell: the Terminal gets the variables
         that a terminal emulator passes on, such as DISPLAY and SSH_AUTH_SOCK, from it.
+        `size`, columns and rows, is that of the terminal about to attach, if any: started so,
+        it is not resized as that attaches, which redraws what its program shows.
         Raises NameTakenError if `name` is taken.
 
         Once its program ends, the session of a command stays, ended, showing its last screen, as

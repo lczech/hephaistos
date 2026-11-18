@@ -19,7 +19,7 @@ from hephaistos.core.observers import terminals as observer
 from hephaistos.core.observers.terminals import Result
 from hephaistos.core.state import terminals
 from hephaistos.core.terminals.keeper import Session
-from hephaistos.core.terminals.tmux import TmuxKeeper, installation
+from hephaistos.core.terminals.tmux import SIZED, TmuxKeeper, installation
 from hephaistos.core.utils.paths import Paths
 from support import clone, create, eventually, git, slow_scopes
 
@@ -362,23 +362,29 @@ class Outer:
         command = [self.binary, "-L", self.socket, "-f", "/dev/null", *args]
         return subprocess.run(command, capture_output=True, text=True, check=True).stdout
 
-    def run(self, *args: str, in_tmux: bool = False, spread: str | None = None) -> None:
+    def run(
+        self,
+        *args: str,
+        in_tmux: bool = False,
+        spread: str | None = None,
+        variables: Mapping[str, str] | None = None,
+        size: tuple[int, int] = (100, 30),
+    ) -> None:
         """Runs the CLI in it, as a user would type it: with nothing of tmux in its environment,
-        unless `in_tmux`, as in a tmux of the user; `spread` is a `HEPHAISTOS_TERMINAL` there."""
+        unless `in_tmux`, as in a tmux of the user; `spread` is a `HEPHAISTOS_TERMINAL` there.
+        `variables` are set for the CLI too; `size` is the outer terminal's, columns and rows."""
         unset = "" if in_tmux else "-u TMUX -u TMUX_PANE"
-        variable = "" if spread is None else f"HEPHAISTOS_TERMINAL={spread}"
-        script = f"env {unset} {variable} {cli_text(*args)}; echo done > {self.out}; exec sleep 600"
-        self.tmux("new-session", "-d", "-x", "100", "-y", "30", "-s", "outer", script)
+        named = {**({} if spread is None else {"HEPHAISTOS_TERMINAL": spread}), **(variables or {})}
+        assigned = shlex.join(f"{name}={value}" for name, value in named.items())
+        command = f"env {unset} {assigned} {cli_text(*args)}"
+        script = f"{command}; echo done > {self.out}; exec sleep 600"
+        columns, rows = map(str, size)
+        self.tmux("new-session", "-d", "-x", columns, "-y", rows, "-s", "outer", script)
         self.tmux("set", "-g", "prefix", "None")
 
     def screen(self) -> str:
         """What it shows, lines that wrap joined."""
         return self.tmux("capture-pane", "-p", "-J", "-t", "=outer:")
-
-    def text(self) -> str:
-        """What it shows, all its rows joined: a line longer than a row, drawn by the tmux client
-        inside row by row, may not be marked as wrapped, so `screen` would keep it apart."""
-        return "".join(self.screen().splitlines())
 
     def end(self) -> None:
         """Ends its server, and removes its socket, which tmux leaves."""
@@ -406,25 +412,75 @@ def test_attach_is_plain_tmux(outer: Outer, proj: Path) -> None:
     assert ok("show", "api")[0].split() == ["name", "api"]  # still running
 
 
+def skip_unsized(keeper: TmuxKeeper) -> None:
+    """Skips a test of the size a session starts at, and of the outer terminal's, with a tmux
+    that starts one made detached at `default-size` whatever `-x` and `-y` say."""
+    version = installation(keeper.binary).version
+    if version is not None and version < SIZED:
+        pytest.skip("tmux 3.2a starts a session made detached at 80x24 whatever -x and -y say")
+
+
+def started_at(size: Path) -> str:
+    """What `stty size` wrote into `size` as a program started, e.g. `30 100`: rows, columns."""
+    return eventually(lambda: size.read_text().strip() if size.exists() else "")
+
+
+def test_a_terminal_created_to_attach_starts_at_the_size_it_attaches_at(
+    keeper: TmuxKeeper, outer: Outer, proj: Path, tmp_path: Path
+) -> None:
+    skip_unsized(keeper)
+    size = tmp_path / "size"
+    outer.run("terminal", "create", "-d", str(proj), "-n", "api", "--", "sh", "-c",
+              f"stty size > {size}; exec sleep 600")  # fmt: skip
+    assert started_at(size) == "30 100"  # not tmux's default-size, 80x24, before it attached
+
+
+def test_a_terminal_restored_to_attach_starts_at_the_size_it_attaches_at(
+    keeper: TmuxKeeper, outer: Outer, proj: Path, tmp_path: Path
+) -> None:
+    skip_unsized(keeper)
+    ok("create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
+    subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
+    size, shell = tmp_path / "size", tmp_path / "shell"  # the login shell it starts again
+    shell.write_text(f"#!/bin/sh\nstty size > {size}\nexec sleep 600\n")
+    shell.chmod(0o755)
+    outer.run("terminal", "attach", "api", variables={"SHELL": str(shell)})
+    assert started_at(size) == "30 100"
+
+
+def test_a_terminal_takes_the_size_of_the_client_used_last(
+    keeper: TmuxKeeper, outer: Outer, proj: Path
+) -> None:
+    """Started at one terminal's size, it still follows the client used last, as tmux's
+    `window-size latest` has it."""
+    skip_unsized(keeper)
+    outer.run("terminal", "create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
+
+    def width() -> str:
+        """The width of its window; empty until created."""
+        found = [session for session in keeper.sessions() if session.name == "api"]
+        if not found:
+            return ""
+        shown = [keeper.binary, "-L", keeper.socket, "display-message", "-p", "-t", found[0].key]
+        result = subprocess.run(
+            [*shown, "#{window_width}"], capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+
+    assert eventually(lambda: width() == "100")
+    outer.end()
+    outer.run("terminal", "attach", "api", size=(120, 40))
+    assert eventually(lambda: width() == "120")
+
+
 def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path) -> None:
     ok("create", "-d", str(proj), "-n", "api", "--", "sleep", "600")
     subprocess.run([keeper.binary, "-L", keeper.socket, "kill-server"], check=True)
     outer.run("terminal", "attach", "api")
     said = "hephaistos restored this terminal as a new shell, as the tmux server ended (noticed"
     ended = "; earlier output is gone; it ran sleep 600, which does not start again"
-    # Longer than the outer terminal's 100 columns.
-    try:
-        eventually(lambda: ended in outer.text())  # its end: tmux may draw the line in parts
-    except pytest.fail.Exception:
-        # It fails now and then in CI only: what each tmux holds, to tell where the line stops.
-        inner = [keeper.binary, "-L", keeper.socket, "capture-pane", "-p", "-J", "-t", "=api:"]
-        held = subprocess.run(inner, capture_output=True, text=True, check=False)
-        pytest.fail(
-            f"the end of the line never showed\n--- outer screen:\n{outer.screen()}"
-            f"\n--- the Terminal's own pane:\n{held.stdout}{held.stderr}"
-            f"\n--- terminal show api:\n" + "\n".join(ok("show", "api"))
-        )
-    assert said in outer.text()
+    eventually(lambda: ended in outer.screen())  # its end: the line takes three rows
+    assert said in outer.screen()
     assert ok("list")[1].split()[:2] == ["api", "open"]
 
 
@@ -458,8 +514,10 @@ def settled(keeper: TmuxKeeper, monkeypatch: pytest.MonkeyPatch) -> None:
         directory: Path,
         command: Sequence[str] | None,
         environment: Mapping[str, str],
+        *,
+        size: tuple[int, int] | None = None,
     ) -> Session:
-        session = create(self, terminal_id, name, directory, command, environment)
+        session = create(self, terminal_id, name, directory, command, environment, size=size)
         eventually(lambda: all(s.ending for s in keeper.sessions() if s.name == name) or None)
         return session
 

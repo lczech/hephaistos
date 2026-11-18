@@ -177,14 +177,16 @@ def settled(keeper: TmuxKeeper, monkeypatch: pytest.MonkeyPatch) -> TmuxKeeper:
     the observation after it finds that, whatever the load."""
     create = keeper.create
 
-    def created_then_settled(
+    def created_then_settled(  # noqa: PLR0913 - those of `create`
         terminal_id: uuid.UUID,
         name: str,
         directory: Path,
         command: Sequence[str] | None,
         environment: Mapping[str, str],
+        *,
+        size: tuple[int, int] | None = None,
     ) -> Session:
-        session = create(terminal_id, name, directory, command, environment)
+        session = create(terminal_id, name, directory, command, environment, size=size)
         eventually(lambda: all(s.ending for s in keeper.sessions() if s.name == name) or None)
         return session
 
@@ -423,9 +425,9 @@ def test_two_restores_at_once(
     lose_all(keeper, set_up)
     create = keeper.create
 
-    def raced(*args: Any) -> Session:  # noqa: ANN401 - those of `create`
-        create(*args)  # another attach, which had seen it lost too, restores it first
-        return create(*args)
+    def raced(*args: Any, **kwargs: Any) -> Session:  # noqa: ANN401 - those of `create`
+        create(*args, **kwargs)  # another attach, which had seen it lost too, restores it first
+        return create(*args, **kwargs)
 
     monkeypatch.setattr(keeper, "create", raced)
     found, command = actions.attach(set_up, "api", keeper=keeper, environment={"SHELL": "/bin/sh"})

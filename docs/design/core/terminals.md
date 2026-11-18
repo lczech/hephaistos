@@ -178,4 +178,6 @@ Dead panes count for none: tmux keeps the name of the pty it closed, which anoth
 tmux refuses the same only with `TMUX` set, which no Terminal has.
 A Terminal shown through a tmux of the user, e.g. one started inside it, is not found that way, as tmux itself does not find it across servers.
 `terminal create` attaches to the new Terminal by its ID, without observing again, so it attaches also if renamed meanwhile, and to the last screen of a command already ended; a shell that exited already says so.
+A Terminal that `terminal create` or `terminal attach` starts, to attach to at once, starts at the size of the terminal attaching (`new-session -x -y`, which tmux 3.2a ignores for a session made detached), not tmux's `default-size` of 80×24: resized as the client attaches, a shell whose prompt took two rows at 80 columns redraws it a row too high, over the last row shown before it, e.g. the end of the line of a restored one.
+Once attached, a Terminal takes the size of the client used last (`window-size latest`, tmux's default).
 

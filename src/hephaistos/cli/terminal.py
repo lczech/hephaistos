@@ -108,7 +108,7 @@ def _become(command: list[str]) -> NoReturn:
 def _attached(paths: Paths, name: str) -> NoReturn:
     """Becomes plain `tmux attach-session` to the Terminal, restored first if it was lost."""
     _attachable()
-    _, command = actions.attach(paths, name, tty=tty.terminal_name())
+    _, command = actions.attach(paths, name, tty=tty.terminal_name(), size=tty.terminal_size())
     _become(command)
 
 
@@ -143,8 +143,10 @@ def create(
 ) -> None:
     """Create a terminal, running your shell or a command, and attach to it, unless --detached."""
     paths = Paths.from_environment()
-    created = actions.create(paths, directory, name=name, command=command)
-    if not detached and tty.attachable():
+    attaching = not detached and tty.attachable()
+    size = tty.terminal_size() if attaching else None  # started so, not resized as it attaches
+    created = actions.create(paths, directory, name=name, command=command, size=size)
+    if attaching:
         _become(actions.attach_created(paths, created, tty=tty.terminal_name()))
     # What it runs may end any moment: say what it was given, and how it ended, if it has.
     given = "" if created.command is None else f", with command: {_command_text(created)}"

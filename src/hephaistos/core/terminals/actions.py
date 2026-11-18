@@ -90,11 +90,13 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
     command: Sequence[str] | None = None,
     keeper: Keeper | None = None,
     environment: Mapping[str, str] = os.environ,
+    size: tuple[int, int] | None = None,
 ) -> TerminalState:
     """Starts a Terminal in `directory`: `command`, else the login shell of the creator.
 
     Named `name`, else by the directory, the next free number; another process taking that
-    name meanwhile moves it on to the next. `environment` is that of the creator.
+    name meanwhile moves it on to the next. `environment` is that of the creator; `size` that
+    of the terminal about to attach to it, if any (`Keeper.create`).
 
     Returns it as observed right after: open, or ended if its command ended already, e.g. a typo,
     whose screen then shows why. One closed already, as its shell exited, is refused: nothing is
@@ -114,7 +116,7 @@ def create(  # noqa: PLR0913 - all but the first two keyword-only
             raise HephaistosError(_taken_text(name, taken.status))
         terminal_id = new_id()
         try:
-            keeper.create(terminal_id, chosen, target, command, environment)
+            keeper.create(terminal_id, chosen, target, command, environment, size=size)
         except NameTakenError:
             if name is not None:  # e.g. a session started by hand, not observed yet
                 raise HephaistosError(_taken_text(name)) from None
@@ -183,7 +185,11 @@ _RESTORING = 'printf "\\033[2m%s\\033[0m\\n" "$1"; exec "$2" -l'
 
 
 def _restore(
-    paths: Paths, keeper: Keeper, lost: TerminalState, environment: Mapping[str, str]
+    paths: Paths,
+    keeper: Keeper,
+    lost: TerminalState,
+    environment: Mapping[str, str],
+    size: tuple[int, int] | None,
 ) -> None:
     """Starts a lost Terminal again, with its ID, name and directory, as a shell.
 
@@ -206,7 +212,7 @@ def _restore(
     shell = login_shell(environment)
     command = ["sh", "-c", _RESTORING, "sh", hint, shell]
     try:
-        keeper.create(lost.id, lost.name, directory, command, environment)
+        keeper.create(lost.id, lost.name, directory, command, environment, size=size)
     except NameTakenError:
         if any(session.terminal_id == lost.id for session in keeper.sessions()):
             return  # restored meanwhile by another process, e.g. a second attach
@@ -239,21 +245,22 @@ def _attach_command(
     return keeper.attach_command(listed[0])
 
 
-def attach(
+def attach(  # noqa: PLR0913 - all but the first two keyword-only
     paths: Paths,
     name: str,
     *,
     keeper: Keeper | None = None,
     environment: Mapping[str, str] = os.environ,
     tty: str | None = None,
+    size: tuple[int, int] | None = None,
 ) -> tuple[TerminalState, list[str]]:
     """The Terminal named `name`, restored first if lost, and the command that attaches to it.
 
     One ended shows its last screen, as tmux keeps it; refused if its session is gone too, e.g.
-    after a reboot, as there is nothing to show. `environment` and `tty` are those of the
-    process attaching: refused at a tty that the Terminal shows, as its output would loop back
-    into it. Not by `HEPHAISTOS_TERMINAL`, which may have spread beyond it, e.g. into a tmux of
-    the user whose server started inside it.
+    after a reboot, as there is nothing to show. `environment`, `tty` and `size` are those of the
+    process attaching, `size` for one restored (`Keeper.create`): refused at a tty that the
+    Terminal shows, as its output would loop back into it. Not by `HEPHAISTOS_TERMINAL`, which
+    may have spread beyond it, e.g. into a tmux of the user whose server started inside it.
     """
     keeper = keeper or TmuxKeeper.from_settings(paths)
     _observed(paths, keeper)
@@ -268,7 +275,7 @@ def attach(
             f" screen is gone, as {why}; run `{close}` to remove it"
         )
     if found.status is TerminalStatus.LOST:
-        _restore(paths, keeper, found, environment)
+        _restore(paths, keeper, found, environment, size)
         _observed(paths, keeper)
         with read_session(paths) as session:
             found = state.by_id(session, found.id) or found

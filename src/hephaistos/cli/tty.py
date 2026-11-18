@@ -25,6 +25,15 @@ def attachable() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
+def terminal_size() -> tuple[int, int] | None:
+    """The columns and rows of the terminal that output goes to; None if none."""
+    try:
+        size = os.get_terminal_size(sys.stdout.fileno())
+    except (OSError, ValueError):  # not a terminal, or stdout closed or replaced, as in tests
+        return None
+    return size.columns, size.lines
+
+
 def terminal_name() -> str | None:
     """The tty that input comes from, e.g. `/dev/pts/3`; None if none."""
     try:

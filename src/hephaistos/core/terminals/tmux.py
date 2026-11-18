@@ -44,6 +44,9 @@ MINIMUM_TEXT = "3.2a"
 REAPS = (3, 6)
 #: The first whose line in a dead pane we can extend, by `remain-on-exit-format`.
 HINTS = (3, 3)
+#: The first that starts a session made detached at the size given (`new-session -d -x -y`):
+#: 3.2a starts it at `default-size` whatever they say.
+SIZED = (3, 3)
 TIMEOUT = 10.0  # seconds for one tmux command; tmux is local, so only a hung one takes long
 DEFAULT_SOCKET = "hephaistos"
 CONFIG_NAME = "tmux.conf"  # in the state directory
@@ -647,15 +650,23 @@ class TmuxKeeper:
                 return session
         raise NoSuchSessionError(f"no terminal named {name}")
 
-    def create(
+    def create(  # noqa: PLR0913 - `size` keyword-only
         self,
         terminal_id: uuid.UUID,
         name: str,
         directory: Path,
         command: Sequence[str] | None,
         environment: Mapping[str, str],
+        *,
+        size: tuple[int, int] | None = None,
     ) -> Session:
         """Starts a session; see `Keeper.create`.
+
+        Detached, tmux starts it at `default-size`, 80x24, unless given `size` (from `SIZED`
+        on; before, it starts so as before); once attached,
+        it takes the size of the client used last (`window-size latest`). A shell whose prompt
+        took two rows at 80 columns, started before a wider client attaches, redraws it a row too
+        high after the reflow, over the last row of what was shown before it.
 
         Its ID is set by the same command list, so nobody sees it without one, and so is the
         marker of a command, which keeps its pane once ended, also one that ends at once.
@@ -690,6 +701,7 @@ class TmuxKeeper:
             )
         args = [
             "new-session", "-d", "-s", _literal(name), "-c", _literal(str(directory)),
+            *([] if size is None else ["-x", str(size[0]), "-y", str(size[1])]),
             *map(_escaped, pairs),
             *map(_escaped, program),
             ";", "set-option", ID_OPTION, str(terminal_id),  # without a target: the new session
