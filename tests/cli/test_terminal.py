@@ -413,7 +413,17 @@ def test_attach_restores_a_lost_one(keeper: TmuxKeeper, outer: Outer, proj: Path
     said = "hephaistos restored this terminal as a new shell, as the tmux server ended (noticed"
     ended = "; earlier output is gone; it ran sleep 600, which does not start again"
     # Longer than the outer terminal's 100 columns.
-    eventually(lambda: ended in outer.text())  # its end: tmux may draw the line in parts
+    try:
+        eventually(lambda: ended in outer.text())  # its end: tmux may draw the line in parts
+    except pytest.fail.Exception:
+        # It fails now and then in CI only: what each tmux holds, to tell where the line stops.
+        inner = [keeper.binary, "-L", keeper.socket, "capture-pane", "-p", "-J", "-t", "=api:"]
+        held = subprocess.run(inner, capture_output=True, text=True, check=False)
+        pytest.fail(
+            f"the end of the line never showed\n--- outer screen:\n{outer.screen()}"
+            f"\n--- the Terminal's own pane:\n{held.stdout}{held.stderr}"
+            f"\n--- terminal show api:\n" + "\n".join(ok("show", "api"))
+        )
     assert said in outer.text()
     assert ok("list")[1].split()[:2] == ["api", "open"]
 
