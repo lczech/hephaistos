@@ -6,7 +6,7 @@ import pytest
 from hephaistos.core.utils import graph
 from hephaistos.core.utils.graph import Head, Standing
 from hephaistos.core.utils.history import Next, history, refs
-from support import clone, create, git
+from support import clone, create, git, needs_git
 
 
 def _commit(repo: Path, message: str) -> str:
@@ -151,6 +151,7 @@ def test_a_walk_from_nothing_has_no_commits(repo: Path) -> None:
     assert (later.commits, later.next) == ((), None)
 
 
+@needs_git(2, 42)  # `worktree add --orphan`
 def test_walks_before_the_first_commit_have_no_commits(repo: Path, tmp_path: Path) -> None:
     empty = create(tmp_path / "empty", commits=0)
     for branches in ("local", "worktrees"):

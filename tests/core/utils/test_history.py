@@ -18,7 +18,7 @@ from hephaistos.core.utils.history import (
     history,
     refs,
 )
-from support import clone, create, git
+from support import clone, create, git, needs_git
 
 
 def _commit(repo: Path, message: str, files: dict[str, str] | None = None) -> str:
@@ -374,6 +374,7 @@ def test_lines_walk_as_the_history_of_the_same_starts(forked: Path) -> None:
     assert [ref.name for ref in by_hash[side].refs] == ["side"]
 
 
+@needs_git(2, 34)  # `gpg.format=ssh`
 def test_lines_without_signatures_whatever_git_is_set_to_show(forked: Path, tmp_path: Path) -> None:
     if shutil.which("ssh-keygen") is None:
         pytest.skip("ssh-keygen signs the commit")
