@@ -20,6 +20,7 @@ from pathlib import Path
 
 UNIT = "hephaistos.service"
 STATE = Path(os.environ["FAKE_SYSTEMD"])
+READ_ONLY = frozenset({"show-environment", "daemon-reload", "show"})
 UNIT_FILE = Path.home() / ".config" / "systemd" / "user" / UNIT
 
 
@@ -31,7 +32,10 @@ def _state() -> dict[str, object]:
 
 
 def _save(state: dict[str, object]) -> None:
-    (STATE / "state.json").write_text(json.dumps(state))
+    """Replaces the state at once: the Daemon calls too, so another call may be reading it."""
+    temporary = STATE / f"state.{os.getpid()}.json"
+    temporary.write_text(json.dumps(state))
+    temporary.replace(STATE / "state.json")
 
 
 def _alive(pid: object) -> bool:
@@ -106,7 +110,8 @@ def systemctl(args: list[str]) -> int:
         case _:
             print(f"unknown command {command}", file=sys.stderr)
             return 1
-    _save(state)
+    if command not in READ_ONLY:  # else it might save over what another call saved meanwhile
+        _save(state)
     return 0
 
 
