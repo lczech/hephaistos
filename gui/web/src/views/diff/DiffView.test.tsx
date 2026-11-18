@@ -1025,12 +1025,17 @@ describe("the Diff View", () => {
         "clone:clone-proj": { "paths:stack": ["top.txt"] },
       });
       expect(localStorage.getItem("hephaistos.folds.changes")).toBeNull();
-      // Its files' diffs, all near, asked for before the test ends.
+      // Its files' diffs, all near, asked for before the test ends; refetches may ask again.
       const diffsOf = (clone: string) =>
-        requests
-          .map((request) => new URL(request.url))
-          .filter((url) => url.pathname === "/api/diff" && url.searchParams.get("clone") === clone);
-      await waitFor(() => expect(diffsOf("clone-other")).toHaveLength(3));
+        new Set(
+          requests
+            .map((request) => new URL(request.url))
+            .filter(
+              (url) => url.pathname === "/api/diff" && url.searchParams.get("clone") === clone,
+            )
+            .map((url) => url.searchParams.get("path")),
+        );
+      await waitFor(() => expect(diffsOf("clone-other").size).toBe(3));
     });
 
     it("folds a directory in the stack apart from the same in the untracked files", async () => {

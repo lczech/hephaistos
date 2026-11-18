@@ -683,12 +683,12 @@ describe("the Workbench", () => {
 
     it("keeps Forward in a Group left empty a moment by moving its View out", async () => {
       saveGrid([{ tabs: ["probe"] }, { tabs: ["linker"] }], "HORIZONTAL");
-      const requests = serve({
+      serve({
         ...ROUTES,
         "GET /api/config": () => json({ settings: [setting("gui.keep_empty_groups", true)] }),
       });
       let dock: ReturnType<typeof useDock> = null;
-      renderWithQueries(
+      const { client } = renderWithQueries(
         <ViewOpener>
           <Workbench />
           <DockOf
@@ -698,9 +698,8 @@ describe("the Workbench", () => {
           />
         </ViewOpener>,
       );
-      await waitFor(() =>
-        expect(requests.map((request) => new URL(request.url).pathname)).toContain("/api/config"),
-      );
+      // Its answer, not only its request: it may come later.
+      await waitFor(() => expect(client.getQueryData(KEYS.config)).toBeDefined());
       await nextFrame();
       const api = dock as unknown as NonNullable<ReturnType<typeof useDock>>;
       const group = (id: string) => api.groups.find((group) => group.id === id);

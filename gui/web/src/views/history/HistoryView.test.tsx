@@ -256,18 +256,7 @@ describe("the History View", () => {
   });
 
   it("asks for the next page with neither start nor path where it names none", async () => {
-    let scrolledToEnd = () => {};
-    vi.stubGlobal(
-      "IntersectionObserver",
-      class {
-        constructor(seen: IntersectionObserverCallback) {
-          scrolledToEnd = () =>
-            seen([{ isIntersecting: true }] as IntersectionObserverEntry[], this as never);
-        }
-        observe() {}
-        disconnect() {}
-      },
-    );
+    const scrolledToEnd = endOfList();
     const next = { start: null, path: null, skip: 50 };
     const requests = serveHistory((url) =>
       url.searchParams.has("skip") ? json(page([commit(1)])) : json(page([HEAD], next)),
@@ -276,7 +265,9 @@ describe("the History View", () => {
     expect(await screen.findByText("Older commits load as you scroll.")).toBeInTheDocument();
     act(() => scrolledToEnd());
     expect(await screen.findByText("Commit 1")).toBeInTheDocument();
-    const older = new URL(requests.at(-1)?.url ?? "").searchParams;
+    // The last request for the next page: a refetch may come after it.
+    const older = new URL(requests.findLast((r) => r.url.includes("skip="))?.url ?? "")
+      .searchParams;
     expect([older.has("start"), older.has("path"), older.get("skip")]).toEqual([
       false,
       false,
