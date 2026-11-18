@@ -17,5 +17,9 @@ done
 wait "$suite"
 beside=$?
 echo "the stress tests: $runs runs, $failed failed; the suite beside: $(tail -n 1 "$out/suite.txt")"
+# What failed, in full, as CI keeps no file: pytest's report of its failures in each.
+for file in "$out/suite.txt" "$out"/failed-*.txt; do
+    [ -e "$file" ] && sed -n '/^=* FAILURES =*$/,/^=* short test summary info =*$/p' "$file"
+done
 [ "$failed" -eq 0 ] || echo "see $out/failed-*.txt" >&2
 [ "$failed" -eq 0 ] && [ "$beside" -eq 0 ]
