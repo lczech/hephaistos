@@ -33,6 +33,8 @@ def test_command_runs_in_a_scope() -> None:
         *("--", "sh", "-l"),
     ]
     assert "--unit=u" not in found.command(["sh"], unit=None, description="d")
+    literal = Scopes("/usr/bin/systemd-run", {}, literal=True)
+    assert "--expand-environment=no" in literal.command(["sh"], unit=None, description="d")
 
 
 def test_none_where_systemctl_fails() -> None:
@@ -44,16 +46,27 @@ def test_none_without_systemd_run(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert scopes.detect() is None
 
 
-def test_the_managers_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("version", "literal"),
+    [
+        ("systemd 258 (258.1-1ubuntu1)\n+PAM +AUDIT", True),
+        ("systemd 254 (254)", True),
+        ("systemd 249 (249.11-0ubuntu3)", False),  # has no `--expand-environment`
+        ("", False),  # says no version
+    ],
+)
+def test_the_managers_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, version: str, *, literal: bool
+) -> None:
     fake = tmp_path
     (fake / "systemctl").write_text("#!/bin/sh\nprintf 'A=1\\nB=$%s\\n' \"'x y'\"\n")
-    (fake / "systemd-run").write_text("#!/bin/sh\n")
+    (fake / "systemd-run").write_text(f"#!/bin/sh\nprintf '%s\\n' '{version}'\n")
     for name in ("systemctl", "systemd-run"):
         (fake / name).chmod(0o755)
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
     found = scopes.detect()
     assert found == Scopes(
-        str(fake / "systemd-run"), {"A": "1", "B": "x y"}, str(fake / "systemctl")
+        str(fake / "systemd-run"), {"A": "1", "B": "x y"}, str(fake / "systemctl"), literal=literal
     )
 
 

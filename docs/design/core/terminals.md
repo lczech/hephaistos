@@ -75,6 +75,7 @@ So for those versions, our config starts one job in the server, guarded by `@hep
 systemd stops a unit by killing its whole cgroup, and systemd-oomd kills whole cgroups under memory pressure.
 A process stays in the cgroup of the process that forked it, however it detaches.
 So where the systemd user manager answers, the tmux server starts in a scope of its own (`systemd-run --user --scope`), and the process of each Terminal in another, `hephaistos-terminal-<id>.scope`.
+From systemd 258, `systemd-run` expands `$VARIABLE` in the command of a scope, as in a unit's `ExecStart=`; from systemd 254, which `systemd-run --version` tells, it gets `--expand-environment=no`, so the command keeps each `$` for its shell.
 A tmux built with systemd support, e.g. that of Ubuntu, asks the manager over the D-Bus session bus for a scope for each new pane, `tmux-spawn-*.scope`, which stays, empty, until logout where the program of the pane ends at once.
 So the server we start in a scope starts without that bus (`DBUS_SESSION_BUS_ADDRESS` set to a path that does not exist), and makes none; `systemd-run` and `systemctl` reach the manager through its own socket, without the bus.
 systemd 255 also keeps a scope of ours, empty, where its Terminal ends while the scope starts, e.g. closed at once; so where a Terminal is created or closed, the Keeper stops each active `hephaistos-terminal-*.scope` whose cgroup holds no process, which none joins again.

@@ -5,12 +5,16 @@ memory pressure; a process stays in the cgroup of the process that forked it, ho
 detaches. `systemd-run --user --scope` moves a command into a new scope of the user manager, then
 becomes the command, keeping its process ID.
 
+From systemd 258, systemd-run expands `$VARIABLE` in the command of a scope too, as in a unit's
+`ExecStart=`; `--expand-environment=no`, from systemd 254, passes it on as it is, for its shell.
+
 Where that command ends while its scope starts, e.g. killed at once, systemd 255 can keep the
 scope active, empty, until logout; nothing joins such a scope again, so `stop_empty` stops it.
 """
 
 import codecs
 import logging
+import re
 import shutil
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -21,6 +25,7 @@ log = logging.getLogger(__name__)
 
 TIMEOUT = 5.0  # seconds for systemctl to answer; the user manager is local
 CGROUPS = Path("/sys/fs/cgroup")  # cgroup v2
+LITERAL_SINCE = 254  # the systemd that has `--expand-environment`
 
 
 @dataclass(frozen=True)
@@ -30,16 +35,19 @@ class Scopes:
     systemd_run: str  # its path
     environment: Mapping[str, str]  # that of the manager, as the apps of a desktop session get it
     systemctl: str = "systemctl"  # its path
+    literal: bool = False  # systemd-run takes `--expand-environment=no`
 
     def command(self, command: Sequence[str], *, unit: str | None, description: str) -> list[str]:
         """`command`, run in a new scope: named `unit` (`<unit>.scope`), else one systemd names."""
         named = [f"--unit={unit}"] if unit else []
+        literal = ["--expand-environment=no"] if self.literal else []  # a `$` is for the command
         return [
             self.systemd_run,
             "--user",
             "--scope",
             "--quiet",
             "--collect",  # gone once it ends, even after a failure
+            *literal,
             *named,
             f"--description={description}",
             "--",
@@ -171,4 +179,29 @@ def detect() -> Scopes | None:
     if result.returncode != 0:
         log.info("no systemd scopes: %s", result.stderr.strip() or f"exit code {result.returncode}")
         return None
-    return Scopes(systemd_run, parse_environment(result.stdout), systemctl)
+    environment = parse_environment(result.stdout)
+    return Scopes(
+        systemd_run, environment, systemctl, literal=_version(systemd_run) >= LITERAL_SINCE
+    )
+
+
+def _version(systemd_run: str) -> int:
+    """The version of systemd that `systemd_run` is of, e.g. 255; 0 if it does not say."""
+    try:
+        result = subprocess.run(  # noqa: S603 - arguments are a list, never passed through a shell
+            [systemd_run, "--version"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
+            timeout=TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        log.info("systemd-run --version failed: %s", error)
+        return 0
+    # The first line is e.g. `systemd 255 (255.4-1ubuntu8.18)`.
+    match = re.match(r"systemd (\d+)", result.stdout)
+    if match is None:
+        log.info("systemd-run --version says no version: %r", result.stdout[:100])
+        return 0
+    return int(match.group(1))
